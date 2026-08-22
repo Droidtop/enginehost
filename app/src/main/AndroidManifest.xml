@@ -7,7 +7,7 @@
         android:extractNativeLibs="true">
 
         <!--
-             The basic pick-and-launch UI -- for a person holding the
+             The basic pick-and-launch UI, for a person holding the
              device, not the primary intended way in (see LaunchActivity).
         -->
         <activity
@@ -26,11 +26,11 @@
         <!--
              The only real entry point, and deliberately the whole
              contract: exported, takes one extra ("path", an absolute
-             folder), and figures out everything else -- which engine,
-             which file to run, engine-specific options -- from an
+             folder), and figures out everything else, which engine,
+             which file to run, engine-specific options, from an
              enginehost.json file this app expects to find at that
              folder's own root. No catalog, no import step, no per-caller
-             metadata to keep in sync -- any caller (not just droidtop)
+             metadata to keep in sync; any caller (not just droidtop)
              just needs a folder with a valid config in it. See
              LaunchActivity and EngineConfig's own doc comments.
         -->
