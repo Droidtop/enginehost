@@ -7,11 +7,12 @@ import java.io.File
 const val CONFIG_FILE_NAME = "enginehost.json"
 
 /**
- * A game folder's own self-description of how to run it -- read directly
- * from `<folder>/enginehost.json`, not supplied by whatever caller launched
- * enginehost. This is the whole point of the design: a caller only ever
- * needs to hand enginehost a folder path, never engine-specific metadata of
- * its own to keep in sync. Real schema:
+ * A game folder's own self-description of how to run it -- normally read
+ * directly from `<folder>/enginehost.json`, so a caller only ever needs to
+ * hand enginehost a folder path, never engine-specific metadata of its own
+ * to keep in sync. A caller that hasn't (or can't) annotate the folder
+ * yet can instead pass the same JSON inline as [LaunchActivity]'s own
+ * "config" extra -- see [EngineConfigReader.resolve]. Real schema:
  *
  * ```json
  * {
@@ -20,8 +21,7 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  *   "pluginVersion": "1.0.0,1.2.0-1.4.0",
  *   "execFile": "Game.exe",
  *   "options": {
- *     "rubyVersion": "1.9",
- *     "encryptionKey": "..."
+ *     "rubyVersion": "1.9"
  *   }
  * }
  * ```
@@ -56,16 +56,34 @@ data class EngineConfig(
 class InvalidEngineConfigException(message: String) : Exception(message)
 
 object EngineConfigReader {
-    fun read(gameFolder: File): EngineConfig {
+    /**
+     * The real resolution order: a game folder's own `enginehost.json`
+     * always wins if present, since it travels with the game and is the
+     * durable source of truth. `inlineJson` (typically [LaunchActivity]'s
+     * "config" extra) is only consulted when the folder has no config of
+     * its own -- meant for a caller that knows the config but hasn't (or
+     * can't) written it into the folder yet, not a way to override an
+     * existing one.
+     */
+    fun resolve(gameFolder: File, inlineJson: String?): EngineConfig {
         val configFile = File(gameFolder, CONFIG_FILE_NAME)
-        if (!configFile.isFile) {
-            throw InvalidEngineConfigException("No $CONFIG_FILE_NAME in ${gameFolder.absolutePath}")
+        if (configFile.isFile) {
+            return parse(configFile.readText())
         }
-        val json = JSONObject(configFile.readText())
+        if (inlineJson != null) {
+            return parse(inlineJson)
+        }
+        throw InvalidEngineConfigException(
+            "No $CONFIG_FILE_NAME in ${gameFolder.absolutePath} and no inline config was passed",
+        )
+    }
+
+    private fun parse(raw: String): EngineConfig {
+        val json = JSONObject(raw)
         val engine = json.optString("engine").takeIf { it.isNotBlank() }
-            ?: throw InvalidEngineConfigException("$CONFIG_FILE_NAME missing required \"engine\" field")
+            ?: throw InvalidEngineConfigException("Config missing required \"engine\" field")
         val engineVersionRaw = json.optString("engineVersion").takeIf { it.isNotBlank() }
-            ?: throw InvalidEngineConfigException("$CONFIG_FILE_NAME missing required \"engineVersion\" field")
+            ?: throw InvalidEngineConfigException("Config missing required \"engineVersion\" field")
         return EngineConfig(
             engine = engine,
             engineVersion = Version.parse(engineVersionRaw),

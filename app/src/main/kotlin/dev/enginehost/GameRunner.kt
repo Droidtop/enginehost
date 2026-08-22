@@ -18,9 +18,9 @@ import java.io.File
 object GameRunner {
     private const val TAG = "enginehost"
 
-    fun run(activity: Activity, gameFolder: File) {
+    fun run(activity: Activity, gameFolder: File, inlineJson: String? = null) {
         val config = try {
-            EngineConfigReader.read(gameFolder)
+            EngineConfigReader.resolve(gameFolder, inlineJson)
         } catch (e: InvalidEngineConfigException) {
             fail(activity, e.message ?: "Invalid $CONFIG_FILE_NAME")
             return

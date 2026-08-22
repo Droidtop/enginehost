@@ -17,11 +17,13 @@ Fire an Intent:
 ```
 action: dev.enginehost.LAUNCH
 extra "path": absolute path to the game's folder
+extra "config" (optional): a raw enginehost.json-shaped JSON string
 ```
 
-That's the whole interface. No catalog, no import step, no metadata to
-pass beyond the path — enginehost reads a small `enginehost.json` file at
-the root of that folder to figure out everything else:
+That's the whole interface. In the normal case there's no catalog, no
+import step, no metadata to pass beyond the path — enginehost reads a
+small `enginehost.json` file at the root of that folder to figure out
+everything else:
 
 ```json
 {
@@ -63,6 +65,12 @@ real option keys.
 Nothing about this file's contents, or the folder it lives in, is ever
 copied or moved by enginehost. It reads the folder in place and runs the
 game from there.
+
+A caller that already knows a game's config but hasn't (or can't) written
+it into the folder yet can pass the same JSON inline via `LAUNCH`'s
+`config` extra instead. The folder's own `enginehost.json` always wins if
+it exists — `config` is a fallback for when there isn't one, not a way to
+override an existing one.
 
 ## The basic UI
 
