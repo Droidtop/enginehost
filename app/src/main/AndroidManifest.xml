@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:label="enginehost"
+        android:allowBackup="false"
+        android:extractNativeLibs="true">
+
+        <!--
+             The basic pick-and-launch UI -- for a person holding the
+             device, not the primary intended way in (see LaunchActivity).
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ControllerConfigActivity"
+            android:exported="false" />
+
+        <!--
+             The only real entry point, and deliberately the whole
+             contract: exported, takes one extra ("path", an absolute
+             folder), and figures out everything else -- which engine,
+             which file to run, engine-specific options -- from an
+             enginehost.json file this app expects to find at that
+             folder's own root. No catalog, no import step, no per-caller
+             metadata to keep in sync -- any caller (not just droidtop)
+             just needs a folder with a valid config in it. See
+             LaunchActivity and EngineConfig's own doc comments.
+        -->
+        <activity
+            android:name=".LaunchActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="dev.enginehost.LAUNCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
