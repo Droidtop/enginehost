@@ -25,10 +25,13 @@ the root of that folder to figure out everything else:
 
 ```json
 {
-  "engine": "kirikiri2",
-  "engineVersion": "2.32",
+  "engine": "rpgmvxace",
+  "engineVersion": "1.4.0",
   "pluginVersion": "1.0.0,1.2.0-1.4.0",
-  "execFile": "startup.tjs"
+  "execFile": "Game.exe",
+  "options": {
+    "rubyVersion": "1.9"
+  }
 }
 ```
 
@@ -48,6 +51,14 @@ trusts, letting a game protect itself from a known-bad plugin revision
 (the motivating real case: JoiPlay's own RPG Maker plugin has reportedly
 regressed specific games in newer builds). `execFile` is optional — the
 specific file to run within the folder, for engines that need one.
+
+`options` is a generic, opaque-to-enginehost bag of engine-specific
+settings, passed straight through to the resolved plugin without being
+inspected. The real motivating case: an RGSS game (RPG Maker XP/VX/VX
+Ace) can need a specific Ruby/Marshal version to correctly deserialize
+its own scripts, or a decryption key, or RTP info — none of which
+enginehost has any business understanding. Each plugin defines its own
+real option keys.
 
 Nothing about this file's contents, or the folder it lives in, is ever
 copied or moved by enginehost. It reads the folder in place and runs the
@@ -73,8 +84,9 @@ A plugin declares:
 - `<meta-data>` for `dev.enginehost.plugin.engine`, `.engineVersion`, and
   `.pluginVersion`.
 
-When invoked, it receives extras `path` (the game folder) and, if the
-game's config had one, `execFile`.
+When invoked, it receives extra `path` (the game folder) and, if the
+game's config had them, `execFile` and `options` (the raw JSON string —
+each plugin parses its own real keys out of it).
 
 Each plugin repo keeps its full commit history — no shallow/squashed
 clones. For an engine with real distinct incompatible versions (Ren'Py's

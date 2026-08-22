@@ -34,6 +34,8 @@ object GameRunner {
             component = ComponentName(plugin.packageName, plugin.activityName)
             putExtra("path", gameFolder.absolutePath)
             config.execFile?.let { putExtra("execFile", it) }
+            // Passed through as-is, never inspected here -- see EngineConfig's own doc comment.
+            config.options?.let { putExtra("options", it.toString()) }
         }
         try {
             activity.startActivity(intent)

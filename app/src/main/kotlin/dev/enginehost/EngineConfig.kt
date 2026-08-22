@@ -15,10 +15,14 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  *
  * ```json
  * {
- *   "engine": "kirikiri2",
- *   "engineVersion": "2.32",
+ *   "engine": "rpgmvxace",
+ *   "engineVersion": "1.4.0",
  *   "pluginVersion": "1.0.0,1.2.0-1.4.0",
- *   "execFile": "startup.tjs"
+ *   "execFile": "Game.exe",
+ *   "options": {
+ *     "rubyVersion": "1.9",
+ *     "encryptionKey": "..."
+ *   }
  * }
  * ```
  *
@@ -30,12 +34,23 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  * trusted for this specific game -- see [VersionConstraint]. `execFile` is
  * optional, the specific file within the folder to run, for engines that
  * need one rather than just scanning the folder itself.
+ *
+ * `options` is a deliberately generic, opaque-to-enginehost bag of
+ * engine-specific settings -- the real motivating case: an RGSS game
+ * (RPG Maker XP/VX/VX Ace) can need a specific Ruby/Marshal-format
+ * version to correctly deserialize its own .rxdata/.rvdata scripts, or a
+ * specific decryption key, or RTP dependency info, none of which
+ * enginehost itself has any business understanding. enginehost passes
+ * this straight through to whichever plugin gets resolved (as a raw JSON
+ * string extra) without inspecting it -- each plugin defines its own real
+ * option keys.
  */
 data class EngineConfig(
     val engine: String,
     val engineVersion: Version,
     val pluginVersionConstraint: VersionConstraint?,
     val execFile: String?,
+    val options: JSONObject?,
 )
 
 class InvalidEngineConfigException(message: String) : Exception(message)
@@ -57,6 +72,7 @@ object EngineConfigReader {
             pluginVersionConstraint = json.optString("pluginVersion").takeIf { it.isNotBlank() }
                 ?.let { VersionConstraint.parse(it) },
             execFile = json.optString("execFile").takeIf { it.isNotBlank() },
+            options = json.optJSONObject("options"),
         )
     }
 }
