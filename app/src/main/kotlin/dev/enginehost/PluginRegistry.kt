@@ -18,8 +18,7 @@ private const val META_PLUGIN_VERSION = "dev.enginehost.plugin.pluginVersion"
  * versions for real compatibility reasons), built as its own
  * `pluginVersion` (independent of engineVersion: a plugin's own code can
  * regress or fix things across its own revisions without the underlying
- * engine changing at all -- exactly the kind of "newer plugin build broke
- * this game" problem JoiPlay's own RPG Maker plugin has reportedly had).
+ * engine changing at all).
  */
 data class PluginInfo(
     val engine: String,
@@ -40,9 +39,8 @@ data class InstalledPlugin(
  * bundles itself. A plugin declares the [ACTION_RUN_PLUGIN] intent-filter
  * on an exported activity, plus real manifest `<meta-data>` for
  * `dev.enginehost.plugin.engine`/`engineVersion`/`pluginVersion`. This is
- * the same real discovery shape JoiPlay's own plugin system uses
- * (confirmed by decompiling it), just with real version-range resolution
- * on top instead of a single flat type string.
+ * Android's standard package-discovery mechanism, with version-range
+ * resolution on top.
  */
 object PluginRegistry {
     fun discover(context: Context): List<InstalledPlugin> {
