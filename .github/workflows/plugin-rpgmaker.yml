@@ -27,7 +27,7 @@ jobs:
           git -C .ci/rpgmaker apply "$GITHUB_WORKSPACE/plugins/rpgmaker/mkxp-z-android-enginehost.patch"
       - name: Fetch upstream-pinned native dependencies
         working-directory: .ci/rpgmaker/app/jni
-        run: ./get_deps.sh
+        run: bash ./get_deps.sh
       - name: Build native RGSS and HTML5 APK
         working-directory: .ci/rpgmaker
         run: ./gradlew :app:assembleDebug --stacktrace

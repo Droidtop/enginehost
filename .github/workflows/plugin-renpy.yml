@@ -55,10 +55,11 @@ jobs:
       - name: Build through official RAPT pipeline
         run: |
           mkdir -p plugins/renpy/dist
-          .ci/renpy-8.5.3-sdk/renpy.sh launcher android_build \
+          cd .ci/renpy-8.5.3-sdk
+          ./renpy.sh launcher android_build \
             "$GITHUB_WORKSPACE/plugins/renpy" \
             --destination "$GITHUB_WORKSPACE/plugins/renpy/dist"
-          test -n "$(find plugins/renpy/dist -maxdepth 1 -name '*.apk' -print -quit)"
+          test -n "$(find "$GITHUB_WORKSPACE/plugins/renpy/dist" -maxdepth 1 -name '*.apk' -print -quit)"
       - uses: actions/upload-artifact@v4
         with:
           name: enginehost-plugin-renpy-8.5.3-apk
