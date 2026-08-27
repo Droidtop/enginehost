@@ -1,0 +1,66 @@
+name: Build Ren'Py 8.5.3 plugin
+
+on:
+  push:
+    branches: [main]
+    paths: ["plugins/renpy/**", ".github/workflows/plugin-renpy.yml"]
+  pull_request:
+    paths: ["plugins/renpy/**", ".github/workflows/plugin-renpy.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Download pinned official Ren'Py SDK and RAPT
+        run: |
+          mkdir -p .ci
+          curl --fail --location --retry 3 --output .ci/sdk.zip \
+            https://www.renpy.org/dl/8.5.3/renpy-8.5.3-sdk.zip
+          curl --fail --location --retry 3 --output .ci/rapt.zip \
+            https://www.renpy.org/dl/8.5.3/renpy-8.5.3-rapt.zip
+          unzip -q .ci/sdk.zip -d .ci
+          unzip -q .ci/rapt.zip -d .ci/renpy-8.5.3-sdk
+      - name: Apply pinned enginehost integration
+        run: |
+          RENPY_SHA=76f9b91fa444e01f1a4adf586297e7eff17ad1ca
+          BUILD_SHA=030369768dbf4568eddf38ee76a5241a4223c566
+          RAW=https://raw.githubusercontent.com/bi0shacker001
+          curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/renpy/bootstrap.py \
+            "$RAW/renpy/$RENPY_SHA/renpy/bootstrap.py"
+          curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/rapt/templates/app-AndroidManifest.xml \
+            "$RAW/renpy-build/$BUILD_SHA/rapt/templates/app-AndroidManifest.xml"
+          curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/rapt/prototype/renpyandroid/src/main/java/org/renpy/android/PythonSDLActivity.java \
+            "$RAW/renpy-build/$BUILD_SHA/rapt/prototype/renpyandroid/src/main/java/org/renpy/android/PythonSDLActivity.java"
+          curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/rapt/prototype/renpyandroid/src/main/java/org/renpy/android/EngineHostRunActivity.java \
+            "$RAW/renpy-build/$BUILD_SHA/rapt/prototype/renpyandroid/src/main/java/org/renpy/android/EngineHostRunActivity.java"
+          mkdir -p .ci/renpy-8.5.3-sdk/rapt/prototype/app/src/main/res/raw
+          curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/rapt/prototype/app/src/main/res/raw/enginehost_capabilities.json \
+            "$RAW/renpy-build/$BUILD_SHA/rapt/prototype/app/src/main/res/raw/enginehost_capabilities.json"
+      - name: Configure SDK and disposable CI signing
+        run: |
+          printf '%s\n' "$ANDROID_HOME" > .ci/renpy-8.5.3-sdk/rapt/sdk.txt
+          keytool -genkeypair -noprompt -keystore plugins/renpy/android.keystore \
+            -storepass android -keypass android -alias android -keyalg RSA \
+            -keysize 2048 -validity 10000 -dname "CN=enginehost CI"
+          cp plugins/renpy/android.keystore plugins/renpy/bundle.keystore
+      - name: Build through official RAPT pipeline
+        run: |
+          mkdir -p plugins/renpy/dist
+          .ci/renpy-8.5.3-sdk/renpy.sh launcher android_build \
+            "$GITHUB_WORKSPACE/plugins/renpy" \
+            --destination "$GITHUB_WORKSPACE/plugins/renpy/dist"
+          test -n "$(find plugins/renpy/dist -maxdepth 1 -name '*.apk' -print -quit)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enginehost-plugin-renpy-8.5.3-apk
+          path: plugins/renpy/dist/*.apk
+          if-no-files-found: error

@@ -1,0 +1,13 @@
+{
+  "package": "dev.enginehost.plugin.renpy.slot1",
+  "name": "enginehost Ren'Py runtime",
+  "icon_name": "enginehost Ren'Py",
+  "version": "0.1.0",
+  "numeric_version": 1,
+  "orientation": "sensor",
+  "permissions": [],
+  "store": "none",
+  "update_always": true,
+  "update_icons": false,
+  "update_keystores": true
+}

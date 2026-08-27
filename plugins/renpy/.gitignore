@@ -1,0 +1,5 @@
+/.ci/
+/dist/
+/android.keystore
+/bundle.keystore
+*.rpyc

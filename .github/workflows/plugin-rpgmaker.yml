@@ -1,0 +1,38 @@
+name: Build unified RPG Maker plugin
+
+on:
+  push:
+    branches: [main]
+    paths: ["plugins/rpgmaker/**", ".github/workflows/plugin-rpgmaker.yml"]
+  pull_request:
+    paths: ["plugins/rpgmaker/**", ".github/workflows/plugin-rpgmaker.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Restore pinned GPL Android runtime source
+        run: |
+          git clone https://github.com/thehatkid/mkxp-z-android.git .ci/rpgmaker
+          git -C .ci/rpgmaker checkout 468fe8128a40cc7d2cba4ac7fbe21a82787de255
+          git -C .ci/rpgmaker apply "$GITHUB_WORKSPACE/plugins/rpgmaker/mkxp-z-android-enginehost.patch"
+      - name: Fetch upstream-pinned native dependencies
+        working-directory: .ci/rpgmaker/app/jni
+        run: ./get_deps.sh
+      - name: Build native RGSS and HTML5 APK
+        working-directory: .ci/rpgmaker
+        run: ./gradlew :app:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enginehost-plugin-rpgmaker-debug-apks
+          path: .ci/rpgmaker/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

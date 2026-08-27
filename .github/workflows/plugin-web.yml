@@ -1,0 +1,41 @@
+name: Build Twine and Flash plugin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugins/web/**"
+      - ".github/workflows/plugin-web.yml"
+  pull_request:
+    paths:
+      - "plugins/web/**"
+      - ".github/workflows/plugin-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Bundle pinned Ruffle Web runtime
+        run: |
+          mkdir -p plugins/web/app/src/main/assets/ruffle .ci
+          curl --fail --location --retry 3 --output .ci/ruffle.zip \
+            https://github.com/ruffle-rs/ruffle/releases/download/v0.4.1/ruffle-0.4.1-web-selfhosted.zip
+          unzip -q .ci/ruffle.zip -d plugins/web/app/src/main/assets/ruffle
+          test -f plugins/web/app/src/main/assets/ruffle/ruffle.js
+          test -n "$(find plugins/web/app/src/main/assets/ruffle -name '*.wasm' -print -quit)"
+      - name: Build plugin APK
+        run: ./gradlew -p plugins/web :app:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enginehost-plugin-web-debug-apk
+          path: plugins/web/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

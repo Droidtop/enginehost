@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "capabilities": [
+    {
+      "id": "ruffle-0.4.1",
+      "engineContext": "default",
+      "runtimeVersion": "0.4.1"
+    }
+  ]
+}

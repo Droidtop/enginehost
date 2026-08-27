@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "capabilities": [
+    {
+      "id": "twine-2.12-browser",
+      "engineContext": "default",
+      "runtimeVersion": "2.12.0",
+      "supportedRanges": [{ "min": "2.0", "max": "2.12.0" }]
+    }
+  ]
+}
