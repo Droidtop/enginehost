@@ -26,7 +26,8 @@ everything else:
 
 ```json
 {
-  "engine": "rpgmvxace",
+  "engine": "rpgmaker",
+  "engineContext": "vxace",
   "engineVersion": "1.4.0",
   "pluginVersion": "1.0.0,1.2.0-1.4.0",
   "execFile": "Game.exe",
@@ -36,14 +37,11 @@ everything else:
 }
 ```
 
-`engine` and `engineVersion` are required. Plugins are identified by three
-things: which `engine` they implement, which real `engineVersion` of that
-engine they wrap, and their own `pluginVersion` (enginehost's own build
-number for that plugin — independent of the engine version, since
-enginehost's own plugin code can regress or fix things across its own
-revisions without the underlying engine changing at all). Resolution
-tries an exact `engineVersion` match first, then falls back to the
-nearest installed one.
+`engine` and `engineVersion` are required. `engine` names the plugin
+family (`renpy`, `rpgmaker`, `godot`, ...). `engineContext` is an optional,
+plugin-defined compatibility line within that family (`mv`, `mz`,
+`python3`, ...); omitting it means `default`. `engineVersion` is the
+game's dotted-numeric runtime target inside that context.
 
 `pluginVersion` in a game's config is optional and different from a
 plugin's own `pluginVersion`: it's a comma-separated allowlist of exact
@@ -87,12 +85,37 @@ whatever's actually installed on the device via Android's
 
 A plugin declares:
 - The `dev.enginehost.plugin.RUN` intent-filter on an exported activity.
-- `<meta-data>` for `dev.enginehost.plugin.engine`, `.engineVersion`, and
-  `.pluginVersion`.
+- `<meta-data>` for `dev.enginehost.plugin.engine` and `.pluginVersion`.
+- `dev.enginehost.plugin.capabilities`, normally an `@raw` JSON resource,
+  listing every bundled runtime and the exact versions/ranges it supports.
+  The old single `.engineVersion` metadata remains supported as a legacy
+  exact-version capability in the `default` context.
 
-When invoked, it receives extra `path` (the game folder) and, if the
-game's config had them, `execFile` and `options` (the raw JSON string —
-each plugin parses its own real keys out of it).
+Capability schema version 1:
+
+```json
+{
+  "schemaVersion": 1,
+  "capabilities": [{
+    "id": "mz-1.8.0",
+    "engineContext": "mz",
+    "runtimeVersion": "1.8.0",
+    "supportedVersions": ["1.7.0"],
+    "supportedRanges": [{ "min": "1.7.1", "max": "1.8.0" }]
+  }]
+}
+```
+
+Compatibility is never inferred from numerical proximity. A capability
+supports its own `runtimeVersion` plus only the versions/ranges it
+explicitly declares. Resolution prefers an exact bundled runtime, then
+the narrowest declared compatibility span, then the newest plugin build
+allowed by the game's optional `pluginVersion` allowlist.
+
+When invoked, it receives `path`, `engineContext`, the requested
+`engineVersion`, the selected `runtimeVersion`, and `capabilityId`. If the
+game config supplied them it also receives `execFile` and `options` (the
+raw JSON string — each plugin parses its own keys).
 
 Each plugin repo keeps its full commit history — no shallow/squashed
 clones. For an engine with real distinct incompatible versions (Ren'Py's

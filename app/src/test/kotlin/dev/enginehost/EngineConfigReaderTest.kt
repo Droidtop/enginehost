@@ -17,6 +17,7 @@ class EngineConfigReaderTest {
         gameFolder.resolve(CONFIG_FILE_NAME).writeText(
             """{
                 "engine": "renpy",
+                "engineContext": "python3",
                 "engineVersion": "8.2.1",
                 "options": {
                     "renderer": "gl2",
@@ -29,6 +30,7 @@ class EngineConfigReaderTest {
             gameFolder,
             """{
                 "engine": "godot",
+                "engineContext": "godot4",
                 "engineVersion": "4.3",
                 "execFile": "game.py",
                 "pluginVersion": "2.0.0-2.4.0",
@@ -41,6 +43,7 @@ class EngineConfigReaderTest {
         )
 
         assertEquals("renpy", config.engine)
+        assertEquals("python3", config.engineContext)
         assertEquals("8.2.1", config.engineVersion.toString())
         assertEquals("game.py", config.execFile)
         assertEquals("gl2", config.options!!.getString("renderer"))

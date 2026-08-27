@@ -25,14 +25,24 @@ object GameRunner {
             fail(activity, e.message ?: "Invalid $CONFIG_FILE_NAME")
             return
         }
-        val plugin = PluginRegistry.resolve(activity, config.engine, config.engineVersion, config.pluginVersionConstraint)
-        if (plugin == null) {
+        val resolved = PluginRegistry.resolve(
+            activity,
+            config.engine,
+            config.engineContext,
+            config.engineVersion,
+            config.pluginVersionConstraint,
+        )
+        if (resolved == null) {
             fail(activity, describeResolutionFailure(config))
             return
         }
         val intent = Intent(ACTION_RUN_PLUGIN).apply {
-            component = ComponentName(plugin.packageName, plugin.activityName)
+            component = ComponentName(resolved.plugin.packageName, resolved.plugin.activityName)
             putExtra("path", gameFolder.absolutePath)
+            putExtra("engineContext", config.engineContext ?: DEFAULT_ENGINE_CONTEXT)
+            putExtra("engineVersion", config.engineVersion.toString())
+            putExtra("runtimeVersion", resolved.capability.runtimeVersion.toString())
+            putExtra("capabilityId", resolved.capability.id)
             config.execFile?.let { putExtra("execFile", it) }
             // Passed through as-is, never inspected here -- see EngineConfig's own doc comment.
             config.options?.let { putExtra("options", it.toString()) }
@@ -40,7 +50,7 @@ object GameRunner {
         try {
             activity.startActivity(intent)
         } catch (e: Exception) {
-            fail(activity, "Failed to start ${plugin.packageName}: ${e.message}")
+            fail(activity, "Failed to start ${resolved.plugin.packageName}: ${e.message}")
         }
     }
 
@@ -54,10 +64,16 @@ object GameRunner {
     private fun describeResolutionFailure(config: EngineConfig): String {
         val constraint = config.pluginVersionConstraint
         return if (constraint != null) {
-            "No installed plugin for \"${config.engine}\" satisfies this game's pluginVersion requirement"
+            "No installed plugin capability for ${describeEngine(config)} satisfies this game's pluginVersion allowlist"
         } else {
-            "No installed plugin for \"${config.engine}\""
+            "No installed plugin capability for ${describeEngine(config)}"
         }
+    }
+
+    private fun describeEngine(config: EngineConfig): String = buildString {
+        append('"').append(config.engine).append('"')
+        config.engineContext?.let { append(" context \"").append(it).append('"') }
+        append(" version ").append(config.engineVersion)
     }
 
     private fun fail(activity: Activity, message: String) {

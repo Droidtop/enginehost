@@ -5,6 +5,13 @@ package dev.enginehost
  * components compare as 0, same convention as semver's own padding rule.
  */
 data class Version(val parts: List<Int>) : Comparable<Version> {
+    private fun canonicalParts(): List<Int> = parts.dropLastWhile { it == 0 }.ifEmpty { listOf(0) }
+
+    override fun equals(other: Any?): Boolean =
+        other is Version && canonicalParts() == other.canonicalParts()
+
+    override fun hashCode(): Int = canonicalParts().hashCode()
+
     override fun compareTo(other: Version): Int {
         val len = maxOf(parts.size, other.parts.size)
         for (i in 0 until len) {

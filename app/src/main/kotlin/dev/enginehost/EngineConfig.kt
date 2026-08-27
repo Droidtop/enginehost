@@ -18,7 +18,8 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  *
  * ```json
  * {
- *   "engine": "rpgmvxace",
+ *   "engine": "rpgmaker",
+ *   "engineContext": "vxace",
  *   "engineVersion": "1.4.0",
  *   "pluginVersion": "1.0.0,1.2.0-1.4.0",
  *   "execFile": "Game.exe",
@@ -28,14 +29,15 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  * }
  * ```
  *
- * `engine` and `engineVersion` are required. `engineVersion` is the real
- * underlying engine's own version this game needs -- [EngineRegistry]
- * tries an exact match first, then the nearest installed one. `pluginVersion`
- * is optional: a comma-separated list of exact versions and/or `lo-hi`
- * ranges constraining which *plugin builds* (not engine versions) are
- * trusted for this specific game -- see [VersionConstraint]. `execFile` is
- * optional, the specific file within the folder to run, for engines that
- * need one rather than just scanning the folder itself.
+ * `engine` and `engineVersion` are required. `engine` selects a plugin
+ * family; optional `engineContext` selects a compatibility line within
+ * that family. `engineVersion` is the game's real runtime target.
+ * Compatibility must be explicitly advertised by a plugin capability;
+ * numerical proximity alone is never enough. `pluginVersion` is an
+ * optional comma-separated allowlist of exact versions and/or `lo-hi`
+ * ranges constraining plugin *builds* (not engine versions) -- see
+ * [VersionConstraint]. `execFile` is optional, the specific file within
+ * the folder to run, for engines that need one rather than scanning it.
  *
  * `options` is a deliberately generic, opaque-to-enginehost bag of
  * engine-specific settings -- the real motivating case: an RGSS game
@@ -49,6 +51,7 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  */
 data class EngineConfig(
     val engine: String,
+    val engineContext: String?,
     val engineVersion: Version,
     val pluginVersionConstraint: VersionConstraint?,
     val execFile: String?,
@@ -107,6 +110,7 @@ object EngineConfigReader {
             ?: throw InvalidEngineConfigException("Config missing required \"engineVersion\" field")
         return EngineConfig(
             engine = engine,
+            engineContext = json.optString("engineContext").takeIf { it.isNotBlank() },
             engineVersion = try {
                 Version.parse(engineVersionRaw)
             } catch (_: IllegalArgumentException) {

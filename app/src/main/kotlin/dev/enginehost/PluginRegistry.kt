@@ -4,89 +4,120 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 
-/** The intent-filter action every real plugin app declares on its own run activity. */
+/** The intent-filter action every real plugin app declares on its run activity. */
 const val ACTION_RUN_PLUGIN = "dev.enginehost.plugin.RUN"
 
 private const val META_ENGINE = "dev.enginehost.plugin.engine"
 private const val META_ENGINE_VERSION = "dev.enginehost.plugin.engineVersion"
 private const val META_PLUGIN_VERSION = "dev.enginehost.plugin.pluginVersion"
+private const val META_CAPABILITIES = "dev.enginehost.plugin.capabilities"
 
-/**
- * What one installed plugin is: an implementation of a specific `engine`
- * (e.g. "kirikiri2"), at a specific `engineVersion` (the real underlying
- * engine's own version -- different game titles can need different engine
- * versions for real compatibility reasons), built as its own
- * `pluginVersion` (independent of engineVersion: a plugin's own code can
- * regress or fix things across its own revisions without the underlying
- * engine changing at all).
- */
 data class PluginInfo(
     val engine: String,
-    val engineVersion: Version,
     val pluginVersion: Version,
+    val capabilities: List<EngineCapability>,
 )
 
-/** A [PluginInfo] plus the real installed component enginehost found it on. */
 data class InstalledPlugin(
     val info: PluginInfo,
     val packageName: String,
     val activityName: String,
 )
 
-/**
- * Plugins are separate, manually-installed apps -- their own repos, their
- * own release cadence, their own git history -- not code enginehost
- * bundles itself. A plugin declares the [ACTION_RUN_PLUGIN] intent-filter
- * on an exported activity, plus real manifest `<meta-data>` for
- * `dev.enginehost.plugin.engine`/`engineVersion`/`pluginVersion`. This is
- * Android's standard package-discovery mechanism, with version-range
- * resolution on top.
- */
+data class ResolvedPlugin(
+    val plugin: InstalledPlugin,
+    val capability: EngineCapability,
+)
+
+object PluginResolver {
+    /**
+     * Compatibility is always plugin-declared. Ranking is deterministic:
+     * exact bundled runtime, then narrowest support declaration, newest
+     * allowlisted plugin build, then stable package/capability identifiers.
+     */
+    fun resolve(
+        plugins: List<InstalledPlugin>,
+        engine: String,
+        engineContext: String?,
+        engineVersion: Version,
+        pluginVersionAllowlist: VersionConstraint?,
+    ): ResolvedPlugin? {
+        val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
+        return plugins.asSequence()
+            .filter { it.info.engine == engine }
+            .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
+            .flatMap { plugin ->
+                plugin.info.capabilities.asSequence()
+                    .filter { it.engineContext == requestedContext && it.supports(engineVersion) }
+                    .map { ResolvedPlugin(plugin, it) }
+            }
+            .sortedWith(
+                compareByDescending<ResolvedPlugin> { it.capability.runtimeVersion == engineVersion }
+                    .thenBy { it.capability.specificityFor(engineVersion) }
+                    .thenByDescending { it.plugin.info.pluginVersion }
+                    .thenBy { it.plugin.packageName }
+                    .thenBy { it.capability.id },
+            )
+            .firstOrNull()
+    }
+}
+
 object PluginRegistry {
     fun discover(context: Context): List<InstalledPlugin> {
         val packageManager = context.packageManager
-        val resolved = packageManager.queryIntentActivities(
+        return packageManager.queryIntentActivities(
             Intent(ACTION_RUN_PLUGIN),
             PackageManager.GET_META_DATA,
-        )
-        return resolved.mapNotNull { resolveInfo ->
+        ).mapNotNull { resolveInfo ->
             val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
             val metaData = activityInfo.metaData ?: return@mapNotNull null
-            val engine = metaData.getString(META_ENGINE) ?: return@mapNotNull null
-            val engineVersion = metaData.getString(META_ENGINE_VERSION) ?: return@mapNotNull null
-            val pluginVersion = metaData.getString(META_PLUGIN_VERSION) ?: return@mapNotNull null
+            val engine = metaData.getString(META_ENGINE)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val pluginVersionRaw = metaData.getString(META_PLUGIN_VERSION) ?: return@mapNotNull null
             try {
+                val capabilities = readCapabilities(context, metaData.get(META_CAPABILITIES))
+                    ?: legacyCapability(metaData.getString(META_ENGINE_VERSION))
+                    ?: return@mapNotNull null
                 InstalledPlugin(
-                    info = PluginInfo(engine, Version.parse(engineVersion), Version.parse(pluginVersion)),
+                    info = PluginInfo(engine, Version.parse(pluginVersionRaw), capabilities),
                     packageName = activityInfo.packageName,
                     activityName = activityInfo.name,
                 )
-            } catch (_: IllegalArgumentException) {
-                // A malformed third-party manifest must not break discovery
-                // of every other correctly-installed plugin.
+            } catch (_: Exception) {
+                // One malformed third-party manifest/resource must not
+                // prevent discovery of every other installed plugin.
                 null
             }
         }
     }
 
-    /**
-     * 1. Filter to installed plugins for the requested `engine`.
-     * 2. If the game specifies a pluginVersion constraint, drop any
-     *    candidate whose pluginVersion doesn't satisfy it.
-     * 3. Prefer an exact engineVersion match among what's left; otherwise
-     *    fall back to the nearest one (see [Version.distanceTo]).
-     */
+    private fun readCapabilities(context: Context, value: Any?): List<EngineCapability>? = when (value) {
+        is Int -> context.resources.openRawResource(value).bufferedReader().use {
+            PluginCapabilitiesReader.parse(it.readText())
+        }
+        is String -> PluginCapabilitiesReader.parse(value)
+        else -> null
+    }
+
+    private fun legacyCapability(engineVersionRaw: String?): List<EngineCapability>? =
+        engineVersionRaw?.let { Version.parse(it) }?.let { version ->
+            listOf(
+                EngineCapability(
+                    id = "legacy-$version",
+                    engineContext = DEFAULT_ENGINE_CONTEXT,
+                    runtimeVersion = version,
+                    supportedVersions = emptySet(),
+                    supportedRanges = emptyList(),
+                ),
+            )
+        }
+
     fun resolve(
         context: Context,
         engine: String,
+        engineContext: String?,
         engineVersion: Version,
-        pluginVersionConstraint: VersionConstraint?,
-    ): InstalledPlugin? {
-        val candidates = discover(context)
-            .filter { it.info.engine == engine }
-            .filter { pluginVersionConstraint == null || pluginVersionConstraint.matches(it.info.pluginVersion) }
-        if (candidates.isEmpty()) return null
-        candidates.firstOrNull { it.info.engineVersion == engineVersion }?.let { return it }
-        return candidates.minByOrNull { it.info.engineVersion.distanceTo(engineVersion) }
-    }
+        pluginVersionAllowlist: VersionConstraint?,
+    ): ResolvedPlugin? = PluginResolver.resolve(
+        discover(context), engine, engineContext, engineVersion, pluginVersionAllowlist,
+    )
 }
