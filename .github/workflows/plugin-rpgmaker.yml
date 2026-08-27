@@ -30,7 +30,7 @@ jobs:
         run: bash ./get_deps.sh
       - name: Build native RGSS and HTML5 APK
         working-directory: .ci/rpgmaker
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: bash ./gradlew :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: enginehost-plugin-rpgmaker-debug-apks
