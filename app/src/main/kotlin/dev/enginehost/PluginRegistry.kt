@@ -3,6 +3,7 @@ package dev.enginehost
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Resources
 
 /** The intent-filter action every real plugin app declares on its run activity. */
 const val ACTION_RUN_PLUGIN = "dev.enginehost.plugin.RUN"
@@ -74,7 +75,11 @@ object PluginRegistry {
             val engine = metaData.getString(META_ENGINE)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val pluginVersionRaw = metaData.getString(META_PLUGIN_VERSION) ?: return@mapNotNull null
             try {
-                val capabilities = readCapabilities(context, metaData.get(META_CAPABILITIES))
+                // Android resource IDs are package-local. Opening a plugin's
+                // @raw resource through enginehost's Resources can resolve an
+                // unrelated host resource or throw NotFoundException.
+                val pluginResources = packageManager.getResourcesForApplication(activityInfo.applicationInfo)
+                val capabilities = readCapabilities(pluginResources, metaData.get(META_CAPABILITIES))
                     ?: legacyCapability(metaData.getString(META_ENGINE_VERSION))
                     ?: return@mapNotNull null
                 InstalledPlugin(
@@ -90,8 +95,8 @@ object PluginRegistry {
         }
     }
 
-    private fun readCapabilities(context: Context, value: Any?): List<EngineCapability>? = when (value) {
-        is Int -> context.resources.openRawResource(value).bufferedReader().use {
+    private fun readCapabilities(resources: Resources, value: Any?): List<EngineCapability>? = when (value) {
+        is Int -> resources.openRawResource(value).bufferedReader().use {
             PluginCapabilitiesReader.parse(it.readText())
         }
         is String -> PluginCapabilitiesReader.parse(value)
