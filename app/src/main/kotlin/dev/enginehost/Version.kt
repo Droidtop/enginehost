@@ -36,8 +36,13 @@ data class Version(val parts: List<Int>) : Comparable<Version> {
     }
 
     companion object {
-        fun parse(raw: String): Version =
-            Version(raw.trim().split(".").map { it.toIntOrNull() ?: 0 })
+        fun parse(raw: String): Version {
+            val normalized = raw.trim()
+            require(normalized.matches(Regex("[0-9]+(?:\\.[0-9]+)*"))) {
+                "Version must contain only dot-separated non-negative integers: $raw"
+            }
+            return Version(normalized.split(".").map(String::toInt))
+        }
     }
 }
 

@@ -55,11 +55,17 @@ object PluginRegistry {
             val engine = metaData.getString(META_ENGINE) ?: return@mapNotNull null
             val engineVersion = metaData.getString(META_ENGINE_VERSION) ?: return@mapNotNull null
             val pluginVersion = metaData.getString(META_PLUGIN_VERSION) ?: return@mapNotNull null
-            InstalledPlugin(
-                info = PluginInfo(engine, Version.parse(engineVersion), Version.parse(pluginVersion)),
-                packageName = activityInfo.packageName,
-                activityName = activityInfo.name,
-            )
+            try {
+                InstalledPlugin(
+                    info = PluginInfo(engine, Version.parse(engineVersion), Version.parse(pluginVersion)),
+                    packageName = activityInfo.packageName,
+                    activityName = activityInfo.name,
+                )
+            } catch (_: IllegalArgumentException) {
+                // A malformed third-party manifest must not break discovery
+                // of every other correctly-installed plugin.
+                null
+            }
         }
     }
 

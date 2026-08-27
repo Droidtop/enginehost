@@ -3,10 +3,14 @@ agp = "8.13.1"
 kotlin = "2.2.21"
 core = "1.17.0"
 appcompat = "1.7.1"
+junit = "4.13.2"
+json = "20250517"
 
 [libraries]
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "core" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+junit = { module = "junit:junit", version.ref = "junit" }
+json = { module = "org.json:json", version.ref = "json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

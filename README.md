@@ -46,9 +46,9 @@ tries an exact `engineVersion` match first, then falls back to the
 nearest installed one.
 
 `pluginVersion` in a game's config is optional and different from a
-plugin's own `pluginVersion`: it's a comma-separated list of exact
+plugin's own `pluginVersion`: it's a comma-separated allowlist of exact
 versions and/or `lo-hi` ranges of *plugin builds* this specific game
-trusts, letting a game protect itself from a known-bad plugin revision.
+permits, letting a game exclude plugin revisions with known bugs.
 `execFile` is optional — the
 specific file to run within the folder, for engines that need one.
 
@@ -64,11 +64,11 @@ Nothing about this file's contents, or the folder it lives in, is ever
 copied or moved by enginehost. It reads the folder in place and runs the
 game from there.
 
-A caller that already knows a game's config but hasn't (or can't) written
-it into the folder yet can pass the same JSON inline via `LAUNCH`'s
-`config` extra instead. The folder's own `enginehost.json` always wins if
-it exists — `config` is a fallback for when there isn't one, not a way to
-override an existing one.
+A caller can pass the same JSON shape inline via `LAUNCH`'s `config`
+extra. The folder's own `enginehost.json` is authoritative: inline JSON
+may append fields the file omitted, including missing keys inside
+`options`, but can never override a value already present in the file.
+When the folder has no config file, the inline config is used by itself.
 
 ## The basic UI
 

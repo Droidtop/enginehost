@@ -27,4 +27,6 @@ android {
 dependencies {
     implementation(libs.androidx.core)
     implementation(libs.androidx.appcompat)
+    testImplementation(libs.junit)
+    testImplementation(libs.json)
 }

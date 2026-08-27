@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import org.json.JSONObject
+import org.json.JSONException
 import java.io.File
 
 /** The filename enginehost looks for at a game folder's own root. */
@@ -10,9 +11,10 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  * A game folder's own self-description of how to run it -- normally read
  * directly from `<folder>/enginehost.json`, so a caller only ever needs to
  * hand enginehost a folder path, never engine-specific metadata of its own
- * to keep in sync. A caller that hasn't (or can't) annotate the folder
- * yet can instead pass the same JSON inline as [LaunchActivity]'s own
- * "config" extra -- see [EngineConfigReader.resolve]. Real schema:
+ * to keep in sync. A caller can supplement missing values with the same
+ * JSON shape through [LaunchActivity]'s "config" extra, but cannot
+ * override anything already specified by the folder -- see
+ * [EngineConfigReader.resolve]. Real schema:
  *
  * ```json
  * {
@@ -58,37 +60,70 @@ class InvalidEngineConfigException(message: String) : Exception(message)
 object EngineConfigReader {
     /**
      * The real resolution order: a game folder's own `enginehost.json`
-     * always wins if present, since it travels with the game and is the
-     * durable source of truth. `inlineJson` (typically [LaunchActivity]'s
-     * "config" extra) is only consulted when the folder has no config of
-     * its own -- meant for a caller that knows the config but hasn't (or
-     * can't) written it into the folder yet, not a way to override an
-     * existing one.
+     * is authoritative, since it travels with the game and is the durable
+     * source of truth. `inlineJson` (typically [LaunchActivity]'s
+     * "config" extra) may append fields the folder omitted, including
+     * missing nested `options` keys, but can never replace a value the
+     * folder already contains. If there is no folder config, the inline
+     * config is used by itself.
      */
     fun resolve(gameFolder: File, inlineJson: String?): EngineConfig {
         val configFile = File(gameFolder, CONFIG_FILE_NAME)
-        if (configFile.isFile) {
-            return parse(configFile.readText())
-        }
-        if (inlineJson != null) {
-            return parse(inlineJson)
-        }
+        val folderJson = configFile.takeIf { it.isFile }?.let { parseObject(it.readText(), CONFIG_FILE_NAME) }
+        val callerJson = inlineJson?.let { parseObject(it, "inline config") }
+        if (folderJson != null) return parse(mergeAuthoritative(folderJson, callerJson))
+        if (callerJson != null) return parse(callerJson)
         throw InvalidEngineConfigException(
             "No $CONFIG_FILE_NAME in ${gameFolder.absolutePath} and no inline config was passed",
         )
     }
 
-    private fun parse(raw: String): EngineConfig {
-        val json = JSONObject(raw)
+    private fun parseObject(raw: String, source: String): JSONObject = try {
+        JSONObject(raw)
+    } catch (e: JSONException) {
+        throw InvalidEngineConfigException("Invalid $source JSON: ${e.message}")
+    }
+
+    /** Deep non-overriding merge: [authoritative] wins at every key. */
+    private fun mergeAuthoritative(authoritative: JSONObject, fallback: JSONObject?): JSONObject {
+        if (fallback == null) return authoritative
+        val merged = JSONObject(fallback.toString())
+        for (key in authoritative.keys()) {
+            val authoritativeValue = authoritative.get(key)
+            val fallbackValue = merged.opt(key)
+            if (authoritativeValue is JSONObject && fallbackValue is JSONObject) {
+                merged.put(key, mergeAuthoritative(authoritativeValue, fallbackValue))
+            } else {
+                merged.put(key, authoritativeValue)
+            }
+        }
+        return merged
+    }
+
+    private fun parse(json: JSONObject): EngineConfig {
         val engine = json.optString("engine").takeIf { it.isNotBlank() }
             ?: throw InvalidEngineConfigException("Config missing required \"engine\" field")
         val engineVersionRaw = json.optString("engineVersion").takeIf { it.isNotBlank() }
             ?: throw InvalidEngineConfigException("Config missing required \"engineVersion\" field")
         return EngineConfig(
             engine = engine,
-            engineVersion = Version.parse(engineVersionRaw),
+            engineVersion = try {
+                Version.parse(engineVersionRaw)
+            } catch (_: IllegalArgumentException) {
+                throw InvalidEngineConfigException(
+                    "Config field \"engineVersion\" must be a dotted numeric version",
+                )
+            },
             pluginVersionConstraint = json.optString("pluginVersion").takeIf { it.isNotBlank() }
-                ?.let { VersionConstraint.parse(it) },
+                ?.let {
+                    try {
+                        VersionConstraint.parse(it)
+                    } catch (_: IllegalArgumentException) {
+                        throw InvalidEngineConfigException(
+                            "Config field \"pluginVersion\" must be a comma-separated allowlist of dotted versions or ranges",
+                        )
+                    }
+                },
             execFile = json.optString("execFile").takeIf { it.isNotBlank() },
             options = json.optJSONObject("options"),
         )

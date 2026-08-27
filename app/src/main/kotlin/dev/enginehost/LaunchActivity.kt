@@ -8,10 +8,9 @@ import java.io.File
  * The primary, intended entry point -- a caller (droidtop or anything
  * else) fires `ACTION dev.enginehost.LAUNCH` with `path` (an absolute
  * folder path, required) and optionally `config` (a raw JSON string in
- * the same shape as a real enginehost.json). `config` only applies if the
- * folder itself has no enginehost.json of its own -- see
- * [EngineConfigReader.resolve]'s own doc comment for why the folder
- * always wins when both exist.
+ * the same shape as a real enginehost.json). `config` may fill fields the
+ * folder config omitted, but cannot override values already present in
+ * the folder -- see [EngineConfigReader.resolve].
  */
 class LaunchActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
