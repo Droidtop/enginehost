@@ -119,3 +119,4 @@ class PluginCapabilitiesTest {
             emptyList()
         },
     )
+}
