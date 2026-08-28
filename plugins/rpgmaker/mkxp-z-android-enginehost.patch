@@ -211,7 +211,7 @@ index 6acf860..e8378f9 100644
  import android.content.pm.ActivityInfo;
  import android.content.pm.PackageManager;
  import android.view.View;
-@@ -21,8 +20,6 @@ import android.os.Vibrator;
+@@ -21,8 +20,8 @@ import android.os.Vibrator;
  import android.os.VibrationEffect;
  import android.os.storage.StorageManager;
  import android.os.storage.OnObbStateChangeListener;
@@ -219,8 +219,10 @@ index 6acf860..e8378f9 100644
 -import android.provider.Settings;
  import android.util.Log;
  import android.util.DisplayMetrics;
++import android.system.Os;
++import android.system.ErrnoException;
  import java.util.Locale;
-@@ -100,20 +97,13 @@ public class MainActivity extends SDLActivity
+@@ -100,20 +99,21 @@ public class MainActivity extends SDLActivity
          }
      };
  
@@ -241,6 +243,14 @@ index 6acf860..e8378f9 100644
 +        String engineHostPath = getIntent().getStringExtra("path");
 +        if (engineHostPath != null && new File(engineHostPath).isDirectory()) {
 +            GAME_PATH = new File(engineHostPath).getAbsolutePath();
++        }
++        String engineHostOptions = getIntent().getStringExtra("options");
++        if (engineHostOptions != null) {
++            try {
++                Os.setenv("ENGINEHOST_OPTIONS", engineHostOptions, true);
++            } catch (ErrnoException error) {
++                throw new IllegalStateException("Unable to pass enginehost options", error);
++            }
 +        }
          super.onCreate(savedInstanceState);
  
@@ -361,9 +371,31 @@ index 0000000..9248450
 +  "schemaVersion": 1,
 +  "capabilities": [
 +    { "id": "rpgmaker-xp-rgss1", "engineContext": "xp", "runtimeVersion": "1.0" },
-+    { "id": "rpgmaker-vx-rgss2", "engineContext": "vx", "runtimeVersion": "1.0" },
-+    { "id": "rpgmaker-vxace-rgss3", "engineContext": "vxace", "runtimeVersion": "1.0" },
++    { "id": "rpgmaker-vx-rgss2", "engineContext": "vx", "runtimeVersion": "2.0" },
++    { "id": "rpgmaker-vxace-rgss3", "engineContext": "vxace", "runtimeVersion": "3.0" },
 +    { "id": "rpgmaker-mv-1.6.2", "engineContext": "mv", "runtimeVersion": "1.6.2" },
 +    { "id": "rpgmaker-mz-1.9.0", "engineContext": "mz", "runtimeVersion": "1.9.0" }
 +  ]
 +}
+diff --git a/app/jni/mkxp-z/src/config.cpp b/app/jni/mkxp-z/src/config.cpp
+index 34ffa3b..3ec85ab 100644
+--- a/app/jni/mkxp-z/src/config.cpp
++++ b/app/jni/mkxp-z/src/config.cpp
+@@ -215,3 +215,17 @@ try { exp } catch (...) {}
+     json::value baseConf = readConfFile(CONF_FILE);
+     copyObject(optsJ, baseConf);
+     copyObject(opts["bindingNames"], baseConf.as_object()["bindingNames"], "bindingNames .");
++
++    // The host already deep-merged folder and caller configuration with the
++    // folder authoritative. Apply the resulting engine-specific options over
++    // mkxp.json without writing either the game or user preferences.
++    const char *engineHostOptions = SDL_getenv("ENGINEHOST_OPTIONS");
++    if (engineHostOptions && *engineHostOptions) {
++        try {
++            json::value hostConf = json::parse5(engineHostOptions);
++            copyObject(optsJ, hostConf);
++            copyObject(opts["bindingNames"], hostConf.as_object()["bindingNames"], "bindingNames .");
++        } catch (...) {
++            Debug() << "Invalid enginehost RPG Maker options JSON";
++        }
++    }

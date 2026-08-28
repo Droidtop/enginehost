@@ -45,6 +45,13 @@ jobs:
           mkdir -p .ci/renpy-8.5.3-sdk/rapt/prototype/app/src/main/res/raw
           curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/rapt/prototype/app/src/main/res/raw/enginehost_capabilities.json \
             "$RAW/renpy-build/$BUILD_SHA/rapt/prototype/app/src/main/res/raw/enginehost_capabilities.json"
+          curl --fail --location --retry 3 --output .ci/renpy-build.tar.gz \
+            "https://github.com/bi0shacker001/renpy-build/archive/$BUILD_SHA.tar.gz"
+          tar -xzf .ci/renpy-build.tar.gz -C .ci
+          for density in hdpi mdpi xhdpi xxhdpi xxxhdpi; do
+            cp -R ".ci/renpy-build-$BUILD_SHA/rapt/prototype/app/src/main/res/mipmap-$density" \
+              .ci/renpy-8.5.3-sdk/rapt/prototype/app/src/main/res/
+          done
       - name: Configure SDK and disposable CI signing
         run: |
           printf '%s\n' "$ANDROID_HOME" > .ci/renpy-8.5.3-sdk/rapt/sdk.txt

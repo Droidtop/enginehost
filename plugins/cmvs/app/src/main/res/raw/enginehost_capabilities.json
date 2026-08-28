@@ -1,11 +1,15 @@
 {
   "schemaVersion": 1,
-  "pluginVersion": "0.1.0",
   "capabilities": [
     {
-      "engine": "cmvs",
+      "id": "cmvs-ps2-ps3-dialogue",
       "engineContext": "ps2-ps3-dialogue",
-      "engineVersions": ["2", "3"]
+      "runtimeVersion": "2.0"
+    },
+    {
+      "id": "cmvs-ps2-ps3-dialogue",
+      "engineContext": "ps2-ps3-dialogue",
+      "runtimeVersion": "3.0"
     }
   ]
 }

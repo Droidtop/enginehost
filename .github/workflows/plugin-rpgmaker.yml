@@ -27,7 +27,15 @@ jobs:
           git -C .ci/rpgmaker apply "$GITHUB_WORKSPACE/plugins/rpgmaker/mkxp-z-android-enginehost.patch"
       - name: Fetch upstream-pinned native dependencies
         working-directory: .ci/rpgmaker/app/jni
-        run: bash ./get_deps.sh
+        run: |
+          sed -i 's#https://github.com/freedesktop/uchardet#https://gitlab.freedesktop.org/uchardet/uchardet.git#' get_deps.sh
+          sed -i 's#https://github.com/freedesktop/pixman#https://gitlab.freedesktop.org/pixman/pixman.git#' get_deps.sh
+          bash -e ./get_deps.sh
+      - name: Cross-compile pinned support libraries
+        working-directory: .ci/rpgmaker/app/jni
+        run: |
+          make all ARCH=linux-x86_64 ABI=armeabi-v7a HOST=armv7a-linux-androideabi TARGET=arm-linux-androideabi
+          make all ARCH=linux-x86_64 ABI=arm64-v8a HOST=aarch64-linux-android TARGET=aarch64-linux-android
       - name: Build native RGSS and HTML5 APK
         working-directory: .ci/rpgmaker
         run: bash ./gradlew :app:assembleDebug --stacktrace
