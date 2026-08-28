@@ -137,7 +137,10 @@ Current plugin repositories:
 
 - [Ren'Py](https://github.com/bi0shacker001/enginehost-renpy-plugin): versioned
   8.5.3, 8.3.2, and 8.2.1 Android branches.
-- [RPG Maker](https://github.com/bi0shacker001/enginehost-rpgmaker-plugin)
+- RPG Maker family:
+  [mkxp-z (XP/VX/VX Ace)](https://github.com/bi0shacker001/enginehost-rpgmaker-mkxp-z-plugin),
+  [EasyRPG (2000/2003)](https://github.com/bi0shacker001/enginehost-rpgmaker-easyrpg-plugin), and
+  [MV/MZ](https://github.com/bi0shacker001/enginehost-rpgmaker-mv-mz-plugin).
 - [KiriKiri](https://github.com/bi0shacker001/enginehost-kirikiri-plugin)
 
 ## Status
