@@ -77,11 +77,18 @@ primary, intended way in.
 
 ## Plugins
 
-Plugins are separate apps, each its own repo, manually installed
-(a RetroArch-cores-style installer is a possible future addition, not
-built yet). enginehost never bundles engine code itself — it discovers
-whatever's actually installed on the device via Android's
-`PackageManager`.
+Plugins are separately installed apps. First-party plugin source may live
+under this repository's `plugins/` directory or in a dedicated upstream fork;
+source layout does not change the Android boundary. A RetroArch-cores-style
+installer is a possible future addition. enginehost never links engine code
+into the host APK — it discovers whatever plugin APKs are installed through
+Android's `PackageManager`.
+
+An enginehost plugin must contain or embed an actual portable implementation
+of its engine/runtime. Delegating a Windows executable to Wine, Box64, or a
+generic PC compatibility app does not implement an enginehost plugin. Engines
+without a viable native interpreter remain explicitly unsupported until that
+interpreter is implemented.
 
 A plugin declares:
 - The `dev.enginehost.plugin.RUN` intent-filter on an exported activity.
@@ -117,14 +124,17 @@ When invoked, it receives `path`, `engineContext`, the requested
 game config supplied them it also receives `execFile` and `options` (the
 raw JSON string — each plugin parses its own keys).
 
-Each plugin repo keeps its full commit history — no shallow/squashed
-clones. For an engine with real distinct incompatible versions (Ren'Py's
-Python 2 vs. Python 3 builds, for instance), those versions live on
-separate branches of the same plugin repo rather than separate repos, so
-they can be built and maintained side by side.
+Dedicated engine forks keep their full commit history. For real incompatible
+runtime lines (Ren'Py's Python 2 vs. Python 3 builds, for instance), plugin APK
+versions use co-installable package slots and explicit capabilities so builds
+can be installed and maintained side by side.
 
 ## Status
 
-Early scaffold. The Intent contract, plugin discovery/resolution, config
-format, and basic UI shell are real and build. No plugins exist yet — the
-first is the KiriKiri one, in progress.
+The host contract, authoritative config merge, capability resolver, and APK
+dispatch are implemented and CI-built. Build workflows and source integrations
+exist for KiriKiri2, Ren'Py 8.5.3, unified RPG Maker, Twine/Flash, and Godot
+4.7.1; see `plugins/` and GitHub Actions for their current verification state.
+August, Buriko/Ethornell, CatSystem2, and CMVS still require real portable
+interpreters and are not considered implemented merely because their original
+Windows executables can run elsewhere.
