@@ -127,17 +127,24 @@ When invoked, it receives `path`, `engineContext`, the requested
 game config supplied them it also receives `execFile` and `options` (the
 raw JSON string — each plugin parses its own keys).
 
-Dedicated engine forks keep their full commit history. For real incompatible
-runtime lines (Ren'Py's Python 2 vs. Python 3 builds, for instance), plugin APK
-versions use co-installable package slots and explicit capabilities so builds
-can be installed and maintained side by side.
+Dedicated engine plugin forks keep their upstream history and never live in
+this host repository. Their `plugin-core` branch contains the portable Android
+wrapper changeset; release branches start at relevant engine releases and
+apply that changeset. Incompatible runtime lines use co-installable package
+slots and explicit capabilities so builds can be installed side by side.
+
+Current plugin repositories:
+
+- [Ren'Py](https://github.com/bi0shacker001/enginehost-renpy-plugin): versioned
+  8.5.3, 8.3.2, and 8.2.1 Android branches.
+- [RPG Maker](https://github.com/bi0shacker001/enginehost-rpgmaker-plugin)
+- [KiriKiri](https://github.com/bi0shacker001/enginehost-kirikiri-plugin)
 
 ## Status
 
 The host contract, authoritative config merge, capability resolver, and APK
-dispatch are implemented and CI-built. Build workflows and source integrations
-exist for KiriKiri2, Ren'Py 8.5.3, unified RPG Maker, Twine/Flash, and Godot
-4.7.1; see `plugins/` and GitHub Actions for their current verification state.
-August, Buriko/Ethornell, CatSystem2, and CMVS still require real portable
-interpreters and are not considered implemented merely because their original
-Windows executables can run elsewhere.
+dispatch are implemented and CI-built. Engine implementations and Android
+plugin releases are developed in their engine-specific forks. Legacy staged
+plugin sources under `plugins/` are being migrated out and are not part of the
+host's final repository boundary. Ren'Py 8.5.3, 8.3.2, and 8.2.1 branches
+currently produce APKs in the Ren'Py plugin repository.
