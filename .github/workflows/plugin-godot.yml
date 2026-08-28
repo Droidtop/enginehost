@@ -22,6 +22,8 @@ jobs:
           java-version: 17
       - name: Build plugin against official Godot AAR
         run: ./gradlew -p plugins/godot :app:assembleDebug --stacktrace
+      - name: Verify packaged plugin contract
+        run: bash scripts/verify-plugin-apk.sh plugins/godot/app/build/outputs/apk/debug/app-debug.apk godot
       - uses: actions/upload-artifact@v4
         with:
           name: enginehost-plugin-godot-4.7.1-debug-apk

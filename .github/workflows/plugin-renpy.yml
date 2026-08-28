@@ -60,6 +60,10 @@ jobs:
             "$GITHUB_WORKSPACE/plugins/renpy" \
             --destination "$GITHUB_WORKSPACE/plugins/renpy/dist"
           test -n "$(find "$GITHUB_WORKSPACE/plugins/renpy/dist" -maxdepth 1 -name '*.apk' -print -quit)"
+      - name: Verify packaged plugin contract
+        run: |
+          apk=$(find plugins/renpy/dist -maxdepth 1 -name '*.apk' -print -quit)
+          bash scripts/verify-plugin-apk.sh "$apk" renpy
       - uses: actions/upload-artifact@v4
         with:
           name: enginehost-plugin-renpy-8.5.3-apk

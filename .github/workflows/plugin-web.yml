@@ -34,6 +34,8 @@ jobs:
           test -n "$(find plugins/web/app/src/main/assets/ruffle -name '*.wasm' -print -quit)"
       - name: Build plugin APK
         run: ./gradlew -p plugins/web :app:assembleDebug --stacktrace
+      - name: Verify packaged plugin contract
+        run: bash scripts/verify-plugin-apk.sh plugins/web/app/build/outputs/apk/debug/app-debug.apk twine flash_air
       - uses: actions/upload-artifact@v4
         with:
           name: enginehost-plugin-web-debug-apk
