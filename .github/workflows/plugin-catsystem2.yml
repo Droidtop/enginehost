@@ -1,0 +1,31 @@
+name: Build experimental CatSystem2 plugin
+
+on:
+  push:
+    branches: [main]
+    paths: ["plugins/catsystem2/**", ".github/workflows/plugin-catsystem2.yml", "scripts/verify-plugin-apk.sh"]
+  pull_request:
+    paths: ["plugins/catsystem2/**", ".github/workflows/plugin-catsystem2.yml", "scripts/verify-plugin-apk.sh"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Build partial native CST interpreter
+        run: ./gradlew -p plugins/catsystem2 :app:assembleDebug --stacktrace
+      - name: Verify packaged plugin contract
+        run: bash scripts/verify-plugin-apk.sh plugins/catsystem2/app/build/outputs/apk/debug/app-debug.apk catsystem2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enginehost-plugin-catsystem2-debug-apk
+          path: plugins/catsystem2/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
