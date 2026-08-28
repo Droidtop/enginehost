@@ -1,0 +1,28 @@
+diff --git a/src/main.c b/src/main.c
+index 6806950..7b3230e 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -2,6 +2,7 @@
+ #include <stdint.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <unistd.h>
+ 
+ #include "thread.h"
+ #include "engine.h"
+@@ -27,8 +28,14 @@ void PrintVersion()
+ 
+ Engine_t* gEngine;
+ 
+-int main()
++int main(int argc, char** argv)
+ {
++    if(argc < 2 || argv[1] == NULL || chdir(argv[1]) != 0)
++    {
++        fprintf(stderr, "[EngineHost]: Could not enter the supplied game folder.\n");
++        return 2;
++    }
++
+ 	PrintVersion();
+ 
+ 

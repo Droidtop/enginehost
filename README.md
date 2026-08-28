@@ -88,7 +88,10 @@ An enginehost plugin must contain or embed an actual portable implementation
 of its engine/runtime. Delegating a Windows executable to Wine, Box64, or a
 generic PC compatibility app does not implement an enginehost plugin. Engines
 without a viable native interpreter remain explicitly unsupported until that
-interpreter is implemented.
+interpreter is started. An interpreter does not need perfect compatibility to
+ship: early plugin versions may implement only a useful subset, as long as the
+limitations and supported engine versions are declared honestly. Later
+co-installable plugin builds can extend that implementation and compatibility.
 
 A plugin declares:
 - The `dev.enginehost.plugin.RUN` intent-filter on an exported activity.

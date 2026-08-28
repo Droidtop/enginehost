@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "capabilities": [
+    {
+      "id": "openbgi-script-v1-experimental",
+      "engineContext": "compiled-script-v1",
+      "runtimeVersion": "1.0"
+    }
+  ]
+}
