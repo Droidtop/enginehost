@@ -35,7 +35,7 @@ jobs:
           BUILD_SHA=030369768dbf4568eddf38ee76a5241a4223c566
           RAW=https://raw.githubusercontent.com/bi0shacker001
           curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/renpy/bootstrap.py \
-            "$RAW/renpy/$RENPY_SHA/renpy/bootstrap.py"
+            "$RAW/enginehost-renpy-plugin/$RENPY_SHA/renpy/bootstrap.py"
           curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/rapt/templates/app-AndroidManifest.xml \
             "$RAW/renpy-build/$BUILD_SHA/rapt/templates/app-AndroidManifest.xml"
           curl --fail --location --retry 3 --output .ci/renpy-8.5.3-sdk/rapt/prototype/renpyandroid/src/main/java/org/renpy/android/PythonSDLActivity.java \
