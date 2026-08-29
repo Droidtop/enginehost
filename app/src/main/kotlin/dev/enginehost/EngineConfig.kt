@@ -118,16 +118,18 @@ object EngineConfigReader {
                     "Config field \"engineVersion\" must be a dotted numeric version",
                 )
             },
-            pluginVersionConstraint = json.optString("pluginVersion").takeIf { it.isNotBlank() }
-                ?.let {
-                    try {
-                        VersionConstraint.parse(it)
-                    } catch (_: IllegalArgumentException) {
-                        throw InvalidEngineConfigException(
-                            "Config field \"pluginVersion\" must be a comma-separated allowlist of dotted versions or ranges",
-                        )
-                    }
-                },
+            pluginVersionConstraint = if (json.has("pluginVersion")) {
+                val rawPluginVersion = json.optString("pluginVersion")
+                try {
+                    VersionConstraint.parse(rawPluginVersion)
+                } catch (_: IllegalArgumentException) {
+                    throw InvalidEngineConfigException(
+                        "Config field \"pluginVersion\" must be a non-empty comma-separated allowlist of dotted versions or ranges",
+                    )
+                }
+            } else {
+                null
+            },
             execFile = json.optString("execFile").takeIf { it.isNotBlank() },
             options = json.optJSONObject("options"),
         )

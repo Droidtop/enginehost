@@ -23,14 +23,7 @@ data class Version(val parts: List<Int>) : Comparable<Version> {
 
     override fun toString(): String = parts.joinToString(".")
 
-    /**
-     * How far apart two versions are, most-significant component weighted
-     * heaviest -- used to pick the "nearest" installed engineVersion when
-     * no exact match exists. Not a real distance metric, just enough to
-     * rank candidates sensibly (a major-version gap should always outrank
-     * a patch-version gap, which plain numeric subtraction alone wouldn't
-     * guarantee once component values vary widely).
-     */
+    /** A stable weighted span used only to rank explicitly declared ranges. */
     fun distanceTo(other: Version): Long {
         val len = maxOf(parts.size, other.parts.size)
         var distance = 0L
@@ -83,11 +76,13 @@ class VersionConstraint private constructor(private val entries: List<Entry>) {
                     if (dashIndex > 0) {
                         val low = Version.parse(token.substring(0, dashIndex))
                         val high = Version.parse(token.substring(dashIndex + 1))
+                        require(low <= high) { "Version range must be ordered: $token" }
                         Entry.Range(low, high)
                     } else {
                         Entry.Exact(Version.parse(token))
                     }
                 }
+            require(entries.isNotEmpty()) { "Version allowlist must not be empty" }
             return VersionConstraint(entries)
         }
     }

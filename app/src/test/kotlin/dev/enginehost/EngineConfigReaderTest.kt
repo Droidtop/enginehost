@@ -75,4 +75,18 @@ class EngineConfigReaderTest {
             )
         }
     }
+
+    @Test
+    fun `empty or reversed plugin version allowlist is rejected`() {
+        val gameFolder = temporaryFolder.newFolder("allowlist")
+
+        listOf("", "2.0-1.0").forEach { allowlist ->
+            assertThrows(InvalidEngineConfigException::class.java) {
+                EngineConfigReader.resolve(
+                    gameFolder,
+                    """{"engine":"renpy","engineVersion":"8.5","pluginVersion":"$allowlist"}""",
+                )
+            }
+        }
+    }
 }
