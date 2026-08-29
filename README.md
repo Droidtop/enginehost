@@ -1,8 +1,9 @@
 # enginehost
 
 A straightforward multi-engine host for VN/RPG-Maker-family games on
-Android (KiriKiri, RPG Maker XP/VX/VX Ace via mkxp-z, Ren'Py — more as
-they're wired up).
+Android. Runtime families are delivered as independently versioned plugin
+APKs, including KiriKiri, Ren'Py, RPG Maker, Buriko/Ethornell, CatSystem2,
+CMVS, Flash/AIR, Twine, and Godot.
 
 enginehost is a centralized interpreter host built to be driven
 *programmatically* by another app that already knows what game it wants
@@ -142,6 +143,15 @@ Current plugin repositories:
   [EasyRPG (2000/2003)](https://github.com/bi0shacker001/enginehost-rpgmaker-easyrpg-plugin), and
   [MV/MZ](https://github.com/bi0shacker001/enginehost-rpgmaker-mv-mz-plugin).
 - [KiriKiri](https://github.com/bi0shacker001/enginehost-kirikiri-plugin)
+- [Buriko/Ethornell (OpenBGI)](https://github.com/bi0shacker001/enginehost-buriko-plugin).
+  AUGUST is a game studio whose applicable Windows titles use this engine
+  family; configure those games as `engine: buriko`, rather than inventing a
+  duplicate `august` runtime family.
+- [CatSystem2](https://github.com/bi0shacker001/enginehost-catsystem2-plugin)
+- [CMVS](https://github.com/bi0shacker001/enginehost-cmvs-plugin)
+- [Flash/AIR (Ruffle)](https://github.com/bi0shacker001/enginehost-flash-air-plugin)
+- [Twine](https://github.com/bi0shacker001/enginehost-twine-plugin)
+- [Godot](https://github.com/bi0shacker001/enginehost-godot-plugin)
 
 ## Status
 
@@ -149,5 +159,6 @@ The host contract, authoritative config merge, capability resolver, and APK
 dispatch are implemented and CI-built. Engine implementations and Android
 plugin releases are developed in their engine-specific forks. Legacy staged
 plugin sources under `plugins/` are being migrated out and are not part of the
-host's final repository boundary. Ren'Py 8.5.3, 8.3.2, and 8.2.1 branches
-currently produce APKs in the Ren'Py plugin repository.
+host's final repository boundary. See each plugin repository's capability
+resource for the exact engine contexts and versions that a particular APK
+claims to support.
