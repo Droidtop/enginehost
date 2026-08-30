@@ -25,7 +25,7 @@ object EngineDetector {
 
         files["game.ini"]?.let { gameIni ->
             val ini = readText(resolver, gameIni.uri)
-            Regex("(?im)^Library\\s*=\\s*RGSS(\\d)(\\d{2})[A-Z]?\\.dll\\s*$")
+            Regex("(?im)^Library\\s*=\\s*(?:.*[\\\\/])?RGSS(\\d)(\\d{2})[A-Z]?\\.dll\\s*$")
                 .find(ini)?.let { match ->
                     val line = match.groupValues[1].toInt()
                     val patch = match.groupValues[2].toInt()
@@ -74,9 +74,12 @@ object EngineDetector {
         }
 
         findSuffix(files, "/renpy/__init__.py", "renpy/__init__.py")?.let { init ->
-            val text = readText(resolver, init.uri)
-            val version = Regex("version_tuple\\s*=\\s*\\((\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)")
-                .find(text)?.groupValues?.drop(1)?.joinToString(".")
+            val versionFile = findSuffix(files, "/renpy/vc_version.py", "renpy/vc_version.py")
+            val version = versionFile?.let { readText(resolver, it.uri) }
+                ?.let { Regex("(?m)^version\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(it) }
+                ?.groupValues?.get(1)
+                ?: Regex("version_tuple\\s*=\\s*\\((\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)")
+                    .find(readText(resolver, init.uri))?.groupValues?.drop(1)?.joinToString(".")
             return EngineDetection("renpy", "standard", version, evidence = "Found the bundled Ren'Py runtime")
         }
         if (names.any { it.endsWith(".rpyc") } || names.any { it.endsWith(".rpa") }) {
