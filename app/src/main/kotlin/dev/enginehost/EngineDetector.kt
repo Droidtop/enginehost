@@ -98,7 +98,7 @@ object EngineDetector {
         files.values.firstOrNull { it.path.endsWith(".html", true) }?.let { html ->
             val text = readText(resolver, html.uri)
             if (text.contains("<tw-storydata", ignoreCase = true)) {
-                val version = Regex("format-version=[\"']([^\"']+)", RegexOption.IGNORE_CASE)
+                val version = Regex("creator-version=[\"']([^\"']+)", RegexOption.IGNORE_CASE)
                     .find(text)?.groupValues?.get(1)?.takeIf(::isNumericVersion)
                 return EngineDetection("twine", "compiled-html", version, html.path, "Found Twine story metadata")
             }
