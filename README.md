@@ -79,10 +79,15 @@ When the folder has no config file, the inline config is used by itself.
 
 The first-class UI is a config creator built around Android's system folder
 picker. It opens or creates the authoritative `enginehost.json` in a chosen
-game folder, exposes the complete host contract, validates before writing, and
+game folder, scans the complete granted tree for conservative engine/version
+evidence, exposes the complete host contract, validates before writing, and
 preserves unknown top-level fields so newer plugin settings are not destroyed.
-It can also test the configuration immediately when the selected provider maps
-to a native primary-storage path.
+Detection only prefills empty fields; it never replaces an existing game-owned
+setting. The system folder grant is sufficient for editing and detection.
+
+Testing additionally requires a provider that maps to a native primary-storage
+path. Because native interpreters traverse the live tree through filesystem
+paths, Android 11 and newer also require the per-app native-file-access grant.
 
 The home screen also has a deliberately minimal “pick folder and run” action
 for plugin testing. It is not a library or catalog; programmatic launch through

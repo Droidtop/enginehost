@@ -18,7 +18,7 @@ class MainActivity : Activity() {
             startActivity(Intent(this, ConfigEditorActivity::class.java))
         }
         findViewById<Button>(R.id.pickAndLaunchButton).setOnClickListener {
-            startActivityForResult(StorageFolder.pickerIntent(), REQUEST_TEST_GAME)
+            openTestPickerWhenAllowed()
         }
         findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
             startActivity(Intent(this, ControllerConfigActivity::class.java))
@@ -28,6 +28,18 @@ class MainActivity : Activity() {
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_NATIVE_FILES) {
+            if (StorageFolder.hasNativePathAccess()) {
+                startActivityForResult(StorageFolder.pickerIntent(), REQUEST_TEST_GAME)
+            } else {
+                Toast.makeText(
+                    this,
+                    "Native file access is required only for test launching; config editing still works without it",
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+            return
+        }
         if (requestCode != REQUEST_TEST_GAME || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
         val flags = data.flags and (
@@ -46,7 +58,16 @@ class MainActivity : Activity() {
         GameRunner.run(this, folder)
     }
 
+    private fun openTestPickerWhenAllowed() {
+        if (StorageFolder.hasNativePathAccess()) {
+            startActivityForResult(StorageFolder.pickerIntent(), REQUEST_TEST_GAME)
+        } else {
+            StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
+        }
+    }
+
     companion object {
         private const val REQUEST_TEST_GAME = 10
+        private const val REQUEST_NATIVE_FILES = 11
     }
 }

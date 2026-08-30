@@ -20,6 +20,7 @@ class ConfigEditorActivity : Activity() {
     private var loadedDocument = JSONObject()
 
     private lateinit var folderLabel: TextView
+    private lateinit var detectionLabel: TextView
     private lateinit var engineField: EditText
     private lateinit var contextField: EditText
     private lateinit var versionField: EditText
@@ -34,6 +35,7 @@ class ConfigEditorActivity : Activity() {
         setContentView(R.layout.activity_config_editor)
 
         folderLabel = findViewById(R.id.configFolderLabel)
+        detectionLabel = findViewById(R.id.detectionLabel)
         engineField = findViewById(R.id.engineField)
         contextField = findViewById(R.id.engineContextField)
         versionField = findViewById(R.id.engineVersionField)
@@ -63,6 +65,7 @@ class ConfigEditorActivity : Activity() {
         folderLabel.text = StorageFolder.absolutePath(uri)?.absolutePath ?: uri.toString()
         editorFields.visibility = View.VISIBLE
         load(uri)
+        detect(uri)
     }
 
     private fun load(treeUri: Uri) {
@@ -98,6 +101,30 @@ class ConfigEditorActivity : Activity() {
         optionsField.setText(json.optJSONObject("options")?.toString(2) ?: "{}")
     }
 
+    private fun detect(treeUri: Uri) {
+        detectionLabel.text = "Scanning the selected folder for engine metadata…"
+        Thread {
+            val result = runCatching { EngineDetector.detect(contentResolver, treeUri) }
+            runOnUiThread {
+                if (folderUri != treeUri) return@runOnUiThread
+                result.fold(
+                    onSuccess = { detection ->
+                        if (detection == null) {
+                            detectionLabel.text = "Engine not identified; enter the configuration manually."
+                        } else {
+                            if (engineField.text.isBlank()) engineField.setText(detection.engine)
+                            if (contextField.text.isBlank()) detection.engineContext?.let(contextField::setText)
+                            if (versionField.text.isBlank()) detection.engineVersion?.let(versionField::setText)
+                            if (execFileField.text.isBlank()) detection.execFile?.let(execFileField::setText)
+                            detectionLabel.text = "Detected ${detection.engine}: ${detection.evidence}"
+                        }
+                    },
+                    onFailure = { detectionLabel.text = "Detection failed: ${it.message}" },
+                )
+            }
+        }.start()
+    }
+
     private fun buildDocument(): JSONObject {
         val result = JSONObject(loadedDocument.toString())
         result.put("engine", required(engineField, "Engine family"))
@@ -123,6 +150,10 @@ class ConfigEditorActivity : Activity() {
 
     private fun testRun() {
         val uri = folderUri ?: return toast("Choose a game folder first")
+        if (!StorageFolder.hasNativePathAccess()) {
+            StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
+            return toast("Grant native file access, then tap Test again")
+        }
         val folder = StorageFolder.absolutePath(uri)
             ?: return toast("This provider can edit the config, but native test launch needs a primary-storage folder")
         try {
@@ -206,5 +237,6 @@ class ConfigEditorActivity : Activity() {
 
     companion object {
         private const val REQUEST_FOLDER = 20
+        private const val REQUEST_NATIVE_FILES = 21
     }
 }
