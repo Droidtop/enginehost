@@ -27,8 +27,9 @@ object StorageFolder {
         val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return null
         val parts = documentId.split(':', limit = 2)
         if (!parts[0].equals("primary", ignoreCase = true)) return null
-        val root = Environment.getExternalStorageDirectory()
+        val root = Environment.getExternalStorageDirectory().canonicalFile
         val relative = parts.getOrNull(1).orEmpty()
-        return if (relative.isEmpty()) root else File(root, relative)
+        val candidate = if (relative.isEmpty()) root else File(root, relative).canonicalFile
+        return candidate.takeIf { it == root || it.toPath().startsWith(root.toPath()) }
     }
 }

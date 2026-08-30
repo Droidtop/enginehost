@@ -82,6 +82,8 @@ class ConfigEditorActivity : Activity() {
             runCatching { EngineConfigReader.parseDocument(raw) }
                 .exceptionOrNull()?.let { toast(it.message ?: "Configuration needs attention") }
         } catch (error: Exception) {
+            loadedDocument = JSONObject()
+            populate(loadedDocument)
             toast("Could not open $CONFIG_FILE_NAME: ${error.message}")
         }
     }
@@ -112,20 +114,7 @@ class ConfigEditorActivity : Activity() {
     private fun save() {
         val treeUri = folderUri ?: return toast("Choose a game folder first")
         try {
-            val document = buildDocument()
-            val configUri = findChild(treeUri, CONFIG_FILE_NAME)
-                ?: DocumentsContract.createDocument(
-                    contentResolver,
-                    treeDocumentUri(treeUri),
-                    "application/json",
-                    CONFIG_FILE_NAME,
-                )
-                ?: throw IllegalStateException("The selected folder would not create $CONFIG_FILE_NAME")
-            contentResolver.openOutputStream(configUri, "wt")?.bufferedWriter()?.use {
-                it.write(document.toString(2))
-                it.newLine()
-            } ?: throw IllegalStateException("The selected folder is not writable")
-            loadedDocument = document
+            writeDocument(treeUri)
             toast("Saved $CONFIG_FILE_NAME")
         } catch (error: Exception) {
             toast(error.message ?: "Could not save configuration")
@@ -137,10 +126,32 @@ class ConfigEditorActivity : Activity() {
         val folder = StorageFolder.absolutePath(uri)
             ?: return toast("This provider can edit the config, but native test launch needs a primary-storage folder")
         try {
-            GameRunner.run(this, folder, buildDocument().toString())
+            // The folder file is the highest-priority configuration source.
+            // Persist the visible editor state first so the test cannot launch
+            // with a stale on-disk document overriding it.
+            writeDocument(uri)
+            GameRunner.run(this, folder)
         } catch (error: Exception) {
             toast(error.message ?: "Configuration is not ready to test")
         }
+    }
+
+    private fun writeDocument(treeUri: Uri): JSONObject {
+        val document = buildDocument()
+        val configUri = findChild(treeUri, CONFIG_FILE_NAME)
+            ?: DocumentsContract.createDocument(
+                contentResolver,
+                treeDocumentUri(treeUri),
+                "application/json",
+                CONFIG_FILE_NAME,
+            )
+            ?: throw IllegalStateException("The selected folder would not create $CONFIG_FILE_NAME")
+        contentResolver.openOutputStream(configUri, "wt")?.bufferedWriter()?.use {
+            it.write(document.toString(2))
+            it.newLine()
+        } ?: throw IllegalStateException("The selected folder is not writable")
+        loadedDocument = document
+        return document
     }
 
     private fun findChild(treeUri: Uri, displayName: String): Uri? {
