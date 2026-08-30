@@ -75,12 +75,18 @@ may append fields the file omitted, including missing keys inside
 `options`, but can never override a value already present in the file.
 When the folder has no config file, the inline config is used by itself.
 
-## The basic UI
+## On-device tools
 
-There's also a plain pick-a-folder-and-launch screen, and a (currently
-unimplemented) controller config screen, for when there's no caller —
-just someone holding the device. The Intent contract above is the
-primary, intended way in.
+The first-class UI is a config creator built around Android's system folder
+picker. It opens or creates the authoritative `enginehost.json` in a chosen
+game folder, exposes the complete host contract, validates before writing, and
+preserves unknown top-level fields so newer plugin settings are not destroyed.
+It can also test the configuration immediately when the selected provider maps
+to a native primary-storage path.
+
+The home screen also has a deliberately minimal “pick folder and run” action
+for plugin testing. It is not a library or catalog; programmatic launch through
+`dev.enginehost.LAUNCH` remains the intended runtime interface.
 
 ## Plugins
 

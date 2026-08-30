@@ -68,6 +68,9 @@ data class EngineConfig(
 class InvalidEngineConfigException(message: String) : Exception(message)
 
 object EngineConfigReader {
+    /** Parse and validate one complete config document without resolving a folder. */
+    fun parseDocument(raw: String): EngineConfig = parse(parseObject(raw, CONFIG_FILE_NAME))
+
     /**
      * The real resolution order: a game folder's own `enginehost.json`
      * is authoritative, since it travels with the game and is the durable

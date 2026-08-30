@@ -4,31 +4,49 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
-import android.widget.EditText
-import java.io.File
+import android.widget.Toast
 
 /**
- * The basic, secondary UI -- for picking a game folder by hand and
- * launching it, or getting to controller config. [LaunchActivity]'s Intent
- * contract is the primary/intended way in (a caller passing a real path);
- * this exists for the case where there's no caller, just a person holding
- * the device. Deliberately plain -- a path field, not a real folder
- * browser yet (a real one is follow-up work, not this pass).
+ * Configuration-first home screen with a deliberately minimal test launcher.
  */
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val pathField = findViewById<EditText>(R.id.pathField)
-        findViewById<Button>(R.id.launchButton).setOnClickListener {
-            val path = pathField.text.toString().trim()
-            if (path.isNotEmpty()) {
-                GameRunner.run(this, File(path))
-            }
+        findViewById<Button>(R.id.createConfigButton).setOnClickListener {
+            startActivity(Intent(this, ConfigEditorActivity::class.java))
+        }
+        findViewById<Button>(R.id.pickAndLaunchButton).setOnClickListener {
+            startActivityForResult(StorageFolder.pickerIntent(), REQUEST_TEST_GAME)
         }
         findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
             startActivity(Intent(this, ControllerConfigActivity::class.java))
         }
+    }
+
+    @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_TEST_GAME || resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        val flags = data.flags and (
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        runCatching { contentResolver.takePersistableUriPermission(uri, flags) }
+        val folder = StorageFolder.absolutePath(uri)
+        if (folder == null) {
+            Toast.makeText(
+                this,
+                "Native test launch needs a folder on primary shared storage",
+                Toast.LENGTH_LONG,
+            ).show()
+            return
+        }
+        GameRunner.run(this, folder)
+    }
+
+    companion object {
+        private const val REQUEST_TEST_GAME = 10
     }
 }

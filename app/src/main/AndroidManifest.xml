@@ -7,8 +7,8 @@
         android:extractNativeLibs="true">
 
         <!--
-             The basic pick-and-launch UI, for a person holding the
-             device, not the primary intended way in (see LaunchActivity).
+             The configuration-first on-device UI. Its game launcher remains
+             a minimal testing tool; see LaunchActivity for normal dispatch.
         -->
         <activity
             android:name=".MainActivity"
@@ -21,6 +21,10 @@
 
         <activity
             android:name=".ControllerConfigActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ConfigEditorActivity"
             android:exported="false" />
 
         <!--
