@@ -116,6 +116,12 @@ class ConfigEditorActivity : Activity() {
                             if (contextField.text.isBlank()) detection.engineContext?.let(contextField::setText)
                             if (versionField.text.isBlank()) detection.engineVersion?.let(versionField::setText)
                             if (execFileField.text.isBlank()) detection.execFile?.let(execFileField::setText)
+                            if (
+                                (runtimesField.text.isBlank() || runtimesField.text.toString().trim() == "{}") &&
+                                detection.runtimeRequirements.isNotEmpty()
+                            ) {
+                                runtimesField.setText(JSONObject(detection.runtimeRequirements).toString(2))
+                            }
                             detectionLabel.text = "Detected ${detection.engine}: ${detection.evidence}"
                         }
                     },

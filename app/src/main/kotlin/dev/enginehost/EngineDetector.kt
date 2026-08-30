@@ -12,6 +12,7 @@ data class EngineDetection(
     val engineVersion: String? = null,
     val execFile: String? = null,
     val evidence: String,
+    val runtimeRequirements: Map<String, String> = emptyMap(),
 )
 
 /** Conservative game-engine detection used only to prefill the config editor. */
@@ -42,6 +43,7 @@ object EngineDetector {
                             "$line.$patch",
                             files["game.exe"]?.path,
                             "Game.ini names RGSS$line${match.groupValues[2]}",
+                            runtimeRequirements = if (line == 3) mapOf("ruby" to "1.9.2") else emptyMap(),
                         )
                     }
                 }
