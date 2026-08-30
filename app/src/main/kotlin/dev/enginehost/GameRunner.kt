@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.util.Log
 import android.widget.Toast
+import org.json.JSONObject
 import java.io.File
 
 /**
@@ -30,6 +31,7 @@ object GameRunner {
             config.engine,
             config.engineContext,
             config.engineVersion,
+            config.runtimeRequirements,
             config.pluginVersionConstraint,
         )
         if (resolved == null) {
@@ -43,6 +45,14 @@ object GameRunner {
             putExtra("engineVersion", config.engineVersion.toString())
             putExtra("runtimeVersion", resolved.capability.runtimeVersion.toString())
             putExtra("capabilityId", resolved.capability.id)
+            if (config.runtimeRequirements.isNotEmpty()) {
+                putExtra(
+                    "runtimeRequirements",
+                    JSONObject().apply {
+                        config.runtimeRequirements.forEach { (name, version) -> put(name, version.toString()) }
+                    }.toString(),
+                )
+            }
             config.execFile?.let { putExtra("execFile", it) }
             // Passed through as-is, never inspected here -- see EngineConfig's own doc comment.
             config.options?.let { putExtra("options", it.toString()) }
@@ -74,6 +84,10 @@ object GameRunner {
         append('"').append(config.engine).append('"')
         config.engineContext?.let { append(" context \"").append(it).append('"') }
         append(" version ").append(config.engineVersion)
+        if (config.runtimeRequirements.isNotEmpty()) {
+            append(" with ")
+            append(config.runtimeRequirements.entries.joinToString { "${it.key} ${it.value}" })
+        }
     }
 
     private fun fail(activity: Activity, message: String) {

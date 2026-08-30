@@ -41,6 +41,7 @@ object PluginResolver {
         engine: String,
         engineContext: String?,
         engineVersion: Version,
+        runtimeRequirements: Map<String, Version>,
         pluginVersionAllowlist: VersionConstraint?,
     ): ResolvedPlugin? {
         val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
@@ -49,7 +50,11 @@ object PluginResolver {
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
             .flatMap { plugin ->
                 plugin.info.capabilities.asSequence()
-                    .filter { it.engineContext == requestedContext && it.supports(engineVersion) }
+                    .filter {
+                        it.engineContext == requestedContext &&
+                            it.supports(engineVersion) &&
+                            it.satisfies(runtimeRequirements)
+                    }
                     .map { ResolvedPlugin(plugin, it) }
             }
             .sortedWith(
@@ -121,8 +126,9 @@ object PluginRegistry {
         engine: String,
         engineContext: String?,
         engineVersion: Version,
+        runtimeRequirements: Map<String, Version>,
         pluginVersionAllowlist: VersionConstraint?,
     ): ResolvedPlugin? = PluginResolver.resolve(
-        discover(context), engine, engineContext, engineVersion, pluginVersionAllowlist,
+        discover(context), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
     )
 }

@@ -19,6 +19,7 @@ class EngineConfigReaderTest {
                 "engine": "renpy",
                 "engineContext": "python3",
                 "engineVersion": "8.2.1",
+                "runtimeRequirements": {"python":"3.9.10"},
                 "options": {
                     "renderer": "gl2",
                     "nested": { "folder": true }
@@ -45,6 +46,7 @@ class EngineConfigReaderTest {
         assertEquals("renpy", config.engine)
         assertEquals("python3", config.engineContext)
         assertEquals("8.2.1", config.engineVersion.toString())
+        assertEquals(Version.parse("3.9.10"), config.runtimeRequirements["python"])
         assertEquals("game.py", config.execFile)
         assertEquals("gl2", config.options!!.getString("renderer"))
         assertEquals(true, config.options.getBoolean("touch"))
@@ -87,6 +89,17 @@ class EngineConfigReaderTest {
                     """{"engine":"renpy","engineVersion":"8.5","pluginVersion":"$allowlist"}""",
                 )
             }
+        }
+    }
+
+    @Test
+    fun `invalid runtime requirement version is rejected`() {
+        val gameFolder = temporaryFolder.newFolder("runtime-requirement")
+        assertThrows(InvalidEngineConfigException::class.java) {
+            EngineConfigReader.resolve(
+                gameFolder,
+                """{"engine":"rpgmaker","engineVersion":"3.0","runtimeRequirements":{"ruby":"classic"}}""",
+            )
         }
     }
 }

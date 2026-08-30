@@ -15,6 +15,7 @@ class PluginCapabilitiesTest {
                     "id": "mz-1.8",
                     "engineContext": "mz",
                     "runtimeVersion": "1.8.0",
+                    "runtimeComponents": {"ruby":"1.9.2"},
                     "supportedVersions": ["1.7.0"],
                     "supportedRanges": [{"min":"1.7.1","max":"1.8.0"}]
                 }]
@@ -26,6 +27,7 @@ class PluginCapabilitiesTest {
         assertEquals(true, capability.supports(Version.parse("1.7.0")))
         assertEquals(true, capability.supports(Version.parse("1.7.5")))
         assertEquals(false, capability.supports(Version.parse("1.6.2")))
+        assertEquals(Version.parse("1.9.2"), capability.runtimeComponents["ruby"])
     }
 
     @Test
@@ -58,6 +60,7 @@ class PluginCapabilitiesTest {
             "rpgmaker",
             "mz",
             Version.parse("1.7.0"),
+            emptyMap(),
             null,
         )
 
@@ -76,15 +79,41 @@ class PluginCapabilitiesTest {
             "rpgmaker",
             "mv",
             Version.parse("1.6.2"),
+            emptyMap(),
             VersionConstraint.parse("2.0"),
         )
 
         assertEquals("plugin.older", allowed!!.plugin.packageName)
         assertNull(
             PluginResolver.resolve(
-                listOf(wrongContext), "rpgmaker", "mv", Version.parse("1.6.2"), null,
+                listOf(wrongContext), "rpgmaker", "mv", Version.parse("1.6.2"), emptyMap(), null,
             ),
         )
+    }
+
+    @Test
+    fun `resolver requires an exact requested embedded runtime`() {
+        val ruby19 = plugin(
+            "plugin.ruby19",
+            "1.0",
+            capability("vxace-ruby19", "vxace", "3.0", components = mapOf("ruby" to "1.9.2")),
+        )
+        val ruby31 = plugin(
+            "plugin.ruby31",
+            "2.0",
+            capability("vxace-ruby31", "vxace", "3.0", components = mapOf("ruby" to "3.1.3")),
+        )
+
+        val result = PluginResolver.resolve(
+            listOf(ruby31, ruby19),
+            "rpgmaker",
+            "vxace",
+            Version.parse("3.0"),
+            mapOf("ruby" to Version.parse("1.9.2")),
+            null,
+        )
+
+        assertEquals("plugin.ruby19", result!!.plugin.packageName)
     }
 
     @Test
@@ -108,6 +137,7 @@ class PluginCapabilitiesTest {
         runtimeVersion: String,
         rangeMin: String? = null,
         rangeMax: String? = null,
+        components: Map<String, String> = emptyMap(),
     ) = EngineCapability(
         id,
         context,
@@ -118,5 +148,6 @@ class PluginCapabilitiesTest {
         } else {
             emptyList()
         },
+        components.mapValues { Version.parse(it.value) },
     )
 }

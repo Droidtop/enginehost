@@ -20,6 +20,7 @@ data class EngineCapability(
     val runtimeVersion: Version,
     val supportedVersions: Set<Version>,
     val supportedRanges: List<VersionRange>,
+    val runtimeComponents: Map<String, Version> = emptyMap(),
 ) {
     fun supports(version: Version): Boolean =
         version == runtimeVersion || version in supportedVersions || supportedRanges.any { it.contains(version) }
@@ -28,6 +29,9 @@ data class EngineCapability(
         version == runtimeVersion || version in supportedVersions -> 0L
         else -> supportedRanges.filter { it.contains(version) }.minOfOrNull { it.width() } ?: Long.MAX_VALUE
     }
+
+    fun satisfies(requirements: Map<String, Version>): Boolean =
+        requirements.all { (name, version) -> runtimeComponents[name] == version }
 }
 
 object PluginCapabilitiesReader {
@@ -65,7 +69,16 @@ object PluginCapabilitiesReader {
                         }
                     }
                 }
-                add(EngineCapability(id, context, runtimeVersion, versions, ranges))
+                val components = buildMap {
+                    val objectValue = entry.optJSONObject("runtimeComponents")
+                    if (objectValue != null) {
+                        for (name in objectValue.keys()) {
+                            require(name.isNotBlank()) { "Runtime component names must not be blank" }
+                            put(name, Version.parse(objectValue.requiredString(name)))
+                        }
+                    }
+                }
+                add(EngineCapability(id, context, runtimeVersion, versions, ranges, components))
             }
         }.also { capabilities ->
             require(capabilities.map { it.id }.distinct().size == capabilities.size) {

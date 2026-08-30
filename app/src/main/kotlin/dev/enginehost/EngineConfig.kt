@@ -21,10 +21,11 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  *   "engine": "rpgmaker",
  *   "engineContext": "vxace",
  *   "engineVersion": "1.4.0",
+ *   "runtimeRequirements": { "ruby": "1.9.2" },
  *   "pluginVersion": "1.0.0,1.2.0-1.4.0",
  *   "execFile": "Game.exe",
  *   "options": {
- *     "rubyVersion": "1.9"
+ *     "rtpPaths": ["/storage/emulated/0/RTP/RPGVXAce"]
  *   }
  * }
  * ```
@@ -38,6 +39,11 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  * ranges constraining plugin *builds* (not engine versions) -- see
  * [VersionConstraint]. `execFile` is optional, the specific file within
  * the folder to run, for engines that need one rather than scanning it.
+ * `runtimeRequirements` is an optional map of embedded component names to
+ * exact dotted-numeric versions. It participates in plugin resolution: a
+ * capability must advertise the same component/version before it can be
+ * selected. This is how an RGSS game requests Ruby 1.9.2 rather than a
+ * plugin compiled against Ruby 3.1, without teaching the host about Ruby.
  *
  * `options` is a deliberately generic, opaque-to-enginehost bag of
  * engine-specific settings -- the real motivating case: an RGSS game
@@ -53,6 +59,7 @@ data class EngineConfig(
     val engine: String,
     val engineContext: String?,
     val engineVersion: Version,
+    val runtimeRequirements: Map<String, Version>,
     val pluginVersionConstraint: VersionConstraint?,
     val execFile: String?,
     val options: JSONObject?,
@@ -118,6 +125,7 @@ object EngineConfigReader {
                     "Config field \"engineVersion\" must be a dotted numeric version",
                 )
             },
+            runtimeRequirements = parseRuntimeRequirements(json),
             pluginVersionConstraint = if (json.has("pluginVersion")) {
                 val rawPluginVersion = json.optString("pluginVersion")
                 try {
@@ -133,5 +141,32 @@ object EngineConfigReader {
             execFile = json.optString("execFile").takeIf { it.isNotBlank() },
             options = json.optJSONObject("options"),
         )
+    }
+
+    private fun parseRuntimeRequirements(json: JSONObject): Map<String, Version> {
+        if (!json.has("runtimeRequirements")) return emptyMap()
+        val requirements = json.optJSONObject("runtimeRequirements")
+            ?: throw InvalidEngineConfigException(
+                "Config field \"runtimeRequirements\" must be an object of component names to dotted versions",
+            )
+        return buildMap {
+            for (name in requirements.keys()) {
+                if (name.isBlank()) {
+                    throw InvalidEngineConfigException("Runtime requirement names must not be blank")
+                }
+                val rawVersion = requirements.optString(name).takeIf { it.isNotBlank() }
+                    ?: throw InvalidEngineConfigException(
+                        "Runtime requirement \"$name\" must be a dotted numeric version",
+                    )
+                val version = try {
+                    Version.parse(rawVersion)
+                } catch (_: IllegalArgumentException) {
+                    throw InvalidEngineConfigException(
+                        "Runtime requirement \"$name\" must be a dotted numeric version",
+                    )
+                }
+                put(name, version)
+            }
+        }
     }
 }
