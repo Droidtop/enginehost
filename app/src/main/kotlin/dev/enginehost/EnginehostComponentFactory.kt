@@ -41,8 +41,8 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val nativePaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
         val loader = DexClassLoader(
             dex.joinToString(File.pathSeparator) { it.path },
+            context.codeCacheDir.path,
             nativePaths.joinToString(File.pathSeparator) { it.path }.ifBlank { null },
-            null,
             classLoader,
         )
         val runtime = Class.forName(installed.entrypointClass, true, loader)

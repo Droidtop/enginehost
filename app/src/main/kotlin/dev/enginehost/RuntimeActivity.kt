@@ -95,8 +95,8 @@ class RuntimeActivity : FragmentActivity() {
         val nativeLibraryPaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
         val loader = DexClassLoader(
             dexPaths.joinToString(File.pathSeparator) { it.absolutePath },
+            codeCacheDir.absolutePath,
             nativeLibraryPaths.joinToString(File.pathSeparator) { it.absolutePath }.ifBlank { null },
-            null,
             classLoader,
         )
         val entrypoint = Class.forName(installed.entrypointClass, true, loader)
