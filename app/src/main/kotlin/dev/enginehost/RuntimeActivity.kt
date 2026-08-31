@@ -168,8 +168,14 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
         const val EXTRA_SAVE_PATH = "dev.enginehost.runtime.SAVE_PATH"
+        const val EXTRA_ENGINE = "dev.enginehost.runtime.ENGINE"
         const val EXTRA_ENGINE_CONTEXT = "dev.enginehost.runtime.ENGINE_CONTEXT"
         const val EXTRA_ENGINE_VERSION = "dev.enginehost.runtime.ENGINE_VERSION"
+        const val EXTRA_RUNTIME_VERSION = "dev.enginehost.runtime.RUNTIME_VERSION"
+        const val EXTRA_CAPABILITY_ID = "dev.enginehost.runtime.CAPABILITY_ID"
+        const val EXTRA_RUNTIME_REQUIREMENTS = "dev.enginehost.runtime.RUNTIME_REQUIREMENTS"
+        const val EXTRA_EXEC_FILE = "dev.enginehost.runtime.EXEC_FILE"
+        const val EXTRA_OPTIONS = "dev.enginehost.runtime.OPTIONS"
     }
 }
 

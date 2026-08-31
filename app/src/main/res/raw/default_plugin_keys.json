@@ -73,6 +73,19 @@
         "algorithm": "SHA256withECDSA",
         "id": "enginehost-official-v1",
         "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEUCIQDzmREerFxKXMggZuywzQZxolpTHs5ZhJ3FERBQxLT5NAIgPsAZx+MP7+RxsTDs52hFNukWi6ndebZkEWiP189S04c="
+      },
+      "keySha256": "DAF47A56280EF52930F7D851CF9618A2F61996E8A3758F8952B67BC38F6B0BAC",
+      "origin": "https://github.com/droidtop/enginehost-rpgmaker-mkxp-z-plugin",
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6l71OtqX4/xF+Fjdt+OQIMqxqE7ViGhB7pjnIG+ZBwBdiQv+rqB3VdXsIz0Fi+gQrHi6dSj4eYJWkAUaupvsuw=="
+    },
+    {
+      "algorithm": "SHA256withECDSA",
+      "formatVersion": 1,
+      "issuer": {
+        "algorithm": "SHA256withECDSA",
+        "id": "enginehost-official-v1",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
         "signature": "MEUCIQD0mINLMK+/yijoPtOGIUPmKtnbAFgUiaWVQGikIhGG3wIgFDD2b8IU2AV9f/MbALifRmvtw2OEqvSeTX7Ey94zp+g="
       },
       "keySha256": "730F20BCE5ACABE93D1296C426EBCCDAAF4FC8456233786B95DBA12FBA2A1CBE",
