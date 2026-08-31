@@ -1,0 +1,7 @@
+{
+  "algorithm": "SHA256withECDSA",
+  "formatVersion": 1,
+  "id": "enginehost-official-v1",
+  "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+  "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAsYAoE36n7ZWJ0ghHlqY0janNeguQevhzNsi4DZND72kFL0VWqrRKl47oopuTGB8kE1eIw2AT1yc3xpbH6H7Og=="
+}

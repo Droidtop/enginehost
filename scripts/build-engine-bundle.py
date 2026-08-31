@@ -75,6 +75,8 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--release-envelope", type=Path)
     parser.add_argument("--public-key-document", type=Path)
+    parser.add_argument("--repository-key-document", type=Path,
+                        help="Existing certified repository key document to validate and copy")
     args = parser.parse_args()
     if not args.output.name.endswith(".enginehost.tar.xz"):
         raise SystemExit("output name must end in .enginehost.tar.xz")
@@ -154,6 +156,12 @@ def main() -> None:
             "publicKeySpki": base64.b64encode(public_der).decode("ascii"),
             "keySha256": sha256(public_der),
         }
+        if args.repository_key_document:
+            certified = json.loads(args.repository_key_document.read_text(encoding="utf-8"))
+            for name, value in key_document.items():
+                if certified.get(name) != value:
+                    raise SystemExit(f"Certified repository key mismatch: {name}")
+            key_document = certified
         args.public_key_document.write_text(
             json.dumps(key_document, sort_keys=True, indent=2) + "\n", encoding="utf-8"
         )

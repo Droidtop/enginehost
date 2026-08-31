@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.KeyFactory
+import java.security.Signature
 import java.security.interfaces.ECPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
@@ -57,12 +58,12 @@ class PluginOriginKeyStore(private val context: Context) {
             val keys = root.getJSONArray("keys")
             (0 until keys.length()).associate { index ->
                 val raw = keys.getJSONObject(index).toString()
-                val key = parseKeyDocument(raw)
+                val key = parseKeyDocument(raw, requireOfficialIssuer = true)
                 key.origin to key
             }
         }
 
-    private fun parseKeyDocument(raw: String): PluginOriginKey {
+    private fun parseKeyDocument(raw: String, requireOfficialIssuer: Boolean = false): PluginOriginKey {
         val json = JSONObject(raw)
         require(json.optInt("formatVersion", 1) == 1) { "Unsupported repository key format" }
         val origin = normalizeGithubOrigin(json.requiredString("origin"))
@@ -76,7 +77,38 @@ class PluginOriginKeyStore(private val context: Context) {
         }
         val fingerprint = sha256(key)
         require(fingerprint == json.requiredSha256("keySha256")) { "Repository key fingerprint mismatch" }
+        if (requireOfficialIssuer) verifyOfficialIssuer(json)
         return PluginOriginKey(origin, algorithm, key, fingerprint)
+    }
+
+    private fun verifyOfficialIssuer(repositoryKey: JSONObject) {
+        val root = context.resources.openRawResource(R.raw.official_plugin_root_key)
+            .bufferedReader().use { JSONObject(it.readText()) }
+        require(root.getInt("formatVersion") == 1) { "Unsupported official root-key format" }
+        val issuer = repositoryKey.optJSONObject("issuer")
+            ?: throw IllegalArgumentException("Built-in repository key lacks official certification")
+        require(issuer.requiredString("id") == root.requiredString("id")) { "Unknown official key issuer" }
+        require(issuer.requiredString("algorithm") == "SHA256withECDSA") { "Unsupported issuer algorithm" }
+        val rootDer = Base64.getDecoder().decode(root.requiredString("publicKeySpki"))
+        val rootFingerprint = sha256(rootDer)
+        require(rootFingerprint == root.requiredSha256("keySha256") &&
+            rootFingerprint == issuer.requiredSha256("keySha256")) { "Official root-key fingerprint mismatch" }
+        val rootKey = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(rootDer))
+        require(rootKey is ECPublicKey && rootKey.params.curve.field.fieldSize == 256) {
+            "Official root key must be ECDSA P-256"
+        }
+        val signedIdentity = buildString {
+            append(normalizeGithubOrigin(repositoryKey.requiredString("origin"))).append('\n')
+            append(repositoryKey.requiredString("algorithm")).append('\n')
+            append(repositoryKey.requiredString("publicKeySpki")).append('\n')
+            append(repositoryKey.requiredSha256("keySha256")).append('\n')
+        }.toByteArray(Charsets.UTF_8)
+        val verifier = Signature.getInstance("SHA256withECDSA")
+        verifier.initVerify(rootKey)
+        verifier.update(signedIdentity)
+        require(verifier.verify(Base64.getDecoder().decode(issuer.requiredString("signature")))) {
+            "Repository key is not certified by the official Enginehost root"
+        }
     }
 }
 

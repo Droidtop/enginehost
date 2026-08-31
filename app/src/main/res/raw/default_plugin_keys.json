@@ -5,22 +5,40 @@
       "formatVersion": 1,
       "origin": "https://github.com/droidtop/enginehost-twine-plugin",
       "algorithm": "SHA256withECDSA",
-      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnM2ODKs6OGNnEnrV1t0NXgl/3/rfGyitBzsHNcinT8KXsZDLuxQpNR6Yj0D/W2JrE6eheL/1l9PoN75wQdOhIQ==",
-      "keySha256": "22FB9FB8C52E3AF71DE0DFE64BE4A37315E8B05B6EA63090B64A6BD4A6D5B7A5"
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsPG3r4J5kpS3CAD8r5Rw7ofURFVHgWmaaCQKqVvtj5pn8g4K8Bw4VCI22mAq/kP1sFpT3AIORKmLfsXW0v1RmQ==",
+      "keySha256": "436548E1A97F01B727C46C885645E6DC5C8B1D268E4564D734ED58DF06729598",
+      "issuer": {
+        "id": "enginehost-official-v1",
+        "algorithm": "SHA256withECDSA",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEUCIQCBjPp+lFrO+sWKGCfA53MsCwUKCeDkc+w2tAY5QMTkcAIgUYsAujgYyYowyV6p8BMgG+vUg8PGogKpkaO2JV0A8EQ="
+      }
     },
     {
       "formatVersion": 1,
       "origin": "https://github.com/droidtop/enginehost-flash-air-plugin",
       "algorithm": "SHA256withECDSA",
-      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZJ+LBYzeVWO84KxR4y5jBxGCXDj36DcDH+GxaSqPMeQguw6Dy0qio6QZSvaq6GgnV+y5laTDpW0KTYVtOawr1A==",
-      "keySha256": "5F997B5486B81ECBC13C2547968140DA1619407DCCCB90CB485AA6F17D97A0A4"
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE26+jXuVXXJO8H/v4UQQetMtWKNUobS0cUDDxc5RLm62XL+VBMUfc2HWGQs3pYMQ8oswwYXf6qsmjVDeOH6PfyA==",
+      "keySha256": "4C742532EECCA45868DF9EFC971797A95DE15DCE9CB99CC3516F562D75480BDC",
+      "issuer": {
+        "id": "enginehost-official-v1",
+        "algorithm": "SHA256withECDSA",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEYCIQCZmUzYoIMtNBTH8fF+TLn4ax36IvznnTmJQC/X4VdjowIhAJcPs/gWQUQhMBI/Rxk88yXkuvM9fRTTM/dJYDJsbHNJ"
+      }
     },
     {
       "formatVersion": 1,
       "origin": "https://github.com/droidtop/enginehost-catsystem2-plugin",
       "algorithm": "SHA256withECDSA",
-      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaZB4PAqWSh0zy2GHagOLDByPWjQVwcD2TYoDx0Zylzig+j0EDoeH6qN5exFjWS1yoEIY98TOCiB8WgrZB4Njvg==",
-      "keySha256": "516B2526536C0B50F9F3B8A85B7118D2B55882817ACD6D90D34A6FD61DF03468"
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZcaZ5S2GtYSFSm2deUNll5LCT6Fkj/86TRIGRADWoTv7B2fOKN9X2RekMF8hOBog55CAMLxz289nqZuqTyYF1g==",
+      "keySha256": "49E13B20F74ABFB6CA067061B8D490A99A9DC644EAF231704CDB249FB91EE534",
+      "issuer": {
+        "id": "enginehost-official-v1",
+        "algorithm": "SHA256withECDSA",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEUCIE0u/GyL7OZceIfA5Ym39SFjkHCGfdQzesuAaM2RozXTAiEAjMTEMOW3h0tRnwXOYVFfeCY54oeFdrYi/HJ8PQxUqME="
+      }
     }
   ]
 }
