@@ -7,6 +7,7 @@ import android.content.res.loader.ResourcesLoader
 import android.content.res.loader.ResourcesProvider
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import dalvik.system.DexClassLoader
 import java.io.File
 
@@ -33,11 +34,13 @@ class EnginehostComponentFactory : AppComponentFactory() {
         require(PluginTrustStore(context).isApproved(installed)) { "Engine bundle approval is missing" }
         val manifest = InstalledBundleVerifier.verify(context, installed)
         require(manifest.entrypoint == installed.entrypointClass)
+        Log.i(TAG, "Loading bundle=$bundleId entrypoint=${installed.entrypointClass}")
         installResources(context, installed)
         val resourceApks = installed.resourceApks.map {
             safeRuntimeChild(installed.directory.canonicalFile, it)
         }
         intent.putStringArrayListExtra(EXTRA_RESOURCE_APKS, ArrayList(resourceApks.map(File::getPath)))
+        Log.i(TAG, "Runtime resource APKs=${resourceApks.joinToString { it.path }}")
         resourceApks.firstOrNull()?.let { apk ->
             context.packageManager.getPackageArchiveInfo(apk.path, 0)?.packageName?.let {
                 intent.putExtra(EXTRA_RESOURCE_PACKAGE, it)
@@ -57,7 +60,9 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val runtime = Class.forName(installed.entrypointClass, true, loader)
         require(Activity::class.java.isAssignableFrom(runtime)) { "Bundle entrypoint is not an Activity" }
         @Suppress("UNCHECKED_CAST")
-        return (runtime as Class<out Activity>).getDeclaredConstructor().newInstance()
+        return (runtime as Class<out Activity>).getDeclaredConstructor().newInstance().also {
+            Log.i(TAG, "Instantiated runtime activity=${it.javaClass.name} loader=${it.javaClass.classLoader}")
+        }
     }
 
     private fun installResources(context: EnginehostApplication, installed: InstalledPlugin) {
@@ -77,6 +82,7 @@ class EnginehostComponentFactory : AppComponentFactory() {
     }
 
     companion object {
+        private const val TAG = "EnginehostRuntime"
         const val EXTRA_RESOURCE_APKS = "dev.enginehost.runtime.RESOURCE_APKS"
         const val EXTRA_RESOURCE_PACKAGE = "dev.enginehost.runtime.RESOURCE_PACKAGE"
     }
