@@ -47,3 +47,10 @@ every signed property, writes a host-owned installation record, makes the tree
 read-only, and atomically renames it into the installed-bundle registry. It
 rechecks the signed manifest, pinned origin key, and all file hashes before
 loading dex or native libraries into the isolated `:runtime` process.
+
+`resourceApks` is an optional array of signed payload paths. Enginehost attaches
+each listed APK's compiled resources to the runtime before loading the plugin
+entrypoint. A path may appear in both `dexFiles` and `resourceApks`; this lets a
+single embedded runtime APK carry code, resources, assets, and JNI libraries
+without being installed as a separate Android package. Native libraries remain
+under `lib/<abi>/` in the bundle so the runtime class loader can resolve them.

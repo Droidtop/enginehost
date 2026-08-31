@@ -21,6 +21,7 @@ data class InstalledPlugin(
     val archiveSha256: String = "",
     val apiVersion: Int = dev.enginehost.api.EnginePluginContract.API_VERSION,
     val dexFiles: List<String> = listOf("classes.dex"),
+    val resourceApks: List<String> = emptyList(),
 ) {
     /** Compatibility alias while callers migrate from package terminology. */
     val packageName: String get() = bundleId
@@ -102,6 +103,9 @@ object PluginRegistry {
             json.getJSONArray("dexFiles").let { array ->
                 (0 until array.length()).map(array::getString)
             },
+            json.optJSONArray("resourceApks")?.let { array ->
+                (0 until array.length()).map(array::getString)
+            }.orEmpty(),
         )
     }
 

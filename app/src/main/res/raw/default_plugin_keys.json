@@ -52,6 +52,19 @@
         "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
         "signature": "MEYCIQCBIp8txLmvFTdt0H6t9tZN7/I7EWSzcIlPkKyZKU+4EAIhAMVRCzd09MaxalW9AggBpShKXpjgwX8/GtQjNp/cl3Bv"
       }
+    },
+    {
+      "formatVersion": 1,
+      "origin": "https://github.com/droidtop/enginehost-godot-plugin",
+      "algorithm": "SHA256withECDSA",
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYo4rA9dJZGJ6oZ9eKPBLRDVqjaRB+YAjEoJ2e7y/dFvcJL6DUfcD7yfgKInvByomoPOFfY01aK7l5KyH7dfOcw==",
+      "keySha256": "448DB718C0430718E12BE203F09065D186132642169A5EADC2FB31D797A65AFB",
+      "issuer": {
+        "id": "enginehost-official-v1",
+        "algorithm": "SHA256withECDSA",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEYCIQCWavg6LL1Ltpoxlq76zgsn6bSAYJoeqvFvixp4ppmUpgIhAJAU3UZB1BXTOvm9OTjRZJ7qPSeDwloVfv0oY9ztRQLj"
+      }
     }
   ]
 }

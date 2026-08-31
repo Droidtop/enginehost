@@ -31,6 +31,7 @@ data class EngineBundleManifest(
     val publicKeySpki: ByteArray,
     val signingKeySha256: String,
     val dexFiles: List<String>,
+    val resourceApks: List<String>,
     val payloadSha256: String,
     val files: List<BundleFileRecord>,
 ) {
@@ -45,6 +46,7 @@ data class EngineBundleManifest(
         .put("signingKeySha256", signingKeySha256)
         .put("archiveSha256", archiveSha256)
         .put("dexFiles", JSONArray(dexFiles))
+        .put("resourceApks", JSONArray(resourceApks))
         .put("capabilities", JSONArray().apply { info.capabilities.forEach { put(it.toJson()) } })
 }
 
@@ -89,6 +91,12 @@ object EngineBundleManifestReader {
         require(dexFiles.isNotEmpty() && dexFiles.all { dex -> files.any { it.path == dex } }) {
             "Every dex file must be part of the signed payload"
         }
+        val resourceApks = json.optJSONArray("resourceApks")?.let { array ->
+            (0 until array.length()).map { validateBundlePath(array.getString(it)) }
+        }.orEmpty()
+        require(resourceApks.all { apk -> files.any { it.path == apk } }) {
+            "Every resource APK must be part of the signed payload"
+        }
         return EngineBundleManifest(
             rawBytes,
             json.requiredString("assetName").also {
@@ -106,6 +114,7 @@ object EngineBundleManifestReader {
             publicKey,
             fingerprint,
             dexFiles,
+            resourceApks,
             json.requiredSha256("payloadSha256"),
             files,
         )
