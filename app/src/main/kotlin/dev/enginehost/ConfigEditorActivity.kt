@@ -137,7 +137,13 @@ class ConfigEditorActivity : Activity() {
 
     private fun mergeMissing(authoritative: JSONObject, fallback: JSONObject) {
         fallback.keys().forEach { key ->
-            if (!authoritative.has(key)) authoritative.put(key, fallback.get(key))
+            if (!authoritative.has(key)) {
+                authoritative.put(key, fallback.get(key))
+            } else {
+                val existing = authoritative.opt(key)
+                val additional = fallback.opt(key)
+                if (existing is JSONObject && additional is JSONObject) mergeMissing(existing, additional)
+            }
         }
     }
 
