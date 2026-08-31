@@ -34,10 +34,15 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val manifest = InstalledBundleVerifier.verify(context, installed)
         require(manifest.entrypoint == installed.entrypointClass)
         installResources(context, installed)
-        intent.putStringArrayListExtra(
-            EXTRA_RESOURCE_APKS,
-            ArrayList(installed.resourceApks.map { safeRuntimeChild(installed.directory.canonicalFile, it).path }),
-        )
+        val resourceApks = installed.resourceApks.map {
+            safeRuntimeChild(installed.directory.canonicalFile, it)
+        }
+        intent.putStringArrayListExtra(EXTRA_RESOURCE_APKS, ArrayList(resourceApks.map(File::getPath)))
+        resourceApks.firstOrNull()?.let { apk ->
+            context.packageManager.getPackageArchiveInfo(apk.path, 0)?.packageName?.let {
+                intent.putExtra(EXTRA_RESOURCE_PACKAGE, it)
+            }
+        }
 
         val root = installed.directory.canonicalFile
         val dex = installed.dexFiles.map { safeRuntimeChild(root, it) }
@@ -73,5 +78,6 @@ class EnginehostComponentFactory : AppComponentFactory() {
 
     companion object {
         const val EXTRA_RESOURCE_APKS = "dev.enginehost.runtime.RESOURCE_APKS"
+        const val EXTRA_RESOURCE_PACKAGE = "dev.enginehost.runtime.RESOURCE_PACKAGE"
     }
 }
