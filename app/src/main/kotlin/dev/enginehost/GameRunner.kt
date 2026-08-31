@@ -45,7 +45,10 @@ object GameRunner {
             )
             return
         }
-        val intent = Intent(activity, RuntimeActivity::class.java).apply {
+        val runtimeClass = if (resolved.plugin.runtimeTransport == RUNTIME_TRANSPORT_ACTIVITY) {
+            BundledActivityProxy::class.java
+        } else RuntimeActivity::class.java
+        val intent = Intent(activity, runtimeClass).apply {
             putExtra(RuntimeActivity.EXTRA_PATH, gameFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE, resolved.plugin.bundleId)
             inlineJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }

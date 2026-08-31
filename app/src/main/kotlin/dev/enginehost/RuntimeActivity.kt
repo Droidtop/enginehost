@@ -170,7 +170,7 @@ class RuntimeActivity : FragmentActivity() {
     }
 }
 
-private fun safeRuntimeChild(root: File, relativePath: String): File {
+internal fun safeRuntimeChild(root: File, relativePath: String): File {
     val path = validateBundlePath(relativePath)
     val child = File(root, path).canonicalFile
     require(child.path.startsWith(root.path.trimEnd(File.separatorChar) + File.separator)) {

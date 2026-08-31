@@ -21,6 +21,7 @@ class EngineBundleManifestTest {
         assertEquals("dev.enginehost.renpy.8_3.v1", parsed.bundleId)
         assertEquals("renpy", parsed.info.engine)
         assertEquals(Version.parse("8.3.2"), parsed.info.capabilities.single().runtimeVersion)
+        assertEquals(RUNTIME_TRANSPORT_PLUGIN, parsed.runtimeTransport)
     }
 
     @Test

@@ -32,6 +32,7 @@ data class EngineBundleManifest(
     val signingKeySha256: String,
     val dexFiles: List<String>,
     val resourceApks: List<String>,
+    val runtimeTransport: String,
     val payloadSha256: String,
     val files: List<BundleFileRecord>,
 ) {
@@ -47,6 +48,7 @@ data class EngineBundleManifest(
         .put("archiveSha256", archiveSha256)
         .put("dexFiles", JSONArray(dexFiles))
         .put("resourceApks", JSONArray(resourceApks))
+        .put("runtimeTransport", runtimeTransport)
         .put("capabilities", JSONArray().apply { info.capabilities.forEach { put(it.toJson()) } })
 }
 
@@ -115,6 +117,11 @@ object EngineBundleManifestReader {
             fingerprint,
             dexFiles,
             resourceApks,
+            json.optString("runtimeTransport", RUNTIME_TRANSPORT_PLUGIN).also {
+                require(it == RUNTIME_TRANSPORT_PLUGIN || it == RUNTIME_TRANSPORT_ACTIVITY) {
+                    "Unsupported runtime transport"
+                }
+            },
             json.requiredSha256("payloadSha256"),
             files,
         )

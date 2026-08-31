@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Native interpreters operate on complete game directory trees in place. -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
@@ -9,6 +10,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".EnginehostApplication"
+        android:appComponentFactory=".EnginehostComponentFactory"
+        tools:replace="android:appComponentFactory"
         android:label="enginehost"
         android:allowBackup="false"
         android:extractNativeLibs="true">
@@ -65,6 +69,14 @@
 
         <activity
             android:name=".RuntimeActivity"
+            android:exported="false"
+            android:process=":runtime"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <!-- Instantiated as a signed bundle's Activity by EnginehostComponentFactory. -->
+        <activity
+            android:name=".BundledActivityProxy"
             android:exported="false"
             android:process=":runtime"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
