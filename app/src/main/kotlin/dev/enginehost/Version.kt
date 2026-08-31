@@ -23,6 +23,10 @@ data class Version(val parts: List<Int>) : Comparable<Version> {
 
     override fun toString(): String = parts.joinToString(".")
 
+    /** True when this version begins with every component in [series]. */
+    fun belongsTo(series: VersionSeries): Boolean =
+        parts.size >= series.parts.size && parts.take(series.parts.size) == series.parts
+
     /** A stable weighted span used only to rank explicitly declared ranges. */
     fun distanceTo(other: Version): Long {
         val len = maxOf(parts.size, other.parts.size)
@@ -43,6 +47,19 @@ data class Version(val parts: List<Int>) : Comparable<Version> {
             }
             return Version(normalized.split(".").map(String::toInt))
         }
+    }
+}
+
+/** A dotted version-line prefix such as Ren'Py `8.2`, not an exact version. */
+data class VersionSeries(val parts: List<Int>) {
+    init {
+        require(parts.isNotEmpty()) { "Version series must contain at least one component" }
+    }
+
+    override fun toString(): String = parts.joinToString(".")
+
+    companion object {
+        fun parse(raw: String): VersionSeries = Version.parse(raw).let { VersionSeries(it.parts) }
     }
 }
 

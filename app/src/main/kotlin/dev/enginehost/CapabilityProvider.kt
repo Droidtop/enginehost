@@ -33,6 +33,7 @@ class CapabilityProvider : ContentProvider() {
                         PLUGIN_VERSION to plugin.info.pluginVersion.toString(),
                         RUNTIME_VERSION to capability.runtimeVersion.toString(),
                         SUPPORTED_VERSIONS to JSONArray(capability.supportedVersions.map(Version::toString)).toString(),
+                        SUPPORTED_SERIES to JSONArray(capability.supportedSeries.map(VersionSeries::toString)).toString(),
                         SUPPORTED_RANGES to JSONArray().apply {
                             capability.supportedRanges.forEach { range ->
                                 put(JSONObject().put("min", range.min.toString()).put("max", range.max.toString()))
@@ -66,12 +67,13 @@ class CapabilityProvider : ContentProvider() {
         const val PLUGIN_VERSION = "pluginVersion"
         const val RUNTIME_VERSION = "runtimeVersion"
         const val SUPPORTED_VERSIONS = "supportedVersions"
+        const val SUPPORTED_SERIES = "supportedSeries"
         const val SUPPORTED_RANGES = "supportedRanges"
         const val RUNTIME_REQUIREMENTS = "runtimeRequirements"
         const val ORIGIN = "origin"
         val COLUMNS = listOf(
             BUNDLE_ID, ENGINE, ENGINE_CONTEXT, PLUGIN_VERSION, RUNTIME_VERSION,
-            SUPPORTED_VERSIONS, SUPPORTED_RANGES, RUNTIME_REQUIREMENTS, ORIGIN,
+            SUPPORTED_VERSIONS, SUPPORTED_SERIES, SUPPORTED_RANGES, RUNTIME_REQUIREMENTS, ORIGIN,
         )
     }
 }

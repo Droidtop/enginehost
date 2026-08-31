@@ -25,6 +25,13 @@ The manifest includes `bundleId`, `assetName`, `engine`, `pluginVersion`,
 `payloadSha256`, and `files`. Every `files` item signs the relative path, byte
 size, POSIX permission bits, and SHA-256 digest.
 
+Each capability declares the exact `runtimeVersion` bundled. Compatibility can
+be advertised as exact `supportedVersions`, inclusive `supportedRanges`, and/or
+`supportedSeries`. A series is a dotted component prefix: `"8.2"` matches
+`8.2`, `8.2.1`, and `8.2.1.24030407`, but never `8.3`. This lets version-line
+plugins track the newest revision in a line while retaining the game's full
+detected version for diagnostics and regression analysis.
+
 `payloadSha256` is SHA-256 over each regular payload file in manifest/tar order:
 
 ```

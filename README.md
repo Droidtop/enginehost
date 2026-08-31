@@ -141,14 +141,16 @@ Capability schema version 1:
     "runtimeVersion": "1.8.0",
     "runtimeComponents": { "javascript": "1.8.0" },
     "supportedVersions": ["1.7.0"],
+    "supportedSeries": ["1.8"],
     "supportedRanges": [{ "min": "1.7.1", "max": "1.8.0" }]
   }]
 }
 ```
 
 Compatibility is never inferred from numerical proximity. A capability
-supports its own `runtimeVersion` plus only the versions/ranges it
-explicitly declares. Resolution prefers an exact bundled runtime, then
+supports its own `runtimeVersion` plus only the exact versions, ranges, or
+dotted series it explicitly declares. A Ren'Py `8.2` series, for example,
+matches every precisely recorded `8.2.*` game version but not `8.3`. Resolution prefers an exact bundled runtime, then
 the narrowest declared compatibility span, then the newest plugin build
 allowed by the game's optional `pluginVersion` allowlist. A capability is
 eligible only when its optional `runtimeComponents` exactly satisfy every

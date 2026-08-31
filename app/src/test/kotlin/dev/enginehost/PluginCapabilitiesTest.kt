@@ -7,7 +7,7 @@ import org.junit.Test
 
 class PluginCapabilitiesTest {
     @Test
-    fun `capability document parses exact versions and ranges`() {
+    fun `capability document parses exact versions series and ranges`() {
         val capabilities = PluginCapabilitiesReader.parse(
             """{
                 "schemaVersion": 1,
@@ -17,6 +17,7 @@ class PluginCapabilitiesTest {
                     "runtimeVersion": "1.8.0",
                     "runtimeComponents": {"ruby":"1.9.2"},
                     "supportedVersions": ["1.7.0"],
+                    "supportedSeries": ["8.2"],
                     "supportedRanges": [{"min":"1.7.1","max":"1.8.0"}]
                 }]
             }""".trimIndent(),
@@ -27,6 +28,8 @@ class PluginCapabilitiesTest {
         assertEquals(true, capability.supports(Version.parse("1.7.0")))
         assertEquals(true, capability.supports(Version.parse("1.7.5")))
         assertEquals(false, capability.supports(Version.parse("1.6.2")))
+        assertEquals(true, capability.supports(Version.parse("8.2.999.24090902")))
+        assertEquals(false, capability.supports(Version.parse("8.3.0")))
         assertEquals(Version.parse("1.9.2"), capability.runtimeComponents["ruby"])
     }
 
@@ -142,6 +145,7 @@ class PluginCapabilitiesTest {
         id,
         context,
         Version.parse(runtimeVersion),
+        emptySet(),
         emptySet(),
         if (rangeMin != null && rangeMax != null) {
             listOf(VersionRange(Version.parse(rangeMin), Version.parse(rangeMax)))

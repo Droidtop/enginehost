@@ -19,15 +19,20 @@ data class EngineCapability(
     val engineContext: String,
     val runtimeVersion: Version,
     val supportedVersions: Set<Version>,
+    val supportedSeries: Set<VersionSeries>,
     val supportedRanges: List<VersionRange>,
     val runtimeComponents: Map<String, Version> = emptyMap(),
 ) {
     fun supports(version: Version): Boolean =
-        version == runtimeVersion || version in supportedVersions || supportedRanges.any { it.contains(version) }
+        version == runtimeVersion || version in supportedVersions ||
+            supportedSeries.any(version::belongsTo) || supportedRanges.any { it.contains(version) }
 
     fun specificityFor(version: Version): Long = when {
         version == runtimeVersion || version in supportedVersions -> 0L
-        else -> supportedRanges.filter { it.contains(version) }.minOfOrNull { it.width() } ?: Long.MAX_VALUE
+        supportedSeries.any(version::belongsTo) ->
+            1_000_000L - supportedSeries.filter(version::belongsTo).maxOf { it.parts.size }
+        else -> 2_000_000L + (supportedRanges.filter { it.contains(version) }.minOfOrNull { it.width() }
+            ?: Long.MAX_VALUE - 2_000_000L)
     }
 
     fun satisfies(requirements: Map<String, Version>): Boolean =
@@ -55,6 +60,12 @@ object PluginCapabilitiesReader {
                         for (versionIndex in 0 until array.length()) add(Version.parse(array.getString(versionIndex)))
                     }
                 }
+                val series = buildSet {
+                    val array = entry.optJSONArray("supportedSeries")
+                    if (array != null) {
+                        for (seriesIndex in 0 until array.length()) add(VersionSeries.parse(array.getString(seriesIndex)))
+                    }
+                }
                 val ranges = buildList {
                     val array = entry.optJSONArray("supportedRanges")
                     if (array != null) {
@@ -78,7 +89,7 @@ object PluginCapabilitiesReader {
                         }
                     }
                 }
-                add(EngineCapability(id, context, runtimeVersion, versions, ranges, components))
+                add(EngineCapability(id, context, runtimeVersion, versions, series, ranges, components))
             }
         }.also { capabilities ->
             require(capabilities.map { it.id }.distinct().size == capabilities.size) {
