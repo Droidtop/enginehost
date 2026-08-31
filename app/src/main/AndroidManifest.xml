@@ -31,6 +31,15 @@
             android:exported="false" />
 
         <activity
+            android:name=".SaveLocationActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.enginehost.CONFIGURE_SAVES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
             android:name=".ConfigEditorActivity"
             android:exported="true">
             <intent-filter>

@@ -23,15 +23,19 @@ object StorageFolder {
     /**
      * Native plugins still require a real directory path. The platform's
      * ExternalStorageProvider exposes a stable tree ID that can be mapped for
-     * primary shared storage. Other document providers remain valid for config
-     * editing, but cannot be handed to a path-based native engine.
+     * primary or removable shared storage. Other document providers remain
+     * valid for config editing, but cannot be handed to a path-based engine.
      */
     fun absolutePath(uri: Uri): File? {
         if (uri.authority != "com.android.externalstorage.documents") return null
         val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return null
         val parts = documentId.split(':', limit = 2)
-        if (!parts[0].equals("primary", ignoreCase = true)) return null
-        val root = Environment.getExternalStorageDirectory().canonicalFile
+        val volume = parts[0]
+        val root = if (volume.equals("primary", ignoreCase = true)) {
+            Environment.getExternalStorageDirectory().canonicalFile
+        } else {
+            File("/storage", volume).canonicalFile.takeIf { it.isDirectory } ?: return null
+        }
         val relative = parts.getOrNull(1).orEmpty()
         val candidate = if (relative.isEmpty()) root else File(root, relative).canonicalFile
         return candidate.takeIf { it == root || it.toPath().startsWith(root.toPath()) }
