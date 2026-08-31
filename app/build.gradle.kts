@@ -25,8 +25,11 @@ android {
 }
 
 dependencies {
+    implementation(project(":plugin-api"))
     implementation(libs.androidx.core)
     implementation(libs.androidx.appcompat)
+    implementation(libs.commons.compress)
+    implementation(libs.xz)
     testImplementation(libs.junit)
     testImplementation(libs.json)
 }

@@ -1,17 +1,8 @@
 package dev.enginehost
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.content.res.Resources
-
-/** The intent-filter action every real plugin app declares on its run activity. */
-const val ACTION_RUN_PLUGIN = "dev.enginehost.plugin.RUN"
-
-private const val META_ENGINE = "dev.enginehost.plugin.engine"
-private const val META_ENGINE_VERSION = "dev.enginehost.plugin.engineVersion"
-private const val META_PLUGIN_VERSION = "dev.enginehost.plugin.pluginVersion"
-private const val META_CAPABILITIES = "dev.enginehost.plugin.capabilities"
+import org.json.JSONObject
+import java.io.File
 
 data class PluginInfo(
     val engine: String,
@@ -19,23 +10,26 @@ data class PluginInfo(
     val capabilities: List<EngineCapability>,
 )
 
+/** One verified, extracted, co-installable engine bundle. */
 data class InstalledPlugin(
     val info: PluginInfo,
-    val packageName: String,
-    val activityName: String,
-)
+    val bundleId: String,
+    val entrypointClass: String,
+    val origin: String = "",
+    val signerFingerprints: Set<String> = emptySet(),
+    val directory: File = File("."),
+    val archiveSha256: String = "",
+    val apiVersion: Int = dev.enginehost.api.EnginePluginContract.API_VERSION,
+    val dexFiles: List<String> = listOf("classes.dex"),
+) {
+    /** Compatibility alias while callers migrate from package terminology. */
+    val packageName: String get() = bundleId
+    val signerIdentity: String = signerFingerprints.sorted().joinToString("+")
+}
 
-data class ResolvedPlugin(
-    val plugin: InstalledPlugin,
-    val capability: EngineCapability,
-)
+data class ResolvedPlugin(val plugin: InstalledPlugin, val capability: EngineCapability)
 
 object PluginResolver {
-    /**
-     * Compatibility is always plugin-declared. Ranking is deterministic:
-     * exact bundled runtime, then narrowest support declaration, newest
-     * allowlisted plugin build, then stable package/capability identifiers.
-     */
     fun resolve(
         plugins: List<InstalledPlugin>,
         engine: String,
@@ -46,13 +40,13 @@ object PluginResolver {
     ): ResolvedPlugin? {
         val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
         return plugins.asSequence()
+            .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }
             .filter { it.info.engine == engine }
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
             .flatMap { plugin ->
                 plugin.info.capabilities.asSequence()
                     .filter {
-                        it.engineContext == requestedContext &&
-                            it.supports(engineVersion) &&
+                        it.engineContext == requestedContext && it.supports(engineVersion) &&
                             it.satisfies(runtimeRequirements)
                     }
                     .map { ResolvedPlugin(plugin, it) }
@@ -61,7 +55,7 @@ object PluginResolver {
                 compareByDescending<ResolvedPlugin> { it.capability.runtimeVersion == engineVersion }
                     .thenBy { it.capability.specificityFor(engineVersion) }
                     .thenByDescending { it.plugin.info.pluginVersion }
-                    .thenBy { it.plugin.packageName }
+                    .thenBy { it.plugin.bundleId }
                     .thenBy { it.capability.id },
             )
             .firstOrNull()
@@ -69,57 +63,53 @@ object PluginResolver {
 }
 
 object PluginRegistry {
-    fun discover(context: Context): List<InstalledPlugin> {
-        val packageManager = context.packageManager
-        return packageManager.queryIntentActivities(
-            Intent(ACTION_RUN_PLUGIN),
-            PackageManager.GET_META_DATA,
-        ).mapNotNull { resolveInfo ->
-            val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
-            val metaData = activityInfo.metaData ?: return@mapNotNull null
-            val engine = metaData.getString(META_ENGINE)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val pluginVersionRaw = metaData.getString(META_PLUGIN_VERSION) ?: return@mapNotNull null
-            try {
-                // Android resource IDs are package-local. Opening a plugin's
-                // @raw resource through enginehost's Resources can resolve an
-                // unrelated host resource or throw NotFoundException.
-                val pluginResources = packageManager.getResourcesForApplication(activityInfo.applicationInfo)
-                val capabilities = readCapabilities(pluginResources, metaData.get(META_CAPABILITIES))
-                    ?: legacyCapability(metaData.getString(META_ENGINE_VERSION))
-                    ?: return@mapNotNull null
-                InstalledPlugin(
-                    info = PluginInfo(engine, Version.parse(pluginVersionRaw), capabilities),
-                    packageName = activityInfo.packageName,
-                    activityName = activityInfo.name,
-                )
-            } catch (_: Exception) {
-                // One malformed third-party manifest/resource must not
-                // prevent discovery of every other installed plugin.
-                null
-            }
-        }
+    const val INSTALL_RECORD = ".enginehost-installed.json"
+    const val SIGNED_MANIFEST = ".enginehost-bundle.json"
+    const val SIGNED_SIGNATURE = ".enginehost-bundle.sig"
+
+    fun root(context: Context): File = File(context.filesDir, "engine-bundles-v1").apply { mkdirs() }
+
+    fun discover(context: Context): List<InstalledPlugin> = root(context).listFiles()
+        .orEmpty()
+        .asSequence()
+        .filter(File::isDirectory)
+        .mapNotNull { directory -> runCatching { readRecord(directory) }.getOrNull() }
+        .toList()
+
+    fun readRecord(directory: File): InstalledPlugin {
+        val root = directory.canonicalFile
+        require(root.parentFile == directory.parentFile?.canonicalFile) { "Bundle directory escaped its registry" }
+        val json = JSONObject(File(root, INSTALL_RECORD).readText())
+        require(json.getInt("formatVersion") == 1) { "Unsupported installed bundle record" }
+        val bundleId = json.requiredString("bundleId")
+        require(bundleId.matches(BUNDLE_ID)) { "Invalid bundle ID" }
+        val capabilityDocument = JSONObject()
+            .put("schemaVersion", 1)
+            .put("capabilities", json.getJSONArray("capabilities"))
+        return InstalledPlugin(
+            PluginInfo(
+                json.requiredString("engine"),
+                Version.parse(json.requiredString("pluginVersion")),
+                PluginCapabilitiesReader.parse(capabilityDocument.toString()),
+            ),
+            bundleId,
+            json.requiredString("entrypoint"),
+            normalizeGithubOrigin(json.requiredString("origin")),
+            setOf(json.requiredSha256("signingKeySha256")),
+            root,
+            json.requiredSha256("archiveSha256"),
+            json.getInt("apiVersion"),
+            json.getJSONArray("dexFiles").let { array ->
+                (0 until array.length()).map(array::getString)
+            },
+        )
     }
 
-    private fun readCapabilities(resources: Resources, value: Any?): List<EngineCapability>? = when (value) {
-        is Int -> resources.openRawResource(value).bufferedReader().use {
-            PluginCapabilitiesReader.parse(it.readText())
-        }
-        is String -> PluginCapabilitiesReader.parse(value)
-        else -> null
+    fun uninstall(context: Context, bundleId: String): Boolean {
+        val installed = discover(context).firstOrNull { it.bundleId == bundleId } ?: return false
+        installed.directory.walkBottomUp().forEach { it.setWritable(true, true) }
+        return installed.directory.deleteRecursively()
     }
-
-    private fun legacyCapability(engineVersionRaw: String?): List<EngineCapability>? =
-        engineVersionRaw?.let { Version.parse(it) }?.let { version ->
-            listOf(
-                EngineCapability(
-                    id = "legacy-$version",
-                    engineContext = DEFAULT_ENGINE_CONTEXT,
-                    runtimeVersion = version,
-                    supportedVersions = emptySet(),
-                    supportedRanges = emptyList(),
-                ),
-            )
-        }
 
     fun resolve(
         context: Context,
@@ -131,4 +121,11 @@ object PluginRegistry {
     ): ResolvedPlugin? = PluginResolver.resolve(
         discover(context), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
     )
+}
+
+internal val BUNDLE_ID = Regex("[a-z0-9]+(?:[._-][a-z0-9]+)*")
+internal fun JSONObject.requiredString(name: String): String =
+    optString(name).takeIf(String::isNotBlank) ?: throw IllegalArgumentException("Missing $name")
+internal fun JSONObject.requiredSha256(name: String): String = requiredString(name).uppercase().also {
+    require(it.matches(Regex("[A-F0-9]{64}"))) { "$name must be a SHA-256 digest" }
 }

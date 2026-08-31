@@ -1,0 +1,186 @@
+package dev.enginehost
+
+import android.app.Activity
+import android.content.Context
+import android.os.Build
+import android.os.Bundle
+import android.os.Process
+import android.util.Log
+import android.widget.FrameLayout
+import android.widget.Toast
+import dalvik.system.DexClassLoader
+import dev.enginehost.api.EngineFileSystem
+import dev.enginehost.api.EngineHost
+import dev.enginehost.api.EnginePlugin
+import dev.enginehost.api.EnginePluginSession
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.security.MessageDigest
+
+/** Host-owned execution boundary; plugin components are never started or bound. */
+class RuntimeActivity : Activity() {
+    private var plugin: EnginePlugin? = null
+    private var runtimeStarted = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val display = FrameLayout(this)
+        setContentView(display)
+        val gameFolder = intent.getStringExtra(EXTRA_PATH)?.let(::File)
+            ?: return failAndFinish("Runtime launch omitted the game path")
+        val expectedBundle = intent.getStringExtra(EXTRA_PLUGIN_BUNDLE)
+            ?: return failAndFinish("Runtime launch omitted the selected plugin")
+        val config = try {
+            EngineConfigReader.resolve(gameFolder, intent.getStringExtra(EXTRA_CALLER_CONFIG))
+        } catch (e: InvalidEngineConfigException) {
+            return failAndFinish(e.message ?: "Invalid $CONFIG_FILE_NAME")
+        }
+        val resolved = PluginRegistry.resolve(
+            this, config.engine, config.engineContext, config.engineVersion,
+            config.runtimeRequirements, config.pluginVersionConstraint,
+        ) ?: return failAndFinish("The selected plugin is no longer compatible or installed")
+        if (resolved.plugin.bundleId != expectedBundle) {
+            return failAndFinish("Plugin resolution changed before runtime startup; retry the launch")
+        }
+        if (!PluginTrustStore(this).isApproved(resolved.plugin)) {
+            return failAndFinish("Plugin approval is missing")
+        }
+
+        try {
+            val verifiedManifest = InstalledBundleVerifier.verify(this, resolved.plugin)
+            val instance = loadPlugin(resolved.plugin)
+            val host = RuntimeHost(this, gameFolder, resolved.plugin.bundleId)
+            instance.onCreate(
+                EnginePluginSession(
+                    resolved.plugin.directory, display, host, gameFolder.absolutePath, config.engine,
+                    config.engineContext ?: DEFAULT_ENGINE_CONTEXT, config.engineVersion.toString(),
+                    resolved.capability.runtimeVersion.toString(), resolved.capability.id,
+                    config.execFile, config.options?.toString(),
+                    config.runtimeRequirements.mapValues { it.value.toString() },
+                ),
+            )
+            check(verifiedManifest.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION)
+            plugin = instance
+            runtimeStarted = true
+        } catch (e: Throwable) {
+            Log.e(TAG, "Plugin startup failed", e)
+            failAndFinish("Plugin startup failed: ${e.message ?: e.javaClass.simpleName}")
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (runtimeStarted) callPlugin("start") { onStart() }
+    }
+
+    private fun loadPlugin(installed: InstalledPlugin): EnginePlugin {
+        val root = installed.directory.canonicalFile
+        val dexPaths = installed.dexFiles.map { safeRuntimeChild(root, it) }
+        require(dexPaths.all(File::isFile)) { "A signed dex file is missing" }
+        val nativeLibraryPaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
+        val loader = DexClassLoader(
+            dexPaths.joinToString(File.pathSeparator) { it.absolutePath },
+            nativeLibraryPaths.joinToString(File.pathSeparator) { it.absolutePath }.ifBlank { null },
+            null,
+            classLoader,
+        )
+        val entrypoint = Class.forName(installed.entrypointClass, true, loader)
+        require(EnginePlugin::class.java.isAssignableFrom(entrypoint)) {
+            "${installed.entrypointClass} does not implement EnginePlugin API v${installed.apiVersion}"
+        }
+        return entrypoint.getDeclaredConstructor().newInstance() as EnginePlugin
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (runtimeStarted) callPlugin("resume") { onResume() }
+    }
+    override fun onPause() {
+        if (runtimeStarted) callPlugin("pause") { onPause() }
+        super.onPause()
+    }
+    override fun onStop() {
+        if (runtimeStarted) callPlugin("stop") { onStop() }
+        super.onStop()
+    }
+    override fun onDestroy() {
+        callPlugin("destroy") { onDestroy() }
+        plugin = null
+        super.onDestroy()
+        if (isFinishing) Process.killProcess(Process.myPid())
+    }
+
+    private fun callPlugin(phase: String, block: EnginePlugin.() -> Unit) {
+        runCatching { plugin?.block() }.onFailure { Log.e(TAG, "Plugin $phase failed", it) }
+    }
+    private fun failAndFinish(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        Log.e(TAG, message)
+        finish()
+    }
+
+    companion object {
+        private const val TAG = "enginehost-runtime"
+        const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
+        const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
+        const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
+    }
+}
+
+private fun safeRuntimeChild(root: File, relativePath: String): File {
+    val path = validateBundlePath(relativePath)
+    val child = File(root, path).canonicalFile
+    require(child.path.startsWith(root.path.trimEnd(File.separatorChar) + File.separator)) {
+        "Bundle code path escaped its installation directory"
+    }
+    return child
+}
+
+private class RuntimeHost(
+    private val activity: Activity,
+    private val gameFolder: File,
+    pluginPackage: String,
+) : EngineHost {
+    private val gameId = MessageDigest.getInstance("SHA-256")
+        .digest(gameFolder.canonicalPath.toByteArray()).take(12).joinToString("") { "%02x".format(it) }
+    private val save = File(activity.filesDir, "saves/$pluginPackage/$gameId").apply { mkdirs() }
+    private val cache = File(activity.cacheDir, "plugins/$pluginPackage/$gameId").apply { mkdirs() }
+    private val files = RuntimeFileSystem(gameFolder)
+
+    override fun context(): Context = activity
+    override fun saveDirectory(): File = save
+    override fun cacheDirectory(): File = cache
+    override fun fileSystem(): EngineFileSystem = files
+    override fun log(priority: Int, tag: String, message: String, error: Throwable?) {
+        val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()
+        Log.println(priority, "enginehost/$tag", message + detail)
+    }
+    override fun finish() = activity.finish()
+}
+
+private class RuntimeFileSystem(root: File) : EngineFileSystem {
+    private val canonicalRoot = root.canonicalFile
+
+    override fun openRead(relativePath: String): InputStream = FileInputStream(resolve(relativePath))
+    override fun openWrite(relativePath: String, append: Boolean): OutputStream {
+        val file = resolve(relativePath)
+        file.parentFile?.mkdirs()
+        return FileOutputStream(file, append)
+    }
+    override fun exists(relativePath: String): Boolean = runCatching { resolve(relativePath).exists() }.getOrDefault(false)
+    override fun list(relativePath: String): Array<String> = resolve(relativePath).list().orEmpty()
+
+    private fun resolve(relativePath: String): File {
+        if (File(relativePath).isAbsolute) throw FileNotFoundException("Absolute paths are not accepted")
+        val resolved = File(canonicalRoot, relativePath).canonicalFile
+        val rootPath = canonicalRoot.path.trimEnd(File.separatorChar) + File.separator
+        if (resolved != canonicalRoot && !resolved.path.startsWith(rootPath)) {
+            throw FileNotFoundException("Path leaves the game folder")
+        }
+        return resolved
+    }
+}

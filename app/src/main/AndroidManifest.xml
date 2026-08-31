@@ -3,6 +3,7 @@
 
     <!-- Native interpreters operate on complete game directory trees in place. -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:label="enginehost"
@@ -30,14 +31,29 @@
             android:name=".ConfigEditorActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".PluginTrustActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".PluginCatalogActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".RuntimeActivity"
+            android:exported="false"
+            android:process=":runtime"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
         <!--
              The only real entry point, and deliberately the whole
              contract: exported, takes one extra ("path", an absolute
              folder), and figures out everything else, which engine,
              which file to run, engine-specific options, from an
              enginehost.json file this app expects to find at that
-             folder's own root. No catalog, no import step, no per-caller
-             metadata to keep in sync; any caller (not just droidtop)
+             folder's own root. No game import step or per-caller metadata
+             to keep in sync; any caller (not just droidtop)
              just needs a folder with a valid config in it. See
              LaunchActivity and EngineConfig's own doc comments.
         -->

@@ -50,11 +50,26 @@ class ConfigEditorActivity : Activity() {
         }
         findViewById<Button>(R.id.saveConfigButton).setOnClickListener { save() }
         findViewById<Button>(R.id.testConfigButton).setOnClickListener { testRun() }
+        findViewById<Button>(R.id.browseAllPluginsButton).setOnClickListener {
+            startActivityForResult(
+                Intent(this, PluginCatalogActivity::class.java)
+                    .putExtra(PluginCatalogActivity.EXTRA_SELECTION_ONLY, true),
+                REQUEST_PLUGIN_SELECTION,
+            )
+        }
     }
 
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_PLUGIN_SELECTION && resultCode == RESULT_OK) {
+            data ?: return
+            engineField.setText(data.getStringExtra("engine"))
+            contextField.setText(data.getStringExtra("engineContext"))
+            versionField.setText(data.getStringExtra("engineVersion"))
+            detectionLabel.text = "Plugin engine selected manually; review the detected runtime version before saving."
+            return
+        }
         if (requestCode != REQUEST_FOLDER || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
         val flags = data.flags and (
@@ -110,8 +125,10 @@ class ConfigEditorActivity : Activity() {
                 result.fold(
                     onSuccess = { detection ->
                         if (detection == null) {
-                            detectionLabel.text = "Engine not identified; enter the configuration manually."
+                            detectionLabel.text = "Engine not identified. Choose from all plugin engines or enter it manually."
+                            findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
                         } else {
+                            findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.GONE
                             if (engineField.text.isBlank()) engineField.setText(detection.engine)
                             if (contextField.text.isBlank()) detection.engineContext?.let(contextField::setText)
                             if (versionField.text.isBlank()) detection.engineVersion?.let(versionField::setText)
@@ -125,7 +142,10 @@ class ConfigEditorActivity : Activity() {
                             detectionLabel.text = "Detected ${detection.engine}: ${detection.evidence}"
                         }
                     },
-                    onFailure = { detectionLabel.text = "Detection failed: ${it.message}" },
+                    onFailure = {
+                        detectionLabel.text = "Detection failed: ${it.message}. You can still choose from every plugin engine."
+                        findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
+                    },
                 )
             }
         }.start()
@@ -244,5 +264,6 @@ class ConfigEditorActivity : Activity() {
     companion object {
         private const val REQUEST_FOLDER = 20
         private const val REQUEST_NATIVE_FILES = 21
+        private const val REQUEST_PLUGIN_SELECTION = 22
     }
 }

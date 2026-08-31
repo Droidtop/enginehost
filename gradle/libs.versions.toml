@@ -5,13 +5,18 @@ core = "1.17.0"
 appcompat = "1.7.1"
 junit = "4.13.2"
 json = "20250517"
+commons-compress = "1.28.0"
+xz = "1.10"
 
 [libraries]
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "core" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 junit = { module = "junit:junit", version.ref = "junit" }
 json = { module = "org.json:json", version.ref = "json" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
+xz = { module = "org.tukaani:xz", version.ref = "xz" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

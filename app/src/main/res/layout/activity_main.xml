@@ -55,5 +55,32 @@
             android:layout_marginTop="20dp"
             android:text="Controller settings" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Plugin trust"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Review code modules before they can use Enginehost's file access." />
+
+        <Button
+            android:id="@+id/pluginTrustButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Manage plugin trust" />
+
+        <Button
+            android:id="@+id/pluginCatalogButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Browse and install plugins" />
+
     </LinearLayout>
 </ScrollView>

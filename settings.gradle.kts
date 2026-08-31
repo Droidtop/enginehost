@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "enginehost"
 
-include(":app")
+include(":plugin-api", ":app")

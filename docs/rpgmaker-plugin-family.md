@@ -1,9 +1,9 @@
 # RPG Maker plugin-family layout
 
-RPG Maker is one enginehost plugin family, not one interpreter. Every runtime
-APK below declares `dev.enginehost.plugin.engine = rpgmaker`; enginehost's
-normal capability resolver combines all installed APKs into that family. No
-dispatcher APK or umbrella source repository is required.
+RPG Maker is one Enginehost plugin family, not one interpreter. Every engine
+bundle below declares `engine: rpgmaker`; Enginehost's normal capability
+resolver combines all installed bundles into that family. No dispatcher bundle
+or umbrella source repository is required.
 
 ## Runtime repositories
 
@@ -52,7 +52,7 @@ dotted numeric. The product generation belongs in `engineContext`.
 ```
 
 `engineVersion` identifies the game engine/runtime target. It does not select
-an APK by package name. Installed plugins declare exact versions and explicit
+a bundle by ID. Installed bundles declare exact versions and explicit
 support spans, and enginehost resolves the best allowed capability. The
 optional top-level `pluginVersion` remains only a plugin-release allowlist.
 
@@ -69,8 +69,8 @@ the authoritative game path.
   Ruby/engine behavior is verified.
 - EasyRPG: one current Player line for 2000/2003, then older compatibility spans
   only where real games require them.
-- MV/MZ: separate installed package slots when their WebView/Chromium or shim
-  requirements diverge. A single APK may declare both contexts only when it
+- MV/MZ: separate co-installable bundles when their WebView/Chromium or shim
+  requirements diverge. A single bundle may declare both contexts only when it
   genuinely implements and tests both.
 
 Capability declarations must describe observed compatibility, not the broadest

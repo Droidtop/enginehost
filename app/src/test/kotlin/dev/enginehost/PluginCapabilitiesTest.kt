@@ -64,7 +64,7 @@ class PluginCapabilitiesTest {
             null,
         )
 
-        assertEquals("plugin.older", result!!.plugin.packageName)
+        assertEquals("plugin.older", result!!.plugin.bundleId)
         assertEquals("mz-exact", result.capability.id)
     }
 
@@ -83,7 +83,7 @@ class PluginCapabilitiesTest {
             VersionConstraint.parse("2.0"),
         )
 
-        assertEquals("plugin.older", allowed!!.plugin.packageName)
+        assertEquals("plugin.older", allowed!!.plugin.bundleId)
         assertNull(
             PluginResolver.resolve(
                 listOf(wrongContext), "rpgmaker", "mv", Version.parse("1.6.2"), emptyMap(), null,
@@ -113,7 +113,7 @@ class PluginCapabilitiesTest {
             null,
         )
 
-        assertEquals("plugin.ruby19", result!!.plugin.packageName)
+        assertEquals("plugin.ruby19", result!!.plugin.bundleId)
     }
 
     @Test

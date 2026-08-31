@@ -23,6 +23,12 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
             startActivity(Intent(this, ControllerConfigActivity::class.java))
         }
+        findViewById<Button>(R.id.pluginTrustButton).setOnClickListener {
+            startActivity(Intent(this, PluginTrustActivity::class.java))
+        }
+        findViewById<Button>(R.id.pluginCatalogButton).setOnClickListener {
+            startActivity(Intent(this, PluginCatalogActivity::class.java))
+        }
     }
 
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")

@@ -20,6 +20,11 @@ class LaunchActivity : Activity() {
             finish()
             return
         }
-        GameRunner.run(this, File(path), intent.getStringExtra("config"))
+        GameRunner.run(
+            this,
+            File(path),
+            intent.getStringExtra("config"),
+            intent.getBooleanExtra("autoinstallPlugin", false),
+        )
     }
 }

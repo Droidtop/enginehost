@@ -1,8 +1,8 @@
 # enginehost
 
 A straightforward multi-engine host for VN/RPG-Maker-family games on
-Android. Runtime families are delivered as independently versioned plugin
-APKs, including KiriKiri, Ren'Py, RPG Maker, Buriko/Ethornell, CatSystem2,
+Android. Runtime families are delivered as independently versioned engine
+bundles, including KiriKiri, Ren'Py, RPG Maker, Buriko/Ethornell, CatSystem2,
 CMVS, Flash/AIR, Twine, and Godot.
 
 enginehost is a centralized interpreter host built to be driven
@@ -95,12 +95,14 @@ for plugin testing. It is not a library or catalog; programmatic launch through
 
 ## Plugins
 
-Plugins are separately installed apps. First-party plugin source may live
-under this repository's `plugins/` directory or in a dedicated upstream fork;
-source layout does not change the Android boundary. A RetroArch-cores-style
-installer is a possible future addition. enginehost never links engine code
-into the host APK — it discovers whatever plugin APKs are installed through
-Android's `PackageManager`.
+Plugins are separately installed, versioned `*.enginehost.tar.xz` bundles, not
+Android packages or separate apps. Enginehost verifies and extracts them into
+private storage, then loads an approved entrypoint inside its own `:runtime`
+process, under Enginehost's UID, so the
+host owns the one game-folder permission and all configuration. The separate
+process contains native crashes and is terminated after a session; it is not a
+security sandbox from an approved plugin, which is why Plugin Trust is a hard
+gate.
 
 An enginehost plugin must contain or embed an actual portable implementation
 of its engine/runtime. Delegating a Windows executable to Wine, Box64, or a
@@ -111,13 +113,10 @@ ship: early plugin versions may implement only a useful subset, as long as the
 limitations and supported engine versions are declared honestly. Later
 co-installable plugin builds can extend that implementation and compatibility.
 
-A plugin declares:
-- The `dev.enginehost.plugin.RUN` intent-filter on an exported activity.
-- `<meta-data>` for `dev.enginehost.plugin.engine` and `.pluginVersion`.
-- `dev.enginehost.plugin.capabilities`, normally an `@raw` JSON resource,
-  listing every bundled runtime and the exact versions/ranges it supports.
-  The old single `.engineVersion` metadata remains supported as a legacy
-  exact-version capability in the `default` context.
+Each bundle's internally signed manifest declares its API version, Java
+entrypoint, engine family, plugin build version, canonical GitHub origin,
+payload hashes, dex files, and every runtime capability it supports. The
+repository's P-256 public key is pinned before catalog data is accepted.
 
 Capability schema version 1:
 
@@ -143,23 +142,29 @@ allowed by the game's optional `pluginVersion` allowlist. A capability is
 eligible only when its optional `runtimeComponents` exactly satisfy every
 entry in the game's `runtimeRequirements` map.
 
-When invoked, it receives `path`, `engineContext`, the requested
-`engineVersion`, the selected `runtimeVersion`, and `capabilityId`. If the
-game config supplied them it also receives `runtimeRequirements`, `execFile`,
-and `options` (raw JSON strings — each plugin parses its own keys).
+The entrypoint implements the Java interface in the publishable `plugin-api`
+module (plugins depend on it as `compileOnly`). It receives a host-owned render
+container, lifecycle callbacks, the game path, engine/context/requested and
+selected runtime versions, capability ID, runtime requirements, executable,
+raw options JSON, save/cache directories, logging/finish services, and an
+optional path-confined filesystem facade. Native engines may use the canonical
+game path directly because code executes under Enginehost's UID.
 
 ### Downloadable runtime bundles
 
-A runtime bundle is a signed plugin APK release with a unique Android package
-slot and an explicit capability document. Native interpreters and embedded
-language ABIs are compiled into that APK; they are not loose executable files
-downloaded and loaded from game storage. An engine-family bundle can contain
+A runtime bundle is a self-verifying XZ-compressed tar archive with a unique
+bundle ID and explicit capability document. Native interpreters and embedded
+language ABIs live inside that bundle. An engine-family bundle can contain
 several internally namespaced runtimes—for example both Ruby 1.9.2 and Ruby
-3.1.3 in one RPG Maker plugin APK—and the host selects the matching capability
-deterministically from the game config. This avoids installing one plugin per
-embedded language version. A caller may provide its own catalog/download UI;
-Android installation still follows the device's normal package-install
-authorization flow.
+3.1.3—and the host selects the matching capability deterministically. Different
+plugin/runtime releases remain co-installable without Android package installs.
+
+Each plugin repository's complete GitHub Releases history is its catalog. Every
+published release carries an `enginehost-release.json` browsing envelope plus
+the independently signed engine-bundle assets, and the project retains old releases. Enginehost
+can enumerate, filter, download, verify, and offer any compatible release rather
+than treating only “latest” as useful. See
+[`docs/plugin-catalog.md`](docs/plugin-catalog.md) and the release-manifest schema.
 
 Dedicated engine plugin forks keep their upstream history and never live in
 this host repository. Their `plugin-core` branch contains the portable Android
@@ -188,10 +193,11 @@ Current plugin repositories:
 
 ## Status
 
-The host contract, authoritative config merge, capability resolver, and APK
-dispatch are implemented and CI-built. Engine implementations and Android
+The host contract, authoritative config merge, capability resolver, signed
+bundle installer, trust gate, and in-process runtime loader are implemented.
+Engine implementations and Android
 plugin releases are developed in their engine-specific forks. Legacy staged
 plugin sources under `plugins/` are being migrated out and are not part of the
 host's final repository boundary. See each plugin repository's capability
-resource for the exact engine contexts and versions that a particular APK
+manifest for the exact engine contexts and versions that a particular bundle
 claims to support.

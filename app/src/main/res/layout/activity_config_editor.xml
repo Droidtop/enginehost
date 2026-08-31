@@ -43,6 +43,14 @@
             android:layout_marginTop="8dp"
             android:text="Engine detection starts after a folder is selected." />
 
+        <Button
+            android:id="@+id/browseAllPluginsButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Choose from all plugin engines"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/editorFields"
             android:layout_width="match_parent"
