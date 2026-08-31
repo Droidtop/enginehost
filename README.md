@@ -10,6 +10,12 @@ enginehost is a centralized interpreter host built to be driven
 to run and where it lives on disk. It is not a self-contained catalog or
 game-library application.
 
+Callers can open the first-class config creator with action
+`dev.enginehost.CONFIGURE`, the same `path` extra, and an optional `config`
+starting point. They can query installed support through the read-only URI
+`content://dev.enginehost.capabilities/installed`; bundle selection remains
+Enginehost's responsibility.
+
 ## The contract
 
 Fire an Intent:
@@ -180,22 +186,22 @@ slots and explicit capabilities so builds can be installed side by side.
 
 Current plugin repositories:
 
-- [Ren'Py](https://github.com/bi0shacker001/enginehost-renpy-plugin): versioned
+- [Ren'Py](https://github.com/Droidtop/enginehost-renpy-plugin): versioned
   8.5.3, 8.3.2, and 8.2.1 Android branches.
 - RPG Maker family:
-  [mkxp-z (XP/VX/VX Ace)](https://github.com/bi0shacker001/enginehost-rpgmaker-mkxp-z-plugin),
-  [EasyRPG (2000/2003)](https://github.com/bi0shacker001/enginehost-rpgmaker-easyrpg-plugin), and
-  [MV/MZ](https://github.com/bi0shacker001/enginehost-rpgmaker-mv-mz-plugin).
-- [KiriKiri](https://github.com/bi0shacker001/enginehost-kirikiri-plugin)
-- [Buriko/Ethornell (OpenBGI)](https://github.com/bi0shacker001/enginehost-buriko-plugin).
+  [mkxp-z (XP/VX/VX Ace)](https://github.com/Droidtop/enginehost-rpgmaker-mkxp-z-plugin),
+  [EasyRPG (2000/2003)](https://github.com/Droidtop/enginehost-rpgmaker-easyrpg-plugin), and
+  [MV/MZ](https://github.com/Droidtop/enginehost-rpgmaker-mv-mz-plugin).
+- [KiriKiri](https://github.com/Droidtop/enginehost-kirikiri-plugin)
+- [Buriko/Ethornell (OpenBGI)](https://github.com/Droidtop/enginehost-buriko-plugin).
   AUGUST is a game studio whose applicable Windows titles use this engine
   family; configure those games as `engine: buriko`, rather than inventing a
   duplicate `august` runtime family.
-- [CatSystem2](https://github.com/bi0shacker001/enginehost-catsystem2-plugin)
-- [CMVS](https://github.com/bi0shacker001/enginehost-cmvs-plugin)
-- [Flash/AIR (Ruffle)](https://github.com/bi0shacker001/enginehost-flash-air-plugin)
-- [Twine](https://github.com/bi0shacker001/enginehost-twine-plugin)
-- [Godot](https://github.com/bi0shacker001/enginehost-godot-plugin)
+- [CatSystem2](https://github.com/Droidtop/enginehost-catsystem2-plugin)
+- [CMVS](https://github.com/Droidtop/enginehost-cmvs-plugin)
+- [Flash/AIR (Ruffle)](https://github.com/Droidtop/enginehost-flash-air-plugin)
+- [Twine](https://github.com/Droidtop/enginehost-twine-plugin)
+- [Godot](https://github.com/Droidtop/enginehost-godot-plugin)
 
 ## Status
 

@@ -32,7 +32,18 @@
 
         <activity
             android:name=".ConfigEditorActivity"
-            android:exported="false" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.enginehost.CONFIGURE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name=".CapabilityProvider"
+            android:authorities="dev.enginehost.capabilities"
+            android:exported="true"
+            android:grantUriPermissions="false" />
 
         <activity
             android:name=".PluginTrustActivity"

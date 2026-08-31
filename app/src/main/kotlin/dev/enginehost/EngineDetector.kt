@@ -19,6 +19,70 @@ data class EngineDetection(
 object EngineDetector {
     private data class Entry(val uri: Uri, val path: String, val directory: Boolean)
 
+    /** Direct-path equivalent used by the exported CONFIGURE action. */
+    fun detect(folder: java.io.File): EngineDetection? {
+        val files = folder.walkTopDown().filter(java.io.File::isFile).associateBy {
+            it.relativeTo(folder).invariantSeparatorsPath.lowercase()
+        }
+        fun suffix(vararg names: String) = files.entries.firstOrNull { (path, _) ->
+            names.any { path == it || path.endsWith("/$it") }
+        }?.value
+        fun relative(file: java.io.File) = file.relativeTo(folder).invariantSeparatorsPath
+        fun text(file: java.io.File) = file.inputStream().buffered().use { input ->
+            String(input.readNBytes(256 * 1024), Charsets.UTF_8)
+        }
+
+        files["game.ini"]?.let { iniFile ->
+            Regex("(?im)^Library\\s*=\\s*(?:.*[\\\\/])?RGSS(\\d)(\\d{2})[A-Z]?\\.dll\\s*$")
+                .find(text(iniFile))?.let { match ->
+                    val line = match.groupValues[1].toInt()
+                    val context = mapOf(1 to "xp", 2 to "vx", 3 to "vxace")[line]
+                    if (context != null) return EngineDetection(
+                        "rpgmaker", context, "$line.${match.groupValues[2].toInt()}", files["game.exe"]?.let(::relative),
+                        "Game.ini names RGSS$line${match.groupValues[2]}",
+                        if (line == 3) mapOf("ruby" to "1.9.2") else emptyMap(),
+                    )
+                }
+        }
+        suffix("js/rmmz_core.js")?.let { core ->
+            val version = Regex("RPGMAKER_VERSION\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(text(core))?.groupValues?.get(1)
+            return EngineDetection("rpgmaker", "mz", version, relative(core).substringBeforeLast("js/rmmz_core.js") + "index.html", "Found rmmz_core.js")
+        }
+        suffix("js/rpg_core.js")?.let { core ->
+            val version = Regex("RPGMAKER_VERSION\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(text(core))?.groupValues?.get(1)
+            return EngineDetection("rpgmaker", "mv", version, relative(core).substringBeforeLast("js/rpg_core.js") + "index.html", "Found rpg_core.js")
+        }
+        if (files.keys.any { it.endsWith("rpg_rt.ldb") } && files.keys.any { it.endsWith("rpg_rt.lmt") }) {
+            return EngineDetection("rpgmaker", evidence = "Found RPG Maker 2000/2003 data; choose the exact context")
+        }
+        suffix("renpy/vc_version.py")?.let { versionFile ->
+            val version = Regex("(?m)^version\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(text(versionFile))?.groupValues?.get(1)
+            return EngineDetection("renpy", "standard", version, evidence = "Found the bundled Ren'Py runtime")
+        }
+        if (files.keys.any { it.endsWith(".rpyc") || it.endsWith(".rpa") }) return EngineDetection("renpy", "standard", evidence = "Found compiled Ren'Py game files")
+        files["project.godot"]?.let { project ->
+            val version = Regex("(?m)^config/features=.*?[\"'](\\d+(?:\\.\\d+)+)").find(text(project))?.groupValues?.get(1)
+            return EngineDetection("godot", "standard", version, "project.godot", "Found a Godot project")
+        }
+        files.values.firstOrNull { it.extension.equals("html", true) }?.let { html ->
+            val source = text(html)
+            if (source.contains("<tw-storydata", true)) {
+                val version = Regex("creator-version=[\"']([^\"']+)", RegexOption.IGNORE_CASE).find(source)?.groupValues?.get(1)?.takeIf(::isNumericVersion)
+                return EngineDetection("twine", "compiled-html", version, relative(html), "Found Twine story metadata")
+            }
+        }
+        files.values.firstOrNull { it.extension.equals("swf", true) }?.let { swf ->
+            val header = swf.inputStream().use { it.readNBytes(4) }
+            if (header.size == 4 && String(header, 0, 3) in setOf("FWS", "CWS", "ZWS")) return EngineDetection("flash_air", "swf", "${header[3].toInt() and 0xff}.0", relative(swf), "Found a SWF header")
+        }
+        if (files.containsKey("data.xp3") || files.containsKey("startup.tjs")) return EngineDetection("kirikiri2", "default", evidence = "Found KiriKiri XP3/TJS assets")
+        files.values.firstOrNull { it.extension.equals("cst", true) }?.let { return EngineDetection("catsystem2", "cst", execFile = relative(it), evidence = "Found a CatSystem2 CST script; runtime version still needs confirmation") }
+        files.values.firstOrNull { it.extension.equals("ps3", true) }?.let { return EngineDetection("cmvs", "ps3", execFile = relative(it), evidence = "Found a CMVS PS3 script; runtime version still needs confirmation") }
+        files.values.firstOrNull { it.extension.equals("ps2", true) }?.let { return EngineDetection("cmvs", "ps2", execFile = relative(it), evidence = "Found a CMVS PS2 script; runtime version still needs confirmation") }
+        if (files.keys.any { it.endsWith("data01000.arc") }) return EngineDetection("buriko", "compiled-script-v1", evidence = "Found a Buriko archive set; runtime version still needs confirmation")
+        return null
+    }
+
     fun detect(resolver: ContentResolver, treeUri: Uri): EngineDetection? {
         val entries = scanTree(resolver, treeUri)
         val files = entries.filterNot { it.directory }.associateBy { it.path.lowercase() }
@@ -115,16 +179,16 @@ object EngineDetector {
             return EngineDetection("kirikiri2", "default", evidence = "Found KiriKiri XP3/TJS assets")
         }
         files.values.firstOrNull { it.path.endsWith(".cst", true) }?.let {
-            return EngineDetection("catsystem2", "cst", "2.0", it.path, "Found a CatSystem2 CST script")
+            return EngineDetection("catsystem2", "cst", execFile = it.path, evidence = "Found a CatSystem2 CST script; runtime version still needs confirmation")
         }
         files.values.firstOrNull { it.path.endsWith(".ps3", true) }?.let {
-            return EngineDetection("cmvs", "ps3", "3.0", it.path, "Found a CMVS PS3 script")
+            return EngineDetection("cmvs", "ps3", execFile = it.path, evidence = "Found a CMVS PS3 script; runtime version still needs confirmation")
         }
         files.values.firstOrNull { it.path.endsWith(".ps2", true) }?.let {
-            return EngineDetection("cmvs", "ps2", "2.0", it.path, "Found a CMVS PS2 script")
+            return EngineDetection("cmvs", "ps2", execFile = it.path, evidence = "Found a CMVS PS2 script; runtime version still needs confirmation")
         }
         if (names.any { it.endsWith("data01000.arc") }) {
-            return EngineDetection("buriko", "compiled-script-v1", "1.0", evidence = "Found a Buriko archive set")
+            return EngineDetection("buriko", "compiled-script-v1", evidence = "Found a Buriko archive set; runtime version still needs confirmation")
         }
         return null
     }

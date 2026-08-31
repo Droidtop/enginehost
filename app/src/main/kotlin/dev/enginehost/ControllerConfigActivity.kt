@@ -45,6 +45,7 @@ class ControllerConfigActivity : Activity(), InputManager.InputDeviceListener {
                     (device.sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
             }
             .distinctBy(InputDevice::getDescriptor)
+            .toList()
         content.addView(TextView(this).apply {
             text = if (controllers.isEmpty()) "No controller connected. You can still edit defaults." else
                 "Connected: ${controllers.joinToString { it.name }}"

@@ -251,23 +251,27 @@ class PluginOriginStore(private val context: Context) {
     companion object {
         private const val CUSTOM = "custom"
         val DEFAULT_ORIGINS = setOf(
-            "https://github.com/bi0shacker001/enginehost-renpy-plugin",
-            "https://github.com/bi0shacker001/enginehost-rpgmaker-mkxp-z-plugin",
-            "https://github.com/bi0shacker001/enginehost-rpgmaker-easyrpg-plugin",
-            "https://github.com/bi0shacker001/enginehost-rpgmaker-mv-mz-plugin",
-            "https://github.com/bi0shacker001/enginehost-kirikiri-plugin",
-            "https://github.com/bi0shacker001/enginehost-buriko-plugin",
-            "https://github.com/bi0shacker001/enginehost-catsystem2-plugin",
-            "https://github.com/bi0shacker001/enginehost-cmvs-plugin",
-            "https://github.com/bi0shacker001/enginehost-flash-air-plugin",
-            "https://github.com/bi0shacker001/enginehost-twine-plugin",
-            "https://github.com/bi0shacker001/enginehost-godot-plugin",
+            "https://github.com/droidtop/enginehost-renpy-plugin",
+            "https://github.com/droidtop/enginehost-rpgmaker-mkxp-z-plugin",
+            "https://github.com/droidtop/enginehost-rpgmaker-easyrpg-plugin",
+            "https://github.com/droidtop/enginehost-rpgmaker-mv-mz-plugin",
+            "https://github.com/droidtop/enginehost-kirikiri-plugin",
+            "https://github.com/droidtop/enginehost-buriko-plugin",
+            "https://github.com/droidtop/enginehost-catsystem2-plugin",
+            "https://github.com/droidtop/enginehost-cmvs-plugin",
+            "https://github.com/droidtop/enginehost-flash-air-plugin",
+            "https://github.com/droidtop/enginehost-twine-plugin",
+            "https://github.com/droidtop/enginehost-godot-plugin",
         )
     }
 }
 
 internal val GITHUB_ORIGIN = Regex("https://github\\.com/([^/]+)/([^/]+)", RegexOption.IGNORE_CASE)
-internal fun normalizeGithubOrigin(value: String): String = value.trim().trimEnd('/').removeSuffix(".git")
+internal fun normalizeGithubOrigin(value: String): String {
+    val candidate = value.trim().trimEnd('/').removeSuffix(".git")
+    val match = GITHUB_ORIGIN.matchEntire(candidate) ?: return candidate
+    return "https://github.com/${match.groupValues[1].lowercase()}/${match.groupValues[2].lowercase()}"
+}
 private fun normalizeGithubDigest(value: String): String = value.removePrefix("sha256:").uppercase().also {
     require(it.matches(Regex("[A-F0-9]{64}"))) { "Invalid GitHub asset digest" }
 }

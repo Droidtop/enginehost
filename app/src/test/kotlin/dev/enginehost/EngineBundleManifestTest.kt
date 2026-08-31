@@ -73,7 +73,7 @@ class EngineBundleManifestTest {
             .put("pluginVersion", "1.0.0")
             .put("apiVersion", 1)
             .put("entrypoint", "dev.enginehost.renpy.Plugin")
-            .put("origin", "https://github.com/bi0shacker001/enginehost-renpy-plugin")
+            .put("origin", "https://github.com/droidtop/enginehost-renpy-plugin")
             .put(
                 "signing",
                 JSONObject()

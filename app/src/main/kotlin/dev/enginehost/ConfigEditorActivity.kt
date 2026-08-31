@@ -13,10 +13,12 @@ import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONException
 import org.json.JSONObject
+import java.io.File
 
 /** First-class editor for a game folder's authoritative enginehost.json. */
 class ConfigEditorActivity : Activity() {
     private var folderUri: Uri? = null
+    private var folderPath: File? = null
     private var loadedDocument = JSONObject()
 
     private lateinit var folderLabel: TextView
@@ -44,6 +46,8 @@ class ConfigEditorActivity : Activity() {
         execFileField = findViewById(R.id.execFileField)
         optionsField = findViewById(R.id.optionsField)
         editorFields = findViewById(R.id.editorFields)
+
+        intent.getStringExtra(EXTRA_PATH)?.let(::openCallerPath)
 
         findViewById<Button>(R.id.chooseConfigFolderButton).setOnClickListener {
             startActivityForResult(StorageFolder.pickerIntent(), REQUEST_FOLDER)
@@ -76,6 +80,7 @@ class ConfigEditorActivity : Activity() {
             Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
         runCatching { contentResolver.takePersistableUriPermission(uri, flags) }
+        folderPath = null
         folderUri = uri
         folderLabel.text = StorageFolder.absolutePath(uri)?.absolutePath ?: uri.toString()
         editorFields.visibility = View.VISIBLE
@@ -103,6 +108,36 @@ class ConfigEditorActivity : Activity() {
             loadedDocument = JSONObject()
             populate(loadedDocument)
             toast("Could not open $CONFIG_FILE_NAME: ${error.message}")
+        }
+    }
+
+    private fun openCallerPath(rawPath: String) {
+        val folder = File(rawPath).absoluteFile
+        if (!folder.isDirectory) {
+            toast("The supplied game path is not an accessible folder")
+            return
+        }
+        folderPath = folder
+        folderLabel.text = folder.absolutePath
+        editorFields.visibility = View.VISIBLE
+        val configFile = File(folder, CONFIG_FILE_NAME)
+        loadedDocument = runCatching {
+            if (configFile.isFile) JSONObject(configFile.readText()) else JSONObject()
+        }.getOrElse {
+            toast("Could not open $CONFIG_FILE_NAME: ${it.message}")
+            JSONObject()
+        }
+        intent.getStringExtra(EXTRA_CONFIG)?.takeIf(String::isNotBlank)?.let { callerConfig ->
+            runCatching { mergeMissing(loadedDocument, JSONObject(callerConfig)) }
+                .onFailure { toast("Ignored invalid caller config: ${it.message}") }
+        }
+        populate(loadedDocument)
+        detect(folder)
+    }
+
+    private fun mergeMissing(authoritative: JSONObject, fallback: JSONObject) {
+        fallback.keys().forEach { key ->
+            if (!authoritative.has(key)) authoritative.put(key, fallback.get(key))
         }
     }
 
@@ -151,6 +186,37 @@ class ConfigEditorActivity : Activity() {
         }.start()
     }
 
+    private fun detect(folder: File) {
+        detectionLabel.text = "Scanning the supplied folder for engine metadata…"
+        Thread {
+            val result = runCatching { EngineDetector.detect(folder) }
+            runOnUiThread {
+                if (folderPath != folder) return@runOnUiThread
+                result.fold(
+                    onSuccess = { detection -> applyDetection(detection) },
+                    onFailure = { detectionLabel.text = "Detection failed: ${it.message}. Enter the engine manually." },
+                )
+            }
+        }.start()
+    }
+
+    private fun applyDetection(detection: EngineDetection?) {
+        if (detection == null) {
+            detectionLabel.text = "Engine not identified. Choose from all plugin engines or enter it manually."
+            findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
+            return
+        }
+        findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.GONE
+        if (engineField.text.isBlank()) engineField.setText(detection.engine)
+        if (contextField.text.isBlank()) detection.engineContext?.let(contextField::setText)
+        if (versionField.text.isBlank()) detection.engineVersion?.let(versionField::setText)
+        if (execFileField.text.isBlank()) detection.execFile?.let(execFileField::setText)
+        if ((runtimesField.text.isBlank() || runtimesField.text.toString().trim() == "{}") && detection.runtimeRequirements.isNotEmpty()) {
+            runtimesField.setText(JSONObject(detection.runtimeRequirements).toString(2))
+        }
+        detectionLabel.text = "Detected ${detection.engine}: ${detection.evidence}"
+    }
+
     private fun buildDocument(): JSONObject {
         val result = JSONObject(loadedDocument.toString())
         result.put("engine", required(engineField, "Engine family"))
@@ -165,9 +231,9 @@ class ConfigEditorActivity : Activity() {
     }
 
     private fun save() {
-        val treeUri = folderUri ?: return toast("Choose a game folder first")
         try {
-            writeDocument(treeUri)
+            val path = folderPath
+            if (path != null) writeDocument(path) else writeDocument(folderUri ?: return toast("Choose a game folder first"))
             toast("Saved $CONFIG_FILE_NAME")
         } catch (error: Exception) {
             toast(error.message ?: "Could not save configuration")
@@ -175,6 +241,15 @@ class ConfigEditorActivity : Activity() {
     }
 
     private fun testRun() {
+        folderPath?.let { folder ->
+            try {
+                writeDocument(folder)
+                GameRunner.run(this, folder)
+            } catch (error: Exception) {
+                toast(error.message ?: "Configuration is not ready to test")
+            }
+            return
+        }
         val uri = folderUri ?: return toast("Choose a game folder first")
         if (!StorageFolder.hasNativePathAccess()) {
             StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
@@ -207,6 +282,15 @@ class ConfigEditorActivity : Activity() {
             it.write(document.toString(2))
             it.newLine()
         } ?: throw IllegalStateException("The selected folder is not writable")
+        loadedDocument = document
+        return document
+    }
+
+    private fun writeDocument(folder: File): JSONObject {
+        val document = buildDocument()
+        val configFile = File(folder, CONFIG_FILE_NAME)
+        require(!configFile.exists() || configFile.isFile) { "$CONFIG_FILE_NAME is not a file" }
+        configFile.writeText(document.toString(2) + "\n")
         loadedDocument = document
         return document
     }
@@ -262,6 +346,9 @@ class ConfigEditorActivity : Activity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
+        const val ACTION_CONFIGURE = "dev.enginehost.CONFIGURE"
+        const val EXTRA_PATH = "path"
+        const val EXTRA_CONFIG = "config"
         private const val REQUEST_FOLDER = 20
         private const val REQUEST_NATIVE_FILES = 21
         private const val REQUEST_PLUGIN_SELECTION = 22
