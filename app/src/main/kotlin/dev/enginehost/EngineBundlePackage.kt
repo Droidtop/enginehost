@@ -364,6 +364,7 @@ private fun EngineCapability.toJson() = JSONObject()
     .put("id", id)
     .put("engineContext", engineContext)
     .put("runtimeVersion", runtimeVersion.toString())
+    .put("acceptsAnyEngineVersion", acceptsAnyEngineVersion)
     .put("supportedVersions", JSONArray(supportedVersions.map(Version::toString)))
     .put("supportedSeries", JSONArray(supportedSeries.map(VersionSeries::toString)))
     .put("supportedRanges", JSONArray().apply {

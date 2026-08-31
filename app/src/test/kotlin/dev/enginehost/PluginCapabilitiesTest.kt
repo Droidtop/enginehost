@@ -3,9 +3,20 @@ package dev.enginehost
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PluginCapabilitiesTest {
+    @Test
+    fun versionAgnosticCapabilityAcceptsEveryNumericEngineVersion() {
+        val capability = PluginCapabilitiesReader.parse(
+            """{"capabilities":[{"id":"kirikiri","runtimeVersion":"0.1.0","acceptsAnyEngineVersion":true}]}""",
+        ).single()
+
+        assertTrue(capability.supports(Version.parse("1")))
+        assertTrue(capability.supports(Version.parse("999.123.456")))
+    }
+
     @Test
     fun `capability document parses exact versions series and ranges`() {
         val capabilities = PluginCapabilitiesReader.parse(

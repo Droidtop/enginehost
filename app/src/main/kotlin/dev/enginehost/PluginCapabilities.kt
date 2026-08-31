@@ -22,12 +22,14 @@ data class EngineCapability(
     val supportedSeries: Set<VersionSeries>,
     val supportedRanges: List<VersionRange>,
     val runtimeComponents: Map<String, Version> = emptyMap(),
+    val acceptsAnyEngineVersion: Boolean = false,
 ) {
     fun supports(version: Version): Boolean =
-        version == runtimeVersion || version in supportedVersions ||
+        acceptsAnyEngineVersion || version == runtimeVersion || version in supportedVersions ||
             supportedSeries.any(version::belongsTo) || supportedRanges.any { it.contains(version) }
 
     fun specificityFor(version: Version): Long = when {
+        acceptsAnyEngineVersion -> Long.MAX_VALUE
         version == runtimeVersion || version in supportedVersions -> 0L
         supportedSeries.any(version::belongsTo) ->
             1_000_000L - supportedSeries.filter(version::belongsTo).maxOf { it.parts.size }
@@ -89,7 +91,12 @@ object PluginCapabilitiesReader {
                         }
                     }
                 }
-                add(EngineCapability(id, context, runtimeVersion, versions, series, ranges, components))
+                add(
+                    EngineCapability(
+                        id, context, runtimeVersion, versions, series, ranges, components,
+                        entry.optBoolean("acceptsAnyEngineVersion", false),
+                    ),
+                )
             }
         }.also { capabilities ->
             require(capabilities.map { it.id }.distinct().size == capabilities.size) {
