@@ -39,7 +39,7 @@ class ControllerConfigActivity : Activity(), InputManager.InputDeviceListener {
 
     private fun render() {
         content.removeAllViews()
-        val controllers = InputDevice.getDeviceIds().mapNotNull(InputDevice::getDevice)
+        val controllers = InputDevice.getDeviceIds().asSequence().mapNotNull(InputDevice::getDevice)
             .filter { device ->
                 (device.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
                     (device.sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
