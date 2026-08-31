@@ -73,6 +73,19 @@
         "algorithm": "SHA256withECDSA",
         "id": "enginehost-official-v1",
         "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEUCIQD0mINLMK+/yijoPtOGIUPmKtnbAFgUiaWVQGikIhGG3wIgFDD2b8IU2AV9f/MbALifRmvtw2OEqvSeTX7Ey94zp+g="
+      },
+      "keySha256": "730F20BCE5ACABE93D1296C426EBCCDAAF4FC8456233786B95DBA12FBA2A1CBE",
+      "origin": "https://github.com/droidtop/enginehost-kirikiri-plugin",
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzKE2OhDeJ3bF1kIibXZ2dvMGEFQ0kfVTKBFTvE+mg0ccURCVFtWnLsvi0FKnZCCt1/QKJo5LDnTEoMZScUS0Lg=="
+    },
+    {
+      "algorithm": "SHA256withECDSA",
+      "formatVersion": 1,
+      "issuer": {
+        "algorithm": "SHA256withECDSA",
+        "id": "enginehost-official-v1",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
         "signature": "MEYCIQDE9OUVDiq5XDC/r8i6M4BZcIlp6AGb/5ONimXF7dTsJQIhAIzoiHNFo/Pm9NrSMrL1fCGhHiA7imefUpezPspyG/5n"
       },
       "keySha256": "BB93A03DBA94B452B01B9B49CE267CCEAFF09276B3630F38DDEC64BA4341C87E",

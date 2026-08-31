@@ -52,6 +52,8 @@ object GameRunner {
             putExtra(RuntimeActivity.EXTRA_PATH, gameFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE, resolved.plugin.bundleId)
             putExtra(RuntimeActivity.EXTRA_SAVE_PATH, SaveLocationStore(activity).saveRoot().absolutePath)
+            putExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT, config.engineContext ?: DEFAULT_ENGINE_CONTEXT)
+            putExtra(RuntimeActivity.EXTRA_ENGINE_VERSION, config.engineVersion.toString())
             inlineJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
         }
         runCatching { activity.startActivity(intent) }
