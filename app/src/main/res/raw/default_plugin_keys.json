@@ -65,6 +65,19 @@
         "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
         "signature": "MEYCIQCWavg6LL1Ltpoxlq76zgsn6bSAYJoeqvFvixp4ppmUpgIhAJAU3UZB1BXTOvm9OTjRZJ7qPSeDwloVfv0oY9ztRQLj"
       }
+    },
+    {
+      "algorithm": "SHA256withECDSA",
+      "formatVersion": 1,
+      "issuer": {
+        "algorithm": "SHA256withECDSA",
+        "id": "enginehost-official-v1",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEYCIQDE9OUVDiq5XDC/r8i6M4BZcIlp6AGb/5ONimXF7dTsJQIhAIzoiHNFo/Pm9NrSMrL1fCGhHiA7imefUpezPspyG/5n"
+      },
+      "keySha256": "BB93A03DBA94B452B01B9B49CE267CCEAFF09276B3630F38DDEC64BA4341C87E",
+      "origin": "https://github.com/droidtop/enginehost-renpy-plugin",
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2P5EQTY8yCJUNwcipRPnuv6/jFXhgv8H8UDYevm1sppUjraqcervuJOQCTM7lLB8GV+nmBZsth8e6F4WMvaXWQ=="
     }
   ]
 }
