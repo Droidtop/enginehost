@@ -93,6 +93,12 @@ The home screen also has a deliberately minimal “pick folder and run” action
 for plugin testing. It is not a library or catalog; programmatic launch through
 `dev.enginehost.LAUNCH` remains the intended runtime interface.
 
+Controller settings provide global remapping for D-pad, face and shoulder
+buttons, sticks, triggers, VN actions such as skip/auto/history and quick
+save/load, multiple connected controllers, hot-plug, and controller rumble.
+Engine bundles receive normalized actions while unconsumed raw Android input
+continues to their render view.
+
 ## Plugins
 
 Plugins are separately installed, versioned `*.enginehost.tar.xz` bundles, not

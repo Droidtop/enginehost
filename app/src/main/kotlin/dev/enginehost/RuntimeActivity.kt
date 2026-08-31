@@ -5,7 +5,11 @@ import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
+import android.os.VibrationEffect
 import android.util.Log
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.Toast
 import dalvik.system.DexClassLoader
@@ -25,6 +29,7 @@ import java.security.MessageDigest
 class RuntimeActivity : Activity() {
     private var plugin: EnginePlugin? = null
     private var runtimeStarted = false
+    private val controllers by lazy { RuntimeControllerRouter(this) { plugin } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,6 +104,12 @@ class RuntimeActivity : Activity() {
         super.onResume()
         if (runtimeStarted) callPlugin("resume") { onResume() }
     }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        controllers.key(event) || super.dispatchKeyEvent(event)
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
+        controllers.motion(event) || super.dispatchGenericMotionEvent(event)
     override fun onPause() {
         if (runtimeStarted) callPlugin("pause") { onPause() }
         super.onPause()
@@ -159,6 +170,17 @@ private class RuntimeHost(
         val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()
         Log.println(priority, "enginehost/$tag", message + detail)
     }
+    override fun rumbleController(deviceId: Int, durationMs: Long, amplitude: Int): Boolean {
+        val vibrator = InputDevice.getDevice(deviceId)?.vibrator ?: return false
+        if (!vibrator.hasVibrator()) return false
+        vibrator.vibrate(
+            VibrationEffect.createOneShot(
+                durationMs.coerceIn(1, 10_000),
+                amplitude.coerceIn(1, 255),
+            ),
+        )
+        return true
+    }
     override fun finish() = activity.finish()
 }
 
@@ -172,7 +194,7 @@ private class RuntimeFileSystem(root: File) : EngineFileSystem {
         return FileOutputStream(file, append)
     }
     override fun exists(relativePath: String): Boolean = runCatching { resolve(relativePath).exists() }.getOrDefault(false)
-    override fun list(relativePath: String): Array<String> = resolve(relativePath).list().orEmpty()
+    override fun list(relativePath: String): Array<String> = resolve(relativePath).list() ?: emptyArray()
 
     private fun resolve(relativePath: String): File {
         if (File(relativePath).isAbsolute) throw FileNotFoundException("Absolute paths are not accepted")

@@ -11,5 +11,7 @@ public interface EngineHost {
     File cacheDirectory();
     EngineFileSystem fileSystem();
     void log(int priority, String tag, String message, Throwable error);
+    /** Requests haptic feedback from the controller that produced an event. */
+    boolean rumbleController(int deviceId, long durationMs, int amplitude);
     void finish();
 }

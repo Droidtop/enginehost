@@ -10,6 +10,9 @@ public interface EnginePlugin {
     /** Called exactly once, on the runtime process main thread. */
     void onCreate(EnginePluginSession session) throws Exception;
 
+    /** Return true when the engine consumed this host-normalized controller action. */
+    default boolean onControllerEvent(EngineControllerEvent event) throws Exception { return false; }
+
     default void onStart() throws Exception {}
     default void onResume() throws Exception {}
     default void onPause() throws Exception {}
