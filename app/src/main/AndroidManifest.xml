@@ -31,10 +31,11 @@
             android:exported="false" />
 
         <activity
-            android:name=".SaveLocationActivity"
+            android:name=".EnginehostSettingsActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="dev.enginehost.CONFIGURE_SAVES" />
+                <action android:name="dev.enginehost.CONFIGURE_SETTINGS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

@@ -56,11 +56,11 @@
             android:text="Controller settings" />
 
         <Button
-            android:id="@+id/saveLocationButton"
+            android:id="@+id/enginehostSettingsButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Save location and migration" />
+            android:text="Enginehost settings" />
 
         <TextView
             android:layout_width="match_parent"

@@ -23,8 +23,8 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
             startActivity(Intent(this, ControllerConfigActivity::class.java))
         }
-        findViewById<Button>(R.id.saveLocationButton).setOnClickListener {
-            startActivity(Intent(this, SaveLocationActivity::class.java))
+        findViewById<Button>(R.id.enginehostSettingsButton).setOnClickListener {
+            startActivity(Intent(this, EnginehostSettingsActivity::class.java))
         }
         findViewById<Button>(R.id.pluginTrustButton).setOnClickListener {
             startActivity(Intent(this, PluginTrustActivity::class.java))

@@ -9,7 +9,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 
-class SaveLocationActivity : Activity() {
+/** Global Enginehost configuration. Save storage is its first managed option. */
+class EnginehostSettingsActivity : Activity() {
     private lateinit var store: SaveLocationStore
     private lateinit var location: TextView
 
@@ -20,7 +21,8 @@ class SaveLocationActivity : Activity() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 48, 48, 48)
-            addView(TextView(context).apply { text = "Save location"; textSize = 24f })
+            addView(TextView(context).apply { text = "Enginehost settings"; textSize = 24f })
+            addView(TextView(context).apply { text = "\nSave location"; textSize = 20f })
             addView(TextView(context).apply {
                 text = "Engines store saves beneath this shared folder using their own game naming."
             })
