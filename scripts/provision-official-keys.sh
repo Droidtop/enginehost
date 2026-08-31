@@ -44,5 +44,9 @@ provision_repo catsystem2 \
   https://github.com/droidtop/enginehost-catsystem2-plugin \
   "$workspace_root/_work/catsystem2-standalone/enginehost/bundle-metadata.json" \
   "$workspace_root/_work/catsystem2-standalone/enginehost-public-key.json"
+provision_repo cmvs \
+  https://github.com/droidtop/enginehost-cmvs-plugin \
+  "$workspace_root/_work/cmvs-standalone/enginehost/bundle-metadata.json" \
+  "$workspace_root/_work/cmvs-standalone/enginehost-public-key.json"
 
 chmod 600 "$key_root/official/root-private.pem"

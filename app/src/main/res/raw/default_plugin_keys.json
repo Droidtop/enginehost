@@ -39,6 +39,19 @@
         "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
         "signature": "MEUCIE0u/GyL7OZceIfA5Ym39SFjkHCGfdQzesuAaM2RozXTAiEAjMTEMOW3h0tRnwXOYVFfeCY54oeFdrYi/HJ8PQxUqME="
       }
+    },
+    {
+      "formatVersion": 1,
+      "origin": "https://github.com/droidtop/enginehost-cmvs-plugin",
+      "algorithm": "SHA256withECDSA",
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEiAIaMMxU0d47R4sXqvySRAPCJgb5IeT9apRMtevnpYoJmeJJazEMylAZDP4z6EU0hE8GxBp22+7rIWA1Gxw4bw==",
+      "keySha256": "D981CC0874DB5A39346381F4E635F3A8C9C5FAD54392E7EB7765AF559302BD91",
+      "issuer": {
+        "id": "enginehost-official-v1",
+        "algorithm": "SHA256withECDSA",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEYCIQCBIp8txLmvFTdt0H6t9tZN7/I7EWSzcIlPkKyZKU+4EAIhAMVRCzd09MaxalW9AggBpShKXpjgwX8/GtQjNp/cl3Bv"
+      }
     }
   ]
 }
