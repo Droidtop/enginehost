@@ -51,6 +51,7 @@ object GameRunner {
         val intent = Intent(activity, runtimeClass).apply {
             putExtra(RuntimeActivity.EXTRA_PATH, gameFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE, resolved.plugin.bundleId)
+            putExtra(RuntimeActivity.EXTRA_SAVE_PATH, SaveLocationStore(activity).saveRoot().absolutePath)
             inlineJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
         }
         runCatching { activity.startActivity(intent) }

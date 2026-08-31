@@ -167,6 +167,7 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
         const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
+        const val EXTRA_SAVE_PATH = "dev.enginehost.runtime.SAVE_PATH"
     }
 }
 
