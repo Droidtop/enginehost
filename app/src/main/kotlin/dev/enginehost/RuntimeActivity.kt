@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Process
 import android.os.VibrationEffect
 import android.util.Log
@@ -158,7 +159,14 @@ private class RuntimeHost(
 ) : EngineHost {
     private val gameId = MessageDigest.getInstance("SHA-256")
         .digest(gameFolder.canonicalPath.toByteArray()).take(12).joinToString("") { "%02x".format(it) }
-    private val save = File(activity.filesDir, "saves/$pluginPackage/$gameId").apply { mkdirs() }
+    @Suppress("DEPRECATION")
+    private val save = File(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+        "Enginehost/saves/$pluginPackage/$gameId",
+    ).apply {
+        require(isDirectory || mkdirs()) { "Could not create the shared Enginehost save directory" }
+        require(canWrite()) { "The shared Enginehost save directory is not writable" }
+    }
     private val cache = File(activity.cacheDir, "plugins/$pluginPackage/$gameId").apply { mkdirs() }
     private val files = RuntimeFileSystem(gameFolder)
 
