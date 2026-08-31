@@ -15,6 +15,24 @@ android {
         versionName = "0.1.0"
     }
 
+    val ciKeystore = System.getenv("ENGINEHOST_ANDROID_KEYSTORE")
+    if (!ciKeystore.isNullOrBlank()) {
+        signingConfigs {
+            create("enginehostCi") {
+                storeFile = file(ciKeystore)
+                storePassword = System.getenv("ENGINEHOST_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ENGINEHOST_ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ENGINEHOST_ANDROID_KEY_PASSWORD")
+                storeType = "PKCS12"
+            }
+        }
+        buildTypes {
+            getByName("debug") {
+                signingConfig = signingConfigs.getByName("enginehostCi")
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

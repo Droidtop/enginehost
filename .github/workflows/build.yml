@@ -22,7 +22,19 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Restore official Enginehost APK signing subkey
+        env:
+          ENGINEHOST_ANDROID_KEYSTORE_BASE64: ${{ secrets.ENGINEHOST_ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ENGINEHOST_ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$ENGINEHOST_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/enginehost-signing.p12"
+
       - name: Test and build debug APK
+        env:
+          ENGINEHOST_ANDROID_KEYSTORE: ${{ runner.temp }}/enginehost-signing.p12
+          ENGINEHOST_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ENGINEHOST_ANDROID_KEYSTORE_PASSWORD }}
+          ENGINEHOST_ANDROID_KEY_ALIAS: enginehost
+          ENGINEHOST_ANDROID_KEY_PASSWORD: ${{ secrets.ENGINEHOST_ANDROID_KEYSTORE_PASSWORD }}
         run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
       - name: Upload APK

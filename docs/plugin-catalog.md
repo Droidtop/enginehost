@@ -22,6 +22,12 @@ and pins the fingerprint before reading any release. A different key for an
 already-pinned origin is rejected. Default repositories and their keys are
 compiled into Enginehost, so their network copy cannot replace host policy.
 
+Official keys form one hierarchy. The offline Enginehost primary seed derives
+an origin-scoped operational subkey for each repository, and the primary key
+certifies that subkey's public identity. The primary key never signs engine
+bundles directly. The Enginehost APK is likewise signed by its own
+application-scoped operational subkey from the same primary seed.
+
 Every applicable release contains one or more `*.enginehost.tar.xz` engine
 bundles, one `enginehost-release.json` browsing envelope conforming to
 [`plugin-release.schema.json`](plugin-release.schema.json), and normal release

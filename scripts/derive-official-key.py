@@ -19,6 +19,7 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--official-root", action="store_true")
     group.add_argument("--repository-origin")
+    group.add_argument("--application-id")
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     seed = args.master_seed.read_bytes()
@@ -26,11 +27,16 @@ def main() -> None:
         raise SystemExit("Official master seed must contain exactly 32 bytes")
     if args.official_root:
         info = b"enginehost/official-root-signing/v1"
-    else:
+    elif args.repository_origin:
         origin = args.repository_origin.rstrip("/").removesuffix(".git").lower()
         if not origin.startswith("https://github.com/"):
             raise SystemExit("Repository origin must be a canonical GitHub URL")
         info = b"enginehost/repository-bundle-signing/v1\0" + origin.encode()
+    else:
+        application_id = args.application_id.strip().lower()
+        if not application_id or "." not in application_id:
+            raise SystemExit("Application ID must be a dotted Android package name")
+        info = b"enginehost/android-apk-signing/v1\0" + application_id.encode()
     material = HKDF(algorithm=hashes.SHA256(), length=48, salt=SALT, info=info).derive(seed)
     scalar = int.from_bytes(material, "big") % (P256_ORDER - 1) + 1
     key = ec.derive_private_key(scalar, ec.SECP256R1())

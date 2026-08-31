@@ -12,6 +12,14 @@ python3 "$workspace_root/scripts/derive-official-key.py" \
   --master-seed "$key_root/official/master-seed.bin" --official-root \
   --output "$key_root/official/root-private.pem"
 
+# Enginehost itself is signed by a dedicated operational subkey. The primary
+# key never signs APKs or bundles directly.
+mkdir -p "$key_root/enginehost-android"
+python3 "$workspace_root/scripts/derive-official-key.py" \
+  --master-seed "$key_root/official/master-seed.bin" \
+  --application-id dev.enginehost \
+  --output "$key_root/enginehost-android/private.pem"
+
 provision_repo() {
   local name="$1" origin="$2" metadata="$3" public_document="$4"
   local temporary="/tmp/enginehost-key-$name"
