@@ -48,6 +48,7 @@ class EnginehostComponentFactory : AppComponentFactory() {
         }
 
         val root = installed.directory.canonicalFile
+        intent.putExtra(EXTRA_BUNDLE_ROOT, root.path)
         val dex = installed.dexFiles.map { safeRuntimeChild(root, it) }
         require(dex.all(File::isFile)) { "A signed runtime dex file is missing" }
         val nativePaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
@@ -85,5 +86,6 @@ class EnginehostComponentFactory : AppComponentFactory() {
         private const val TAG = "EnginehostRuntime"
         const val EXTRA_RESOURCE_APKS = "dev.enginehost.runtime.RESOURCE_APKS"
         const val EXTRA_RESOURCE_PACKAGE = "dev.enginehost.runtime.RESOURCE_PACKAGE"
+        const val EXTRA_BUNDLE_ROOT = "dev.enginehost.runtime.BUNDLE_ROOT"
     }
 }
