@@ -40,8 +40,24 @@ class PluginOriginKeyStore(private val context: Context) {
         return key
     }
 
-    fun matches(origin: String, fingerprint: String): Boolean =
-        get(origin)?.fingerprint == fingerprint.uppercase()
+    fun matches(origin: String, fingerprint: String): Boolean {
+        val normalized = fingerprint.uppercase()
+        if (get(origin)?.fingerprint == normalized) return true
+        // The primary developer's key is not origin-scoped: it signs locally
+        // rebuilt bundles for any repository. Accepting it here is the whole
+        // point of having it, and every surface that reports trust marks such a
+        // bundle as a developer build so it cannot pass for an official one.
+        return isDeveloperDebug(normalized)
+    }
+
+    /** The primary developer's own signing key, certified by the official root. */
+    fun developerDebug(): PluginOriginKey? = runCatching {
+        context.resources.openRawResource(R.raw.developer_debug_key)
+            .bufferedReader().use { parseKeyDocument(it.readText(), requireOfficialIssuer = true) }
+    }.getOrNull()
+
+    fun isDeveloperDebug(fingerprint: String): Boolean =
+        developerDebug()?.fingerprint == fingerprint.uppercase()
 
     fun isBuiltIn(origin: String, fingerprint: String): Boolean =
         builtIns()[normalizeGithubOrigin(origin)]?.fingerprint == fingerprint.uppercase()

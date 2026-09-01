@@ -20,6 +20,7 @@ def main() -> None:
     group.add_argument("--official-root", action="store_true")
     group.add_argument("--repository-origin")
     group.add_argument("--application-id")
+    group.add_argument("--developer-debug", action="store_true")
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     seed = args.master_seed.read_bytes()
@@ -32,6 +33,13 @@ def main() -> None:
         if not origin.startswith("https://github.com/"):
             raise SystemExit("Repository origin must be a canonical GitHub URL")
         info = b"enginehost/repository-bundle-signing/v1\0" + origin.encode()
+    elif args.developer_debug:
+        # The primary developer's own key. It is deliberately NOT origin-scoped:
+        # it exists to sign locally rebuilt bundles for any repository during
+        # development. Enginehost accepts it for any origin and then marks the
+        # plugin as a developer build, which is the whole point -- it must never
+        # be mistakable for an official release.
+        info = b"enginehost/primary-developer-debug-signing/v1"
     else:
         application_id = args.application_id.strip().lower()
         if not application_id or "." not in application_id:

@@ -1,0 +1,13 @@
+{
+  "algorithm": "SHA256withECDSA",
+  "formatVersion": 1,
+  "issuer": {
+    "algorithm": "SHA256withECDSA",
+    "id": "enginehost-official-v1",
+    "keySha256": "E01B8F3DB54F70F3AC5390EC63158F754FEF1E3716BDCB8DF45E20315651A803",
+    "signature": "MEUCIQCbVO3CAWuyty5738dN34F69lvrX41UN0bZBJi6s9fghAIgIAZREil9cgBMgSHXhx6+C5na5KiAhQyxBbIV0eg+G9A="
+  },
+  "keySha256": "19D4B8A529C79FFC9C7D9C7B4CCB908C7BFFCBF9CA6B3C44C13BD38532C1058E",
+  "origin": "https://github.com/droidtop/enginehost",
+  "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjGywCFio7lg6OJyrdJV6/fUd0KOGzkSjRe20o0wQknJ9PfyzmR86Ok6oB8GznqBJ4hVAS5O0CTIT0HRc7jqV6g=="
+}

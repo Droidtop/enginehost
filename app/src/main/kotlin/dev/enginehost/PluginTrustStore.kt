@@ -33,6 +33,15 @@ class PluginTrustStore(private val context: Context) {
         return plugin.signerFingerprints.any { keys.isBuiltIn(plugin.origin, it) }
     }
 
+    /**
+     * Signed with the primary developer's key rather than the origin's own key.
+     * Such a build is deliberately installable, and deliberately never official.
+     */
+    fun isDeveloperDebug(plugin: InstalledPlugin): Boolean {
+        val keys = PluginOriginKeyStore(context)
+        return plugin.signerFingerprints.any { keys.isDeveloperDebug(it) }
+    }
+
     private fun decide(plugin: InstalledPlugin, decision: String) {
         require(plugin.signerIdentity.isNotBlank()) { "A plugin without a verified signer cannot be trusted" }
         preferences.edit()

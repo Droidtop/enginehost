@@ -48,12 +48,19 @@ class PluginTrustActivity : Activity() {
     }
 
     private fun addPlugin(plugin: InstalledPlugin) {
+        val developerBuild = trust.isDeveloperDebug(plugin)
         val official = trust.isOfficial(plugin)
         val state = trust.state(plugin)
         list.addView(text(
             buildString {
                 append(plugin.info.engine).append(" · plugin ").append(plugin.info.pluginVersion)
-                append(if (official) " · Official" else " · Community")
+                append(
+                    when {
+                        developerBuild -> " · Developer build"
+                        official -> " · Official"
+                        else -> " · Community"
+                    }
+                )
                 append("\n").append(plugin.bundleId)
                 append("\nOrigin: ").append(plugin.origin).append(" (verified)")
                 append("\nTrust: ").append(state.name.lowercase().replace('_', ' '))
@@ -61,6 +68,15 @@ class PluginTrustActivity : Activity() {
             },
             topMargin = 28,
         ))
+        if (developerBuild) {
+            // Signed by the primary developer's key rather than the repository's
+            // own, so it carries none of the guarantees an official bundle does.
+            list.addView(text(
+                "Signed with the primary developer debug key. Anything signed with this key " +
+                    "is not a production release. If you are not the primary developer, do not " +
+                    "trust this build.",
+            ))
+        }
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         controls.addView(Button(this).apply {
             text = "Approve"
