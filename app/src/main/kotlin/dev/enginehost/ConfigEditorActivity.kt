@@ -1,6 +1,6 @@
 package dev.enginehost
 
-import android.app.Activity
+import androidx.appcompat.app.AppCompatActivity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -16,7 +16,7 @@ import org.json.JSONObject
 import java.io.File
 
 /** First-class editor for a game folder's authoritative enginehost.json. */
-class ConfigEditorActivity : Activity() {
+class ConfigEditorActivity : AppCompatActivity() {
     private var folderUri: Uri? = null
     private var folderPath: File? = null
     private var loadedDocument = JSONObject()
@@ -74,7 +74,7 @@ class ConfigEditorActivity : Activity() {
             engineField.setText(data.getStringExtra("engine"))
             contextField.setText(data.getStringExtra("engineContext"))
             versionField.setText(data.getStringExtra("engineVersion"))
-            detectionLabel.text = "Plugin engine selected manually; review the detected runtime version before saving."
+            detectionLabel.setText(R.string.plugin_selected_manually)
             return
         }
         if (requestCode != REQUEST_FOLDER || resultCode != RESULT_OK) return
@@ -97,7 +97,7 @@ class ConfigEditorActivity : Activity() {
             if (configUri == null) {
                 loadedDocument = JSONObject()
                 populate(loadedDocument)
-                toast("New configuration")
+                toast(getString(R.string.new_configuration))
                 return
             }
             val raw = contentResolver.openInputStream(configUri)?.bufferedReader()?.use { it.readText() }
@@ -106,18 +106,18 @@ class ConfigEditorActivity : Activity() {
             populate(loadedDocument)
             // Show malformed existing files for repair, but make the problem visible.
             runCatching { EngineConfigReader.parseDocument(raw) }
-                .exceptionOrNull()?.let { toast(it.message ?: "Configuration needs attention") }
+                .exceptionOrNull()?.let { toast(it.message ?: getString(R.string.config_needs_attention)) }
         } catch (error: Exception) {
             loadedDocument = JSONObject()
             populate(loadedDocument)
-            toast("Could not open $CONFIG_FILE_NAME: ${error.message}")
+            toast(getString(R.string.could_not_open_config, CONFIG_FILE_NAME, error.message))
         }
     }
 
     private fun openCallerPath(rawPath: String) {
         val folder = File(rawPath).absoluteFile
         if (!folder.isDirectory) {
-            toast("The supplied game path is not an accessible folder")
+            toast(getString(R.string.supplied_path_invalid))
             return
         }
         folderPath = folder
@@ -127,12 +127,12 @@ class ConfigEditorActivity : Activity() {
         loadedDocument = runCatching {
             if (configFile.isFile) JSONObject(configFile.readText()) else JSONObject()
         }.getOrElse {
-            toast("Could not open $CONFIG_FILE_NAME: ${it.message}")
+            toast(getString(R.string.could_not_open_config, CONFIG_FILE_NAME, it.message))
             JSONObject()
         }
         intent.getStringExtra(EXTRA_CONFIG)?.takeIf(String::isNotBlank)?.let { callerConfig ->
             runCatching { mergeMissing(loadedDocument, JSONObject(callerConfig)) }
-                .onFailure { toast("Ignored invalid caller config: ${it.message}") }
+                .onFailure { toast(getString(R.string.ignored_invalid_caller, it.message)) }
         }
         populate(loadedDocument)
         detect(folder)
@@ -161,7 +161,7 @@ class ConfigEditorActivity : Activity() {
     }
 
     private fun detect(treeUri: Uri) {
-        detectionLabel.text = "Scanning the selected folder for engine metadata…"
+        detectionLabel.setText(R.string.scanning_selected)
         Thread {
             val result = runCatching { EngineDetector.detect(contentResolver, treeUri) }
             runOnUiThread {
@@ -169,7 +169,7 @@ class ConfigEditorActivity : Activity() {
                 result.fold(
                     onSuccess = { detection ->
                         if (detection == null) {
-                            detectionLabel.text = "Engine not identified. Choose from all plugin engines or enter it manually."
+                            detectionLabel.setText(R.string.engine_not_identified)
                             findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
                         } else {
                             findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.GONE
@@ -183,11 +183,11 @@ class ConfigEditorActivity : Activity() {
                             ) {
                                 runtimesField.setText(JSONObject(detection.runtimeRequirements).toString(2))
                             }
-                            detectionLabel.text = "Detected ${detection.engine}: ${detection.evidence}"
+                            detectionLabel.text = getString(R.string.detected_engine, detection.engine, detection.evidence)
                         }
                     },
                     onFailure = {
-                        detectionLabel.text = "Detection failed: ${it.message}. You can still choose from every plugin engine."
+                        detectionLabel.text = getString(R.string.detection_failed_choose, it.message)
                         findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
                     },
                 )
@@ -196,14 +196,14 @@ class ConfigEditorActivity : Activity() {
     }
 
     private fun detect(folder: File) {
-        detectionLabel.text = "Scanning the supplied folder for engine metadata…"
+        detectionLabel.setText(R.string.scanning_supplied)
         Thread {
             val result = runCatching { EngineDetector.detect(folder) }
             runOnUiThread {
                 if (folderPath != folder) return@runOnUiThread
                 result.fold(
                     onSuccess = { detection -> applyDetection(detection) },
-                    onFailure = { detectionLabel.text = "Detection failed: ${it.message}. Enter the engine manually." },
+                    onFailure = { detectionLabel.text = getString(R.string.detection_failed_manual, it.message) },
                 )
             }
         }.start()
@@ -211,7 +211,7 @@ class ConfigEditorActivity : Activity() {
 
     private fun applyDetection(detection: EngineDetection?) {
         if (detection == null) {
-            detectionLabel.text = "Engine not identified. Choose from all plugin engines or enter it manually."
+            detectionLabel.setText(R.string.engine_not_identified)
             findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
             return
         }
@@ -223,13 +223,13 @@ class ConfigEditorActivity : Activity() {
         if ((runtimesField.text.isBlank() || runtimesField.text.toString().trim() == "{}") && detection.runtimeRequirements.isNotEmpty()) {
             runtimesField.setText(JSONObject(detection.runtimeRequirements).toString(2))
         }
-        detectionLabel.text = "Detected ${detection.engine}: ${detection.evidence}"
+        detectionLabel.text = getString(R.string.detected_engine, detection.engine, detection.evidence)
     }
 
     private fun buildDocument(): JSONObject {
         val result = JSONObject(loadedDocument.toString())
-        result.put("engine", required(engineField, "Engine family"))
-        result.put("engineVersion", required(versionField, "Engine version"))
+        result.put("engine", required(engineField, getString(R.string.engine_family)))
+        result.put("engineVersion", required(versionField, getString(R.string.engine_version)))
         putOptional(result, "engineContext", contextField)
         putOptional(result, "pluginVersion", pluginVersionField)
         putOptional(result, "execFile", execFileField)
@@ -242,10 +242,10 @@ class ConfigEditorActivity : Activity() {
     private fun save() {
         try {
             val path = folderPath
-            if (path != null) writeDocument(path) else writeDocument(folderUri ?: return toast("Choose a game folder first"))
-            toast("Saved $CONFIG_FILE_NAME")
+            if (path != null) writeDocument(path) else writeDocument(folderUri ?: return toast(getString(R.string.choose_folder_first)))
+            toast(getString(R.string.saved_config, CONFIG_FILE_NAME))
         } catch (error: Exception) {
-            toast(error.message ?: "Could not save configuration")
+            toast(error.message ?: getString(R.string.could_not_save))
         }
     }
 
@@ -255,17 +255,17 @@ class ConfigEditorActivity : Activity() {
                 writeDocument(folder)
                 GameRunner.run(this, folder)
             } catch (error: Exception) {
-                toast(error.message ?: "Configuration is not ready to test")
+                toast(error.message ?: getString(R.string.config_not_ready))
             }
             return
         }
-        val uri = folderUri ?: return toast("Choose a game folder first")
+        val uri = folderUri ?: return toast(getString(R.string.choose_folder_first))
         if (!StorageFolder.hasNativePathAccess()) {
             StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
-            return toast("Grant native file access, then tap Test again")
+            return toast(getString(R.string.grant_native_then_test))
         }
         val folder = StorageFolder.absolutePath(uri)
-            ?: return toast("This provider can edit the config, but native test launch needs a primary-storage folder")
+            ?: return toast(getString(R.string.provider_needs_primary))
         try {
             // The folder file is the highest-priority configuration source.
             // Persist the visible editor state first so the test cannot launch
@@ -273,7 +273,7 @@ class ConfigEditorActivity : Activity() {
             writeDocument(uri)
             GameRunner.run(this, folder)
         } catch (error: Exception) {
-            toast(error.message ?: "Configuration is not ready to test")
+            toast(error.message ?: getString(R.string.config_not_ready))
         }
     }
 
@@ -333,7 +333,7 @@ class ConfigEditorActivity : Activity() {
     )
 
     private fun required(field: EditText, label: String): String = field.text.toString().trim().also {
-        if (it.isEmpty()) throw IllegalArgumentException("$label is required")
+        if (it.isEmpty()) throw IllegalArgumentException(getString(R.string.field_required, label))
     }
 
     private fun putOptional(target: JSONObject, name: String, field: EditText) {
@@ -347,7 +347,7 @@ class ConfigEditorActivity : Activity() {
             try {
                 target.put(name, JSONObject(raw))
             } catch (error: JSONException) {
-                throw IllegalArgumentException("$name must be a JSON object: ${error.message}")
+                throw IllegalArgumentException(getString(R.string.json_object_error, name, error.message))
             }
         }
     }

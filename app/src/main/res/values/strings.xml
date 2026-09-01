@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Enginehost</string>
+
+    <!-- Shared -->
+    <string name="cancel">Cancel</string>
+    <string name="remove">Remove</string>
+    <string name="choose_shared_storage_folder">Choose a folder on internal or removable shared storage</string>
+
+    <!-- Home -->
+    <string name="main_subtitle">Launch games directly with the same configuration and plugin rules other apps use.</string>
+    <string name="section_games">Games</string>
+    <string name="games_empty">No games added yet. Add a game folder to launch it from here.</string>
+    <string name="add_game_folder">Add a game folder</string>
+    <string name="game_row_unavailable">%1$s (unavailable)</string>
+    <string name="launch_game_description">Launch %1$s</string>
+    <string name="game_row_hold_hint">Hold to remove from this list</string>
+    <string name="section_configuration">Game configuration</string>
+    <string name="configuration_hint">Create or repair the authoritative enginehost.json stored with a game.</string>
+    <string name="open_config_creator">Open config creator</string>
+    <string name="section_input_storage">Input and storage</string>
+    <string name="controller_settings">Controller settings</string>
+    <string name="enginehost_settings">Enginehost settings</string>
+    <string name="section_plugins">Plugins</string>
+    <string name="plugins_hint">Review code modules before they can use Enginehost\'s file access.</string>
+    <string name="manage_plugin_trust">Manage plugin trust</string>
+    <string name="browse_plugins">Browse and install plugins</string>
+    <string name="needs_native_access">Game launching needs native folder access; config editing still works without it</string>
+    <string name="game_folder_unavailable">That game folder is not currently available</string>
+    <string name="configure_game_title">Configure this game?</string>
+    <string name="configure_game_message">Enginehost needs an enginehost.json in the game folder. Scan the folder and create one now?</string>
+    <string name="scan_and_configure">Scan and configure</string>
+    <string name="remove_game_title">Remove from Enginehost?</string>
+    <string name="remove_game_message">This only removes the shortcut. The game and its saves stay on storage.</string>
+
+    <!-- Plugin trust -->
+    <string name="trust_title">Plugin trust</string>
+    <string name="trust_intro">Approved plugins execute inside Enginehost and receive its file access. Official means the bundle signer matches a key built into Enginehost; official bundles still require approval.</string>
+    <string name="trust_empty">No Enginehost plugins are installed. Install one from the plugin catalog and it will appear here for approval.</string>
+    <string name="open_plugin_catalog">Open plugin catalog</string>
+    <string name="badge_official">Official</string>
+    <string name="badge_developer">Developer build</string>
+    <string name="badge_community">Community</string>
+    <string name="plugin_line">%1$s · plugin %2$s</string>
+    <string name="trust_state_label">Trust</string>
+    <string name="trust_state_pending">Pending review</string>
+    <string name="trust_state_approved">Approved</string>
+    <string name="trust_state_denied">Denied</string>
+    <string name="origin_label">Origin</string>
+    <string name="origin_verified">%1$s (verified)</string>
+    <string name="signer_label">Signer</string>
+    <string name="developer_warning">Signed with the primary developer debug key. Anything signed with this key is not a production release. If you are not the primary developer, do not trust this build.</string>
+    <string name="approve">Approve</string>
+    <string name="deny">Deny</string>
+    <string name="uninstall">Uninstall</string>
+
+    <!-- Plugin catalog -->
+    <string name="catalog_title">Plugin catalog</string>
+    <string name="catalog_intro">All published plugin releases from preloaded and custom origins. Install only the versions you need.</string>
+    <string name="origin_url_hint">https://github.com/owner/plugin-repo</string>
+    <string name="add_custom_origin">Add custom origin</string>
+    <string name="origin_added">Origin and signing key added. Refresh to load its releases.</string>
+    <string name="origin_key_import_failed">Could not import repository key</string>
+    <string name="install_from_file">Install from file</string>
+    <string name="refresh_all">Refresh all releases</string>
+    <string name="refreshing">Refreshing…</string>
+    <string name="refreshing_message">Refreshing GitHub release histories…</string>
+    <string name="refreshed_ok">Catalogs refreshed.</string>
+    <string name="refreshed_partial">Refreshed; unavailable: %1$s</string>
+    <string name="origins_heading">Origins</string>
+    <string name="releases_heading">Available releases</string>
+    <string name="filtered_compatible">Showing releases compatible with this game.</string>
+    <string name="filtered_no_match">No confident match is available. Showing every release so you can choose by engine knowledge.</string>
+    <string name="releases_not_loaded">Releases have not been loaded yet. Refresh to fetch each origin\'s published releases.</string>
+    <string name="releases_none_published">These origins have no published releases yet. Refresh again later to check for new ones.</string>
+    <string name="installed">Installed</string>
+    <string name="requires_api">Requires Enginehost API %1$d</string>
+    <string name="install_asset">Install %1$s</string>
+    <string name="use_capability">Use %1$s %2$s</string>
+    <string name="custom_origin_removed">Custom origin removed</string>
+    <string name="verifying_bundle">Verifying the selected bundle…</string>
+    <string name="install_failed_generic">Engine bundle installation failed</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Enginehost settings</string>
+    <string name="save_location">Save location</string>
+    <string name="save_location_hint">Engines store saves beneath this shared folder using their own game naming.</string>
+    <string name="choose_folder">Choose folder</string>
+    <string name="migrate_saves">Migrate old Enginehost saves</string>
+    <string name="use_default_internal">Use default internal storage</string>
+    <string name="browser_start">Game browser start folder</string>
+    <string name="browser_start_hint">Game and config folder pickers open here first. You can still browse anywhere.</string>
+    <string name="choose_browsing_folder">Choose game browsing folder</string>
+    <string name="use_android_default">Use Android\'s default browsing location</string>
+    <string name="android_default">Android default</string>
+    <string name="move_saves_title">Move existing saves?</string>
+    <string name="move_saves_message">Copy verified saves to the new location and remove only successfully copied originals?</string>
+    <string name="migrate">Migrate</string>
+    <string name="not_now">Not now</string>
+    <string name="migration_failed">Migration failed: %1$s</string>
+    <string name="migration_result">Migrated %1$d files; %2$d conflicts kept at the source; %3$d failures</string>
+
+    <!-- Controller settings -->
+    <string name="no_controller">No controller connected. You can still edit defaults.</string>
+    <string name="connected_controllers">Connected: %1$s</string>
+    <string name="applies_to">Applies to</string>
+    <string name="all_engines">All engines</string>
+    <string name="marker_editing">(editing)</string>
+    <string name="marker_native">(handles its own controller)</string>
+    <string name="marker_inherited">(inherited)</string>
+    <string name="capture_prompt">Press a button or move an axis for %1$s.</string>
+    <string name="global_map_hint">The map every engine starts from. Each engine translates these actions into its own native input system.</string>
+    <string name="native_engine_hint">%1$s handles controllers itself, so these mappings don\'t reach it. Configure the pad inside the game or in that engine\'s own settings instead.</string>
+    <string name="scoped_hint">Overrides for %1$s only. Anything left inherited follows the All engines map.</string>
+    <string name="binding_row">%1$s: %2$s</string>
+    <string name="reset_all">Reset all mappings</string>
+    <string name="reset_scope">Reset %1$s overrides</string>
+
+    <!-- Config creator -->
+    <string name="config_title">Config creator</string>
+    <string name="config_intro">Choose the game folder. Existing settings are loaded and unknown fields are preserved.</string>
+    <string name="choose_game_folder">Choose game folder</string>
+    <string name="no_folder_selected">No folder selected</string>
+    <string name="detection_waiting">Engine detection starts after a folder is selected.</string>
+    <string name="browse_all_plugin_engines">Choose from all plugin engines</string>
+    <string name="label_engine_family">Engine family (required)</string>
+    <string name="hint_engine_family">e.g. rpgmaker</string>
+    <string name="label_engine_context">Engine context</string>
+    <string name="hint_engine_context">e.g. vxace</string>
+    <string name="label_engine_version">Engine version (required)</string>
+    <string name="hint_engine_version">e.g. 3.0</string>
+    <string name="label_runtimes">Embedded runtimes JSON</string>
+    <string name="hint_runtimes">{\"ruby\":\"1.9.2\"}</string>
+    <string name="label_plugin_versions">Allowed plugin versions (optional)</string>
+    <string name="label_exec_file">Entry file inside the folder (optional)</string>
+    <string name="label_options">Engine options JSON</string>
+    <string name="save_config">Save enginehost.json</string>
+    <string name="test_config">Test this configuration</string>
+    <string name="new_configuration">New configuration</string>
+    <string name="config_needs_attention">Configuration needs attention</string>
+    <string name="could_not_open_config">Could not open %1$s: %2$s</string>
+    <string name="supplied_path_invalid">The supplied game path is not an accessible folder</string>
+    <string name="ignored_invalid_caller">Ignored invalid caller config: %1$s</string>
+    <string name="scanning_selected">Scanning the selected folder for engine metadata…</string>
+    <string name="scanning_supplied">Scanning the supplied folder for engine metadata…</string>
+    <string name="engine_not_identified">Engine not identified. Choose from all plugin engines or enter it manually.</string>
+    <string name="detection_failed_choose">Detection failed: %1$s. You can still choose from every plugin engine.</string>
+    <string name="detection_failed_manual">Detection failed: %1$s. Enter the engine manually.</string>
+    <string name="detected_engine">Detected %1$s: %2$s</string>
+    <string name="plugin_selected_manually">Plugin engine selected manually; review the detected runtime version before saving.</string>
+    <string name="saved_config">Saved %1$s</string>
+    <string name="could_not_save">Could not save configuration</string>
+    <string name="choose_folder_first">Choose a game folder first</string>
+    <string name="grant_native_then_test">Grant native file access, then tap Test again</string>
+    <string name="provider_needs_primary">This provider can edit the config, but native test launch needs a primary-storage folder</string>
+    <string name="config_not_ready">Configuration is not ready to test</string>
+    <string name="field_required">%1$s is required</string>
+    <string name="engine_family">Engine family</string>
+    <string name="engine_version">Engine version</string>
+    <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
+</resources>

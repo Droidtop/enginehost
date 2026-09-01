@@ -1,27 +1,33 @@
 package dev.enginehost
 
-import android.app.Activity
+import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 /** First-class approval UI for code that will execute with Enginehost's permissions. */
-class PluginTrustActivity : Activity() {
+class PluginTrustActivity : AppCompatActivity() {
     private lateinit var list: LinearLayout
+    private lateinit var emptyState: TextView
+    private lateinit var openCatalogButton: Button
     private lateinit var trust: PluginTrustStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "Plugin trust"
+        title = getString(R.string.trust_title)
         trust = PluginTrustStore(this)
-        list = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 24, 24, 24)
+        setContentView(R.layout.activity_plugin_trust)
+        list = findViewById(R.id.pluginList)
+        emptyState = findViewById(R.id.emptyState)
+        openCatalogButton = findViewById(R.id.openCatalogButton)
+        openCatalogButton.setOnClickListener {
+            startActivity(Intent(this, PluginCatalogActivity::class.java))
         }
-        setContentView(ScrollView(this).apply { addView(list) })
     }
 
     override fun onResume() {
@@ -31,55 +37,51 @@ class PluginTrustActivity : Activity() {
 
     private fun render() {
         list.removeAllViews()
-        list.addView(text(
-            "Approved plugins execute inside Enginehost and receive its file access. " +
-                "Official means the bundle signer matches a key built into Enginehost; official bundles still require approval.",
-        ))
         val requestedPackage = intent.getStringExtra(EXTRA_BUNDLE)
         val plugins = PluginRegistry.discover(this).filter {
             requestedPackage == null || it.bundleId == requestedPackage
         }
-        if (plugins.isEmpty()) {
-            list.addView(text("No Enginehost API plugins are installed."))
-            return
-        }
+        val empty = plugins.isEmpty()
+        emptyState.visibility = if (empty) View.VISIBLE else View.GONE
+        openCatalogButton.visibility = if (empty) View.VISIBLE else View.GONE
         plugins.sortedWith(compareBy({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId }))
             .forEach { plugin -> addPlugin(plugin) }
     }
 
     private fun addPlugin(plugin: InstalledPlugin) {
         val developerBuild = trust.isDeveloperDebug(plugin)
-        val official = trust.isOfficial(plugin)
+        val official = !developerBuild && trust.isOfficial(plugin)
         val state = trust.state(plugin)
-        list.addView(text(
-            buildString {
-                append(plugin.info.engine).append(" · plugin ").append(plugin.info.pluginVersion)
-                append(
-                    when {
-                        developerBuild -> " · Developer build"
-                        official -> " · Official"
-                        else -> " · Community"
-                    }
-                )
-                append("\n").append(plugin.bundleId)
-                append("\nOrigin: ").append(plugin.origin).append(" (verified)")
-                append("\nTrust: ").append(state.name.lowercase().replace('_', ' '))
-                append("\nSigner: ").append(plugin.signerIdentity.take(23)).append('…')
-            },
-            topMargin = 28,
-        ))
+        val card = layoutInflater.inflate(R.layout.item_plugin_trust, list, false)
+
+        card.findViewById<TextView>(R.id.pluginTitle).text =
+            getString(R.string.plugin_line, plugin.info.engine, plugin.info.pluginVersion.toString())
+        card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId
+
+        val badge = card.findViewById<TextView>(R.id.trustBadge)
+        val (label, container, onContainer) = when {
+            developerBuild -> Triple(R.string.badge_developer, R.color.eh_developer_container, R.color.eh_on_developer_container)
+            official -> Triple(R.string.badge_official, R.color.eh_official_container, R.color.eh_on_official_container)
+            else -> Triple(R.string.badge_community, R.color.eh_community_container, R.color.eh_on_community_container)
+        }
+        badge.setText(label)
+        badge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, container))
+        badge.setTextColor(ContextCompat.getColor(this, onContainer))
+
+        card.findViewById<TextView>(R.id.originValue).text =
+            "${getString(R.string.origin_label)}: ${getString(R.string.origin_verified, plugin.origin)}"
+        card.findViewById<TextView>(R.id.signerValue).text =
+            "${getString(R.string.signer_label)}: ${plugin.signerIdentity}"
+        card.findViewById<TextView>(R.id.trustState).text =
+            "${getString(R.string.trust_state_label)}: ${getString(stateLabel(state))}"
+
         if (developerBuild) {
             // Signed by the primary developer's key rather than the repository's
             // own, so it carries none of the guarantees an official bundle does.
-            list.addView(text(
-                "Signed with the primary developer debug key. Anything signed with this key " +
-                    "is not a production release. If you are not the primary developer, do not " +
-                    "trust this build.",
-            ))
+            card.findViewById<TextView>(R.id.developerWarning).visibility = View.VISIBLE
         }
-        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        controls.addView(Button(this).apply {
-            text = "Approve"
+
+        card.findViewById<Button>(R.id.approveButton).apply {
             isEnabled = state != PluginTrustState.APPROVED && plugin.signerIdentity.isNotBlank()
             setOnClickListener {
                 trust.approve(plugin)
@@ -91,29 +93,22 @@ class PluginTrustActivity : Activity() {
                     render()
                 }
             }
-        })
-        controls.addView(Button(this).apply {
-            text = "Deny"
+        }
+        card.findViewById<Button>(R.id.denyButton).apply {
             isEnabled = state != PluginTrustState.DENIED && plugin.signerIdentity.isNotBlank()
             setOnClickListener { trust.deny(plugin); render() }
-        })
-        controls.addView(Button(this).apply {
-            text = "Uninstall"
-            setOnClickListener {
-                PluginRegistry.uninstall(this@PluginTrustActivity, plugin.bundleId)
-                render()
-            }
-        })
-        list.addView(controls)
+        }
+        card.findViewById<Button>(R.id.uninstallButton).setOnClickListener {
+            PluginRegistry.uninstall(this@PluginTrustActivity, plugin.bundleId)
+            render()
+        }
+        list.addView(card)
     }
 
-    private fun text(value: String, topMargin: Int = 0) = TextView(this).apply {
-        text = value
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-        ).apply { this.topMargin = topMargin }
-        visibility = View.VISIBLE
+    private fun stateLabel(state: PluginTrustState): Int = when (state) {
+        PluginTrustState.PENDING -> R.string.trust_state_pending
+        PluginTrustState.APPROVED -> R.string.trust_state_approved
+        PluginTrustState.DENIED -> R.string.trust_state_denied
     }
 
     companion object {

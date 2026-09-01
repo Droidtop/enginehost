@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="eh_space_xs">4dp</dimen>
+    <dimen name="eh_space_s">8dp</dimen>
+    <dimen name="eh_space_m">16dp</dimen>
+    <dimen name="eh_space_l">24dp</dimen>
+    <dimen name="eh_corner">12dp</dimen>
+    <dimen name="eh_corner_small">8dp</dimen>
+    <dimen name="eh_touch_target">48dp</dimen>
+    <dimen name="eh_focus_stroke">3dp</dimen>
+</resources>

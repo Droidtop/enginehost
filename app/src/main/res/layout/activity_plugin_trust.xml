@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/eh_space_m">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/trust_title"
+            android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/trust_intro"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <LinearLayout
+            android:id="@+id/pluginList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/emptyState"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:text="@string/trust_empty"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/openCatalogButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:text="@string/open_plugin_catalog"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</ScrollView>

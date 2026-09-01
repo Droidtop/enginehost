@@ -13,107 +13,92 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/app_name"
+            android:text="@string/catalog_title"
             android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
         <TextView
+            android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/main_subtitle"
+            android:text="@string/catalog_intro"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <Button
+            android:id="@+id/refreshButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:text="@string/refresh_all" />
+
+        <Button
+            android:id="@+id/installFromFileButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/install_from_file" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/section_games"
+            android:text="@string/releases_heading"
             android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
+        <TextView
+            android:id="@+id/releaseFilterNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+            android:visibility="gone" />
+
         <LinearLayout
-            android:id="@+id/gameLibraryList"
+            android:id="@+id/releaseList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
             android:orientation="vertical" />
 
-        <Button
-            android:id="@+id/pickAndLaunchButton"
-            style="@style/Widget.Enginehost.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/add_game_folder" />
-
         <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/section_configuration"
-            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-        <TextView
+            android:id="@+id/releasesEmptyState"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/configuration_hint"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-        <Button
-            android:id="@+id/createConfigButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/open_config_creator" />
+            android:textAppearance="@style/TextAppearance.Enginehost.Body"
+            android:visibility="gone" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/section_input_storage"
+            android:text="@string/origins_heading"
             android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
-        <Button
-            android:id="@+id/controllerConfigButton"
+        <LinearLayout
+            android:id="@+id/originList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/controller_settings" />
+            android:orientation="vertical" />
 
-        <Button
-            android:id="@+id/enginehostSettingsButton"
+        <EditText
+            android:id="@+id/originInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/enginehost_settings" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/section_plugins"
-            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/plugins_hint"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+            android:hint="@string/origin_url_hint"
+            android:importantForAutofill="no"
+            android:inputType="textUri"
+            android:maxLines="1" />
 
         <Button
-            android:id="@+id/pluginTrustButton"
+            android:id="@+id/addOriginButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/manage_plugin_trust" />
-
-        <Button
-            android:id="@+id/pluginCatalogButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/browse_plugins" />
+            android:text="@string/add_custom_origin" />
 
     </LinearLayout>
 </ScrollView>

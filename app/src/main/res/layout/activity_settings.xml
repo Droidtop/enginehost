@@ -13,107 +13,91 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/app_name"
+            android:text="@string/settings_title"
             android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/main_subtitle"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+            android:layout_marginTop="@dimen/eh_space_l"
+            android:text="@string/save_location"
+            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/section_games"
-            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/save_location_hint"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-        <LinearLayout
-            android:id="@+id/gameLibraryList"
+        <TextView
+            android:id="@+id/saveLocationValue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:orientation="vertical" />
+            android:background="@drawable/eh_card_bg"
+            android:padding="@dimen/eh_space_s"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
 
         <Button
-            android:id="@+id/pickAndLaunchButton"
+            android:id="@+id/chooseSaveFolderButton"
             style="@style/Widget.Enginehost.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/add_game_folder" />
+            android:text="@string/choose_folder" />
+
+        <Button
+            android:id="@+id/migrateSavesButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/migrate_saves" />
+
+        <Button
+            android:id="@+id/useDefaultSaveButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/use_default_internal" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/section_configuration"
+            android:text="@string/browser_start"
             android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/configuration_hint"
+            android:text="@string/browser_start_hint"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-        <Button
-            android:id="@+id/createConfigButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/open_config_creator" />
-
         <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/section_input_storage"
-            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-        <Button
-            android:id="@+id/controllerConfigButton"
+            android:id="@+id/browserStartValue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/controller_settings" />
+            android:background="@drawable/eh_card_bg"
+            android:padding="@dimen/eh_space_s"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
 
         <Button
-            android:id="@+id/enginehostSettingsButton"
+            android:id="@+id/chooseBrowserStartButton"
+            style="@style/Widget.Enginehost.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/enginehost_settings" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/section_plugins"
-            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/plugins_hint"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+            android:text="@string/choose_browsing_folder" />
 
         <Button
-            android:id="@+id/pluginTrustButton"
+            android:id="@+id/useDefaultBrowserStartButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/manage_plugin_trust" />
-
-        <Button
-            android:id="@+id/pluginCatalogButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/browse_plugins" />
+            android:text="@string/use_android_default" />
 
     </LinearLayout>
 </ScrollView>

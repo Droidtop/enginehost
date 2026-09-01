@@ -1,29 +1,38 @@
 package dev.enginehost
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 
 /** Complete available-release list plus preloaded and custom GitHub origins. */
-class PluginCatalogActivity : Activity() {
-    private lateinit var content: LinearLayout
+class PluginCatalogActivity : AppCompatActivity() {
     private lateinit var origins: PluginOriginStore
     private lateinit var cache: PluginCatalogCache
     private lateinit var directory: OriginDirectory
+
+    private lateinit var statusText: TextView
+    private lateinit var refreshButton: Button
+    private lateinit var releaseFilterNote: TextView
+    private lateinit var releaseList: LinearLayout
+    private lateinit var releasesEmptyState: TextView
+    private lateinit var originList: LinearLayout
+    private lateinit var originInput: EditText
+    private lateinit var addOriginButton: Button
+
     private var refreshing = false
     private var autoAttempted = false
     private var requestedConfig: EngineConfig? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "Plugin catalog"
+        title = getString(R.string.catalog_title)
         origins = PluginOriginStore(this)
         cache = PluginCatalogCache(this)
         directory = OriginDirectory(this)
@@ -32,90 +41,102 @@ class PluginCatalogActivity : Activity() {
                 EngineConfigReader.resolve(File(path), intent.getStringExtra(EXTRA_CALLER_CONFIG))
             }.getOrNull()
         }
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 24, 24, 24)
+        setContentView(R.layout.activity_plugin_catalog)
+        statusText = findViewById(R.id.statusText)
+        refreshButton = findViewById(R.id.refreshButton)
+        releaseFilterNote = findViewById(R.id.releaseFilterNote)
+        releaseList = findViewById(R.id.releaseList)
+        releasesEmptyState = findViewById(R.id.releasesEmptyState)
+        originList = findViewById(R.id.originList)
+        originInput = findViewById(R.id.originInput)
+        addOriginButton = findViewById(R.id.addOriginButton)
+
+        refreshButton.setOnClickListener { refresh() }
+        findViewById<Button>(R.id.installFromFileButton).setOnClickListener {
+            startActivityForResult(
+                Intent(Intent.ACTION_OPEN_DOCUMENT)
+                    .addCategory(Intent.CATEGORY_OPENABLE)
+                    .setType("*/*"),
+                REQUEST_BUNDLE_FILE,
+            )
         }
-        setContentView(ScrollView(this).apply { addView(content) })
+        addOriginButton.setOnClickListener { addCustomOrigin() }
         render()
     }
 
-    private fun render(message: String? = null) {
-        content.removeAllViews()
-        content.addView(TextView(this).apply {
-            text = message ?: "All published plugin releases from preloaded and custom origins. Install only the versions you need."
-        })
-        val input = EditText(this).apply { hint = "https://github.com/owner/plugin-repo" }
-        content.addView(input)
-        content.addView(Button(this).apply {
-            text = "Add custom origin"
-            setOnClickListener {
-                val requested = input.text.toString()
-                isEnabled = false
-                Thread {
-                    runCatching {
-                        val key = PluginOriginKeyClient.fetch(requested)
-                        origins.add(requested, key)
-                    }.onSuccess {
-                        runOnUiThread { render("Origin and signing key added. Refresh to load its releases.") }
-                    }.onFailure { error ->
-                        runOnUiThread {
-                            isEnabled = true
-                            toast(error.message ?: "Could not import repository key")
-                        }
-                    }
-                }.start()
-            }
-        })
-        content.addView(Button(this).apply {
-            text = "Install from file"
-            setOnClickListener {
-                startActivityForResult(
-                    Intent(Intent.ACTION_OPEN_DOCUMENT)
-                        .addCategory(Intent.CATEGORY_OPENABLE)
-                        .setType("*/*"),
-                    REQUEST_BUNDLE_FILE,
-                )
-            }
-        })
-        content.addView(Button(this).apply {
-            text = if (refreshing) "Refreshing…" else "Refresh all releases"
-            isEnabled = !refreshing
-            setOnClickListener { refresh() }
-        })
-
-        content.addView(heading("Origins"))
-        origins.all().forEach { origin ->
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            val described = directory.describe(origin)
-            row.addView(TextView(this).apply {
-                // A bare URL says nothing about what the user is trusting, so lead
-                // with the repository's own name and description and keep the URL
-                // underneath as the identity that actually matters.
-                text = buildString {
-                    append(described?.implementationName?.takeIf { it.isNotBlank() }
-                        ?: origin.substringAfterLast('/'))
-                    described?.let { identity ->
-                        append('\n').append(identity.engine)
-                        if (identity.engineContexts.isNotEmpty()) {
-                            append(" · ").append(identity.engineContexts.joinToString(", "))
-                        }
-                        identity.description.takeIf { d -> d.isNotBlank() }
-                            ?.let { d -> append('\n').append(d) }
-                    }
-                    append('\n').append(origin)
+    private fun addCustomOrigin() {
+        val requested = originInput.text.toString()
+        addOriginButton.isEnabled = false
+        Thread {
+            runCatching {
+                val key = PluginOriginKeyClient.fetch(requested)
+                origins.add(requested, key)
+            }.onSuccess {
+                runOnUiThread {
+                    addOriginButton.isEnabled = true
+                    originInput.text.clear()
+                    render(getString(R.string.origin_added))
                 }
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
-            if (!origins.isDefault(origin)) row.addView(Button(this).apply {
-                text = "Remove"
-                setOnClickListener { origins.remove(origin); render("Custom origin removed") }
-            })
-            content.addView(row)
-        }
+            }.onFailure { error ->
+                runOnUiThread {
+                    addOriginButton.isEnabled = true
+                    toast(error.message ?: getString(R.string.origin_key_import_failed))
+                }
+            }
+        }.start()
+    }
 
-        content.addView(heading("Available releases"))
-        val allAvailable = cache.loadAll(origins.all())
+    private fun render(message: String? = null) {
+        statusText.text = message ?: getString(R.string.catalog_intro)
+        refreshButton.setText(if (refreshing) R.string.refreshing else R.string.refresh_all)
+        refreshButton.isEnabled = !refreshing
+        renderOrigins()
+        renderReleases()
+    }
+
+    private fun renderOrigins() {
+        originList.removeAllViews()
+        origins.all().forEach { origin ->
+            val card = layoutInflater.inflate(R.layout.item_origin, originList, false)
+            // A bare URL says nothing about what the user is trusting, so lead
+            // with the repository's own name and description and keep the URL
+            // underneath as the identity that actually matters.
+            val described = directory.describe(origin)
+            card.findViewById<TextView>(R.id.originName).text =
+                described?.implementationName?.takeIf { it.isNotBlank() } ?: origin.substringAfterLast('/')
+            val meta = card.findViewById<TextView>(R.id.originMeta)
+            if (described == null) {
+                meta.visibility = View.GONE
+            } else {
+                meta.text = buildString {
+                    append(described.engine)
+                    if (described.engineContexts.isNotEmpty()) {
+                        append(" · ").append(described.engineContexts.joinToString(", "))
+                    }
+                }
+            }
+            val description = card.findViewById<TextView>(R.id.originDescription)
+            described?.description?.takeIf { it.isNotBlank() }?.let {
+                description.text = it
+                description.visibility = View.VISIBLE
+            }
+            card.findViewById<TextView>(R.id.originUrl).text = origin
+            val removeButton = card.findViewById<Button>(R.id.removeOriginButton)
+            if (!origins.isDefault(origin)) {
+                removeButton.visibility = View.VISIBLE
+                removeButton.setOnClickListener {
+                    origins.remove(origin)
+                    render(getString(R.string.custom_origin_removed))
+                }
+            }
+            originList.addView(card)
+        }
+    }
+
+    private fun renderReleases() {
+        releaseList.removeAllViews()
+        val allOrigins = origins.all()
+        val allAvailable = cache.loadAll(allOrigins)
             .sortedWith(compareBy<AvailablePlugin>({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId }))
         val matches = requestedConfig?.let { config ->
             AvailablePluginResolver.compatible(
@@ -124,16 +145,27 @@ class PluginCatalogActivity : Activity() {
             ).map { it.first }.distinctBy { it.bundleId }
         }.orEmpty()
         val available = if (requestedConfig != null && matches.isNotEmpty()) matches else allAvailable
-        if (requestedConfig != null) content.addView(TextView(this).apply {
-            text = if (matches.isNotEmpty()) {
-                "Showing releases compatible with this game."
-            } else {
-                "No confident match is available. Showing every release so you can choose by engine knowledge."
-            }
-        })
-        if (available.isEmpty()) content.addView(TextView(this).apply { text = "No published releases from these origins yet." })
+        if (requestedConfig != null) {
+            releaseFilterNote.visibility = View.VISIBLE
+            releaseFilterNote.setText(
+                if (matches.isNotEmpty()) R.string.filtered_compatible else R.string.filtered_no_match,
+            )
+        }
+        if (available.isEmpty()) {
+            releasesEmptyState.visibility = View.VISIBLE
+            // Whether a refresh has ever completed is the difference between
+            // "you have not looked yet" and "there is genuinely nothing there".
+            releasesEmptyState.setText(
+                if (allOrigins.any(cache::hasFetched)) R.string.releases_none_published
+                else R.string.releases_not_loaded,
+            )
+        } else {
+            releasesEmptyState.visibility = View.GONE
+        }
         available.groupBy { it.origin }.toSortedMap().forEach { (origin, releases) ->
-            content.addView(heading(origin.substringAfter("github.com/")))
+            val heading = layoutInflater.inflate(R.layout.item_group_heading, releaseList, false) as TextView
+            heading.text = origin.substringAfter("github.com/")
+            releaseList.addView(heading)
             releases.forEach { plugin -> addRelease(plugin) }
         }
         if (
@@ -151,46 +183,51 @@ class PluginCatalogActivity : Activity() {
     }
 
     private fun addRelease(plugin: AvailablePlugin) {
-        content.addView(TextView(this).apply {
-            val contexts = plugin.info.capabilities.joinToString { "${it.engineContext} ${it.runtimeVersion}" }
-            text = "${plugin.info.engine} · plugin ${plugin.info.pluginVersion}\n$contexts\n${plugin.releaseTag}"
-            setPadding(0, 16, 0, 0)
-        })
+        val card = layoutInflater.inflate(R.layout.item_release, releaseList, false)
+        card.findViewById<TextView>(R.id.releaseTitle).text =
+            getString(R.string.plugin_line, plugin.info.engine, plugin.info.pluginVersion.toString())
+        card.findViewById<TextView>(R.id.releaseContexts).text =
+            plugin.info.capabilities.joinToString { "${it.engineContext} ${it.runtimeVersion}" }
+        card.findViewById<TextView>(R.id.releaseTag).text = plugin.releaseTag
+        val actions = card.findViewById<LinearLayout>(R.id.releaseActions)
         if (intent.getBooleanExtra(EXTRA_SELECTION_ONLY, false)) {
             plugin.info.capabilities.forEach { capability ->
-                content.addView(Button(this).apply {
-                    text = "Use ${capability.engineContext} ${capability.runtimeVersion}"
-                    setOnClickListener {
-                        setResult(
-                            RESULT_OK,
-                            android.content.Intent()
-                                .putExtra("engine", plugin.info.engine)
-                                .putExtra("engineContext", capability.engineContext)
-                                .putExtra("engineVersion", capability.runtimeVersion.toString()),
-                        )
-                        finish()
-                    }
-                })
+                val button = layoutInflater.inflate(R.layout.item_action_button, actions, false) as Button
+                button.text = getString(
+                    R.string.use_capability, capability.engineContext, capability.runtimeVersion.toString(),
+                )
+                button.setOnClickListener {
+                    setResult(
+                        RESULT_OK,
+                        Intent()
+                            .putExtra("engine", plugin.info.engine)
+                            .putExtra("engineContext", capability.engineContext)
+                            .putExtra("engineVersion", capability.runtimeVersion.toString()),
+                    )
+                    finish()
+                }
+                actions.addView(button)
             }
         } else {
-            content.addView(Button(this).apply {
-                val installed = isInstalled(plugin.bundleId)
-                val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
-                text = when {
-                    installed -> "Installed"
-                    !supportedApi -> "Requires Enginehost API ${plugin.apiVersion}"
-                    else -> "Install ${plugin.manifest.assetName}"
-                }
-                isEnabled = !installed && supportedApi
-                setOnClickListener { PluginInstaller.install(this@PluginCatalogActivity, plugin, ::toast) }
-            })
+            val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
+            val installed = isInstalled(plugin.bundleId)
+            val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
+            button.text = when {
+                installed -> getString(R.string.installed)
+                !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
+                else -> getString(R.string.install_asset, plugin.manifest.assetName)
+            }
+            button.isEnabled = !installed && supportedApi
+            button.setOnClickListener { PluginInstaller.install(this@PluginCatalogActivity, plugin, ::toast) }
+            actions.addView(button)
         }
+        releaseList.addView(card)
     }
 
     private fun refresh() {
         if (refreshing) return
         refreshing = true
-        render("Refreshing GitHub release histories…")
+        render(getString(R.string.refreshing_message))
         Thread {
             val failures = mutableListOf<String>()
             origins.all().forEach { origin ->
@@ -201,22 +238,21 @@ class PluginCatalogActivity : Activity() {
             }
             runOnUiThread {
                 refreshing = false
-                render(if (failures.isEmpty()) "Catalogs refreshed." else "Refreshed; unavailable: ${failures.joinToString()}")
+                render(
+                    if (failures.isEmpty()) getString(R.string.refreshed_ok)
+                    else getString(R.string.refreshed_partial, failures.joinToString()),
+                )
             }
         }.start()
     }
 
     private fun isInstalled(bundleId: String): Boolean = PluginRegistry.discover(this).any { it.bundleId == bundleId }
-    private fun heading(value: String) = TextView(this).apply {
-        text = value
-        textSize = 20f
-        setPadding(0, 32, 0, 12)
-    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_BUNDLE_FILE || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
-        render("Verifying the selected bundle…")
+        render(getString(R.string.verifying_bundle))
         PluginInstaller.installFromFile(this, uri, ::toast)
     }
 

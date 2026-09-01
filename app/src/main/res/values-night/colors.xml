@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="eh_background">#12151A</color>
+    <color name="eh_surface">#1B1F26</color>
+    <color name="eh_surface_variant">#242A32</color>
+    <color name="eh_outline">#39404A</color>
+    <color name="eh_text_primary">#E7EAEE</color>
+    <color name="eh_text_secondary">#A0A8B2</color>
+    <color name="eh_accent">#7CA7F4</color>
+    <color name="eh_accent_pressed">#5D8CE0</color>
+    <color name="eh_on_accent">#0D1B33</color>
+    <color name="eh_danger">#E06C65</color>
+    <color name="eh_official">#63CD8C</color>
+    <color name="eh_official_container">#143221</color>
+    <color name="eh_on_official_container">#BEE9CD</color>
+    <color name="eh_developer">#E9A94F</color>
+    <color name="eh_developer_container">#3A2B10</color>
+    <color name="eh_on_developer_container">#F4D8A8</color>
+    <color name="eh_community">#A0A8B2</color>
+    <color name="eh_community_container">#262C34</color>
+    <color name="eh_on_community_container">#CDD3DA</color>
+</resources>

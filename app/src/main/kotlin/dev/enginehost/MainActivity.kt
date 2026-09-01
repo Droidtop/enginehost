@@ -1,19 +1,19 @@
 package dev.enginehost
 
-import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 
 /**
  * Configuration-first home screen and lightweight direct-use game library.
  */
-class MainActivity : Activity() {
+class MainActivity : AppCompatActivity() {
     private lateinit var library: GameLibraryStore
     private lateinit var gameList: LinearLayout
 
@@ -56,11 +56,7 @@ class MainActivity : Activity() {
             if (StorageFolder.hasNativePathAccess()) {
                 startActivityForResult(gamePickerIntent(), REQUEST_GAME_FOLDER)
             } else {
-                Toast.makeText(
-                    this,
-                    "Game launching needs native folder access; config editing still works without it",
-                    Toast.LENGTH_LONG,
-                ).show()
+                Toast.makeText(this, R.string.needs_native_access, Toast.LENGTH_LONG).show()
             }
             return
         }
@@ -72,11 +68,7 @@ class MainActivity : Activity() {
         runCatching { contentResolver.takePersistableUriPermission(uri, flags) }
         val folder = StorageFolder.absolutePath(uri)
         if (folder == null) {
-            Toast.makeText(
-                this,
-                "Choose a folder on internal or removable shared storage",
-                Toast.LENGTH_LONG,
-            ).show()
+            Toast.makeText(this, R.string.choose_shared_storage_folder, Toast.LENGTH_LONG).show()
             return
         }
         library.remember(folder)
@@ -100,45 +92,44 @@ class MainActivity : Activity() {
         gameList.removeAllViews()
         val games = library.games()
         if (games.isEmpty()) {
-            gameList.addView(TextView(this).apply {
-                text = "No games added yet. Choose a game folder to get started."
-                setPadding(0, 12, 0, 0)
-            })
+            val empty = layoutInflater.inflate(R.layout.item_hint, gameList, false) as TextView
+            empty.setText(R.string.games_empty)
+            gameList.addView(empty)
             return
         }
         games.forEach { folder ->
-            gameList.addView(Button(this).apply {
-                isAllCaps = false
-                val title = folder.name.ifBlank { folder.absolutePath }
-                text = if (folder.isDirectory) "$title\n${folder.absolutePath}"
-                else "$title (unavailable)\n${folder.absolutePath}"
-                contentDescription = "Launch ${folder.absolutePath}"
-                setOnClickListener { launchGame(folder) }
-                setOnLongClickListener {
-                    confirmForget(folder)
-                    true
-                }
-            })
+            val row = layoutInflater.inflate(R.layout.item_game, gameList, false)
+            val title = folder.name.ifBlank { folder.absolutePath }
+            row.findViewById<TextView>(R.id.gameTitle).text =
+                if (folder.isDirectory) title else getString(R.string.game_row_unavailable, title)
+            row.findViewById<TextView>(R.id.gamePath).text = folder.absolutePath
+            row.contentDescription = getString(R.string.launch_game_description, folder.absolutePath)
+            row.setOnClickListener { launchGame(folder) }
+            row.setOnLongClickListener {
+                confirmForget(folder)
+                true
+            }
+            gameList.addView(row)
         }
     }
 
     private fun launchGame(folder: File) {
         if (!folder.isDirectory) {
-            Toast.makeText(this, "That game folder is not currently available", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.game_folder_unavailable, Toast.LENGTH_LONG).show()
             return
         }
         library.remember(folder)
         if (!File(folder, CONFIG_FILE_NAME).isFile) {
             AlertDialog.Builder(this)
-                .setTitle("Configure this game?")
-                .setMessage("Enginehost needs an enginehost.json in the game folder. Scan the folder and create one now?")
-                .setPositiveButton("Scan and configure") { _, _ ->
+                .setTitle(R.string.configure_game_title)
+                .setMessage(R.string.configure_game_message)
+                .setPositiveButton(R.string.scan_and_configure) { _, _ ->
                     startActivity(
                         Intent(this, ConfigEditorActivity::class.java)
                             .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
                     )
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show()
             return
         }
@@ -147,13 +138,13 @@ class MainActivity : Activity() {
 
     private fun confirmForget(folder: File) {
         AlertDialog.Builder(this)
-            .setTitle("Remove from Enginehost?")
-            .setMessage("This only removes the shortcut. The game and its saves stay on storage.")
-            .setPositiveButton("Remove") { _, _ ->
+            .setTitle(R.string.remove_game_title)
+            .setMessage(R.string.remove_game_message)
+            .setPositiveButton(R.string.remove) { _, _ ->
                 library.forget(folder)
                 renderLibrary()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 

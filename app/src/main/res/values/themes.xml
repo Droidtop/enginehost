@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Single app theme. DayNight resolves the eh_ palette through
+        values-night, so light and dark come from one definition.
+    -->
+    <style name="Theme.Enginehost" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/eh_accent</item>
+        <item name="colorPrimaryDark">@color/eh_background</item>
+        <item name="colorAccent">@color/eh_accent</item>
+        <item name="colorControlActivated">@color/eh_accent</item>
+        <item name="colorControlHighlight">@color/eh_surface_variant</item>
+        <item name="android:windowBackground">@color/eh_background</item>
+        <item name="android:textColorPrimary">@color/eh_text_primary</item>
+        <item name="android:textColorSecondary">@color/eh_text_secondary</item>
+        <item name="android:textColor">@color/eh_text_primary</item>
+        <item name="android:colorEdgeEffect">@color/eh_accent</item>
+        <item name="buttonStyle">@style/Widget.Enginehost.Button.Secondary</item>
+        <item name="android:buttonStyle">@style/Widget.Enginehost.Button.Secondary</item>
+        <item name="editTextStyle">@style/Widget.Enginehost.EditText</item>
+        <item name="android:editTextStyle">@style/Widget.Enginehost.EditText</item>
+        <item name="alertDialogTheme">@style/Theme.Enginehost.Dialog</item>
+    </style>
+
+    <style name="Theme.Enginehost.Dialog" parent="Theme.AppCompat.DayNight.Dialog.Alert">
+        <item name="colorAccent">@color/eh_accent</item>
+        <item name="android:windowBackground">@drawable/eh_card_bg</item>
+        <item name="android:textColorPrimary">@color/eh_text_primary</item>
+        <item name="android:textColorSecondary">@color/eh_text_secondary</item>
+    </style>
+
+</resources>

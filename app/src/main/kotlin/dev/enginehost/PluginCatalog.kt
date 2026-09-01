@@ -196,6 +196,9 @@ class PluginCatalogCache(context: Context) {
 
     fun loadAll(origins: Collection<String>): List<AvailablePlugin> = origins.flatMap(::load)
 
+    /** Whether a release refresh has ever stored a catalog for this origin, even an empty one. */
+    fun hasFetched(origin: String): Boolean = file(origin).isFile
+
     private fun file(origin: String): File {
         val name = MessageDigest.getInstance("SHA-256").digest(normalizeGithubOrigin(origin).toByteArray())
             .take(16).joinToString("") { "%02x".format(it) }

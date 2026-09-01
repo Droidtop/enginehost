@@ -1,54 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:scrollbars="none">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="@dimen/eh_space_m">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Config creator"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
+            android:text="@string/config_title"
+            android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Choose the game folder. Existing settings are loaded and unknown fields are preserved." />
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/config_intro"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
         <Button
             android:id="@+id/chooseConfigFolderButton"
+            style="@style/Widget.Enginehost.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Choose game folder" />
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:text="@string/choose_game_folder" />
 
         <TextView
             android:id="@+id/configFolderLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="No folder selected"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:background="@drawable/eh_card_bg"
+            android:padding="@dimen/eh_space_s"
+            android:text="@string/no_folder_selected"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono"
             android:textIsSelectable="true" />
 
         <TextView
             android:id="@+id/detectionLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Engine detection starts after a folder is selected." />
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/detection_waiting"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
         <Button
             android:id="@+id/browseAllPluginsButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Choose from all plugin engines"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/browse_all_plugin_engines"
             android:visibility="gone" />
 
         <LinearLayout
@@ -58,72 +65,133 @@
             android:orientation="vertical"
             android:visibility="gone">
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_m"
+                android:text="@string/label_engine_family"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
             <EditText
                 android:id="@+id/engineField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:hint="Engine family (required), e.g. rpgmaker"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:hint="@string/hint_engine_family"
+                android:importantForAutofill="no"
                 android:inputType="text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/label_engine_context"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
             <EditText
                 android:id="@+id/engineContextField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Engine context, e.g. vxace"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:hint="@string/hint_engine_context"
+                android:importantForAutofill="no"
                 android:inputType="text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/label_engine_version"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
             <EditText
                 android:id="@+id/engineVersionField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Engine version (required), e.g. 3.0"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:hint="@string/hint_engine_version"
+                android:importantForAutofill="no"
                 android:inputType="text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/label_runtimes"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
             <EditText
                 android:id="@+id/runtimeRequirementsField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_xs"
                 android:gravity="top|start"
-                android:hint="Embedded runtimes JSON, e.g. {&quot;ruby&quot;:&quot;1.9.2&quot;}"
+                android:hint="@string/hint_runtimes"
+                android:importantForAutofill="no"
                 android:inputType="textMultiLine|textNoSuggestions"
                 android:minLines="2" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/label_plugin_versions"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
             <EditText
                 android:id="@+id/pluginVersionField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Allowed plugin versions (optional)"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:importantForAutofill="no"
                 android:inputType="text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/label_exec_file"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
             <EditText
                 android:id="@+id/execFileField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Entry file inside the folder (optional)"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:importantForAutofill="no"
                 android:inputType="text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/label_options"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
             <EditText
                 android:id="@+id/optionsField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_xs"
                 android:gravity="top|start"
-                android:hint="Engine options JSON"
+                android:importantForAutofill="no"
                 android:inputType="textMultiLine|textNoSuggestions"
                 android:minLines="4" />
 
             <Button
                 android:id="@+id/saveConfigButton"
+                style="@style/Widget.Enginehost.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="Save enginehost.json" />
+                android:layout_marginTop="@dimen/eh_space_m"
+                android:text="@string/save_config" />
 
             <Button
                 android:id="@+id/testConfigButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Test this configuration" />
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/test_config" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

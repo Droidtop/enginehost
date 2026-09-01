@@ -1,17 +1,15 @@
 package dev.enginehost
 
-import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 
 /** Global Enginehost configuration. Save storage is its first managed option. */
-class EnginehostSettingsActivity : Activity() {
+class EnginehostSettingsActivity : AppCompatActivity() {
     private lateinit var store: SaveLocationStore
     private lateinit var location: TextView
     private lateinit var browserStartStore: GameBrowserStartStore
@@ -19,54 +17,32 @@ class EnginehostSettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        title = getString(R.string.settings_title)
         store = SaveLocationStore(this)
         browserStartStore = GameBrowserStartStore(this)
-        location = TextView(this)
-        browserStartLocation = TextView(this)
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
-            addView(TextView(context).apply { text = "Enginehost settings"; textSize = 24f })
-            addView(TextView(context).apply { text = "\nSave location"; textSize = 20f })
-            addView(TextView(context).apply {
-                text = "Engines store saves beneath this shared folder using their own game naming."
-            })
-            addView(location)
-            addView(Button(context).apply {
-                text = "Choose folder"
-                setOnClickListener { startActivityForResult(StorageFolder.pickerIntent(), REQUEST_FOLDER) }
-            })
-            addView(Button(context).apply {
-                text = "Migrate old Enginehost saves"
-                setOnClickListener { migrate(store.legacyRoot()) }
-            })
-            addView(Button(context).apply {
-                text = "Use default internal storage"
-                setOnClickListener { changeRoot(store.defaultRoot()) }
-            })
-            addView(TextView(context).apply { text = "\nGame browser start folder"; textSize = 20f })
-            addView(TextView(context).apply {
-                text = "Game and config folder pickers open here first. You can still browse anywhere."
-            })
-            addView(browserStartLocation)
-            addView(Button(context).apply {
-                text = "Choose game browsing folder"
-                setOnClickListener {
-                    startActivityForResult(
-                        StorageFolder.pickerIntent(browserStartStore.initialUri()),
-                        REQUEST_BROWSER_START,
-                    )
-                }
-            })
-            addView(Button(context).apply {
-                text = "Use Android's default browsing location"
-                setOnClickListener {
-                    browserStartStore.clear()
-                    refresh()
-                }
-            })
+        setContentView(R.layout.activity_settings)
+        location = findViewById(R.id.saveLocationValue)
+        browserStartLocation = findViewById(R.id.browserStartValue)
+
+        findViewById<Button>(R.id.chooseSaveFolderButton).setOnClickListener {
+            startActivityForResult(StorageFolder.pickerIntent(), REQUEST_FOLDER)
         }
-        setContentView(ScrollView(this).apply { addView(layout) })
+        findViewById<Button>(R.id.migrateSavesButton).setOnClickListener {
+            migrate(store.legacyRoot())
+        }
+        findViewById<Button>(R.id.useDefaultSaveButton).setOnClickListener {
+            changeRoot(store.defaultRoot())
+        }
+        findViewById<Button>(R.id.chooseBrowserStartButton).setOnClickListener {
+            startActivityForResult(
+                StorageFolder.pickerIntent(browserStartStore.initialUri()),
+                REQUEST_BROWSER_START,
+            )
+        }
+        findViewById<Button>(R.id.useDefaultBrowserStartButton).setOnClickListener {
+            browserStartStore.clear()
+            refresh()
+        }
         refresh()
     }
 
@@ -81,7 +57,7 @@ class EnginehostSettingsActivity : Activity() {
             REQUEST_FOLDER -> {
                 val folder = StorageFolder.absolutePath(uri)
                 if (folder == null) {
-                    Toast.makeText(this, "Choose a folder on internal or removable shared storage", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, R.string.choose_shared_storage_folder, Toast.LENGTH_LONG).show()
                 } else changeRoot(folder)
             }
             REQUEST_BROWSER_START -> runCatching { browserStartStore.select(uri) }
@@ -98,10 +74,10 @@ class EnginehostSettingsActivity : Activity() {
             refresh()
             if (oldSaves != null && oldSaves.canonicalFile != store.saveRoot().canonicalFile && oldSaves.exists()) {
                 AlertDialog.Builder(this)
-                    .setTitle("Move existing saves?")
-                    .setMessage("Copy verified saves to the new location and remove only successfully copied originals?")
-                    .setPositiveButton("Migrate") { _, _ -> migrate(oldSaves) }
-                    .setNegativeButton("Not now", null)
+                    .setTitle(R.string.move_saves_title)
+                    .setMessage(R.string.move_saves_message)
+                    .setPositiveButton(R.string.migrate) { _, _ -> migrate(oldSaves) }
+                    .setNegativeButton(R.string.not_now, null)
                     .show()
             }
         }
@@ -109,24 +85,23 @@ class EnginehostSettingsActivity : Activity() {
 
     private fun migrate(source: java.io.File) {
         val result = runCatching { store.migrate(source) }.getOrElse {
-            Toast.makeText(this, "Migration failed: ${it.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.migration_failed, it.message), Toast.LENGTH_LONG).show()
             return
         }
         Toast.makeText(
             this,
-            "Migrated ${result.copied} files; ${result.conflicts} conflicts kept at the source; ${result.failures} failures",
+            getString(R.string.migration_result, result.copied, result.conflicts, result.failures),
             Toast.LENGTH_LONG,
         ).show()
     }
 
     private fun refresh() {
-        location.text = "\n${store.root().path}\n"
+        location.text = store.root().path
         val tree = browserStartStore.treeUri()
         browserStartLocation.text = if (tree == null) {
-            "\nAndroid default\n"
+            getString(R.string.android_default)
         } else {
-            val path = StorageFolder.absolutePath(tree)?.path ?: tree.toString()
-            "\n$path\n"
+            StorageFolder.absolutePath(tree)?.path ?: tree.toString()
         }
     }
 
