@@ -50,7 +50,10 @@ class ConfigEditorActivity : Activity() {
         intent.getStringExtra(EXTRA_PATH)?.let(::openCallerPath)
 
         findViewById<Button>(R.id.chooseConfigFolderButton).setOnClickListener {
-            startActivityForResult(StorageFolder.pickerIntent(), REQUEST_FOLDER)
+            startActivityForResult(
+                StorageFolder.pickerIntent(GameBrowserStartStore(this).initialUri()),
+                REQUEST_FOLDER,
+            )
         }
         findViewById<Button>(R.id.saveConfigButton).setOnClickListener { save() }
         findViewById<Button>(R.id.testConfigButton).setOnClickListener { testRun() }

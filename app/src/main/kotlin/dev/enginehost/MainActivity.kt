@@ -54,7 +54,7 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_NATIVE_FILES) {
             if (StorageFolder.hasNativePathAccess()) {
-                startActivityForResult(StorageFolder.pickerIntent(), REQUEST_GAME_FOLDER)
+                startActivityForResult(gamePickerIntent(), REQUEST_GAME_FOLDER)
             } else {
                 Toast.makeText(
                     this,
@@ -86,11 +86,15 @@ class MainActivity : Activity() {
 
     private fun openGamePickerWhenAllowed() {
         if (StorageFolder.hasNativePathAccess()) {
-            startActivityForResult(StorageFolder.pickerIntent(), REQUEST_GAME_FOLDER)
+            startActivityForResult(gamePickerIntent(), REQUEST_GAME_FOLDER)
         } else {
             StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
         }
     }
+
+    private fun gamePickerIntent(): Intent = StorageFolder.pickerIntent(
+        GameBrowserStartStore(this).initialUri(),
+    )
 
     private fun renderLibrary() {
         gameList.removeAllViews()

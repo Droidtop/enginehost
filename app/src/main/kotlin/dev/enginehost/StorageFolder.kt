@@ -11,14 +11,16 @@ import java.io.File
 
 /** Common system-file-manager folder selection and external-storage path mapping. */
 object StorageFolder {
-    fun pickerIntent() = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-        addFlags(
-            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
-                android.content.Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
-        )
-    }
+    fun pickerIntent(initialUri: Uri? = null) =
+        android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
+            )
+            initialUri?.let { putExtra(DocumentsContract.EXTRA_INITIAL_URI, it) }
+        }
 
     /**
      * Native plugins still require a real directory path. The platform's
