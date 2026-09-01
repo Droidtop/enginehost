@@ -53,8 +53,23 @@ class OriginDirectory(private val context: Context) {
      * offering them as a choice would be offering a choice that does not exist.
      */
     fun implementationsFor(engine: String, engineContext: String, origins: List<String>): List<OriginIdentity> =
-        origins.mapNotNull { describe(it) }
-            .filter { it.engine == engine && engineContext in it.engineContexts }
+        alternatives(engine, engineContext, origins.mapNotNull { describe(it) })
+
+    companion object {
+        /**
+         * The matching rule itself, free of Android so it can be tested.
+         *
+         * Coverage is per context, so a plugin may implement part of an engine:
+         * someone shipping an RGSS-XP-only runtime is an alternative to mkxp-z
+         * for "xp" and for nothing else, and must not be offered for "vxace".
+         */
+        fun alternatives(
+            engine: String,
+            engineContext: String,
+            known: List<OriginIdentity>,
+        ): List<OriginIdentity> =
+            known.filter { it.engine == engine && engineContext in it.engineContexts }
+    }
 
     /** Fetches the repository's own declaration. Failure is not fatal. */
     fun refresh(origin: String) {
