@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -15,6 +16,7 @@ class PluginCatalogActivity : Activity() {
     private lateinit var content: LinearLayout
     private lateinit var origins: PluginOriginStore
     private lateinit var cache: PluginCatalogCache
+    private lateinit var directory: OriginDirectory
     private var refreshing = false
     private var autoAttempted = false
     private var requestedConfig: EngineConfig? = null
@@ -24,6 +26,7 @@ class PluginCatalogActivity : Activity() {
         title = "Plugin catalog"
         origins = PluginOriginStore(this)
         cache = PluginCatalogCache(this)
+        directory = OriginDirectory(this)
         intent.getStringExtra(EXTRA_GAME_PATH)?.let { path ->
             requestedConfig = runCatching {
                 EngineConfigReader.resolve(File(path), intent.getStringExtra(EXTRA_CALLER_CONFIG))
@@ -65,6 +68,17 @@ class PluginCatalogActivity : Activity() {
             }
         })
         content.addView(Button(this).apply {
+            text = "Install from file"
+            setOnClickListener {
+                startActivityForResult(
+                    Intent(Intent.ACTION_OPEN_DOCUMENT)
+                        .addCategory(Intent.CATEGORY_OPENABLE)
+                        .setType("*/*"),
+                    REQUEST_BUNDLE_FILE,
+                )
+            }
+        })
+        content.addView(Button(this).apply {
             text = if (refreshing) "Refreshing…" else "Refresh all releases"
             isEnabled = !refreshing
             setOnClickListener { refresh() }
@@ -73,8 +87,18 @@ class PluginCatalogActivity : Activity() {
         content.addView(heading("Origins"))
         origins.all().forEach { origin ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val described = directory.describe(origin)
             row.addView(TextView(this).apply {
-                text = origin
+                // A bare URL says nothing about what the user is trusting, so lead
+                // with the repository's own name and description and keep the URL
+                // underneath as the identity that actually matters.
+                text = buildString {
+                    append(described?.name?.takeIf { it.isNotBlank() } ?: origin.substringAfterLast('/'))
+                    described?.description?.takeIf { it.isNotBlank() }?.let { append('
+').append(it) }
+                    append('
+').append(origin)
+                }
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
             if (!origins.isDefault(origin)) row.addView(Button(this).apply {
@@ -101,7 +125,7 @@ class PluginCatalogActivity : Activity() {
                 "No confident match is available. Showing every release so you can choose by engine knowledge."
             }
         })
-        if (available.isEmpty()) content.addView(TextView(this).apply { text = "Refresh to load release catalogs." })
+        if (available.isEmpty()) content.addView(TextView(this).apply { text = "No published releases from these origins yet." })
         available.groupBy { it.origin }.toSortedMap().forEach { (origin, releases) ->
             content.addView(heading(origin.substringAfter("github.com/")))
             releases.forEach { plugin -> addRelease(plugin) }
@@ -164,6 +188,7 @@ class PluginCatalogActivity : Activity() {
         Thread {
             val failures = mutableListOf<String>()
             origins.all().forEach { origin ->
+                directory.refresh(origin)
                 runCatching { GithubPluginCatalogClient(this).fetch(origin) }
                     .onSuccess { cache.save(origin, it) }
                     .onFailure { failures += origin.substringAfterLast('/') }
@@ -181,12 +206,21 @@ class PluginCatalogActivity : Activity() {
         textSize = 20f
         setPadding(0, 32, 0, 12)
     }
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_BUNDLE_FILE || resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        render("Verifying the selected bundle…")
+        PluginInstaller.installFromFile(this, uri, ::toast)
+    }
+
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
         const val EXTRA_GAME_PATH = "dev.enginehost.catalog.GAME_PATH"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.catalog.CALLER_CONFIG"
         const val EXTRA_AUTOINSTALL = "dev.enginehost.catalog.AUTOINSTALL"
+        private const val REQUEST_BUNDLE_FILE = 4711
         const val EXTRA_SELECTION_ONLY = "dev.enginehost.catalog.SELECTION_ONLY"
     }
 }

@@ -2,6 +2,7 @@ package dev.enginehost
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -26,6 +27,45 @@ object PluginInstaller {
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }
         }.start()
+    }
+
+    /**
+     * Install a bundle the user picked from storage.
+     *
+     * Until now a bundle could only arrive from a published GitHub release, which
+     * meant anyone without a command line could not install a plugin at all. The
+     * file still goes through exactly the same verification and the same trust
+     * prompt as a downloaded one -- picking it locally buys no extra privilege.
+     */
+    fun installFromFile(activity: Activity, uri: Uri, onError: (String) -> Unit) {
+        Thread {
+            runCatching {
+                val archive = copyIn(activity, uri)
+                val installed = EngineBundleInstaller.install(activity, archive)
+                archive.delete()
+                PendingPluginLaunchStore(activity).peek()?.let {
+                    PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
+                }
+                activity.runOnUiThread {
+                    activity.startActivity(
+                        Intent(activity, PluginTrustActivity::class.java)
+                            .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
+                    )
+                }
+            }.onFailure { error ->
+                activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
+            }
+        }.start()
+    }
+
+    private fun copyIn(activity: Activity, uri: Uri): File {
+        val directory = File(activity.cacheDir, "engine-bundle-downloads").apply { mkdirs() }
+        val archive = File(directory, "picked-${System.currentTimeMillis()}.enginehost.tar.xz")
+        activity.contentResolver.openInputStream(uri).use { input ->
+            requireNotNull(input) { "Could not read the selected file" }
+            archive.outputStream().use { output -> input.copyTo(output) }
+        }
+        return archive
     }
 
     private fun download(activity: Activity, plugin: AvailablePlugin): File {
