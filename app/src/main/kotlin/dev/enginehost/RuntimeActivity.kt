@@ -33,6 +33,7 @@ import java.security.MessageDigest
 class RuntimeActivity : FragmentActivity() {
     private var plugin: EnginePlugin? = null
     private var runtimeStarted = false
+    private var pendingRequiredFile: String? = null
     private val resourceHandles = mutableListOf<AutoCloseable>()
     private val controllers by lazy { RuntimeControllerRouter(this) { plugin } }
 
@@ -76,6 +77,12 @@ class RuntimeActivity : FragmentActivity() {
             check(verifiedManifest.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION)
             plugin = instance
             runtimeStarted = true
+        } catch (e: dev.enginehost.api.EnginePatchRequiredException) {
+            // The module recognised its own "content I cannot read"
+            // failure. The user is told only that a patch is needed --
+            // not which file -- and supplies one themselves.
+            Log.w(TAG, "Plugin reported a required patch", e)
+            offerPatch(e.requiredFile())
         } catch (e: Throwable) {
             Log.e(TAG, "Plugin startup failed", e)
             failAndFinish("Plugin startup failed: ${e.message ?: e.javaClass.simpleName}")
@@ -156,6 +163,71 @@ class RuntimeActivity : FragmentActivity() {
     private fun callPlugin(phase: String, block: EnginePlugin.() -> Unit) {
         runCatching { plugin?.block() }.onFailure { Log.e(TAG, "Plugin $phase failed", it) }
     }
+
+    /**
+     * "This game requires a patch", and a way to supply one.
+     *
+     * Enginehost never fetches the file and never goes looking in
+     * Downloads for something that resembles it: the user obtains it
+     * however they like and picks it explicitly. Auto-detection would be
+     * Enginehost quietly choosing which untrusted script to run inside the
+     * engine, under its own storage permission.
+     *
+     * [engineRequiredFile] is what the module's own patch loading was
+     * after, when it could tell. It steers placement and archive
+     * extraction only; it is never shown as a demand.
+     */
+    private fun offerPatch(engineRequiredFile: String?) {
+        pendingRequiredFile = engineRequiredFile
+        android.app.AlertDialog.Builder(this)
+            .setTitle("This game requires a patch")
+            .setMessage(
+                "This game's data is packed in a form the engine can't read on its own. " +
+                    "If you have the compatibility patch for it, choose the file and " +
+                    "Enginehost will put it in place.",
+            )
+            .setPositiveButton("Choose file") { _, _ ->
+                runCatching {
+                    startActivityForResult(
+                        Intent(Intent.ACTION_OPEN_DOCUMENT)
+                            .addCategory(Intent.CATEGORY_OPENABLE)
+                            .setType("*/*"),
+                        REQUEST_PATCH,
+                    )
+                }.onFailure { failAndFinish("No file picker available on this device") }
+            }
+            .setNegativeButton("Cancel") { _, _ -> finish() }
+            .setOnCancelListener { finish() }
+            .show()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_PATCH) return
+        val picked = data?.data
+        if (resultCode != RESULT_OK || picked == null) {
+            finish()
+            return
+        }
+        // Re-derived rather than held: onCreate keeps it local, and the
+        // intent is the authority on which folder this session is for.
+        val folder = intent.getStringExtra(EXTRA_PATH)?.let(::File)
+        if (folder == null) { finish(); return }
+        val installed = PatchSupply.install(this, picked, folder, pendingRequiredFile)
+        if (!installed) {
+            failAndFinish("That file couldn't be used as a patch for this game")
+            return
+        }
+        // Relaunch cleanly rather than resuming a half-started engine:
+        // the module already failed once and its native state is not
+        // guaranteed to be re-entrant.
+        Toast.makeText(this, "Patch installed - restarting", Toast.LENGTH_SHORT).show()
+        startActivity(intent)
+        finish()
+    }
+
     private fun failAndFinish(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         Log.e(TAG, message)
@@ -164,6 +236,7 @@ class RuntimeActivity : FragmentActivity() {
 
     companion object {
         private const val TAG = "enginehost-runtime"
+        private const val REQUEST_PATCH = 0x9a71
         const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
         const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
