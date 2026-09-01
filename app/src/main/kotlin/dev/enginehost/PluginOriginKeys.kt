@@ -129,24 +129,15 @@ class PluginOriginKeyStore(private val context: Context) {
 }
 
 object PluginOriginKeyClient {
-    fun fetch(origin: String): String {
-        val normalized = normalizeGithubOrigin(origin)
-        val match = requireNotNull(GITHUB_ORIGIN.matchEntire(normalized)) { "Not a GitHub repository" }
-        val api = "https://api.github.com/repos/${match.groupValues[1]}/${match.groupValues[2]}/contents/enginehost-public-key.json"
-        val connection = URL(api).openConnection() as HttpURLConnection
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 30_000
-        connection.setRequestProperty("Accept", "application/vnd.github+json")
-        connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-        connection.setRequestProperty("User-Agent", "enginehost/0.1")
-        try {
-            require(connection.responseCode in 200..299) { "GitHub returned HTTP ${connection.responseCode}" }
-            val response = connection.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(response)
-            require(json.getString("encoding") == "base64") { "Unexpected GitHub key encoding" }
-            return Base64.getMimeDecoder().decode(json.getString("content")).toString(Charsets.UTF_8)
-        } finally {
-            connection.disconnect()
+    /**
+     * These repositories are forks of the engines they wrap, so the default
+     * branch is usually the upstream project's own and carries none of the
+     * plugin's files -- fetching a key document from it found nothing on ten of
+     * our eleven origins, which made adding any of them as a custom origin
+     * impossible. Look on the plugin branch first, default branch last.
+     */
+    fun fetch(origin: String): String =
+        requireNotNull(GithubRepositoryFile.fetch(origin, "enginehost-public-key.json")) {
+            "No enginehost-public-key.json published by this repository"
         }
-    }
 }

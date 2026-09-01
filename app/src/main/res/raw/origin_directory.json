@@ -3,47 +3,160 @@
   "origins": {
     "https://github.com/droidtop/enginehost-buriko-plugin": {
       "description": "Enginehost plugin implementation repository for openbgi",
-      "name": "enginehost-buriko-plugin"
+      "engine": "buriko",
+      "engineContexts": [
+        "compiled-script-v1",
+        "august-compiled-script-v1"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "openbgi",
+        "name": "openbgi",
+        "upstream": "https://github.com/Cytlan/openbgi"
+      },
+      "origin": "https://github.com/droidtop/enginehost-buriko-plugin"
     },
     "https://github.com/droidtop/enginehost-catsystem2-plugin": {
       "description": "Enginehost plugin implementation repository for CatSystem2",
-      "name": "enginehost-catsystem2-plugin"
+      "engine": "catsystem2",
+      "engineContexts": [
+        "cst"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "enginehost-native",
+        "name": "Enginehost native"
+      },
+      "origin": "https://github.com/droidtop/enginehost-catsystem2-plugin"
     },
     "https://github.com/droidtop/enginehost-cmvs-plugin": {
       "description": "Enginehost plugin implementation repository for CMVS",
-      "name": "enginehost-cmvs-plugin"
+      "engine": "cmvs",
+      "engineContexts": [
+        "ps2",
+        "ps3"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "enginehost-native",
+        "name": "Enginehost native"
+      },
+      "origin": "https://github.com/droidtop/enginehost-cmvs-plugin"
     },
     "https://github.com/droidtop/enginehost-flash-air-plugin": {
       "description": "Enginehost plugin implementation repository for Ruffle",
-      "name": "enginehost-flash-air-plugin"
+      "engine": "flash_air",
+      "engineContexts": [
+        "air",
+        "swf"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "ruffle",
+        "name": "Ruffle",
+        "upstream": "https://github.com/ruffle-rs/ruffle"
+      },
+      "origin": "https://github.com/droidtop/enginehost-flash-air-plugin"
     },
     "https://github.com/droidtop/enginehost-godot-plugin": {
       "description": "Enginehost plugin implementation repository for Godot Engine",
-      "name": "enginehost-godot-plugin"
+      "engine": "godot",
+      "engineContexts": [
+        "standard"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "godot",
+        "name": "Godot Engine",
+        "upstream": "https://github.com/godotengine/godot"
+      },
+      "origin": "https://github.com/droidtop/enginehost-godot-plugin"
     },
     "https://github.com/droidtop/enginehost-kirikiri-plugin": {
       "description": "Enginehost plugin implementation repository for Kirikiroid2Yuri",
-      "name": "enginehost-kirikiri-plugin"
+      "engine": "kirikiri2",
+      "engineContexts": [
+        "default"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "kirikiroid2yuri",
+        "name": "Kirikiroid2Yuri",
+        "upstream": "https://github.com/YuriSizuku/Kirikiroid2Yuri"
+      },
+      "origin": "https://github.com/droidtop/enginehost-kirikiri-plugin"
     },
     "https://github.com/droidtop/enginehost-renpy-plugin": {
       "description": "Enginehost plugin implementation repository for Ren'Py",
-      "name": "enginehost-renpy-plugin"
+      "engine": "renpy",
+      "engineContexts": [
+        "standard"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "renpy",
+        "name": "Ren'Py",
+        "upstream": "https://github.com/renpy/renpy"
+      },
+      "origin": "https://github.com/droidtop/enginehost-renpy-plugin"
     },
     "https://github.com/droidtop/enginehost-rpgmaker-easyrpg-plugin": {
       "description": "Enginehost plugin implementation repository for EasyRPG Player",
-      "name": "enginehost-rpgmaker-easyrpg-plugin"
+      "engine": "rpgmaker",
+      "engineContexts": [
+        "2000",
+        "2003"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "easyrpg",
+        "name": "EasyRPG Player",
+        "upstream": "https://github.com/EasyRPG/Player"
+      },
+      "origin": "https://github.com/droidtop/enginehost-rpgmaker-easyrpg-plugin"
     },
     "https://github.com/droidtop/enginehost-rpgmaker-mkxp-z-plugin": {
       "description": "Enginehost plugin implementation repository for mkxp-z",
-      "name": "enginehost-rpgmaker-mkxp-z-plugin"
+      "engine": "rpgmaker",
+      "engineContexts": [
+        "xp",
+        "vx",
+        "vxace"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "mkxp-z",
+        "name": "mkxp-z",
+        "upstream": "https://github.com/mkxp-z/mkxp-z"
+      },
+      "origin": "https://github.com/droidtop/enginehost-rpgmaker-mkxp-z-plugin"
     },
     "https://github.com/droidtop/enginehost-rpgmaker-mv-mz-plugin": {
       "description": "Enginehost plugin implementation repository for RPG Maker MV and MZ",
-      "name": "enginehost-rpgmaker-mv-mz-plugin"
+      "engine": "rpgmaker",
+      "engineContexts": [
+        "mv",
+        "mz"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "enginehost-native",
+        "name": "Enginehost native"
+      },
+      "origin": "https://github.com/droidtop/enginehost-rpgmaker-mv-mz-plugin"
     },
     "https://github.com/droidtop/enginehost-twine-plugin": {
       "description": "Enginehost plugin implementation repository for Twine",
-      "name": "enginehost-twine-plugin"
+      "engine": "twine",
+      "engineContexts": [
+        "compiled-html"
+      ],
+      "formatVersion": 1,
+      "implementation": {
+        "id": "enginehost-native",
+        "name": "Enginehost native"
+      },
+      "origin": "https://github.com/droidtop/enginehost-twine-plugin"
     }
   }
 }

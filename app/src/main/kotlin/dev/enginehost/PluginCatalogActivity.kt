@@ -93,8 +93,16 @@ class PluginCatalogActivity : Activity() {
                 // with the repository's own name and description and keep the URL
                 // underneath as the identity that actually matters.
                 text = buildString {
-                    append(described?.name?.takeIf { it.isNotBlank() } ?: origin.substringAfterLast('/'))
-                    described?.description?.takeIf { it.isNotBlank() }?.let { append('\n').append(it) }
+                    append(described?.implementationName?.takeIf { it.isNotBlank() }
+                        ?: origin.substringAfterLast('/'))
+                    described?.let { identity ->
+                        append('\n').append(identity.engine)
+                        if (identity.engineContexts.isNotEmpty()) {
+                            append(" · ").append(identity.engineContexts.joinToString(", "))
+                        }
+                        identity.description.takeIf { d -> d.isNotBlank() }
+                            ?.let { d -> append('\n').append(d) }
+                    }
                     append('\n').append(origin)
                 }
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
