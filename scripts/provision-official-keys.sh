@@ -60,5 +60,9 @@ provision_repo godot \
   https://github.com/droidtop/enginehost-godot-plugin \
   "$workspace_root/_work/enginehost-godot-plugin/enginehost/bundle-metadata.json" \
   "$workspace_root/_work/enginehost-godot-plugin/enginehost-public-key.json"
+provision_repo buriko \
+  https://github.com/droidtop/enginehost-buriko-plugin \
+  "$workspace_root/_work/openbgi/enginehost/bundle-metadata.json" \
+  "$workspace_root/_work/openbgi/enginehost-public-key.json"
 
 chmod 600 "$key_root/official/root-private.pem"
