@@ -12,14 +12,41 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Engine configuration"
+            android:text="Your games"
             android:textAppearance="?android:attr/textAppearanceLarge" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Create or repair the enginehost.json stored with a game. This is the primary on-device tool." />
+            android:text="Launch games directly with the same configuration and plugin rules used by other apps." />
+
+        <LinearLayout
+            android:id="@+id/gameLibraryList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical" />
+
+        <Button
+            android:id="@+id/pickAndLaunchButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Add a game folder" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Game configuration"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Create or repair the authoritative enginehost.json stored with a game." />
 
         <Button
             android:id="@+id/createConfigButton"
@@ -27,26 +54,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="Open config creator" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:text="Test launcher"
-            android:textAppearance="?android:attr/textAppearanceMedium" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="Pick a configured game folder and try it. Kept intentionally minimal for plugin testing." />
-
-        <Button
-            android:id="@+id/pickAndLaunchButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Pick folder and run" />
 
         <Button
             android:id="@+id/controllerConfigButton"

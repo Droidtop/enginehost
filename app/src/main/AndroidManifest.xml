@@ -18,10 +18,7 @@
         android:allowBackup="false"
         android:extractNativeLibs="true">
 
-        <!--
-             The configuration-first on-device UI. Its game launcher remains
-             a minimal testing tool; see LaunchActivity for normal dispatch.
-        -->
+        <!-- Configuration UI and lightweight direct-use game library. -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
