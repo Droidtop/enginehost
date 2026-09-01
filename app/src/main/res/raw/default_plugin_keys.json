@@ -104,6 +104,32 @@
       "keySha256": "BB93A03DBA94B452B01B9B49CE267CCEAFF09276B3630F38DDEC64BA4341C87E",
       "origin": "https://github.com/droidtop/enginehost-renpy-plugin",
       "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2P5EQTY8yCJUNwcipRPnuv6/jFXhgv8H8UDYevm1sppUjraqcervuJOQCTM7lLB8GV+nmBZsth8e6F4WMvaXWQ=="
+    },
+    {
+      "formatVersion": 1,
+      "origin": "https://github.com/droidtop/enginehost-buriko-plugin",
+      "algorithm": "SHA256withECDSA",
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXlMD7VTQ17KsO/TVv4yqQ0O20/YBXLrInl1J7nnYntt2eT+MbT1T88WcWUrAUhH0Z3TKJ+6lnM7ElemEZ+aaKg==",
+      "keySha256": "5D3B225A7D29D4AFAB810D11561F977A9F361CDB6527456E6D3CC82D3A25F355",
+      "issuer": {
+        "algorithm": "SHA256withECDSA",
+        "id": "enginehost-official-v1",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEQCICD3hyMqAEa1oL19IJO/fF55cO9BeAIYjQlewu6FgVKBAiBM0qIHTCRLuiOIB07UoAbCheCSG1lKe5v89U660YLV9A=="
+      }
+    },
+    {
+      "formatVersion": 1,
+      "origin": "https://github.com/droidtop/enginehost-rpgmaker-mv-mz-plugin",
+      "algorithm": "SHA256withECDSA",
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEpAxydgoRO31Mmupinqi3dT4jLMjT/Yf12jgxqdZdtXJh0YOnDJQVi4c1eaG9byG3kTsV8FN+GWU0B33qpdUMXA==",
+      "keySha256": "94A9DA95B1F6336CBD31415357C8C67D3E9DD70F683D12501B61B8218BBD84EF",
+      "issuer": {
+        "algorithm": "SHA256withECDSA",
+        "id": "enginehost-official-v1",
+        "keySha256": "AFA793A97577A13D7362F80FEDB3EE8CEFCA9A01014C3A73FA7BF34E26FF4A9F",
+        "signature": "MEUCIQDwDaGU7wQ6zLg5zSagm79t30BYCrlBUD899VBNp5EPGwIgDNnviW47zqNav9rZL/xoutR9bEYNh8yuQDRTsQWdOy8="
+      }
     }
   ]
 }
