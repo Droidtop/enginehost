@@ -173,7 +173,9 @@ class PluginCatalogActivity : AppCompatActivity() {
             matches.isNotEmpty() && !isInstalled(matches.first().bundleId)
         ) {
             autoAttempted = true
-            PluginInstaller.install(this, matches.first(), ::toast)
+            PluginInstaller.install(this, matches.first(), ::toast) { status ->
+                runOnUiThread { statusText.text = status }
+            }
         } else if (
             intent.getBooleanExtra(EXTRA_AUTOINSTALL, false) && matches.isEmpty() &&
             allAvailable.isEmpty() && !refreshing
@@ -218,7 +220,20 @@ class PluginCatalogActivity : AppCompatActivity() {
                 else -> getString(R.string.install_asset, plugin.manifest.assetName)
             }
             button.isEnabled = !installed && supportedApi
-            button.setOnClickListener { PluginInstaller.install(this@PluginCatalogActivity, plugin, ::toast) }
+            button.setOnClickListener {
+                button.isEnabled = false
+                button.setText(R.string.installing)
+                PluginInstaller.install(
+                    this@PluginCatalogActivity,
+                    plugin,
+                    onError = { message ->
+                        button.isEnabled = true
+                        button.text = getString(R.string.install_asset, plugin.manifest.assetName)
+                        toast(message)
+                    },
+                    onStatus = { status -> runOnUiThread { statusText.text = status } },
+                )
+            }
             actions.addView(button)
         }
         releaseList.addView(card)

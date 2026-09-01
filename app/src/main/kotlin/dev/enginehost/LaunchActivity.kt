@@ -26,5 +26,9 @@ class LaunchActivity : Activity() {
             intent.getStringExtra("config"),
             intent.getBooleanExtra("autoinstallPlugin", false),
         )
+        // Whatever GameRunner started (runtime, editor, catalog, trust) is now
+        // on top; keeping this blank fullscreen activity beneath it would only
+        // be one extra Back press for the user on the way out.
+        finish()
     }
 }

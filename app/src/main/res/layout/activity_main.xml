@@ -30,6 +30,17 @@
             android:text="@string/section_games"
             android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
+        <EditText
+            android:id="@+id/gameSearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:hint="@string/search_hint"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="1"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/gameLibraryList"
             android:layout_width="match_parent"
@@ -44,6 +55,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
             android:text="@string/add_game_folder" />
+
+        <Button
+            android:id="@+id/scanFolderButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/scan_folder" />
 
         <TextView
             android:layout_width="match_parent"

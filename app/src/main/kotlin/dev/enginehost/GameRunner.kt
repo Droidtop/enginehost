@@ -19,6 +19,19 @@ object GameRunner {
         val config = try {
             EngineConfigReader.resolve(gameFolder, inlineJson)
         } catch (e: InvalidEngineConfigException) {
+            // A folder with no config at all is a setup gap, not a dead end:
+            // route into the config editor with detection running, instead of
+            // failing into a toast over a blank screen.
+            if (gameFolder.isDirectory && !File(gameFolder, CONFIG_FILE_NAME).isFile) {
+                Toast.makeText(activity, R.string.launch_needs_config, Toast.LENGTH_LONG).show()
+                activity.startActivity(
+                    Intent(activity, ConfigEditorActivity::class.java).apply {
+                        putExtra(ConfigEditorActivity.EXTRA_PATH, gameFolder.absolutePath)
+                        inlineJson?.let { putExtra(ConfigEditorActivity.EXTRA_CONFIG, it) }
+                    },
+                )
+                return
+            }
             fail(activity, e.message ?: "Invalid $CONFIG_FILE_NAME")
             return
         }

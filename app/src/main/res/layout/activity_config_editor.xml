@@ -72,14 +72,11 @@
                 android:text="@string/label_engine_family"
                 android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <EditText
-                android:id="@+id/engineField"
+            <Button
+                android:id="@+id/engineButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:hint="@string/hint_engine_family"
-                android:importantForAutofill="no"
-                android:inputType="text" />
+                android:layout_marginTop="@dimen/eh_space_xs" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -88,14 +85,11 @@
                 android:text="@string/label_engine_context"
                 android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <EditText
-                android:id="@+id/engineContextField"
+            <Button
+                android:id="@+id/contextButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:hint="@string/hint_engine_context"
-                android:importantForAutofill="no"
-                android:inputType="text" />
+                android:layout_marginTop="@dimen/eh_space_xs" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -109,9 +103,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/eh_space_xs"
-                android:hint="@string/hint_engine_version"
                 android:importantForAutofill="no"
-                android:inputType="text" />
+                android:inputType="text"
+                android:maxLines="1" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:text="@string/engine_version_help"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -120,16 +121,11 @@
                 android:text="@string/label_runtimes"
                 android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <EditText
-                android:id="@+id/runtimeRequirementsField"
+            <Button
+                android:id="@+id/runtimesButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:gravity="top|start"
-                android:hint="@string/hint_runtimes"
-                android:importantForAutofill="no"
-                android:inputType="textMultiLine|textNoSuggestions"
-                android:minLines="2" />
+                android:layout_marginTop="@dimen/eh_space_xs" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -138,13 +134,11 @@
                 android:text="@string/label_plugin_versions"
                 android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <EditText
-                android:id="@+id/pluginVersionField"
+            <Button
+                android:id="@+id/pluginVersionButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:importantForAutofill="no"
-                android:inputType="text" />
+                android:layout_marginTop="@dimen/eh_space_xs" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -153,13 +147,11 @@
                 android:text="@string/label_exec_file"
                 android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <EditText
-                android:id="@+id/execFileField"
+            <Button
+                android:id="@+id/execFileButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:importantForAutofill="no"
-                android:inputType="text" />
+                android:layout_marginTop="@dimen/eh_space_xs" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -168,15 +160,26 @@
                 android:text="@string/label_options"
                 android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <EditText
-                android:id="@+id/optionsField"
+            <LinearLayout
+                android:id="@+id/optionsList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/eh_space_xs"
-                android:gravity="top|start"
-                android:importantForAutofill="no"
-                android:inputType="textMultiLine|textNoSuggestions"
-                android:minLines="4" />
+                android:orientation="vertical" />
+
+            <Button
+                android:id="@+id/addOptionButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:text="@string/add_option" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:text="@string/options_help"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
             <Button
                 android:id="@+id/saveConfigButton"

@@ -1,31 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    style="@style/Widget.Enginehost.Card.Focusable"
+    style="@style/Widget.Enginehost.Card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="@dimen/eh_space_s"
-    android:minHeight="@dimen/eh_touch_target"
-    android:gravity="center_vertical">
+    android:layout_marginBottom="@dimen/eh_space_s">
 
     <TextView
-        android:id="@+id/gameTitle"
+        android:id="@+id/scanResultTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
 
     <TextView
-        android:id="@+id/gamePath"
+        android:id="@+id/scanResultDetection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+    <TextView
+        android:id="@+id/scanResultPath"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
 
     <TextView
-        android:id="@+id/gameStatus"
+        android:id="@+id/scanResultNote"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/eh_space_xs"
         android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:textColor="@color/eh_developer"
         android:visibility="gone" />
+
+    <Button
+        android:id="@+id/scanResultAdd"
+        style="@style/Widget.Enginehost.Button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:minWidth="120dp"
+        android:text="@string/scan_add" />
 
 </LinearLayout>

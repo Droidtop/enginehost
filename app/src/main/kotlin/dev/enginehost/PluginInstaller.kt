@@ -9,10 +9,15 @@ import java.net.URL
 
 /** Downloads, verifies and atomically installs a self-contained engine bundle. */
 object PluginInstaller {
-    fun install(activity: Activity, plugin: AvailablePlugin, onError: (String) -> Unit) {
+    fun install(
+        activity: Activity,
+        plugin: AvailablePlugin,
+        onError: (String) -> Unit,
+        onStatus: ((String) -> Unit)? = null,
+    ) {
         Thread {
             runCatching {
-                val archive = download(activity, plugin)
+                val archive = download(activity, plugin, onStatus)
                 val installed = EngineBundleInstaller.install(activity, archive, plugin.manifest)
                 PendingPluginLaunchStore(activity).peek()?.let {
                     PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
@@ -68,7 +73,11 @@ object PluginInstaller {
         return archive
     }
 
-    private fun download(activity: Activity, plugin: AvailablePlugin): File {
+    private fun download(
+        activity: Activity,
+        plugin: AvailablePlugin,
+        onStatus: ((String) -> Unit)? = null,
+    ): File {
         val directory = File(activity.cacheDir, "engine-bundle-downloads").apply { mkdirs() }
         val cacheName = plugin.archiveSha256?.lowercase() ?: sha256(plugin.archiveUrl.toByteArray()).lowercase()
         val archive = File(directory, "$cacheName.enginehost.tar.xz")
@@ -84,9 +93,38 @@ object PluginInstaller {
             require(connection.contentLengthLong <= MAX_ARCHIVE_BYTES || connection.contentLengthLong < 0) {
                 "Engine bundle exceeds the download size limit"
             }
+            val totalBytes = connection.contentLengthLong
             connection.inputStream.buffered().use { input ->
-                temporary.outputStream().buffered().use { output -> input.copyTo(output) }
+                temporary.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var copied = 0L
+                    var reportedMegabytes = -1L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                        copied += count
+                        val megabytes = copied shr 20
+                        if (onStatus != null && megabytes != reportedMegabytes) {
+                            reportedMegabytes = megabytes
+                            onStatus(
+                                if (totalBytes > 0) {
+                                    activity.getString(
+                                        R.string.downloading_progress,
+                                        plugin.manifest.assetName, megabytes, totalBytes shr 20,
+                                    )
+                                } else {
+                                    activity.getString(
+                                        R.string.downloading_progress_unknown,
+                                        plugin.manifest.assetName, megabytes,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
             }
+            onStatus?.invoke(activity.getString(R.string.installing))
             require(temporary.length() <= MAX_ARCHIVE_BYTES) { "Engine bundle exceeds the download size limit" }
         } finally {
             connection.disconnect()

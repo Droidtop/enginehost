@@ -2,32 +2,50 @@ package dev.enginehost
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
- * Configuration-first home screen and lightweight direct-use game library.
+ * Configuration-first home screen and direct-use game library manager.
  */
 class MainActivity : AppCompatActivity() {
     private lateinit var library: GameLibraryStore
     private lateinit var gameList: LinearLayout
+    private lateinit var gameSearch: EditText
+
+    /** Bumped per render so a stale background status pass cannot touch new rows. */
+    private var renderGeneration = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         library = GameLibraryStore(this)
         gameList = findViewById(R.id.gameLibraryList)
+        gameSearch = findViewById(R.id.gameSearch)
+        gameSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) = renderLibrary()
+        })
 
         findViewById<Button>(R.id.createConfigButton).setOnClickListener {
             startActivity(Intent(this, ConfigEditorActivity::class.java))
         }
         findViewById<Button>(R.id.pickAndLaunchButton).setOnClickListener {
             openGamePickerWhenAllowed()
+        }
+        findViewById<Button>(R.id.scanFolderButton).setOnClickListener {
+            startActivity(Intent(this, GameScanActivity::class.java))
         }
         findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
             startActivity(Intent(this, ControllerConfigActivity::class.java))
@@ -89,28 +107,113 @@ class MainActivity : AppCompatActivity() {
     )
 
     private fun renderLibrary() {
+        val generation = ++renderGeneration
         gameList.removeAllViews()
-        val games = library.games()
+        val allGames = library.games()
+        gameSearch.visibility = if (allGames.size > SEARCH_THRESHOLD) View.VISIBLE else View.GONE
+        val query = gameSearch.text.toString().trim()
+        val games = if (query.isEmpty() || gameSearch.visibility != View.VISIBLE) allGames
+        else allGames.filter { it.name.contains(query, ignoreCase = true) }
         if (games.isEmpty()) {
             val empty = layoutInflater.inflate(R.layout.item_hint, gameList, false) as TextView
-            empty.setText(R.string.games_empty)
+            empty.setText(if (allGames.isEmpty()) R.string.games_empty else R.string.search_no_matches)
             gameList.addView(empty)
             return
         }
+        val statusViews = mutableMapOf<String, TextView>()
         games.forEach { folder ->
             val row = layoutInflater.inflate(R.layout.item_game, gameList, false)
             val title = folder.name.ifBlank { folder.absolutePath }
             row.findViewById<TextView>(R.id.gameTitle).text =
                 if (folder.isDirectory) title else getString(R.string.game_row_unavailable, title)
             row.findViewById<TextView>(R.id.gamePath).text = folder.absolutePath
+            statusViews[folder.path] = row.findViewById(R.id.gameStatus)
             row.contentDescription = getString(R.string.launch_game_description, folder.absolutePath)
             row.setOnClickListener { launchGame(folder) }
             row.setOnLongClickListener {
-                confirmForget(folder)
+                showGameActions(folder)
                 true
             }
             gameList.addView(row)
         }
+        resolveStatuses(generation, games, statusViews)
+    }
+
+    /**
+     * Resolution touches disk and the plugin registry, so it runs off the UI
+     * thread and each row fills in when its answer is known.
+     */
+    private fun resolveStatuses(generation: Int, games: List<File>, statusViews: Map<String, TextView>) {
+        Thread {
+            games.forEach { folder ->
+                if (generation != renderGeneration) return@Thread
+                val status = computeStatus(folder)
+                runOnUiThread {
+                    if (generation != renderGeneration) return@runOnUiThread
+                    statusViews[folder.path]?.apply {
+                        text = status.text
+                        setTextColor(
+                            ContextCompat.getColor(
+                                this@MainActivity,
+                                if (status.ok) R.color.eh_text_secondary else R.color.eh_developer,
+                            ),
+                        )
+                        visibility = View.VISIBLE
+                    }
+                }
+            }
+        }.start()
+    }
+
+    private data class GameStatus(val ok: Boolean, val text: String)
+
+    private fun computeStatus(folder: File): GameStatus {
+        if (!folder.isDirectory) return GameStatus(false, getString(R.string.status_missing))
+        val config = try {
+            EngineConfigReader.resolve(folder, null)
+        } catch (e: InvalidEngineConfigException) {
+            return if (!File(folder, CONFIG_FILE_NAME).isFile) {
+                GameStatus(false, getString(R.string.status_no_config))
+            } else {
+                GameStatus(false, getString(R.string.status_bad_config, e.message))
+            }
+        }
+        val resolved = runCatching {
+            PluginRegistry.resolve(
+                this, config.engine, config.engineContext, config.engineVersion,
+                config.runtimeRequirements, config.pluginVersionConstraint,
+            )
+        }.getOrNull()
+            ?: return GameStatus(
+                false,
+                getString(R.string.status_no_plugin, config.engine, config.engineVersion.toString()),
+            )
+        return GameStatus(
+            true,
+            getString(R.string.status_ready, config.engine, resolved.plugin.info.pluginVersion.toString()),
+        )
+    }
+
+    private fun showGameActions(folder: File) {
+        val actions = arrayOf(
+            getString(R.string.action_launch),
+            getString(R.string.action_edit_config),
+            getString(R.string.action_remove),
+        )
+        AlertDialog.Builder(this)
+            .setTitle(folder.name.ifBlank { folder.absolutePath })
+            .setItems(actions) { _, which ->
+                when (which) {
+                    0 -> launchGame(folder)
+                    1 -> startActivity(
+                        Intent(this, ConfigEditorActivity::class.java)
+                            .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
+                    )
+                    2 -> confirmForget(folder)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun launchGame(folder: File) {
@@ -119,20 +222,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
         library.remember(folder)
-        if (!File(folder, CONFIG_FILE_NAME).isFile) {
-            AlertDialog.Builder(this)
-                .setTitle(R.string.configure_game_title)
-                .setMessage(R.string.configure_game_message)
-                .setPositiveButton(R.string.scan_and_configure) { _, _ ->
-                    startActivity(
-                        Intent(this, ConfigEditorActivity::class.java)
-                            .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
-                    )
-                }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-            return
-        }
         GameRunner.run(this, folder)
     }
 
@@ -151,5 +240,6 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val REQUEST_GAME_FOLDER = 10
         private const val REQUEST_NATIVE_FILES = 11
+        private const val SEARCH_THRESHOLD = 8
     }
 }

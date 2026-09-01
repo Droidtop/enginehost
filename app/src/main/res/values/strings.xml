@@ -14,7 +14,6 @@
     <string name="add_game_folder">Add a game folder</string>
     <string name="game_row_unavailable">%1$s (unavailable)</string>
     <string name="launch_game_description">Launch %1$s</string>
-    <string name="game_row_hold_hint">Hold to remove from this list</string>
     <string name="section_configuration">Game configuration</string>
     <string name="configuration_hint">Create or repair the authoritative enginehost.json stored with a game.</string>
     <string name="open_config_creator">Open config creator</string>
@@ -27,11 +26,41 @@
     <string name="browse_plugins">Browse and install plugins</string>
     <string name="needs_native_access">Game launching needs native folder access; config editing still works without it</string>
     <string name="game_folder_unavailable">That game folder is not currently available</string>
-    <string name="configure_game_title">Configure this game?</string>
-    <string name="configure_game_message">Enginehost needs an enginehost.json in the game folder. Scan the folder and create one now?</string>
-    <string name="scan_and_configure">Scan and configure</string>
     <string name="remove_game_title">Remove from Enginehost?</string>
     <string name="remove_game_message">This only removes the shortcut. The game and its saves stay on storage.</string>
+
+    <string name="scan_folder">Scan a folder for games</string>
+    <string name="search_hint">Search your games</string>
+    <string name="search_no_matches">No games match this search.</string>
+    <string name="status_missing">Folder is not currently available. Reconnect its storage or remove this entry.</string>
+    <string name="status_no_config">Not configured yet. Select to detect the engine and finish setup.</string>
+    <string name="status_bad_config">Configuration problem: %1$s</string>
+    <string name="status_no_plugin">No installed plugin runs %1$s %2$s. Select to pick one from the catalog.</string>
+    <string name="status_ready">Ready · %1$s via plugin %2$s</string>
+    <string name="action_launch">Launch</string>
+    <string name="action_edit_config">Edit configuration</string>
+    <string name="action_remove">Remove from list</string>
+    <string name="launch_needs_config">This game has no enginehost.json yet. Review the detected settings, then save or test.</string>
+
+    <!-- Game scanning -->
+    <string name="scan_title">Scan for games</string>
+    <string name="scan_intro">Finds game folders beneath a folder you choose, using the same on-disk engine evidence the config creator uses. Nothing is added to your library until you choose.</string>
+    <string name="scan_choose">Choose folder to scan</string>
+    <string name="scan_running">Scanning… examined %1$d folders, found %2$d games so far.</string>
+    <string name="scan_cancel">Stop scanning</string>
+    <string name="scan_finished">Done. Examined %1$d folders and found %2$d games.</string>
+    <string name="scan_finished_skipped">Done. Examined %1$d folders and found %2$d games. %3$d entries could not be read and were skipped.</string>
+    <string name="scan_stopped">Stopped early. Examined %1$d folders and found %2$d games before stopping.</string>
+    <string name="scan_empty">No games found under this folder. Games are recognized by their engine files on disk, not folder names; if one was missed, add its folder directly and use the config creator.</string>
+    <string name="scan_add">Add</string>
+    <string name="scan_added">Added</string>
+    <string name="scan_add_all">Add all found games</string>
+    <string name="scan_needs_config">Engine version was not detected; finish setup in the config creator after adding.</string>
+
+    <!-- Plugin install progress -->
+    <string name="downloading_progress">Downloading %1$s… %2$d of %3$d MB</string>
+    <string name="downloading_progress_unknown">Downloading %1$s… %2$d MB</string>
+    <string name="installing">Installing…</string>
 
     <!-- Plugin trust -->
     <string name="trust_title">Plugin trust</string>
@@ -124,16 +153,41 @@
     <string name="detection_waiting">Engine detection starts after a folder is selected.</string>
     <string name="browse_all_plugin_engines">Choose from all plugin engines</string>
     <string name="label_engine_family">Engine family (required)</string>
-    <string name="hint_engine_family">e.g. rpgmaker</string>
     <string name="label_engine_context">Engine context</string>
-    <string name="hint_engine_context">e.g. vxace</string>
     <string name="label_engine_version">Engine version (required)</string>
-    <string name="hint_engine_version">e.g. 3.0</string>
-    <string name="label_runtimes">Embedded runtimes JSON</string>
-    <string name="hint_runtimes">{\"ruby\":\"1.9.2\"}</string>
-    <string name="label_plugin_versions">Allowed plugin versions (optional)</string>
+    <string name="engine_version_help">The game\'s own runtime target: the engine version the game shipped against, not the plugin\'s version. Enginehost reads it from the game files when it can. If it stays empty, check the game\'s own documentation.</string>
+    <string name="label_runtimes">Embedded runtime</string>
+    <string name="label_plugin_versions">Allowed plugin builds (optional)</string>
     <string name="label_exec_file">Entry file inside the folder (optional)</string>
-    <string name="label_options">Engine options JSON</string>
+    <string name="label_options">Engine options</string>
+    <string name="options_help">Engine-specific settings passed to the resolved plugin unchanged. Each plugin defines its own keys; rtpPaths is the documented RPG Maker example.</string>
+    <string name="value_not_set">Not set</string>
+    <string name="pick_engine_title">Engine family</string>
+    <string name="pick_context_title">Engine context</string>
+    <string name="pick_runtimes_title">Embedded runtime</string>
+    <string name="pick_plugin_version_title">Allowed plugin builds</string>
+    <string name="pick_exec_title">Entry file</string>
+    <string name="other_custom">Other…</string>
+    <string name="custom_constraint">Custom constraint…</string>
+    <string name="custom_json">Custom JSON…</string>
+    <string name="any_version">Any installed build</string>
+    <string name="runtime_none">No embedded runtime requirements</string>
+    <string name="exec_clear">No specific entry file</string>
+    <string name="exec_up">.. (up one folder)</string>
+    <string name="exec_unavailable">This folder\'s provider does not expose a browsable path; type the file\'s relative path instead.</string>
+    <string name="ok">OK</string>
+    <string name="no_installed_choices">Nothing installed declares choices here yet; refresh the plugin catalog or enter a value.</string>
+    <string name="add_option">Add option</string>
+    <string name="option_custom">Custom option…</string>
+    <string name="option_key_prompt">Option key</string>
+    <string name="option_value_prompt">Value for %1$s</string>
+    <string name="option_remove">Remove</string>
+    <string name="option_true">Enabled (true)</string>
+    <string name="option_false">Disabled (false)</string>
+    <string name="option_add_entry">Add an entry…</string>
+    <string name="option_pick_folder">Choose a folder…</string>
+    <string name="option_remove_entry">Remove: %1$s</string>
+    <string name="options_empty">No options set. Options are optional; add one only when the engine needs it.</string>
     <string name="save_config">Save enginehost.json</string>
     <string name="test_config">Test this configuration</string>
     <string name="new_configuration">New configuration</string>
