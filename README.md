@@ -4,10 +4,24 @@ A straightforward multi-engine host for VN/RPG-Maker-family games on
 Android (KiriKiri, RPG Maker XP/VX/VX Ace via mkxp-z, Ren'Py — more as
 they're wired up).
 
-enginehost is a centralized interpreter host built to be driven
-*programmatically* by another app that already knows what game it wants
-to run and where it lives on disk. It is not a self-contained catalog or
-game-library application.
+enginehost is a centralized interpreter host with two equally supported
+front doors, and neither is a second-class citizen:
+
+- **Used directly.** It has its own game library, config creator, plugin
+  catalog and trust screens, controller mapping, and settings. Somebody
+  who only ever installs enginehost has a complete, usable application.
+  Requiring a second app in order to use this one would be elitist, and
+  the earlier framing of the built-in picker as "minimal, just for
+  testing" is retired (directed 2026-09-01).
+- **Driven programmatically.** Every one of those capabilities is also
+  reachable over the Intent contract below, so a launcher such as
+  droidtop can do the whole job without a hand-off: name the game, supply
+  or write its config, resolve a runtime, and install a bundle.
+
+The design rule that follows: **any flow that exists in the UI must have
+a programmatic equivalent, and vice versa.** A caller that already knows
+what it wants should never be forced through a screen, and a person
+without a caller should never be missing a feature.
 
 ## The contract
 
