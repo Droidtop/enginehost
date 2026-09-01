@@ -64,5 +64,9 @@ provision_repo buriko \
   https://github.com/droidtop/enginehost-buriko-plugin \
   "$workspace_root/_work/openbgi/enginehost/bundle-metadata.json" \
   "$workspace_root/_work/openbgi/enginehost-public-key.json"
+provision_repo rpgmaker-mv-mz \
+  https://github.com/droidtop/enginehost-rpgmaker-mv-mz-plugin \
+  "$workspace_root/_work/enginehost-plugin-rpgmaker-standalone/enginehost/bundle-metadata.json" \
+  "$workspace_root/_work/enginehost-plugin-rpgmaker-standalone/enginehost-public-key.json"
 
 chmod 600 "$key_root/official/root-private.pem"
