@@ -94,10 +94,8 @@ class PluginCatalogActivity : Activity() {
                 // underneath as the identity that actually matters.
                 text = buildString {
                     append(described?.name?.takeIf { it.isNotBlank() } ?: origin.substringAfterLast('/'))
-                    described?.description?.takeIf { it.isNotBlank() }?.let { append('
-').append(it) }
-                    append('
-').append(origin)
+                    described?.description?.takeIf { it.isNotBlank() }?.let { append('\n').append(it) }
+                    append('\n').append(origin)
                 }
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
