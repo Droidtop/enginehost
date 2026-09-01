@@ -2,47 +2,47 @@
   "formatVersion": 1,
   "origins": {
     "https://github.com/droidtop/enginehost-buriko-plugin": {
-      "description": "Ethornell Buriko General Interpreter open source reimplementation",
+      "description": "Enginehost plugin implementation repository for openbgi",
       "name": "enginehost-buriko-plugin"
     },
     "https://github.com/droidtop/enginehost-catsystem2-plugin": {
-      "description": "Native Android enginehost plugin for CatSystem2 games",
+      "description": "Enginehost plugin implementation repository for CatSystem2",
       "name": "enginehost-catsystem2-plugin"
     },
     "https://github.com/droidtop/enginehost-cmvs-plugin": {
-      "description": "Native Android enginehost plugin for CMVS games",
+      "description": "Enginehost plugin implementation repository for CMVS",
       "name": "enginehost-cmvs-plugin"
     },
     "https://github.com/droidtop/enginehost-flash-air-plugin": {
-      "description": "A Flash Player emulator written in Rust",
+      "description": "Enginehost plugin implementation repository for Ruffle",
       "name": "enginehost-flash-air-plugin"
     },
     "https://github.com/droidtop/enginehost-godot-plugin": {
-      "description": "Godot Engine \u2013 Multi-platform 2D and 3D game engine",
+      "description": "Enginehost plugin implementation repository for Godot Engine",
       "name": "enginehost-godot-plugin"
     },
     "https://github.com/droidtop/enginehost-kirikiri-plugin": {
-      "description": "enginehost Android KiriKiri2 runtime plugin, forked from Kirikiroid2Yuri",
+      "description": "Enginehost plugin implementation repository for Kirikiroid2Yuri",
       "name": "enginehost-kirikiri-plugin"
     },
     "https://github.com/droidtop/enginehost-renpy-plugin": {
-      "description": "The Ren'Py Visual Novel Engine",
+      "description": "Enginehost plugin implementation repository for Ren'Py",
       "name": "enginehost-renpy-plugin"
     },
     "https://github.com/droidtop/enginehost-rpgmaker-easyrpg-plugin": {
-      "description": "enginehost Android runtime plugin for RPG Maker 2000 and 2003, based on EasyRPG Player",
+      "description": "Enginehost plugin implementation repository for EasyRPG Player",
       "name": "enginehost-rpgmaker-easyrpg-plugin"
     },
     "https://github.com/droidtop/enginehost-rpgmaker-mkxp-z-plugin": {
-      "description": "enginehost Android runtime plugin for RPG Maker XP, VX, and VX Ace, based on mkxp-z",
+      "description": "Enginehost plugin implementation repository for mkxp-z",
       "name": "enginehost-rpgmaker-mkxp-z-plugin"
     },
     "https://github.com/droidtop/enginehost-rpgmaker-mv-mz-plugin": {
-      "description": "enginehost Android runtime plugin for deployed RPG Maker MV and MZ games",
+      "description": "Enginehost plugin implementation repository for RPG Maker MV and MZ",
       "name": "enginehost-rpgmaker-mv-mz-plugin"
     },
     "https://github.com/droidtop/enginehost-twine-plugin": {
-      "description": "Android enginehost plugin for compiled Twine stories",
+      "description": "Enginehost plugin implementation repository for Twine",
       "name": "enginehost-twine-plugin"
     }
   }
