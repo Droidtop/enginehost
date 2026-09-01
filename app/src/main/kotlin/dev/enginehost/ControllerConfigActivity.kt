@@ -19,10 +19,18 @@ class ControllerConfigActivity : Activity(), InputManager.InputDeviceListener {
     private lateinit var store: ControllerBindingStore
     private var capturing: ControllerAction? = null
 
+    /** null = the global map every engine inherits from. */
+    private var scope: String? = null
+    private val installedEngines: List<String> by lazy {
+        runCatching {
+            PluginRegistry.discover(this).map { it.info.engine }.distinct().sorted()
+        }.getOrDefault(emptyList())
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "Controller settings"
-        store = ControllerBindingStore(this)
+        store = ControllerBindingStore(this, scope)
         content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 24, 24, 24)
@@ -50,21 +58,67 @@ class ControllerConfigActivity : Activity(), InputManager.InputDeviceListener {
             text = if (controllers.isEmpty()) "No controller connected. You can still edit defaults." else
                 "Connected: ${controllers.joinToString { it.name }}"
         })
+        // Scope selector. Only families that are actually installed are
+        // offered -- configuring an engine nobody has is configuration
+        // that cannot apply to anything.
+        content.addView(TextView(this).apply {
+            text = "Applies to"
+            setPadding(0, 12, 0, 4)
+        })
+        content.addView(Button(this).apply {
+            text = "All engines" + if (scope == null) "  (editing)" else ""
+            setOnClickListener { switchScope(null) }
+        })
+        installedEngines.forEach { engine ->
+            content.addView(Button(this).apply {
+                text = engine + if (scope == engine) "  (editing)" else ""
+                setOnClickListener { switchScope(engine) }
+            })
+        }
+
         content.addView(TextView(this).apply {
             text = capturing?.let { "Press a button or move an axis for ${it.title}." }
-                ?: "Mappings are global; each engine translates these actions into its native input system."
-            setPadding(0, 12, 0, 16)
+                ?: if (scope == null) {
+                    "The map every engine starts from. Each engine translates these " +
+                        "actions into its own native input system."
+                } else {
+                    "Overrides for $scope only. Anything left inherited follows the " +
+                        "All engines map."
+                }
+            setPadding(0, 16, 0, 16)
         })
+
         ControllerActions.all.forEach { action ->
+            val overridden = store.isOverridden(action)
             content.addView(Button(this).apply {
-                text = "${action.title}: ${store.get(action).label()}"
+                // An inherited binding is marked, so it is obvious which
+                // values belong to this engine and which are borrowed.
+                text = buildString {
+                    append(action.title).append(": ").append(store.get(action).label())
+                    if (scope != null && !overridden) append("  (inherited)")
+                }
                 setOnClickListener { capturing = action; render() }
+                setOnLongClickListener {
+                    if (scope != null && overridden) {
+                        store.clearOverride(action)
+                        capturing = null
+                        render()
+                    }
+                    true
+                }
             })
         }
         content.addView(Button(this).apply {
-            text = "Reset all mappings"
+            text = if (scope == null) "Reset all mappings" else "Reset $scope overrides"
             setOnClickListener { capturing = null; store.reset(); render() }
         })
+    }
+
+    private fun switchScope(engine: String?) {
+        scope = engine
+        store = ControllerBindingStore(this, engine)
+        capturing = null
+        render()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

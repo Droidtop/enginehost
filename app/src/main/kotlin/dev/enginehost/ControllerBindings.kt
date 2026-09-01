@@ -52,17 +52,60 @@ object ControllerActions {
     )
 }
 
-class ControllerBindingStore(context: Context) {
+/**
+ * Controller bindings, resolved per engine over a global default.
+ *
+ * [engine] null means the global scope -- the map that applies wherever
+ * an engine has not overridden it. A VN and an RPG Maker game want
+ * different things from the same pad (skip and auto-advance mean nothing
+ * in RPG Maker; its dash and menu buttons mean nothing in a VN), so one
+ * flat map cannot serve both.
+ *
+ * Resolution is engine override, then global, then the action's default.
+ * That way remapping Confirm once applies everywhere, and only genuinely
+ * engine-specific actions need per-engine attention.
+ */
+class ControllerBindingStore(context: Context, private val engine: String? = null) {
     private val preferences = context.getSharedPreferences("controller-bindings-v1", Context.MODE_PRIVATE)
 
-    fun get(action: ControllerAction): ControllerBinding = preferences.getString(action.id, null)
-        ?.let { runCatching { parse(JSONObject(it)) }.getOrNull() } ?: action.default
+    private fun scopedKey(action: ControllerAction): String? =
+        engine?.lowercase()?.let { "engine.$it.${action.id}" }
+
+    private fun read(key: String): ControllerBinding? = preferences.getString(key, null)
+        ?.let { runCatching { parse(JSONObject(it)) }.getOrNull() }
+
+    fun get(action: ControllerAction): ControllerBinding =
+        scopedKey(action)?.let(::read) ?: read(action.id) ?: action.default
+
+    /** True when this engine overrides [action] rather than inheriting it. */
+    fun isOverridden(action: ControllerAction): Boolean =
+        scopedKey(action)?.let { preferences.contains(it) } == true
 
     fun set(action: ControllerAction, binding: ControllerBinding) {
-        preferences.edit().putString(action.id, encode(binding).toString()).apply()
+        val key = scopedKey(action) ?: action.id
+        preferences.edit().putString(key, encode(binding).toString()).apply()
     }
 
-    fun reset() = preferences.edit().clear().apply()
+    /**
+     * Drops this engine's override so the action inherits the global
+     * binding again. A no-op in the global scope, where there is nothing
+     * above to inherit from.
+     */
+    fun clearOverride(action: ControllerAction) {
+        scopedKey(action)?.let { preferences.edit().remove(it).apply() }
+    }
+
+    /** Clears this scope only; the global map survives an engine reset. */
+    fun reset() {
+        if (engine == null) {
+            preferences.edit().clear().apply()
+            return
+        }
+        val prefix = "engine.${engine.lowercase()}."
+        preferences.edit().apply {
+            preferences.all.keys.filter { it.startsWith(prefix) }.forEach { remove(it) }
+        }.apply()
+    }
 
     private fun encode(binding: ControllerBinding) = when (binding) {
         is ControllerBinding.Key -> JSONObject().put("type", "key").put("code", binding.keyCode)
@@ -77,8 +120,17 @@ class ControllerBindingStore(context: Context) {
     }
 }
 
-class RuntimeControllerRouter(context: Context, private val plugin: () -> EnginePlugin?) {
-    private val bindings = ControllerBindingStore(context)
+/**
+ * [engine] is the family of the bundle this session is running, so the
+ * user's per-engine mappings actually apply while playing rather than
+ * only existing in settings.
+ */
+class RuntimeControllerRouter(
+    context: Context,
+    engine: String? = null,
+    private val plugin: () -> EnginePlugin?,
+) {
+    private val bindings = ControllerBindingStore(context, engine)
 
     fun key(event: KeyEvent): Boolean {
         if (!event.isControllerInput()) return false

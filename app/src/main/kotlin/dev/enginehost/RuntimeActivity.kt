@@ -35,7 +35,11 @@ class RuntimeActivity : FragmentActivity() {
     private var runtimeStarted = false
     private var pendingRequiredFile: String? = null
     private val resourceHandles = mutableListOf<AutoCloseable>()
-    private val controllers by lazy { RuntimeControllerRouter(this) { plugin } }
+    // Scoped to the engine this session is running, so the user's
+    // per-engine mappings apply while playing rather than only in settings.
+    private val controllers by lazy {
+        RuntimeControllerRouter(this, intent.getStringExtra(EXTRA_ENGINE)) { plugin }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
