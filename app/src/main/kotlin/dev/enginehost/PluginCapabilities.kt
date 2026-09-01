@@ -14,6 +14,22 @@ data class VersionRange(val min: Version, val max: Version) {
 }
 
 /** One runtime bundled by a plugin build, with explicit game compatibility. */
+/**
+ * Where controller input is handled for a capability.
+ *
+ * [NATIVE] engines have first-class controller support of their own
+ * (Ren'Py, Godot). The host must NOT consume their events: returning
+ * false from onControllerEvent lets Android's normal dispatch reach the
+ * engine's own view, which is what makes them work. Host remapping does
+ * not apply, and the engine's own controller settings do.
+ *
+ * [HOST] engines have no controller handling worth the name and consume
+ * the host's normalised, remapped actions instead -- KiriKiri's Cocos
+ * runtime being the motivating case. These are the ones a wrapper has to
+ * translate into the engine's native input system.
+ */
+enum class ControllerInput { NATIVE, HOST }
+
 data class EngineCapability(
     val id: String,
     val engineContext: String,
@@ -23,6 +39,12 @@ data class EngineCapability(
     val supportedRanges: List<VersionRange>,
     val runtimeComponents: Map<String, Version> = emptyMap(),
     val acceptsAnyEngineVersion: Boolean = false,
+    /**
+     * Defaults to NATIVE, which is honest about every bundle shipped so
+     * far: none implements onControllerEvent, so all of them currently
+     * fall through to their engine's own handling.
+     */
+    val controllerInput: ControllerInput = ControllerInput.NATIVE,
 ) {
     fun supports(version: Version): Boolean =
         acceptsAnyEngineVersion || version == runtimeVersion || version in supportedVersions ||
@@ -95,6 +117,11 @@ object PluginCapabilitiesReader {
                     EngineCapability(
                         id, context, runtimeVersion, versions, series, ranges, components,
                         entry.optBoolean("acceptsAnyEngineVersion", false),
+                        if (entry.optString("controllerInput").equals("host", ignoreCase = true)) {
+                            ControllerInput.HOST
+                        } else {
+                            ControllerInput.NATIVE
+                        },
                     ),
                 )
             }

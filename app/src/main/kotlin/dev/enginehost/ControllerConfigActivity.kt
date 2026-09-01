@@ -27,6 +27,24 @@ class ControllerConfigActivity : Activity(), InputManager.InputDeviceListener {
         }.getOrDefault(emptyList())
     }
 
+    /**
+     * Engines whose bundles all handle controllers themselves. Remapping
+     * here does not reach them, and saying so is the difference between
+     * a documented boundary and an apparent bug.
+     */
+    private val nativeInputEngines: Set<String> by lazy {
+        runCatching {
+            PluginRegistry.discover(this)
+                .groupBy { it.info.engine }
+                .filterValues { plugins ->
+                    plugins.all { plugin ->
+                        plugin.info.capabilities.all { it.controllerInput == ControllerInput.NATIVE }
+                    }
+                }
+                .keys
+        }.getOrDefault(emptySet())
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "Controller settings"
@@ -71,7 +89,11 @@ class ControllerConfigActivity : Activity(), InputManager.InputDeviceListener {
         })
         installedEngines.forEach { engine ->
             content.addView(Button(this).apply {
-                text = engine + if (scope == engine) "  (editing)" else ""
+                text = buildString {
+                    append(engine)
+                    if (engine in nativeInputEngines) append("  (handles its own controller)")
+                    if (scope == engine) append("  (editing)")
+                }
                 setOnClickListener { switchScope(engine) }
             })
         }
@@ -81,6 +103,10 @@ class ControllerConfigActivity : Activity(), InputManager.InputDeviceListener {
                 ?: if (scope == null) {
                     "The map every engine starts from. Each engine translates these " +
                         "actions into its own native input system."
+                } else if (scope in nativeInputEngines) {
+                    "$scope handles controllers itself, so these mappings don't reach " +
+                        "it. Configure the pad inside the game or in that engine's own " +
+                        "settings instead."
                 } else {
                     "Overrides for $scope only. Anything left inherited follows the " +
                         "All engines map."

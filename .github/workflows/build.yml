@@ -2,7 +2,10 @@ name: Android build
 
 on:
   push:
-    branches: [main]
+    # codex/engine-bundles is where the work actually happens; without it
+    # here, commits to the active line were never built and two landed
+    # unverified before this was noticed.
+    branches: [main, codex/engine-bundles]
   pull_request:
   workflow_dispatch:
 
