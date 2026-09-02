@@ -48,6 +48,21 @@ class GameScanner(
         val queue = ArrayDeque<Pair<File, Int>>()
         val seen = HashSet<String>()
         queue.add(root to 0)
+
+        // Reported on every path through the loop below (including the
+        // early `continue`s for a found game, an unreadable directory, or
+        // an unresolvable path) so the listener's progress count always
+        // matches the number of directories actually examined. Batched to
+        // every PROGRESS_EVERY so it doesn't flood the UI thread on a big
+        // tree, but the batching check itself must never be skippable --
+        // that was the original bug: a `continue` taken before this call
+        // reached its old position at the bottom of the loop meant a run
+        // of game-root folders (found++'d) advanced `examined` internally
+        // while the listener heard about none of it.
+        fun reportProgress() {
+            if (examined % PROGRESS_EVERY == 0) listener.onProgress(examined, found)
+        }
+
         while (queue.isNotEmpty()) {
             if (cancelled || examined >= maxDirectories) {
                 stoppedEarly = true
@@ -56,7 +71,13 @@ class GameScanner(
             val (directory, depth) = queue.removeFirst()
             val canonical = runCatching { directory.canonicalPath }.getOrNull()
             if (canonical == null) {
+                // Could not even resolve the path (broken symlink, FUSE
+                // hiccup). The scanner still attempted this directory, so
+                // it counts toward "how much of the card has it looked
+                // at" the same as any other unreadable entry.
+                examined++
                 unreadable++
+                reportProgress()
                 continue
             }
             if (!seen.add(canonical)) continue
@@ -64,6 +85,7 @@ class GameScanner(
             val children = runCatching { directory.listFiles() }.getOrNull()
             if (children == null) {
                 unreadable++
+                reportProgress()
                 continue
             }
             if (looksLikeGameRoot(children)) {
@@ -73,6 +95,7 @@ class GameScanner(
                     listener.onFound(GameCandidate(directory, detection))
                     // A recognized game tree is one game; its interior is not
                     // searched for further games.
+                    reportProgress()
                     continue
                 }
             }
@@ -82,7 +105,7 @@ class GameScanner(
                     if (isDirectory && !child.name.startsWith(".")) queue.add(child to depth + 1)
                 }
             }
-            if (examined % PROGRESS_EVERY == 0) listener.onProgress(examined, found)
+            reportProgress()
         }
         listener.onFinished(examined, found, stoppedEarly, unreadable)
     }
