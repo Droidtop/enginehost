@@ -133,9 +133,17 @@ object PluginRegistry {
     }
 
     fun uninstall(context: Context, bundleId: String): Boolean {
-        val installed = discover(context).firstOrNull { it.bundleId == bundleId } ?: return false
-        installed.directory.walkBottomUp().forEach { it.setWritable(true, true) }
-        return installed.directory.deleteRecursively()
+        // Every directory carrying the ID, not just the first: an interrupted
+        // in-place update can briefly leave a superseded build alongside the
+        // new one (see EngineBundleInstaller), and uninstalling means all of it.
+        val installed = discover(context).filter { it.bundleId == bundleId }
+        if (installed.isEmpty()) return false
+        return installed
+            .map { plugin ->
+                plugin.directory.walkBottomUp().forEach { it.setWritable(true, true) }
+                plugin.directory.deleteRecursively()
+            }
+            .all { it }
     }
 
     fun resolve(

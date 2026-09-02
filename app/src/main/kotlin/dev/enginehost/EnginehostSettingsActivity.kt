@@ -44,7 +44,67 @@ class EnginehostSettingsActivity : AppCompatActivity() {
             refresh()
         }
         findViewById<Button>(R.id.updateDetectionRulesButton).setOnClickListener { updateDetectionRules() }
+
+        val updateCheck = PluginUpdateCheck(this)
+        findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.checkUpdatesSwitch).apply {
+            isChecked = updateCheck.checkAutomatically
+            setOnCheckedChangeListener { _, checked -> updateCheck.checkAutomatically = checked }
+        }
+        findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.autoInstallPluginsSwitch).apply {
+            isChecked = updateCheck.installAutomatically
+            setOnCheckedChangeListener { _, checked -> updateCheck.installAutomatically = checked }
+        }
+        findViewById<TextView>(R.id.appVersionValue).text = getString(
+            R.string.app_version_line,
+            packageManager.getPackageInfo(packageName, 0).versionName,
+            AppUpdate.installedVersionCode(this),
+        )
+        findViewById<Button>(R.id.checkAppUpdateButton).setOnClickListener { checkAppUpdate() }
         refresh()
+    }
+
+    private fun checkAppUpdate() {
+        val checkButton = findViewById<Button>(R.id.checkAppUpdateButton)
+        val installButton = findViewById<Button>(R.id.installAppUpdateButton)
+        checkButton.isEnabled = false
+        checkButton.setText(R.string.app_update_checking)
+        Thread {
+            val result = runCatching { AppUpdate.fetch() }
+            runOnUiThread {
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                checkButton.isEnabled = true
+                checkButton.setText(R.string.app_update_check_now)
+                result.onSuccess { info ->
+                    if (info.versionCode > AppUpdate.installedVersionCode(this)) {
+                        installButton.visibility = android.view.View.VISIBLE
+                        installButton.text = getString(R.string.app_update_install, info.versionName)
+                        installButton.setOnClickListener {
+                            installButton.isEnabled = false
+                            AppUpdate.downloadAndInstall(
+                                this,
+                                info,
+                                onStatus = { status ->
+                                    runOnUiThread { installButton.text = status }
+                                },
+                                onError = { message ->
+                                    runOnUiThread {
+                                        installButton.isEnabled = true
+                                        installButton.text = getString(R.string.app_update_install, info.versionName)
+                                        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                            )
+                        }
+                    } else {
+                        installButton.visibility = android.view.View.GONE
+                        Toast.makeText(this, R.string.app_update_none, Toast.LENGTH_LONG).show()
+                    }
+                }.onFailure { error ->
+                    Toast.makeText(this, error.message ?: getString(R.string.app_update_failed), Toast.LENGTH_LONG)
+                        .show()
+                }
+            }
+        }.start()
     }
 
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")

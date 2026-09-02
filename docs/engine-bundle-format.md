@@ -25,6 +25,14 @@ The manifest includes `bundleId`, `assetName`, `engine`, `pluginVersion`,
 `payloadSha256`, and `files`. Every `files` item signs the relative path, byte
 size, POSIX permission bits, and SHA-256 digest.
 
+Within one `bundleId`, `pluginVersion` is the total order on builds: a
+release with the same ID from the same origin and a strictly higher
+`pluginVersion` is an update and replaces the older build in place, while a
+new ID (a new series, or a deliberate `-vN` bump) coexists. How updates are
+discovered, gated and approved is docs/plugin-catalog.md's Updates section;
+the invariant that matters here is that replacing bytes never carries over
+approval, which is bound to the exact archive digest and signer.
+
 Each capability declares the exact `runtimeVersion` bundled. Compatibility can
 be advertised as exact `supportedVersions`, inclusive `supportedRanges`, and/or
 `supportedSeries`. A series is a dotted component prefix: `"8.2"` matches

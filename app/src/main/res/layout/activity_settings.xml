@@ -124,5 +124,65 @@
             android:layout_marginTop="@dimen/eh_space_s"
             android:text="@string/update_detection_rules" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_l"
+            android:text="@string/updates_section"
+            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/checkUpdatesSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/updates_check_daily" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/updates_check_daily_hint"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/autoInstallPluginsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/updates_install_plugins_automatically" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/updates_install_plugins_automatically_hint"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <TextView
+            android:id="@+id/appVersionValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:background="@drawable/eh_card_bg"
+            android:padding="@dimen/eh_space_s"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+        <Button
+            android:id="@+id/checkAppUpdateButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/app_update_check_now" />
+
+        <Button
+            android:id="@+id/installAppUpdateButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:visibility="gone"
+            android:text="@string/app_update_install" />
+
     </LinearLayout>
 </ScrollView>

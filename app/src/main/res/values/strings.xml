@@ -219,4 +219,23 @@
     <string name="update_detection_rules">Update detection rules</string>
     <string name="detection_rules_updated">Detection rules updated (%1$d engines)</string>
     <string name="detection_rules_update_failed">Update failed: %1$s</string>
+    <string name="update_to_build">Update to build %1$s</string>
+    <string name="updates_section">Updates</string>
+    <string name="updates_check_daily">Check for updates once a day</string>
+    <string name="updates_check_daily_hint">Lists the published releases of the repositories your installed plugins came from, plus the newest Enginehost build — nothing about this device or your games is sent. Turning this off stops all automatic update traffic.</string>
+    <string name="updates_install_plugins_automatically">Install plugin updates automatically</string>
+    <string name="updates_install_plugins_automatically_hint">Replaces an installed plugin when its repository publishes a newer signed build. The new build still needs your approval before it runs anything.</string>
+    <string name="app_version_line">Enginehost %1$s (build %2$d)</string>
+    <string name="app_update_available">Enginehost %1$s is available</string>
+    <string name="app_update_check_now">Check for an Enginehost update</string>
+    <string name="app_update_checking">Checking…</string>
+    <string name="app_update_none">This is the newest published build</string>
+    <string name="app_update_install">Install Enginehost %1$s</string>
+    <string name="app_update_downloading">Downloading Enginehost %1$s…</string>
+    <string name="app_update_handing_to_installer">Handing the update to the Android installer…</string>
+    <string name="app_update_failed">Update failed</string>
+    <plurals name="plugin_updates_available">
+        <item quantity="one">%d plugin update is available</item>
+        <item quantity="other">%d plugin updates are available</item>
+    </plurals>
 </resources>

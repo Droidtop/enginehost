@@ -65,6 +65,35 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (::library.isInitialized) renderLibrary()
+        val check = PluginUpdateCheck(this)
+        check.maybeRun { pending ->
+            runOnUiThread {
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                val appUpdate = check.newerAppVersionName()
+                val lines = mutableListOf<String>()
+                if (pending.isNotEmpty()) {
+                    lines += resources.getQuantityString(
+                        R.plurals.plugin_updates_available, pending.size, pending.size,
+                    )
+                }
+                appUpdate?.let { lines += getString(R.string.app_update_available, it) }
+                findViewById<TextView>(R.id.updateNotice).apply {
+                    visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
+                    if (lines.isNotEmpty()) {
+                        text = lines.joinToString("\n")
+                        setOnClickListener {
+                            startActivity(
+                                if (pending.isNotEmpty()) {
+                                    Intent(this@MainActivity, PluginCatalogActivity::class.java)
+                                } else {
+                                    Intent(this@MainActivity, EnginehostSettingsActivity::class.java)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")

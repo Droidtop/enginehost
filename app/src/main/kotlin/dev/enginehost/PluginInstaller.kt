@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import java.io.File
@@ -63,6 +64,9 @@ object PluginInstaller {
         }.start()
     }
 
+    /** Download (or reuse the cached copy of) a catalog entry's archive, quietly. */
+    fun fetch(context: Context, plugin: AvailablePlugin): File = download(context, plugin, null)
+
     private fun copyIn(activity: Activity, uri: Uri): File {
         val directory = File(activity.cacheDir, "engine-bundle-downloads").apply { mkdirs() }
         val archive = File(directory, "picked-${System.currentTimeMillis()}.enginehost.tar.xz")
@@ -74,11 +78,11 @@ object PluginInstaller {
     }
 
     private fun download(
-        activity: Activity,
+        context: Context,
         plugin: AvailablePlugin,
         onStatus: ((String) -> Unit)? = null,
     ): File {
-        val directory = File(activity.cacheDir, "engine-bundle-downloads").apply { mkdirs() }
+        val directory = File(context.cacheDir, "engine-bundle-downloads").apply { mkdirs() }
         val cacheName = plugin.archiveSha256?.lowercase() ?: sha256(plugin.archiveUrl.toByteArray()).lowercase()
         val archive = File(directory, "$cacheName.enginehost.tar.xz")
         if (archive.isFile && (plugin.archiveSha256 == null || sha256(archive) == plugin.archiveSha256)) return archive
@@ -109,12 +113,12 @@ object PluginInstaller {
                             reportedMegabytes = megabytes
                             onStatus(
                                 if (totalBytes > 0) {
-                                    activity.getString(
+                                    context.getString(
                                         R.string.downloading_progress,
                                         plugin.manifest.assetName, megabytes, totalBytes shr 20,
                                     )
                                 } else {
-                                    activity.getString(
+                                    context.getString(
                                         R.string.downloading_progress_unknown,
                                         plugin.manifest.assetName, megabytes,
                                     )
@@ -124,7 +128,7 @@ object PluginInstaller {
                     }
                 }
             }
-            onStatus?.invoke(activity.getString(R.string.installing))
+            onStatus?.invoke(context.getString(R.string.installing))
             require(temporary.length() <= MAX_ARCHIVE_BYTES) { "Engine bundle exceeds the download size limit" }
         } finally {
             connection.disconnect()

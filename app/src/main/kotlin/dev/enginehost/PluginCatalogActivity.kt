@@ -212,14 +212,21 @@ class PluginCatalogActivity : AppCompatActivity() {
             }
         } else {
             val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
-            val installed = isInstalled(plugin.bundleId)
+            val installed = PluginRegistry.discover(this).filter { it.bundleId == plugin.bundleId }
+            // A strictly newer build of an installed bundle is an update; the
+            // installer replaces in place and the trust prompt re-appears for
+            // the new archive before it can run.
+            val update = installed.isNotEmpty() &&
+                installed.all { PluginUpdates.isNewerBuildOf(it, plugin.manifest) }
             val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
-            button.text = when {
-                installed -> getString(R.string.installed)
+            val idleLabel = when {
+                installed.isNotEmpty() && !update -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
+                update -> getString(R.string.update_to_build, plugin.info.pluginVersion.toString())
                 else -> getString(R.string.install_asset, plugin.manifest.assetName)
             }
-            button.isEnabled = !installed && supportedApi
+            button.text = idleLabel
+            button.isEnabled = (installed.isEmpty() || update) && supportedApi
             button.setOnClickListener {
                 button.isEnabled = false
                 button.setText(R.string.installing)
@@ -228,7 +235,7 @@ class PluginCatalogActivity : AppCompatActivity() {
                     plugin,
                     onError = { message ->
                         button.isEnabled = true
-                        button.text = getString(R.string.install_asset, plugin.manifest.assetName)
+                        button.text = idleLabel
                         toast(message)
                     },
                     onStatus = { status -> runOnUiThread { statusText.text = status } },

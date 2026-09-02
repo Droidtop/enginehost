@@ -8,6 +8,13 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- In-app self-update: opening a PackageInstaller session for our own
+         APK needs the install-unknown-apps grant; the second permission lets
+         Android 12+ skip the confirmation dialog only when the system itself
+         judges Enginehost eligible (its own installer of record). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
@@ -69,6 +76,11 @@
 
         <activity
             android:name=".PluginTrustActivity"
+            android:exported="false" />
+
+        <!-- PackageInstaller reports the self-update verdict here. -->
+        <receiver
+            android:name=".AppUpdateStatusReceiver"
             android:exported="false" />
 
         <activity

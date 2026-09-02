@@ -160,8 +160,23 @@ object EngineBundleInstaller {
             require(PluginOriginKeyStore(context).matches(manifest.origin, manifest.signingKeySha256)) {
                 "Bundle signer does not match the key pinned for ${manifest.origin}"
             }
-            val existing = PluginRegistry.discover(context).firstOrNull { it.bundleId == manifest.bundleId }
-            require(existing == null) { "Bundle ${manifest.bundleId} is already installed" }
+            // Every directory carrying this bundle ID, not just the first:
+            // a crash between a previous replacement's rename and its cleanup
+            // can leave a superseded build behind, and treating the whole set
+            // here makes a retried install remove it rather than trip on it.
+            val existing = PluginRegistry.discover(context).filter { it.bundleId == manifest.bundleId }
+            existing.forEach { previous ->
+                require(previous.archiveSha256 != archiveSha) { "Bundle ${manifest.bundleId} is already installed" }
+                // Same line, different bytes: only a strictly newer build from
+                // the same origin may replace what is there. The replacement
+                // arrives unapproved -- trust decisions bind the exact archive
+                // digest and signer, so the user re-approves the new build
+                // before it ever executes.
+                require(PluginUpdates.isNewerBuildOf(previous, manifest)) {
+                    "Bundle ${manifest.bundleId} build ${previous.info.pluginVersion} is already installed; " +
+                        "only a newer build from the same repository can replace it"
+                }
+            }
             File(staging, PluginRegistry.SIGNED_MANIFEST).writeBytes(manifest.rawBytes)
             File(staging, PluginRegistry.SIGNED_SIGNATURE).writeText(
                 Base64.getEncoder().encodeToString(extracted.signatureBytes),
@@ -175,6 +190,14 @@ object EngineBundleInstaller {
             }
             val destination = File(root, "${manifest.bundleId}--${archiveSha.take(16).lowercase()}")
             require(staging.renameTo(destination)) { "Could not atomically install engine bundle" }
+            // Only after the replacement is fully installed. A crash between
+            // the rename and this cleanup at worst leaves the superseded build
+            // behind alongside the new one; the existing-set handling above
+            // clears it on the next install of a newer build.
+            existing.forEach { previous ->
+                previous.directory.walkBottomUp().forEach { it.setWritable(true, true) }
+                previous.directory.deleteRecursively()
+            }
             return PluginRegistry.readRecord(destination)
         } catch (error: Throwable) {
             forceDeleteRecursively(staging)

@@ -9,6 +9,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# gh release create/delete needs write access to repo contents; the
+# default GITHUB_TOKEN is read-only unless granted this explicitly.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -38,6 +43,10 @@ jobs:
           ENGINEHOST_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ENGINEHOST_ANDROID_KEYSTORE_PASSWORD }}
           ENGINEHOST_ANDROID_KEY_ALIAS: enginehost
           ENGINEHOST_ANDROID_KEY_PASSWORD: ${{ secrets.ENGINEHOST_ANDROID_KEYSTORE_PASSWORD }}
+          # A plain monotonic integer (per workflow file), read by
+          # app/build.gradle.kts as the versionCode so newer builds are
+          # newer to Android and to the in-app update check.
+          VERSION_REVISION: ${{ github.run_number }}
         run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
       - name: Upload APK
@@ -45,3 +54,41 @@ jobs:
         with:
           name: enginehost-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish rolling "latest" release
+        # Same shape as droidtop's: a permanent, linkable "give this to
+        # someone to install" release that always points at the newest
+        # build of the active line. codex/engine-bundles is that line;
+        # main is stale, and publishing from both would make "latest"
+        # flap between two histories.
+        #
+        # release-info.json is the in-app update check's one probe: the
+        # app downloads this small file unauthenticated, compares
+        # versionCode with its own, and verifies any downloaded APK
+        # against apkSha256 before handing it to the Android installer
+        # (see AppUpdate.kt).
+        if: github.ref == 'refs/heads/codex/engine-bundles' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk enginehost-latest.apk
+          python3 - <<'PY'
+          import hashlib, json
+          digest = hashlib.sha256(open("enginehost-latest.apk", "rb").read()).hexdigest().upper()
+          json.dump(
+              {
+                  "formatVersion": 1,
+                  "versionCode": ${{ github.run_number }},
+                  "versionName": "0.1.0-dev-${{ github.run_number }}",
+                  "apkName": "enginehost-latest.apk",
+                  "apkSha256": digest,
+                  "commit": "${{ github.sha }}",
+              },
+              open("release-info.json", "w"),
+              indent=2,
+          )
+          PY
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest enginehost-latest.apk release-info.json \
+            --title "Enginehost — latest build" \
+            --notes "Automatically built from commit ${{ github.sha }} (build ${{ github.run_number }}). Signed with the persistent Enginehost CI key, so it installs over a previous \"latest\" without uninstalling. release-info.json is what the in-app update check reads."
