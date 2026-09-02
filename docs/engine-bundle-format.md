@@ -71,3 +71,37 @@ Enginehost attaches each APK's loader to every `Resources` object a plugin
 can reasonably resolve from — the runtime activity's and the application's.
 An engine that keeps `context.applicationContext` therefore finds its own
 resources without the bundle having to attach anything itself.
+
+## Declared options
+
+`declaredOptions` is an optional manifest array describing the `options`
+keys the bundle's engine actually reads, so the config editor can offer a
+labelled, typed control instead of a blind JSON field. It is advisory and
+explicitly non-exhaustive: it is never a validation schema, a user can
+always add a key no bundle declared, and no config fails to save because of
+one.
+
+Each entry carries `key` (required), `label`, `description`, `repeats`
+(default false, for keys whose value is a JSON array), and `type`:
+
+| type      | control                                                    |
+| --------- | ---------------------------------------------------------- |
+| `string`  | free text, parsed as JSON when it parses (the default)      |
+| `number`  | free text                                                   |
+| `boolean` | true / false                                                |
+| `choice`  | a `choices` array of `{value, label}`                       |
+| `path`    | the system folder picker; the value is a directory path     |
+| `file`    | the system file picker; the value is a single file path     |
+
+`path` and `file` are distinct because the engines are: mkxp-z's
+`rtpPaths` wants a directory, while its `customScript` and `midiSoundFont`,
+and EasyRPG's `soundfont`, `font1` and `font2`, each want one file. A
+`file` entry may add a `mimeTypes` array of hints, which is passed to the
+picker so a SoundFont field does not offer images; it is optional, and
+omitting it offers everything. Extensions are deliberately not part of the
+hint — the system picker filters on the MIME type a document provider
+reports and has no notion of a file name suffix.
+
+An unrecognised `type` falls back to the free-text editor rather than being
+rejected, so a bundle declaring a type a given Enginehost build predates
+stays usable.

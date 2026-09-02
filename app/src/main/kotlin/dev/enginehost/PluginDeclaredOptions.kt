@@ -18,21 +18,32 @@ import java.io.File
 data class DeclaredOption(
     val key: String,
     val label: String,
-    /** One of "path", "boolean", "number", "string", "choice". */
+    /** One of "path", "file", "boolean", "number", "string", "choice". */
     val type: String,
     /** True when the value is a JSON array of the type (e.g. rtpPaths). */
     val repeats: Boolean,
     val description: String,
     /** For type "choice": value to human label. */
     val choices: List<Pair<String, String>>,
+    /**
+     * For type "file": an advisory MIME hint so the picker offers the kind
+     * of file the option actually takes. Empty means offer everything, and
+     * a declaration that omits it is not thereby wrong -- like every other
+     * part of this declaration, it suggests and never gates.
+     */
+    val mimeTypes: List<String> = emptyList(),
 )
 
 /**
  * Reads `declaredOptions` from installed bundles' signed manifests, the
  * on-device copy of each repository's bundle-metadata.json. Contract, per
- * entry: `key` (required), `label`, `type` ("path" | "boolean" | "number" |
- * "string" | "choice", default "string"), `repeats` (default false),
- * `description`, and for "choice" a `choices` array of {value, label}.
+ * entry: `key` (required), `label`, `type` ("path" | "file" | "boolean" |
+ * "number" | "string" | "choice", default "string"), `repeats` (default
+ * false), `description`, for "choice" a `choices` array of {value, label},
+ * and for "file" an optional `mimeTypes` array of hints. "path" is a
+ * folder and "file" is a single file; a declaration that predates "file"
+ * keeps meaning exactly what it meant, and an unrecognised type falls back
+ * to the free-text editor rather than being rejected.
  *
  * Read fresh on every call: a declared list can grow between plugin
  * versions, so nothing here is cached as permanent truth.
@@ -65,6 +76,14 @@ object DeclaredOptionsReader {
                         }
                     }
                 }
+                val mimeTypes = buildList {
+                    val array = entry.optJSONArray("mimeTypes")
+                    if (array != null) {
+                        for (mimeIndex in 0 until array.length()) {
+                            array.optString(mimeIndex).takeIf { it.isNotBlank() }?.let(::add)
+                        }
+                    }
+                }
                 add(
                     DeclaredOption(
                         key = key,
@@ -73,6 +92,7 @@ object DeclaredOptionsReader {
                         repeats = entry.optBoolean("repeats", false),
                         description = entry.optString("description"),
                         choices = choices,
+                        mimeTypes = mimeTypes,
                     ),
                 )
             }

@@ -6,6 +6,7 @@
     <string name="cancel">Cancel</string>
     <string name="remove">Remove</string>
     <string name="choose_shared_storage_folder">Choose a folder on internal or removable shared storage</string>
+    <string name="choose_shared_storage_file">Choose a file on internal or removable shared storage</string>
 
     <!-- Home -->
     <string name="main_subtitle">Launch games directly with the same configuration and plugin rules other apps use.</string>
@@ -186,6 +187,7 @@
     <string name="option_false">Disabled (false)</string>
     <string name="option_add_entry">Add an entry…</string>
     <string name="option_pick_folder">Choose a folder…</string>
+    <string name="option_pick_file">Choose a file…</string>
     <string name="option_remove_entry">Remove: %1$s</string>
     <string name="options_empty">No options set. Options are optional; add one only when the engine needs it.</string>
     <string name="save_config">Save enginehost.json</string>

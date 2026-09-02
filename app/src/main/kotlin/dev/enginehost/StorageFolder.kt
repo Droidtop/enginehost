@@ -9,15 +9,36 @@ import android.provider.DocumentsContract
 import android.provider.Settings
 import java.io.File
 
-/** Common system-file-manager folder selection and external-storage path mapping. */
+/** Common system-file-manager selection and external-storage path mapping. */
 object StorageFolder {
     fun pickerIntent(initialUri: Uri? = null) =
-        android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+        Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                    android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
-                    android.content.Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
+            )
+            initialUri?.let { putExtra(DocumentsContract.EXTRA_INITIAL_URI, it) }
+        }
+
+    /**
+     * A single file, for the options that take one -- a SoundFont, a
+     * replacement script -- rather than a directory.
+     *
+     * [mimeTypes] is the declaring plugin's advisory hint and is allowed to
+     * be empty, in which case everything is offered. It is the only filter
+     * ACTION_OPEN_DOCUMENT actually applies: the system picker has no notion
+     * of a file extension, and asks each provider for its own MIME type.
+     */
+    fun filePickerIntent(mimeTypes: List<String> = emptyList(), initialUri: Uri? = null) =
+        Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = mimeTypes.singleOrNull() ?: "*/*"
+            if (mimeTypes.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes.toTypedArray())
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
             )
             initialUri?.let { putExtra(DocumentsContract.EXTRA_INITIAL_URI, it) }
         }
@@ -28,10 +49,20 @@ object StorageFolder {
      * primary or removable shared storage. Other document providers remain
      * valid for config editing, but cannot be handed to a path-based engine.
      */
-    fun absolutePath(uri: Uri): File? {
+    fun absolutePath(uri: Uri): File? =
+        resolveDocument(uri) { DocumentsContract.getTreeDocumentId(it) }
+
+    /**
+     * The same mapping for a [filePickerIntent] result. A single picked
+     * document has no tree behind it, so its ID is read the other way.
+     */
+    fun absoluteFilePath(uri: Uri): File? =
+        resolveDocument(uri) { DocumentsContract.getDocumentId(it) }
+
+    private fun resolveDocument(uri: Uri, documentId: (Uri) -> String): File? {
         if (uri.authority != "com.android.externalstorage.documents") return null
-        val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return null
-        val parts = documentId.split(':', limit = 2)
+        val id = runCatching { documentId(uri) }.getOrNull() ?: return null
+        val parts = id.split(':', limit = 2)
         val volume = parts[0]
         val root = if (volume.equals("primary", ignoreCase = true)) {
             Environment.getExternalStorageDirectory().canonicalFile

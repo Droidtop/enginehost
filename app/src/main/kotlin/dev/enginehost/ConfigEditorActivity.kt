@@ -130,6 +130,25 @@ class ConfigEditorActivity : AppCompatActivity() {
             refreshEditors()
             return
         }
+        if (requestCode == REQUEST_OPTION_FILE && resultCode == RESULT_OK) {
+            val key = pendingOptionKey ?: return
+            pendingOptionKey = null
+            val uri = data?.data ?: return
+            val file = StorageFolder.absoluteFilePath(uri)
+            if (file == null) {
+                toast(getString(R.string.choose_shared_storage_file))
+                return
+            }
+            if (pendingOptionAppends) {
+                val array = options.optJSONArray(key) ?: JSONArray()
+                array.put(file.absolutePath)
+                options.put(key, array)
+            } else {
+                options.put(key, file.absolutePath)
+            }
+            refreshEditors()
+            return
+        }
         if (requestCode != REQUEST_FOLDER || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
         val flags = data.flags and (
@@ -385,6 +404,7 @@ class ConfigEditorActivity : AppCompatActivity() {
                 showItems(R.string.add_option, labels, actions)
             }
             "path" -> pickOptionFolder(option.key, appends = false)
+            "file" -> pickOptionFile(option, appends = false)
             else -> promptOptionValue(option.key)
         }
     }
@@ -407,6 +427,9 @@ class ConfigEditorActivity : AppCompatActivity() {
         if (option.type == "path") {
             labels += getString(R.string.option_pick_folder)
             actions += { pickOptionFolder(option.key, appends = true) }
+        } else if (option.type == "file") {
+            labels += getString(R.string.option_pick_file)
+            actions += { pickOptionFile(option, appends = true) }
         } else {
             labels += getString(R.string.option_add_entry)
             actions += {
@@ -427,6 +450,12 @@ class ConfigEditorActivity : AppCompatActivity() {
         pendingOptionKey = key
         pendingOptionAppends = appends
         startActivityForResult(StorageFolder.pickerIntent(), REQUEST_OPTION_FOLDER)
+    }
+
+    private fun pickOptionFile(option: DeclaredOption, appends: Boolean) {
+        pendingOptionKey = option.key
+        pendingOptionAppends = appends
+        startActivityForResult(StorageFolder.filePickerIntent(option.mimeTypes), REQUEST_OPTION_FILE)
     }
 
     private fun promptOptionValue(key: String) {
@@ -758,5 +787,6 @@ class ConfigEditorActivity : AppCompatActivity() {
         private const val REQUEST_NATIVE_FILES = 21
         private const val REQUEST_PLUGIN_SELECTION = 22
         private const val REQUEST_OPTION_FOLDER = 23
+        private const val REQUEST_OPTION_FILE = 24
     }
 }
