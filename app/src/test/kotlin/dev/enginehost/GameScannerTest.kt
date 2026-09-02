@@ -55,6 +55,43 @@ class GameScannerTest {
     }
 
     @Test
+    fun `reads the engine version out of a godot pack header`() {
+        val root = tempRoot()
+        val game = File(root, "exports/Packed").apply { mkdirs() }
+        val header = java.nio.ByteBuffer.allocate(40).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        header.put("GDPC".toByteArray(Charsets.US_ASCII))
+        header.putInt(2)
+        header.putInt(4)
+        header.putInt(5)
+        header.putInt(1)
+        File(game, "game.pck").writeBytes(header.array())
+
+        val collector = Collector()
+        GameScanner().scan(root, collector)
+
+        val detection = collector.found.single().detection
+        assertEquals("godot", detection.engine)
+        assertEquals("4.5.1", detection.engineVersion)
+    }
+
+    @Test
+    fun `old renpy version comes from the runtime init when vc_version has only a stamp`() {
+        val root = tempRoot()
+        val game = File(root, "OldGame").apply { mkdirs() }
+        File(game, "renpy").mkdirs()
+        File(game, "game").mkdirs()
+        File(game, "renpy/vc_version.py").writeText("vc_version = 22090809\n")
+        File(game, "renpy/__init__.py").writeText("version_tuple = (7, 5, 3, vc_version)\n")
+
+        val collector = Collector()
+        GameScanner().scan(root, collector)
+
+        val detection = collector.found.single().detection
+        assertEquals("renpy", detection.engine)
+        assertEquals("7.5.3", detection.engineVersion)
+    }
+
+    @Test
     fun `a folder with no engine evidence finds nothing`() {
         val root = tempRoot()
         File(root, "documents").mkdirs()

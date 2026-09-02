@@ -44,6 +44,19 @@ object EngineDetector {
                     )
                 }
         }
+        // The RGSS archive generation is itself the context evidence.
+        files.values.firstOrNull { it.extension.equals("rgss3a", true) }?.let {
+            return EngineDetection(
+                "rpgmaker", "vxace", evidence = "Found an RGSS3 archive (.rgss3a)",
+                runtimeRequirements = mapOf("ruby" to "1.9.2"),
+            )
+        }
+        files.values.firstOrNull { it.extension.equals("rgss2a", true) }?.let {
+            return EngineDetection("rpgmaker", "vx", evidence = "Found an RGSS2 archive (.rgss2a)")
+        }
+        files.values.firstOrNull { it.extension.equals("rgssad", true) }?.let {
+            return EngineDetection("rpgmaker", "xp", evidence = "Found an RGSS archive (.rgssad)")
+        }
         suffix("js/rmmz_core.js")?.let { core ->
             val version = Regex("RPGMAKER_VERSION\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(text(core))?.groupValues?.get(1)
             return EngineDetection("rpgmaker", "mz", version, relative(core).substringBeforeLast("js/rmmz_core.js") + "index.html", "Found rmmz_core.js")
@@ -52,17 +65,45 @@ object EngineDetector {
             val version = Regex("RPGMAKER_VERSION\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(text(core))?.groupValues?.get(1)
             return EngineDetection("rpgmaker", "mv", version, relative(core).substringBeforeLast("js/rpg_core.js") + "index.html", "Found rpg_core.js")
         }
-        if (files.keys.any { it.endsWith("rpg_rt.ldb") } && files.keys.any { it.endsWith("rpg_rt.lmt") }) {
+        if (files.keys.any { it.endsWith("js/main.js") } && files.keys.any { it.endsWith("index.html") }) {
+            return EngineDetection(
+                "rpgmaker",
+                evidence = "Found an RPG Maker MV/MZ web runtime without its core script; choose context mv or mz",
+            )
+        }
+        if (
+            files.keys.any { it.endsWith("rpg_rt.ldb") } &&
+            (files.keys.any { it.endsWith("rpg_rt.lmt") } || files.keys.any { it.endsWith("rpg_rt.exe") })
+        ) {
             return EngineDetection("rpgmaker", evidence = "Found RPG Maker 2000/2003 data; choose the exact context")
         }
-        suffix("renpy/vc_version.py")?.let { versionFile ->
-            val version = Regex("(?m)^version\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(text(versionFile))?.groupValues?.get(1)
+        suffix("renpy/__init__.py")?.let { init ->
+            // Modern Ren'Py writes the full version into vc_version.py; older
+            // builds keep only a build stamp there and the real version_tuple
+            // in the runtime's own __init__.py.
+            val version = suffix("renpy/vc_version.py")
+                ?.let { Regex("(?m)^version\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(text(it))?.groupValues?.get(1) }
+                ?: Regex("version_tuple\\s*=\\s*\\((\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)")
+                    .find(text(init))?.groupValues?.drop(1)?.joinToString(".")
             return EngineDetection("renpy", "standard", version, evidence = "Found the bundled Ren'Py runtime")
         }
         if (files.keys.any { it.endsWith(".rpyc") || it.endsWith(".rpa") }) return EngineDetection("renpy", "standard", evidence = "Found compiled Ren'Py game files")
         files["project.godot"]?.let { project ->
             val version = Regex("(?m)^config/features=.*?[\"'](\\d+(?:\\.\\d+)+)").find(text(project))?.groupValues?.get(1)
             return EngineDetection("godot", "standard", version, "project.godot", "Found a Godot project")
+        }
+        files.values.firstOrNull { it.extension.equals("pck", true) }?.let { pack ->
+            godotPackVersion(pack)?.let { version ->
+                return EngineDetection("godot", "standard", version, relative(pack), "Found a Godot pack (GDPC)")
+            }
+        }
+        files.values.filter { it.extension.equals("exe", true) }.take(4).forEach { executable ->
+            godotEmbeddedPackVersion(executable)?.let { version ->
+                return EngineDetection(
+                    "godot", "standard", version, relative(executable),
+                    "Found a Godot pack embedded in the executable",
+                )
+            }
         }
         files.values.firstOrNull { it.extension.equals("html", true) }?.let { html ->
             val source = text(html)
@@ -80,7 +121,63 @@ object EngineDetector {
         files.values.firstOrNull { it.extension.equals("ps3", true) }?.let { return EngineDetection("cmvs", "ps3", execFile = relative(it), evidence = "Found a CMVS PS3 script; runtime version still needs confirmation") }
         files.values.firstOrNull { it.extension.equals("ps2", true) }?.let { return EngineDetection("cmvs", "ps2", execFile = relative(it), evidence = "Found a CMVS PS2 script; runtime version still needs confirmation") }
         if (files.keys.any { it.endsWith("data01000.arc") }) return EngineDetection("buriko", "compiled-script-v1", evidence = "Found a Buriko archive set; runtime version still needs confirmation")
+        if (files.keys.any { it.contains("_data/") }) {
+            if (files.containsKey("gameassembly.dll") || files.keys.any { it.contains("il2cpp_data/") }) {
+                return EngineDetection("unity", "il2cpp", evidence = "Found a Unity IL2CPP player; no Enginehost plugin runs Unity yet")
+            }
+            if (files.keys.any { it.contains("_data/managed/") }) {
+                return EngineDetection("unity", "mono", evidence = "Found a Unity Mono player; no Enginehost plugin runs Unity yet")
+            }
+        }
         return null
+    }
+
+    /** A standalone Godot pack opens with GDPC, format version, then engine major/minor/patch. */
+    private fun godotPackVersion(file: java.io.File): String? = runCatching {
+        java.io.RandomAccessFile(file, "r").use { raf ->
+            val magic = ByteArray(4)
+            if (raf.length() < 20) return@use null
+            raf.readFully(magic)
+            if (String(magic, Charsets.US_ASCII) != "GDPC") return@use null
+            readGodotHeaderVersion(raf)
+        }
+    }.getOrNull()
+
+    /**
+     * A pack appended to an executable ends with an 8-byte little-endian pack
+     * size followed by GDPC at EOF; the pack itself begins at
+     * length - 12 - packSize with the same header as a standalone pack.
+     */
+    private fun godotEmbeddedPackVersion(file: java.io.File): String? = runCatching {
+        java.io.RandomAccessFile(file, "r").use { raf ->
+            if (raf.length() < 32) return@use null
+            raf.seek(raf.length() - 12)
+            val sizeBytes = ByteArray(8)
+            raf.readFully(sizeBytes)
+            val magic = ByteArray(4)
+            raf.readFully(magic)
+            if (String(magic, Charsets.US_ASCII) != "GDPC") return@use null
+            val packSize = java.nio.ByteBuffer.wrap(sizeBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).long
+            val start = raf.length() - 12 - packSize
+            if (start < 0 || start > raf.length() - 20) return@use null
+            raf.seek(start)
+            val startMagic = ByteArray(4)
+            raf.readFully(startMagic)
+            if (String(startMagic, Charsets.US_ASCII) != "GDPC") return@use null
+            readGodotHeaderVersion(raf)
+        }
+    }.getOrNull()
+
+    private fun readGodotHeaderVersion(raf: java.io.RandomAccessFile): String? {
+        val header = ByteArray(16)
+        raf.readFully(header)
+        val buffer = java.nio.ByteBuffer.wrap(header).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.int
+        val major = buffer.int
+        val minor = buffer.int
+        val patch = buffer.int
+        if (major !in 1..9 || minor !in 0..99 || patch !in 0..999) return null
+        return "$major.$minor.$patch"
     }
 
     fun detect(resolver: ContentResolver, treeUri: Uri): EngineDetection? {
@@ -132,7 +229,25 @@ object EngineDetector {
             )
         }
 
-        if (names.any { it.endsWith("rpg_rt.ldb") } && names.any { it.endsWith("rpg_rt.lmt") }) {
+        files.values.firstOrNull { it.path.endsWith(".rgss3a", true) }?.let {
+            return EngineDetection(
+                "rpgmaker", "vxace", evidence = "Found an RGSS3 archive (.rgss3a)",
+                runtimeRequirements = mapOf("ruby" to "1.9.2"),
+            )
+        }
+        files.values.firstOrNull { it.path.endsWith(".rgss2a", true) }?.let {
+            return EngineDetection("rpgmaker", "vx", evidence = "Found an RGSS2 archive (.rgss2a)")
+        }
+        files.values.firstOrNull { it.path.endsWith(".rgssad", true) }?.let {
+            return EngineDetection("rpgmaker", "xp", evidence = "Found an RGSS archive (.rgssad)")
+        }
+        if (names.any { it.endsWith("js/main.js") } && names.any { it.endsWith("index.html") }) {
+            return EngineDetection(
+                "rpgmaker",
+                evidence = "Found an RPG Maker MV/MZ web runtime without its core script; choose context mv or mz",
+            )
+        }
+        if (names.any { it.endsWith("rpg_rt.ldb") } && (names.any { it.endsWith("rpg_rt.lmt") } || names.any { it.endsWith("rpg_rt.exe") })) {
             return EngineDetection(
                 "rpgmaker",
                 evidence = "Found the RPG Maker 2000/2003 database and map tree; choose context 2000 or 2003",
@@ -168,6 +283,27 @@ object EngineDetector {
             }
         }
 
+        files.values.firstOrNull { it.path.endsWith(".pck", true) }?.let { pack ->
+            val header = readBytes(resolver, pack.uri, 20)
+            if (header.size >= 20 && String(header, 0, 4, Charsets.US_ASCII) == "GDPC") {
+                val buffer = java.nio.ByteBuffer.wrap(header, 4, 16).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                buffer.int
+                val major = buffer.int
+                val minor = buffer.int
+                val patch = buffer.int
+                if (major in 1..9 && minor in 0..99 && patch in 0..999) {
+                    return EngineDetection("godot", "standard", "$major.$minor.$patch", pack.path, "Found a Godot pack (GDPC)")
+                }
+            }
+        }
+        if (names.any { it.contains("_data/") }) {
+            if (files.containsKey("gameassembly.dll") || names.any { it.contains("il2cpp_data/") }) {
+                return EngineDetection("unity", "il2cpp", evidence = "Found a Unity IL2CPP player; no Enginehost plugin runs Unity yet")
+            }
+            if (names.any { it.contains("_data/managed/") }) {
+                return EngineDetection("unity", "mono", evidence = "Found a Unity Mono player; no Enginehost plugin runs Unity yet")
+            }
+        }
         files.values.firstOrNull { it.path.endsWith(".swf", true) }?.let { swf ->
             val header = readBytes(resolver, swf.uri, 4)
             if (header.size >= 4 && String(header, 0, 3) in setOf("FWS", "CWS", "ZWS")) {

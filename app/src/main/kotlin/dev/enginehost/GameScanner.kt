@@ -93,12 +93,13 @@ class GameScanner(
         private const val PROGRESS_EVERY = 25
 
         private val markerFiles = setOf(
-            "game.ini", "project.godot", "rpg_rt.ldb", "data.xp3", "startup.tjs", "data01000.arc",
+            "game.ini", "project.godot", "rpg_rt.ldb", "rpg_rt.exe", "data.xp3", "startup.tjs",
+            "data01000.arc", "gameassembly.dll",
         )
         private val markerExtensions = setOf(
-            "rpa", "rpyc", "rgssad", "rgss3a", "cst", "ps3", "ps2", "swf", "xp3",
+            "rpa", "rpyc", "rgssad", "rgss2a", "rgss3a", "cst", "ps3", "ps2", "swf", "xp3", "pck",
         )
-        private val markerJsCores = setOf("rpg_core.js", "rmmz_core.js")
+        private val markerJsCores = setOf("rpg_core.js", "rmmz_core.js", "main.js")
 
         /**
          * Name-only screening over one directory listing. It may say yes to a
@@ -121,6 +122,7 @@ class GameScanner(
                             if (scripts.any { it.lowercase() in markerJsCores }) return true
                         }
                     }
+                    if (name.endsWith("_data")) return true
                     continue
                 }
                 if (name in markerFiles) return true

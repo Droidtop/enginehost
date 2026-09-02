@@ -28,6 +28,7 @@ class GameScanActivity : AppCompatActivity() {
     private lateinit var resultList: LinearLayout
 
     private var scanner: GameScanner? = null
+    private var lastExamined = 0
     private val candidates = mutableListOf<GameCandidate>()
     private val addedPaths = mutableSetOf<String>()
 
@@ -109,6 +110,7 @@ class GameScanActivity : AppCompatActivity() {
                 override fun onProgress(directoriesExamined: Int, found: Int) {
                     runOnUiThread {
                         if (scanner !== activeScanner) return@runOnUiThread
+                        lastExamined = directoriesExamined
                         statusText.text = getString(R.string.scan_running, directoriesExamined, found)
                     }
                 }
@@ -117,6 +119,7 @@ class GameScanActivity : AppCompatActivity() {
                     runOnUiThread {
                         if (scanner !== activeScanner) return@runOnUiThread
                         candidates += candidate
+                        statusText.text = getString(R.string.scan_running, lastExamined, candidates.size)
                         addResultRow(candidate)
                         if (candidates.size > 1) addAllButton.visibility = View.VISIBLE
                     }
