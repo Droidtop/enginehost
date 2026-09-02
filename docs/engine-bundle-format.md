@@ -170,3 +170,42 @@ redistribution only when the licence and copyright notice are included, so
 the Godot bundle ships `LICENSE-spine-runtimes.txt` in its payload beside
 `LICENSE.txt` and `COPYRIGHT.txt`, and the manifest lists the licence in
 `licenses`.
+
+### The version matrix: compiled-in versus loadable components
+
+Compiling a component into the engine binary makes every (engine version ×
+component version) pair its own ~180MB bundle. That is multiplicative and
+will not survive a second component version. It is how the first spine
+bundle ships — it exactly reproduces what the games' own desktop builds do,
+which made it the lowest-risk way to get a first game rendering — but it is
+not the shape the format settles on.
+
+The engine supports an additive shape, verified in the Godot 4.5.1
+sources. Games need not declare an extension for the engine to load one:
+the host does. During core registration — before any game script parses —
+`register_core_types.cpp` runs `GDExtensionManager::load_extensions()`,
+which ends by asking the OS for platform extensions;
+`OS_Android::load_platform_gdextensions()` gets its list from the Java
+side (`Godot.kt`, `getGDExtensionConfigFiles()`), which collects every
+registered Android `GodotPlugin`'s `getPluginGDExtensionLibrariesPaths()`.
+A `.gdextension` config path returned there is loaded at
+`INITIALIZATION_LEVEL_CORE`, so the classes exist before the game's
+scripts reference them — the same guarantee the compiled-in module gives.
+spine-runtimes builds its extension flavor for `android.release.arm64`
+officially (`spine_godot_extension.gdextension`, `build-extension.sh`,
+godot-cpp), so the pieces exist on both sides.
+
+In that shape one bundle carries one stock engine binary per Godot
+version plus N small component libraries, and declares one capability per
+combination it can serve — same engine `runtimeVersion`, different
+`runtimeComponents` — with the plugin handing Godot the `.gdextension`
+for whichever capability was selected. A new Spine version is then a few
+megabytes of payload and a new capability entry, not a new engine build.
+`runtimeRequirements` matching needs no change.
+
+What keeps the first bundle compiled-in rather than this: the extension
+flavor of spine-godot is the newer of Esoteric's two builds and has not
+been proven against these games' module-imported resources on device.
+Verifying that one game renders identically under the extension build is
+what settles it; when it does, the compiled-in module should be retired
+so there is one mechanism, not two.
