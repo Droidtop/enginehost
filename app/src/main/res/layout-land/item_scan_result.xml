@@ -9,13 +9,36 @@
     android:layout_marginEnd="@dimen/eh_column_gap"
     android:layout_marginBottom="@dimen/eh_space_s">
 
-    <TextView
-        android:id="@+id/scanResultTitle"
+    <!--
+        Add sits on the title line rather than below the card. GridLayout sizes
+        a row to its tallest cell, so a button on its own line cost every card
+        in the row that height whether it needed it or not.
+    -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/scanResultTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+        <Button
+            android:id="@+id/scanResultAdd"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:minWidth="110dp"
+            android:text="@string/scan_add" />
+
+    </LinearLayout>
 
     <TextView
         android:id="@+id/scanResultDetection"
@@ -41,14 +64,5 @@
         android:textAppearance="@style/TextAppearance.Enginehost.Caption"
         android:textColor="@color/eh_caution"
         android:visibility="gone" />
-
-    <Button
-        android:id="@+id/scanResultAdd"
-        style="@style/Widget.Enginehost.Button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_s"
-        android:minWidth="120dp"
-        android:text="@string/scan_add" />
 
 </LinearLayout>
