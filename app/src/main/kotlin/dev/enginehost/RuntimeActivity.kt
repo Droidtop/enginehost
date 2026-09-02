@@ -4,11 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.content.res.loader.ResourcesLoader
-import android.content.res.loader.ResourcesProvider
 import android.os.Build
 import android.os.Bundle
-import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.os.VibrationEffect
 import android.util.Log
@@ -102,7 +99,7 @@ class RuntimeActivity : FragmentActivity() {
 
     private fun loadPlugin(installed: InstalledPlugin): EnginePlugin {
         val root = installed.directory.canonicalFile
-        installPluginResources(root, installed.resourceApks)
+        resourceHandles += PluginResources.attach(this, installed.resourceApks.map { safeRuntimeChild(root, it) })
         val dexPaths = installed.dexFiles.map { safeRuntimeChild(root, it) }
         require(dexPaths.all(File::isFile)) { "A signed dex file is missing" }
         val nativeLibraryPaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
@@ -117,26 +114,6 @@ class RuntimeActivity : FragmentActivity() {
             "${installed.entrypointClass} does not implement EnginePlugin API v${installed.apiVersion}"
         }
         return entrypoint.getDeclaredConstructor().newInstance() as EnginePlugin
-    }
-
-    private fun installPluginResources(root: File, paths: List<String>) {
-        paths.map { safeRuntimeChild(root, it) }.forEach { apk ->
-            require(apk.isFile) { "A signed plugin resource APK is missing" }
-            if (Build.VERSION.SDK_INT >= 30) {
-                val descriptor = ParcelFileDescriptor.open(apk, ParcelFileDescriptor.MODE_READ_ONLY)
-                val provider = ResourcesProvider.loadFromApk(descriptor)
-                val loader = ResourcesLoader().apply { addProvider(provider) }
-                resources.addLoaders(loader)
-                resourceHandles += provider
-                resourceHandles += descriptor
-            } else {
-                val method = resources.assets.javaClass.getMethod("addAssetPath", String::class.java)
-                require((method.invoke(resources.assets, apk.absolutePath) as Int) != 0) {
-                    "Could not attach plugin resources"
-                }
-                @Suppress("DEPRECATION") resources.updateConfiguration(resources.configuration, resources.displayMetrics)
-            }
-        }
     }
 
     override fun onResume() {

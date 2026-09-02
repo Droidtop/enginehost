@@ -54,3 +54,20 @@ entrypoint. A path may appear in both `dexFiles` and `resourceApks`; this lets a
 single embedded runtime APK carry code, resources, assets, and JNI libraries
 without being installed as a separate Android package. Native libraries remain
 under `lib/<abi>/` in the bundle so the runtime class loader can resolve them.
+
+A resource APK must compile its resource table at a package id of its own.
+Android resource IDs are `0xPPTTEEEE`, and aapt2 builds an ordinary
+application at the default `0x7f` — the same id Enginehost's own resources
+use. Two tables at one id do not produce an error; the platform answers a
+lookup from whichever table it finds first, so the bundle silently receives
+a host string, drawable or layout and fails somewhere unrelated. Build the
+bundle's resources at a distinct id, conventionally `0x80` or above, with
+aapt2's `--package-id` (Gradle: `androidResources { additionalParameters +=
+listOf("--package-id", "0x80", "--allow-reserved-package-id") }`).
+Enginehost reads the id out of `resources.arsc` and refuses to load a
+bundle that collides, rather than letting it surface as a wrong resource.
+
+Enginehost attaches each APK's loader to every `Resources` object a plugin
+can reasonably resolve from — the runtime activity's and the application's.
+An engine that keeps `context.applicationContext` therefore finds its own
+resources without the bundle having to attach anything itself.

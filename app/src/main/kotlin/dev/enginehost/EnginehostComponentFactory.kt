@@ -3,10 +3,7 @@ package dev.enginehost
 import android.app.Activity
 import android.app.AppComponentFactory
 import android.content.Intent
-import android.content.res.loader.ResourcesLoader
-import android.content.res.loader.ResourcesProvider
 import android.os.Build
-import android.os.ParcelFileDescriptor
 import android.util.Log
 import dalvik.system.DexClassLoader
 import java.io.File
@@ -35,10 +32,13 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val manifest = InstalledBundleVerifier.verify(context, installed)
         require(manifest.entrypoint == installed.entrypointClass)
         Log.i(TAG, "Loading bundle=$bundleId entrypoint=${installed.entrypointClass}")
-        installResources(context, installed)
         val resourceApks = installed.resourceApks.map {
             safeRuntimeChild(installed.directory.canonicalFile, it)
         }
+        // Retained for the life of this short-lived :runtime process. The
+        // descriptors must outlive the call: a collected ParcelFileDescriptor
+        // closes the file the loaded resources are still reading from.
+        retainedResources += PluginResources.attach(context, resourceApks)
         intent.putStringArrayListExtra(EXTRA_RESOURCE_APKS, ArrayList(resourceApks.map(File::getPath)))
         Log.i(TAG, "Runtime resource APKs=${resourceApks.joinToString { it.path }}")
         resourceApks.firstOrNull()?.let { apk ->
@@ -66,23 +66,8 @@ class EnginehostComponentFactory : AppComponentFactory() {
         }
     }
 
-    private fun installResources(context: EnginehostApplication, installed: InstalledPlugin) {
-        val root = installed.directory.canonicalFile
-        installed.resourceApks.map { safeRuntimeChild(root, it) }.forEach { apk ->
-            require(apk.isFile) { "A signed runtime resource APK is missing" }
-            if (Build.VERSION.SDK_INT >= 30) {
-                val descriptor = ParcelFileDescriptor.open(apk, ParcelFileDescriptor.MODE_READ_ONLY)
-                val provider = ResourcesProvider.loadFromApk(descriptor)
-                context.resources.addLoaders(ResourcesLoader().apply { addProvider(provider) })
-                // Providers and descriptors intentionally live for this short-lived runtime process.
-            } else {
-                val method = context.resources.assets.javaClass.getMethod("addAssetPath", String::class.java)
-                require((method.invoke(context.resources.assets, apk.path) as Int) != 0)
-            }
-        }
-    }
-
     companion object {
+        private val retainedResources = mutableListOf<AutoCloseable>()
         private const val TAG = "EnginehostRuntime"
         const val EXTRA_RESOURCE_APKS = "dev.enginehost.runtime.RESOURCE_APKS"
         const val EXTRA_RESOURCE_PACKAGE = "dev.enginehost.runtime.RESOURCE_PACKAGE"
