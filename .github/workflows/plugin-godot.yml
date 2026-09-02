@@ -11,6 +11,15 @@ on:
 permissions:
   contents: read
 
+# One agent push supersedes the previous one instead of racing it. Before
+# this, every push queued another full build and nothing cancelled the run
+# it had just obsoleted, so a five-push fix session burned five builds and
+# could email five failures for one problem. Keyed on the ref, so branches
+# and pull requests never cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
     runs-on: ubuntu-24.04
