@@ -103,7 +103,7 @@ class GameScanActivity : AppCompatActivity() {
         statusText.text = getString(R.string.scan_running, 0, 0)
         cancelButton.visibility = View.VISIBLE
         chooseButton.isEnabled = false
-        val activeScanner = GameScanner()
+        val activeScanner = GameScanner(EngineRegistryStore.rows(this))
         scanner = activeScanner
         Thread {
             activeScanner.scan(root, object : GameScanner.Listener {

@@ -10,9 +10,10 @@ data class GameCandidate(val folder: File, val detection: EngineDetection)
  * Finds game trees beneath a chosen root so a library does not have to be
  * assembled one folder picker at a time.
  *
- * Classification is [EngineDetector]'s alone -- the same evidence-based
- * detection the config creator uses -- so scanning introduces no second
- * engine taxonomy and never guesses from folder names. The name screening
+ * Classification is [EngineDetector]'s alone -- the shared
+ * engines-database registry the config creator (and droidtop's own
+ * library scan) uses -- so scanning introduces no second engine
+ * taxonomy and never guesses from folder names. The name screening
  * in [looksLikeGameRoot] only decides where running the detector is worth
  * it; a directory that passes screening but fails detection is simply
  * descended into.
@@ -24,6 +25,7 @@ data class GameCandidate(val folder: File, val detection: EngineDetection)
  * it between directories.
  */
 class GameScanner(
+    private val rows: List<EngineRow>,
     private val maxDepth: Int = MAX_DEPTH,
     private val maxDirectories: Int = MAX_DIRECTORIES,
 ) {
@@ -89,7 +91,7 @@ class GameScanner(
                 continue
             }
             if (looksLikeGameRoot(children)) {
-                val detection = runCatching { EngineDetector.detect(directory) }.getOrNull()
+                val detection = runCatching { EngineDetector.detect(rows, directory) }.getOrNull()
                 if (detection != null) {
                     found++
                     listener.onFound(GameCandidate(directory, detection))
@@ -118,9 +120,16 @@ class GameScanner(
         private val markerFiles = setOf(
             "game.ini", "project.godot", "rpg_rt.ldb", "rpg_rt.exe", "data.xp3", "startup.tjs",
             "data01000.arc", "gameassembly.dll",
+            // The registry rows the old hardcoded screening never knew:
+            // Buriko, CatSystem2, CMVS, and the AIR package's mimetype.
+            "bgi.gdb", "bgi.hvl", "cs2conf.dll", "cmvs32.exe", "cmvs64.exe", "cmvs.cfg", "mimetype",
         )
         private val markerExtensions = setOf(
             "rpa", "rpyc", "rgssad", "rgss2a", "rgss3a", "cst", "ps3", "ps2", "swf", "xp3", "pck",
+            // Godot's embedded-pack export is a bare executable; the GDPC
+            // trailer probe is cheap (a 12-byte tail read), so an exe is
+            // worth showing to the detector.
+            "exe", "x86_64",
         )
         private val markerJsCores = setOf("rpg_core.js", "rmmz_core.js", "main.js")
 

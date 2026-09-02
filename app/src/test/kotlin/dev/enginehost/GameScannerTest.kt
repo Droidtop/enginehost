@@ -6,6 +6,13 @@ import org.junit.Test
 import java.io.File
 
 class GameScannerTest {
+    // The REAL shipped seed registry (the same file droidtop bundles):
+    // tests exercise the exact data the app classifies with, so a
+    // registry edit that breaks scanning fails here before it ships.
+    private val rows = EngineRegistryParser.parse(
+        File("src/main/assets/engines-database.json").readText(),
+    )
+
     private class Collector : GameScanner.Listener {
         val found = mutableListOf<GameCandidate>()
         var finished = false
@@ -38,7 +45,7 @@ class GameScannerTest {
         File(game, "game/archive.rpa").writeBytes(byteArrayOf(1))
 
         val collector = Collector()
-        GameScanner().scan(root, collector)
+        GameScanner(rows).scan(root, collector)
 
         assertTrue(collector.finished)
         assertEquals(listOf(game.canonicalFile), collector.found.map { it.folder.canonicalFile })
@@ -52,7 +59,7 @@ class GameScannerTest {
         File(game, "project.godot").writeText("config/features=PackedStringArray(\"4.2\")\n")
 
         val collector = Collector()
-        GameScanner().scan(root, collector)
+        GameScanner(rows).scan(root, collector)
 
         assertEquals(1, collector.found.size)
         assertEquals("godot", collector.found.single().detection.engine)
@@ -71,7 +78,7 @@ class GameScannerTest {
         File(game, "game.pck").writeBytes(header.array())
 
         val collector = Collector()
-        GameScanner().scan(root, collector)
+        GameScanner(rows).scan(root, collector)
 
         val detection = collector.found.single().detection
         assertEquals("godot", detection.engine)
@@ -88,7 +95,7 @@ class GameScannerTest {
         File(game, "renpy/__init__.py").writeText("version_tuple = (7, 5, 3, vc_version)\n")
 
         val collector = Collector()
-        GameScanner().scan(root, collector)
+        GameScanner(rows).scan(root, collector)
 
         val detection = collector.found.single().detection
         assertEquals("renpy", detection.engine)
@@ -102,7 +109,7 @@ class GameScannerTest {
         File(root, "documents/notes.txt").writeText("plain text")
 
         val collector = Collector()
-        GameScanner().scan(root, collector)
+        GameScanner(rows).scan(root, collector)
 
         assertTrue(collector.finished)
         assertTrue(collector.found.isEmpty())
@@ -112,7 +119,7 @@ class GameScannerTest {
     fun `cancel stops the walk and reports stopping early`() {
         val root = tempRoot()
         for (index in 0 until 50) File(root, "folder$index").mkdirs()
-        val scanner = GameScanner()
+        val scanner = GameScanner(rows)
         scanner.cancel()
         val collector = Collector()
         scanner.scan(root, collector)
@@ -136,7 +143,7 @@ class GameScannerTest {
 
         val collector = Collector()
         try {
-            GameScanner().scan(root, collector)
+            GameScanner(rows).scan(root, collector)
         } finally {
             // Restore permissions so JVM temp-dir cleanup (and deleteOnExit) can remove it.
             locked.setReadable(true, false)
@@ -177,7 +184,7 @@ class GameScannerTest {
             override fun onFound(candidate: GameCandidate) = Unit
             override fun onFinished(directoriesExamined: Int, found: Int, stoppedEarly: Boolean, unreadable: Int) = Unit
         }
-        GameScanner().scan(root, listener)
+        GameScanner(rows).scan(root, listener)
 
         // root + 25 game roots = 26 folders examined; the 25th one hit is a
         // game root, so a correct implementation must still report there.

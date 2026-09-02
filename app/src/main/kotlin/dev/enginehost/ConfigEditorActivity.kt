@@ -629,7 +629,7 @@ class ConfigEditorActivity : AppCompatActivity() {
     private fun detect(treeUri: Uri) {
         detectionLabel.setText(R.string.scanning_selected)
         Thread {
-            val result = runCatching { EngineDetector.detect(contentResolver, treeUri) }
+            val result = runCatching { EngineDetector.detect(EngineRegistryStore.rows(this), contentResolver, treeUri) }
             runOnUiThread {
                 if (folderUri != treeUri) return@runOnUiThread
                 result.fold(
@@ -646,7 +646,7 @@ class ConfigEditorActivity : AppCompatActivity() {
     private fun detect(folder: File) {
         detectionLabel.setText(R.string.scanning_supplied)
         Thread {
-            val result = runCatching { EngineDetector.detect(folder) }
+            val result = runCatching { EngineDetector.detect(EngineRegistryStore.rows(this), folder) }
             runOnUiThread {
                 if (folderPath != folder) return@runOnUiThread
                 result.fold(

@@ -1,0 +1,644 @@
+{
+ "version": 5,
+ "comment": "The full engine REGISTRY, droidtop-authored (no upstream frontend maintains these). v4 (direction 2026-08-31): detection, launch routing, and enginehost vocabulary all live HERE so new engines/contexts ship as a database update, not an app rebuild. v5 (unified detection, 2026-09-02): this file is the ONE classification authority for BOTH droidtop (scan time) and enginehost (launch/config time) - enginehost bundles this same file and refreshes it from the same droidtop-platforms URL, so the two apps can never classify one folder differently. Per engine: 'detect' is an ordered list of rules (rules OR, conditions within a rule AND; first matching engine in file order wins; condition types: dirExists, fileExists, anyFileNameContains, anyFileExtension, anyFileNameIn, dirNamePrefixCount, fileHeadRegex (case-insensitive, first 4KB), anyFileExtensionDeep (anyFileExtension searching subdirectories to maxDepth), builtin (named code probe for byte-magic checks JSON cannot express)); 'strategies' is launch priority (names match droidtop's GameLaunchStrategy enum; availability stays code - the database only decides which available strategy WINS); 'enginehost' is the family/context vocabulary from enginehost-contract.md's own table (context null = the rules cannot determine it, launch opens enginehost's CONFIGURE screen prefilled). A row whose id an app does not map is skipped by that app: rpgmaker-mvmz and flash-swf are enginehost-only by design (droidtop has no MV-or-MZ engine, and plain .swf is deliberately droidtop's players-database path - Ruffle etc., systemId flash - so flash-air's droidtop detection stays the AIR package shape). Version/execFile extraction for enginehost's config prefill is ENRICHMENT code keyed on the family this file classified; it can never change the classification. Engine EMULATORS (EasyRPG, Kirikiroid2, Ruffle, ...) are NOT declared here: engines are systems, and apps that emulate engines live in players-database.json exactly like apps that emulate consoles. JoiPlay is deliberately absent everywhere: it exposes no consumable launch surface.",
+ "engines": [
+  {
+   "id": "renpy",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "dirExists",
+       "path": "renpy"
+      },
+      {
+       "type": "dirExists",
+       "path": "game"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "LINUX_CONTAINER",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "renpy",
+    "context": "standard"
+   },
+   "notes": "Ren'Py ships py/sh/exe launchers together; Linux path preferred over Wine when both exist. Compiled-only distributions without the renpy/ runtime dir are caught by the renpy-fallback row further down."
+  },
+  {
+   "id": "rpgmaker-mv",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "js/rpg_core.js"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "www/js/rpg_core.js"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX",
+    "LINUX_CONTAINER"
+   ],
+   "enginehost": {
+    "family": "rpgmaker",
+    "context": "mv"
+   },
+   "notes": "MV/MZ are nw.js exports; Linux only when the export includes it."
+  },
+  {
+   "id": "rpgmaker-mz",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "js/rmmz_core.js"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "www/js/rmmz_core.js"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX",
+    "LINUX_CONTAINER"
+   ],
+   "enginehost": {
+    "family": "rpgmaker",
+    "context": "mz"
+   }
+  },
+  {
+   "id": "rpgmaker-mvmz",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "js/main.js"
+      },
+      {
+       "type": "fileExists",
+       "path": "index.html"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "www/js/main.js"
+      },
+      {
+       "type": "fileExists",
+       "path": "www/index.html"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX",
+    "LINUX_CONTAINER"
+   ],
+   "enginehost": {
+    "family": "rpgmaker",
+    "context": null
+   },
+   "notes": "ENGINEHOST-ONLY row (droidtop maps no engine id to it, so droidtop skips it). An MV/MZ web runtime whose core script is missing or renamed: the family is proven, the generation is not - context null routes to enginehost's CONFIGURE screen where the user picks mv or mz."
+  },
+  {
+   "id": "rpgmaker-vxace",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "anyFileNameContains",
+       "value": ".rgss3a"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileHeadRegex",
+       "path": "Game.ini",
+       "regex": "Library\\s*=\\s*.*RGSS3\\d\\d"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "rpgmaker",
+    "context": "vxace",
+    "extras": {
+     "ruby": "1.9.2"
+    }
+   },
+   "notes": "RGSS runtimes are Windows-only. Ruby 1.9.2 is a PREFILL, not a pin: mkxp-z deliberately declares vxace against both 1.9.2 and 3.1.3, and the config editor keeps runtimeRequirements user-editable so either branch stays selectable. The Game.ini Library line is the engine declaring its own RGSS build; the .rgss3a check tolerates renamed archives (real install: Game.rgss3a.old)."
+  },
+  {
+   "id": "rpgmaker-vx",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "anyFileNameContains",
+       "value": ".rgss2a"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "Game.rvproj"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileHeadRegex",
+       "path": "Game.ini",
+       "regex": "Library\\s*=\\s*.*RGSS2\\d\\d"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "rpgmaker",
+    "context": "vx"
+   },
+   "notes": "RGSS2 line: .rgss2a archive, Game.rvproj project marker, or the Game.ini Library=RGSS2xx declaration. Listed after vxace so the more specific RGSS3 evidence wins first."
+  },
+  {
+   "id": "rpgmaker-xp",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "anyFileNameContains",
+       "value": ".rgssad"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "Game.rxproj"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileHeadRegex",
+       "path": "Game.ini",
+       "regex": "Library\\s*=\\s*.*RGSS1\\d\\d"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "rpgmaker",
+    "context": "xp"
+   },
+   "notes": "RGSS1 line: .rgssad archive, Game.rxproj project marker, or Game.ini Library=RGSS1xx."
+  },
+  {
+   "id": "rpgmaker-2000-2003",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "RPG_RT.ldb"
+      },
+      {
+       "type": "fileExists",
+       "path": "RPG_RT.exe"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "RPG_RT.ldb"
+      },
+      {
+       "type": "fileExists",
+       "path": "RPG_RT.lmt"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "rpgmaker",
+    "context": null
+   },
+   "notes": "The .ldb database plus either the runtime exe or the .lmt map tree - the corroborated pairing enginehost verified. A stray RPG_RT.exe without its database, or a lone .ldb with neither companion, is not a launchable game and no longer detects. Context null on purpose: this proves the 2000/2003 FAMILY but not which generation; launch opens enginehost's CONFIGURE screen prefilled. The easyrpg PLAYER entries in players-database.json remain the alternate path (engines are systems)."
+  },
+  {
+   "id": "kirikiri",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "anyFileExtension",
+       "value": "xp3"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "startup.tjs"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "KIRIKIROID2",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "kirikiri2",
+    "context": "default",
+    "versionSelectorFallback": "0"
+   },
+   "notes": "Any .xp3 archive, or startup.tjs (the engine's own boot script) for unpacked games with no archive - the marker enginehost already used. versionSelectorFallback 0 is a selector fall-through, not a version claim: by the engine's own semantics anything that maps to no implementation string selects the sole default. Device-confirmed 2026-08-31. KIRIKIROID2 strategy predates the unified player entry; both point at the same app."
+  },
+  {
+   "id": "august",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "dirNamePrefixCount",
+       "prefix": "aug",
+       "min": 2
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "buriko",
+    "context": "august-compiled-script-v1"
+   },
+   "notes": "August is not a separate enginehost family: buriko with the August context, per the contract."
+  },
+  {
+   "id": "buriko",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "BGI.gdb"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "BGI.hvl"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "anyFileNameIn",
+       "values": [
+        "data01000.arc"
+       ]
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "buriko",
+    "context": "compiled-script-v1"
+   },
+   "notes": "BGI.gdb/BGI.hvl, or the data01000.arc archive-set head enginehost already keyed on."
+  },
+  {
+   "id": "catsystem2",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "cs2conf.dll"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "anyFileExtension",
+       "value": "cst"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "catsystem2",
+    "context": "cst"
+   },
+   "notes": "cs2conf.dll, or a loose .cst scene script (enginehost's marker)."
+  },
+  {
+   "id": "cmvs",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "anyFileNameIn",
+       "values": [
+        "cmvs32.exe",
+        "cmvs64.exe",
+        "cmvs.cfg"
+       ]
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "cmvs",
+    "context": null
+   },
+   "notes": "ps2 vs ps3 generation undetermined by the cmvs32/cmvs64/cmvs.cfg signature; CONFIGURE flow. Listed BEFORE the script-extension rows on purpose: droidtop resolves an engine's launch row as the FIRST row carrying that engine id, so the generic context-null row must be the canonical one - the script rows below only refine the context for folders where a script is visible and no cmvs runtime marker is."
+  },
+  {
+   "id": "cmvs-ps3",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "anyFileExtension",
+       "value": "ps3"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "cmvs",
+    "context": "ps3"
+   },
+   "notes": "A .ps3 script names the CMVS generation exactly, so this row carries the context the generic cmvs row above cannot."
+  },
+  {
+   "id": "cmvs-ps2",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "anyFileExtension",
+       "value": "ps2"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "cmvs",
+    "context": "ps2"
+   }
+  },
+  {
+   "id": "flash-air",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "dirExists",
+       "path": "META-INF"
+      },
+      {
+       "type": "fileExists",
+       "path": "mimetype"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "flash_air",
+    "context": "air"
+   },
+   "notes": "Detection is specifically the AIR package shape, so the air context is the real answer, not a coin flip. Plain .swf: droidtop routes it through the flash player entries in players-database.json (Ruffle etc.), enginehost detects it via the flash-swf row at the end of this file."
+  },
+  {
+   "id": "twine",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "builtin",
+       "name": "twine"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "twine",
+    "context": "compiled-html"
+   },
+   "notes": "HTML export; the builtin probe reads the first 512KB of root .html files for tw-storydata/twinejs/SugarCube/Harlowe."
+  },
+  {
+   "id": "godot",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "fileExists",
+       "path": "project.godot"
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "builtin",
+       "name": "godot"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "LINUX_CONTAINER",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "godot",
+    "context": "standard"
+   },
+   "notes": "project.godot (an unexported project tree - enginehost's marker), or the builtin probe covering both the loose .pck shape and the embedded-pack GDPC trailer that JSON conditions cannot express."
+  },
+  {
+   "id": "renpy-fallback",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "anyFileExtensionDeep",
+       "value": "rpa",
+       "maxDepth": 2
+      }
+     ]
+    },
+    {
+     "all": [
+      {
+       "type": "anyFileExtensionDeep",
+       "value": "rpyc",
+       "maxDepth": 2
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "LINUX_CONTAINER",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "renpy",
+    "context": "standard"
+   },
+   "notes": "Compiled Ren'Py game files (.rpa archives / .rpyc scripts, normally under game/, hence the depth-2 search) for distributions shipping without the renpy/ runtime dir - enginehost's existing fallback. A separate LATE row rather than part of the renpy row so the cheap runtime-dir check stays first and every more specific engine above outranks this looser evidence."
+  },
+  {
+   "id": "unreal",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "dirExists",
+       "path": "Engine/Binaries"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "LINUX_CONTAINER",
+    "WINE_PREFIX"
+   ],
+   "notes": "Not an enginehost family; PC runtime strategies only."
+  },
+  {
+   "id": "unity",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "builtin",
+       "name": "unity"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "LINUX_CONTAINER",
+    "WINE_PREFIX"
+   ],
+   "notes": "Not an enginehost family. The builtin probe searches UnityPlayer.dll/.so/.dylib up to 3 folders deep (real Linux-export fix)."
+  },
+  {
+   "id": "flash-swf",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "builtin",
+       "name": "swf"
+      }
+     ]
+    }
+   ],
+   "strategies": [],
+   "enginehost": {
+    "family": "flash_air",
+    "context": "swf"
+   },
+   "notes": "ENGINEHOST-ONLY row (droidtop maps no engine id to it, so droidtop skips it - plain .swf is deliberately droidtop's players-database path). The builtin probe checks root .swf files for a real FWS/CWS/ZWS header. Last on purpose: a stray .swf asset inside any richer game tree must never outrank the real engine."
+  }
+ ]
+}
