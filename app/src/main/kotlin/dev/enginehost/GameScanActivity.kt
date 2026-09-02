@@ -3,8 +3,8 @@ package dev.enginehost
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,7 +25,7 @@ class GameScanActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var cancelButton: Button
     private lateinit var addAllButton: Button
-    private lateinit var resultList: LinearLayout
+    private lateinit var resultList: ViewGroup
 
     private var scanner: GameScanner? = null
     private var lastExamined = 0

@@ -37,8 +37,9 @@ def main() -> None:
         # The primary developer's own key. It is deliberately NOT origin-scoped:
         # it exists to sign locally rebuilt bundles for any repository during
         # development. Enginehost accepts it for any origin and then marks the
-        # plugin as a developer build, which is the whole point -- it must never
-        # be mistakable for an official release.
+        # plugin Ultimate: the strongest proof of origin the system has, and
+        # separately never mistakable for an official release, since being a
+        # production release is a statement about the release path, not the key.
         info = b"enginehost/primary-developer-debug-signing/v1"
     else:
         application_id = args.application_id.strip().lower()

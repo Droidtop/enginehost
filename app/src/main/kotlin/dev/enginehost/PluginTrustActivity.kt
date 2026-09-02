@@ -4,15 +4,15 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /** First-class approval UI for code that will execute with Enginehost's permissions. */
 class PluginTrustActivity : AppCompatActivity() {
-    private lateinit var list: LinearLayout
+    private lateinit var list: ViewGroup
     private lateinit var emptyState: TextView
     private lateinit var openCatalogButton: Button
     private lateinit var trust: PluginTrustStore
@@ -49,8 +49,8 @@ class PluginTrustActivity : AppCompatActivity() {
     }
 
     private fun addPlugin(plugin: InstalledPlugin) {
-        val developerBuild = trust.isDeveloperDebug(plugin)
-        val official = !developerBuild && trust.isOfficial(plugin)
+        val ultimateBuild = trust.isDeveloperDebug(plugin)
+        val official = !ultimateBuild && trust.isOfficial(plugin)
         val state = trust.state(plugin)
         val card = layoutInflater.inflate(R.layout.item_plugin_trust, list, false)
 
@@ -60,7 +60,7 @@ class PluginTrustActivity : AppCompatActivity() {
 
         val badge = card.findViewById<TextView>(R.id.trustBadge)
         val (label, container, onContainer) = when {
-            developerBuild -> Triple(R.string.badge_developer, R.color.eh_developer_container, R.color.eh_on_developer_container)
+            ultimateBuild -> Triple(R.string.badge_ultimate, R.color.eh_caution_container, R.color.eh_on_caution_container)
             official -> Triple(R.string.badge_official, R.color.eh_official_container, R.color.eh_on_official_container)
             else -> Triple(R.string.badge_community, R.color.eh_community_container, R.color.eh_on_community_container)
         }
@@ -75,10 +75,11 @@ class PluginTrustActivity : AppCompatActivity() {
         card.findViewById<TextView>(R.id.trustState).text =
             "${getString(R.string.trust_state_label)}: ${getString(stateLabel(state))}"
 
-        if (developerBuild) {
-            // Signed by the primary developer's key rather than the repository's
-            // own, so it carries none of the guarantees an official bundle does.
-            card.findViewById<TextView>(R.id.developerWarning).visibility = View.VISIBLE
+        if (ultimateBuild) {
+            // The primary developer's key proves origin more strongly than any
+            // per-origin key can, but says nothing about fitness for use: this
+            // is still a locally built bundle that skipped the release path.
+            card.findViewById<TextView>(R.id.trustWarning).visibility = View.VISIBLE
         }
 
         card.findViewById<Button>(R.id.approveButton).apply {

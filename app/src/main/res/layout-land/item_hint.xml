@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Same hint line as portrait. In landscape some of the containers this is
+    inflated into are two column GridLayouts, so it declares a column span;
+    the LinearLayout containers that also take it ignore that attribute.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_columnSpan="2"
+    android:layout_gravity="fill_horizontal"
+    android:layout_marginTop="@dimen/eh_space_xs"
+    android:layout_marginBottom="@dimen/eh_space_xs"
+    android:textAppearance="@style/TextAppearance.Enginehost.Body" />

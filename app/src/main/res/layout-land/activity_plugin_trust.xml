@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Landscape plugin trust. Two cards per row rather than one full width card,
+    which still leaves each card wider than a portrait phone screen, so the
+    density gain here costs the security surface nothing: badge, fingerprint
+    and Ultimate warning all keep their portrait treatment.
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -16,49 +22,40 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/controller_settings"
+            android:text="@string/trust_title"
             android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
         <TextView
-            android:id="@+id/connectedControllers"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/trust_intro"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/applies_to"
-            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-        <LinearLayout
-            android:id="@+id/scopeList"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
-        <TextView
-            android:id="@+id/scopeHint"
+        <GridLayout
+            android:id="@+id/pluginList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_m"
-            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+            android:columnCount="2"
+            android:orientation="horizontal" />
 
-        <LinearLayout
-            android:id="@+id/bindingList"
+        <TextView
+            android:id="@+id/emptyState"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:orientation="vertical" />
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:text="@string/trust_empty"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body"
+            android:visibility="gone" />
 
         <Button
-            android:id="@+id/resetButton"
-            style="@style/Widget.Enginehost.Button.Danger"
-            android:layout_width="match_parent"
+            android:id="@+id/openCatalogButton"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_m" />
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:text="@string/open_plugin_catalog"
+            android:visibility="gone" />
 
     </LinearLayout>
 </ScrollView>

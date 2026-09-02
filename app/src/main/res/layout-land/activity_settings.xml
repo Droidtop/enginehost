@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Landscape settings. The two sections are independent, so they sit as two
+    columns instead of one stacked run of full width buttons. D-pad left/right
+    crosses between the columns, up/down walks a column.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/eh_screen_padding_h"
+        android:paddingRight="@dimen/eh_screen_padding_h"
+        android:paddingTop="@dimen/eh_screen_padding_v"
+        android:paddingBottom="@dimen/eh_screen_padding_v">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_title"
+            android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/save_location"
+                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/save_location_hint"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <TextView
+                    android:id="@+id/saveLocationValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:background="@drawable/eh_card_bg"
+                    android:paddingLeft="@dimen/eh_space_s"
+                    android:paddingRight="@dimen/eh_space_s"
+                    android:paddingTop="@dimen/eh_space_s"
+                    android:paddingBottom="@dimen/eh_space_s"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+                <Button
+                    android:id="@+id/chooseSaveFolderButton"
+                    style="@style/Widget.Enginehost.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/choose_folder" />
+
+                <Button
+                    android:id="@+id/migrateSavesButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/migrate_saves" />
+
+                <Button
+                    android:id="@+id/useDefaultSaveButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/use_default_internal" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/eh_column_gap"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/browser_start"
+                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/browser_start_hint"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <TextView
+                    android:id="@+id/browserStartValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:background="@drawable/eh_card_bg"
+                    android:paddingLeft="@dimen/eh_space_s"
+                    android:paddingRight="@dimen/eh_space_s"
+                    android:paddingTop="@dimen/eh_space_s"
+                    android:paddingBottom="@dimen/eh_space_s"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+                <Button
+                    android:id="@+id/chooseBrowserStartButton"
+                    style="@style/Widget.Enginehost.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/choose_browsing_folder" />
+
+                <Button
+                    android:id="@+id/useDefaultBrowserStartButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/use_android_default" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

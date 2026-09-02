@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Landscape library row. Same card, sized to sit in one weighted column of
+    the GridLayout that replaces the single column list in layout-land, so a
+    1920px wide screen shows two games per row instead of one.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.Enginehost.Card.Focusable"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_columnWeight="1"
+    android:layout_gravity="fill_horizontal"
+    android:layout_marginEnd="@dimen/eh_column_gap"
+    android:layout_marginBottom="@dimen/eh_space_s"
+    android:minHeight="@dimen/eh_touch_target"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:id="@+id/gameTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+    <TextView
+        android:id="@+id/gamePath"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:maxLines="1"
+        android:ellipsize="start"
+        android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+    <TextView
+        android:id="@+id/gameStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:visibility="gone" />
+
+</LinearLayout>

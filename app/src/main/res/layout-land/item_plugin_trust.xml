@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Landscape trust card. Two per row, which on this screen still leaves each
+    card wider than a portrait phone, so nothing here is compressed: the badge,
+    the full signer fingerprint and the Ultimate warning keep the room they had.
+    The card padding is pinned back to the full spacing scale rather than the
+    landscape density tokens, because this is a security surface, not a list.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card"
-    android:layout_width="match_parent"
+    android:layout_width="0dp"
     android:layout_height="wrap_content"
+    android:layout_columnWeight="1"
+    android:layout_gravity="fill_horizontal"
+    android:padding="@dimen/eh_space_m"
+    android:layout_marginEnd="@dimen/eh_column_gap"
     android:layout_marginBottom="@dimen/eh_space_m">
 
     <LinearLayout

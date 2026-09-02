@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Landscape config editor. Portrait gives every field the full width of the
+    screen, which at 1920px is one control per row with most of the row empty.
+    Here the fields sit in a four column grid read as two label/control pairs
+    per row: labels are wrap_content and the controls take the leftover width
+    through column weights, so a control is about a quarter of the screen
+    instead of all of it, and six fields fit in three rows.
+
+    D-pad order follows child order, which is left to right along a row and
+    then down to the next, so left/right moves between the two fields in a row
+    and up/down moves between rows.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/eh_screen_padding_h"
+        android:paddingRight="@dimen/eh_screen_padding_h"
+        android:paddingTop="@dimen/eh_screen_padding_v"
+        android:paddingBottom="@dimen/eh_screen_padding_v">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="true"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/config_title"
+                android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/eh_space_m"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@string/config_intro"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        </LinearLayout>
+
+        <!-- Folder picker, chosen folder and detection result share one row. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/chooseConfigFolderButton"
+                style="@style/Widget.Enginehost.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/choose_game_folder" />
+
+            <TextView
+                android:id="@+id/configFolderLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/eh_space_s"
+                android:background="@drawable/eh_card_bg"
+                android:ellipsize="start"
+                android:maxLines="1"
+                android:paddingLeft="@dimen/eh_space_s"
+                android:paddingRight="@dimen/eh_space_s"
+                android:paddingTop="@dimen/eh_space_s"
+                android:paddingBottom="@dimen/eh_space_s"
+                android:text="@string/no_folder_selected"
+                android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+                android:textIsSelectable="true" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/detectionLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/detection_waiting"
+                android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+            <Button
+                android:id="@+id/browseAllPluginsButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/eh_space_s"
+                android:text="@string/browse_all_plugin_engines"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/editorFields"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <GridLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:columnCount="4"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="@dimen/eh_space_s"
+                    android:layout_marginBottom="@dimen/eh_space_s"
+                    android:text="@string/label_engine_family"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <Button
+                    android:id="@+id/engineButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill_horizontal"
+                    android:layout_marginEnd="@dimen/eh_column_gap"
+                    android:layout_marginBottom="@dimen/eh_space_s" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="@dimen/eh_space_s"
+                    android:layout_marginBottom="@dimen/eh_space_s"
+                    android:text="@string/label_engine_context"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <Button
+                    android:id="@+id/contextButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill_horizontal"
+                    android:layout_marginBottom="@dimen/eh_space_s" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="@dimen/eh_space_s"
+                    android:layout_marginBottom="@dimen/eh_space_s"
+                    android:text="@string/label_engine_version"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <EditText
+                    android:id="@+id/engineVersionField"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill_horizontal"
+                    android:layout_marginEnd="@dimen/eh_column_gap"
+                    android:layout_marginBottom="@dimen/eh_space_s"
+                    android:importantForAutofill="no"
+                    android:inputType="text"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="@dimen/eh_space_s"
+                    android:layout_marginBottom="@dimen/eh_space_s"
+                    android:text="@string/label_runtimes"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <Button
+                    android:id="@+id/runtimesButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill_horizontal"
+                    android:layout_marginBottom="@dimen/eh_space_s" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="@dimen/eh_space_s"
+                    android:layout_marginBottom="@dimen/eh_space_s"
+                    android:text="@string/label_plugin_versions"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <Button
+                    android:id="@+id/pluginVersionButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill_horizontal"
+                    android:layout_marginEnd="@dimen/eh_column_gap"
+                    android:layout_marginBottom="@dimen/eh_space_s" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="@dimen/eh_space_s"
+                    android:layout_marginBottom="@dimen/eh_space_s"
+                    android:text="@string/label_exec_file"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <Button
+                    android:id="@+id/execFileButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill_horizontal"
+                    android:layout_marginBottom="@dimen/eh_space_s" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnSpan="4"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill_horizontal"
+                    android:text="@string/engine_version_help"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+            </GridLayout>
+
+            <!-- Options keep their own column beside the help text and actions. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_m"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_options"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                    <LinearLayout
+                        android:id="@+id/optionsList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <Button
+                        android:id="@+id/addOptionButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/eh_space_s"
+                        android:text="@string/add_option" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="@dimen/eh_column_gap"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/options_help"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                    <Button
+                        android:id="@+id/saveConfigButton"
+                        style="@style/Widget.Enginehost.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/eh_space_s"
+                        android:text="@string/save_config" />
+
+                    <Button
+                        android:id="@+id/testConfigButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/eh_space_s"
+                        android:text="@string/test_config" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

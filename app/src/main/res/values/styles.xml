@@ -74,7 +74,10 @@
 
     <style name="Widget.Enginehost.Card" parent="">
         <item name="android:background">@drawable/eh_card_bg</item>
-        <item name="android:padding">@dimen/eh_space_m</item>
+        <item name="android:paddingLeft">@dimen/eh_card_padding_h</item>
+        <item name="android:paddingRight">@dimen/eh_card_padding_h</item>
+        <item name="android:paddingTop">@dimen/eh_card_padding_v</item>
+        <item name="android:paddingBottom">@dimen/eh_card_padding_v</item>
         <item name="android:orientation">vertical</item>
     </style>
 
@@ -82,6 +85,20 @@
         <item name="android:background">@drawable/eh_card_focusable_bg</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
+    </style>
+
+    <!--
+        The Ultimate warning. Deliberately outside the density tokens: it keeps
+        full padding in landscape while everything around it tightens, because
+        the label alone no longer says the build is unfinished, so this sentence
+        is the only thing carrying "verified origin, still not for use".
+    -->
+    <style name="Widget.Enginehost.Warning" parent="">
+        <item name="android:background">@drawable/eh_warning_bg</item>
+        <item name="android:padding">@dimen/eh_space_m</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+        <item name="android:textColor">@color/eh_on_caution_container</item>
     </style>
 
     <style name="Widget.Enginehost.Badge" parent="">

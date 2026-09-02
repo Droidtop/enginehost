@@ -8,7 +8,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="@dimen/eh_space_m">
+        android:paddingLeft="@dimen/eh_screen_padding_h"
+        android:paddingRight="@dimen/eh_screen_padding_h"
+        android:paddingTop="@dimen/eh_screen_padding_v"
+        android:paddingBottom="@dimen/eh_screen_padding_v">
 
         <TextView
             android:layout_width="match_parent"

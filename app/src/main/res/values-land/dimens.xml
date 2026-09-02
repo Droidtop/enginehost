@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Landscape is the handheld's normal orientation, and height is the axis
+        it runs out of. Only the vertical density tokens shrink; touch targets
+        and horizontal padding are unchanged.
+    -->
+    <dimen name="eh_screen_padding_h">20dp</dimen>
+    <dimen name="eh_screen_padding_v">10dp</dimen>
+    <dimen name="eh_card_padding_h">14dp</dimen>
+    <dimen name="eh_card_padding_v">9dp</dimen>
+</resources>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Landscape scan. The controls and the running status collapse onto one row
+    at the top so the results below get the rest of the height, and results
+    come back two per row from the same grid the library uses.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingLeft="@dimen/eh_screen_padding_h"
+    android:paddingRight="@dimen/eh_screen_padding_h"
+    android:paddingTop="@dimen/eh_screen_padding_v"
+    android:paddingBottom="@dimen/eh_screen_padding_v">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/scan_title"
+            android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/eh_space_m"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="@string/scan_intro"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/chooseScanFolderButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/scan_choose" />
+
+        <Button
+            android:id="@+id/cancelScanButton"
+            style="@style/Widget.Enginehost.Button.Danger"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:text="@string/scan_cancel"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/addAllButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:text="@string/scan_add_all"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/scanRoot"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:background="@drawable/eh_card_bg"
+            android:ellipsize="start"
+            android:maxLines="1"
+            android:paddingLeft="@dimen/eh_space_s"
+            android:paddingRight="@dimen/eh_space_s"
+            android:paddingTop="@dimen/eh_space_s"
+            android:paddingBottom="@dimen/eh_space_s"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/scanStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:textAppearance="@style/TextAppearance.Enginehost.Body"
+        android:visibility="gone" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:scrollbars="none">
+
+        <GridLayout
+            android:id="@+id/resultList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:orientation="horizontal" />
+
+    </ScrollView>
+
+</LinearLayout>

@@ -13,9 +13,9 @@
     <color name="eh_official">#63CD8C</color>
     <color name="eh_official_container">#143221</color>
     <color name="eh_on_official_container">#BEE9CD</color>
-    <color name="eh_developer">#E9A94F</color>
-    <color name="eh_developer_container">#3A2B10</color>
-    <color name="eh_on_developer_container">#F4D8A8</color>
+    <color name="eh_caution">#E9A94F</color>
+    <color name="eh_caution_container">#3A2B10</color>
+    <color name="eh_on_caution_container">#F4D8A8</color>
     <color name="eh_community">#A0A8B2</color>
     <color name="eh_community_container">#262C34</color>
     <color name="eh_on_community_container">#CDD3DA</color>

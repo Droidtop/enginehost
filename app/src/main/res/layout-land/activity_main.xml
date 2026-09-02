@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Landscape home. The library is the daily driver surface, so it takes two
+    thirds of the width as a two column grid that scrolls on its own, and
+    everything that is not the library collapses into a sidebar beside it.
+    Title and subtitle share one line so the grid starts near the top edge.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingLeft="@dimen/eh_screen_padding_h"
+    android:paddingRight="@dimen/eh_screen_padding_h"
+    android:paddingTop="@dimen/eh_screen_padding_v"
+    android:paddingBottom="@dimen/eh_screen_padding_v">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="true"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/eh_space_m"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/main_subtitle"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:orientation="horizontal">
+
+        <!-- Library pane. -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="2"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/section_games"
+                android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+            <EditText
+                android:id="@+id/gameSearch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:hint="@string/search_hint"
+                android:importantForAutofill="no"
+                android:inputType="text"
+                android:maxLines="1"
+                android:visibility="gone" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:scrollbars="none">
+
+                <GridLayout
+                    android:id="@+id/gameLibraryList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="2"
+                    android:orientation="horizontal" />
+
+            </ScrollView>
+
+        </LinearLayout>
+
+        <!-- Everything that is not the library. -->
+        <ScrollView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/eh_column_gap"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <Button
+                    android:id="@+id/pickAndLaunchButton"
+                    style="@style/Widget.Enginehost.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/add_game_folder" />
+
+                <Button
+                    android:id="@+id/scanFolderButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/scan_folder" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_m"
+                    android:text="@string/section_configuration"
+                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+                <Button
+                    android:id="@+id/createConfigButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/open_config_creator" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_m"
+                    android:text="@string/section_input_storage"
+                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+                <Button
+                    android:id="@+id/controllerConfigButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/controller_settings" />
+
+                <Button
+                    android:id="@+id/enginehostSettingsButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/enginehost_settings" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_m"
+                    android:text="@string/section_plugins"
+                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+                <Button
+                    android:id="@+id/pluginTrustButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/manage_plugin_trust" />
+
+                <Button
+                    android:id="@+id/pluginCatalogButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/browse_plugins" />
+
+            </LinearLayout>
+
+        </ScrollView>
+
+    </LinearLayout>
+
+</LinearLayout>

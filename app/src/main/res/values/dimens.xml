@@ -8,4 +8,18 @@
     <dimen name="eh_corner_small">8dp</dimen>
     <dimen name="eh_touch_target">48dp</dimen>
     <dimen name="eh_focus_stroke">3dp</dimen>
+
+    <!--
+        Density tokens. Portrait runs out of width, landscape runs out of
+        height, so the horizontal and vertical halves are separate tokens and
+        values-land tightens only the vertical ones. Screens and cards read
+        these instead of the raw spacing scale, so one override retunes both.
+    -->
+    <dimen name="eh_screen_padding_h">16dp</dimen>
+    <dimen name="eh_screen_padding_v">16dp</dimen>
+    <dimen name="eh_card_padding_h">16dp</dimen>
+    <dimen name="eh_card_padding_v">16dp</dimen>
+
+    <!-- Gap between side by side panes and between grid columns. -->
+    <dimen name="eh_column_gap">12dp</dimen>
 </resources>

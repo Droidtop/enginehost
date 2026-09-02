@@ -64,11 +64,11 @@
 
     <!-- Plugin trust -->
     <string name="trust_title">Plugin trust</string>
-    <string name="trust_intro">Approved plugins execute inside Enginehost and receive its file access. Official means the bundle signer matches a key built into Enginehost; official bundles still require approval.</string>
+    <string name="trust_intro">Approved plugins execute inside Enginehost and receive its file access. Official means the bundle signer matches a key built into Enginehost; official bundles still require approval. Ultimate means the primary developer's own key signed it, the strongest proof of origin here, and marks a build that is not a production release.</string>
     <string name="trust_empty">No Enginehost plugins are installed. Install one from the plugin catalog and it will appear here for approval.</string>
     <string name="open_plugin_catalog">Open plugin catalog</string>
     <string name="badge_official">Official</string>
-    <string name="badge_developer">Developer build</string>
+    <string name="badge_ultimate">Ultimate</string>
     <string name="badge_community">Community</string>
     <string name="plugin_line">%1$s · plugin %2$s</string>
     <string name="trust_state_label">Trust</string>
@@ -78,7 +78,7 @@
     <string name="origin_label">Origin</string>
     <string name="origin_verified">%1$s (verified)</string>
     <string name="signer_label">Signer</string>
-    <string name="developer_warning">Signed with the primary developer debug key. Anything signed with this key is not a production release. If you are not the primary developer, do not trust this build.</string>
+    <string name="ultimate_warning">Signed with the primary developer's own key, so its origin is verified. It is not a production release. If you are not the primary developer, do not use this build.</string>
     <string name="approve">Approve</string>
     <string name="deny">Deny</string>
     <string name="uninstall">Uninstall</string>

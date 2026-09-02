@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Scan result card sized for one weighted column of the landscape grid. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card"
-    android:layout_width="match_parent"
+    android:layout_width="0dp"
     android:layout_height="wrap_content"
+    android:layout_columnWeight="1"
+    android:layout_gravity="fill_horizontal"
+    android:layout_marginEnd="@dimen/eh_column_gap"
     android:layout_marginBottom="@dimen/eh_space_s">
 
     <TextView
         android:id="@+id/scanResultTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
         android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
 
     <TextView
@@ -23,6 +29,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
+        android:maxLines="1"
+        android:ellipsize="start"
         android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
 
     <TextView

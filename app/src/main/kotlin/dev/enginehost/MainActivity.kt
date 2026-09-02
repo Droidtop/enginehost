@@ -5,9 +5,9 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -20,7 +20,7 @@ import java.io.File
  */
 class MainActivity : AppCompatActivity() {
     private lateinit var library: GameLibraryStore
-    private lateinit var gameList: LinearLayout
+    private lateinit var gameList: ViewGroup
     private lateinit var gameSearch: EditText
 
     /** Bumped per render so a stale background status pass cannot touch new rows. */
@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity() {
                         setTextColor(
                             ContextCompat.getColor(
                                 this@MainActivity,
-                                if (status.ok) R.color.eh_text_secondary else R.color.eh_developer,
+                                if (status.ok) R.color.eh_text_secondary else R.color.eh_caution,
                             ),
                         )
                         visibility = View.VISIBLE
