@@ -49,16 +49,62 @@ data class DeclaredOption(
  * versions, so nothing here is cached as permanent truth.
  */
 object DeclaredOptionsReader {
-    fun forEngine(context: Context, engine: String): List<DeclaredOption> =
-        PluginRegistry.discover(context)
-            .filter { it.info.engine == engine }
-            .flatMap { plugin ->
+    /**
+     * The declarations that apply to a config, given the bundle its launch
+     * resolves to.
+     *
+     * Matching on the engine name alone was wrong: mkxp-z, EasyRPG and RPG
+     * Maker MV/MZ all declare engine "rpgmaker", so their lists collapsed
+     * into one and an MV game was offered mkxp-z's rgssVersion, which means
+     * nothing to it. A bundle is the real unit here. By the time the editor
+     * offers options the launch has resolved to exactly one bundle, and
+     * asking that bundle what it honours is both correct and unambiguous --
+     * engine plus context would still be ambiguous, since two bundles can
+     * serve one context, as mkxp-z's own ruby19 and ruby31 capabilities do.
+     */
+    fun forResolvedBundle(context: Context, resolved: InstalledPlugin?, engine: String?): List<DeclaredOption> =
+        merge(
+            applicableBundles(installedBundles(context), resolved, engine).flatMap { plugin ->
                 runCatching {
                     parse(JSONObject(File(plugin.directory, PluginRegistry.SIGNED_MANIFEST).readText()))
                 }.getOrDefault(emptyList())
-            }
+            },
+        )
+
+    private fun installedBundles(context: Context): List<InstalledPlugin> =
+        runCatching { PluginRegistry.discover(context) }.getOrDefault(emptyList())
+
+    /**
+     * Split from the manifest reading so the rule itself is testable with no
+     * Context and no files.
+     *
+     * With a resolved bundle the answer is that bundle and nothing else.
+     * Without one -- a config still being written before any plugin that
+     * could run it is installed -- there is no honest single answer, so
+     * every bundle for the engine contributes, in bundle-ID order. The order
+     * matters: [merge] keeps the first declaration of a duplicate key, and
+     * the previous code took whatever order the filesystem happened to list
+     * directories in, so which description a user saw for a key like
+     * `fullscreen` was not defined. Alphabetical by bundle ID is arbitrary
+     * but it is stable, and the same everywhere.
+     */
+    internal fun applicableBundles(
+        installed: List<InstalledPlugin>,
+        resolved: InstalledPlugin?,
+        engine: String?,
+    ): List<InstalledPlugin> {
+        if (resolved != null) return listOf(resolved)
+        if (engine.isNullOrBlank()) return emptyList()
+        return installed
+            .filter { it.info.engine == engine }
+            .sortedWith(compareBy<InstalledPlugin> { it.bundleId }.thenByDescending { it.info.pluginVersion })
+    }
+
+    /** First declaration of a key wins; the result is ordered for display. */
+    internal fun merge(declarations: List<DeclaredOption>): List<DeclaredOption> =
+        declarations
             .distinctBy { it.key }
-            .sortedBy { it.label.lowercase() }
+            .sortedWith(compareBy({ it.label.lowercase() }, { it.key }))
 
     fun parse(manifest: JSONObject): List<DeclaredOption> {
         val declarations = manifest.optJSONArray("declaredOptions") ?: return emptyList()

@@ -331,7 +331,29 @@ class ConfigEditorActivity : AppCompatActivity() {
     // --- Options: declared entries suggest, custom entries always work ----
 
     private fun declaredOptions(): List<DeclaredOption> =
-        engine?.let { DeclaredOptionsReader.forEngine(this, it) }.orEmpty()
+        DeclaredOptionsReader.forResolvedBundle(this, resolvedBundle(), engine)
+
+    /**
+     * The one bundle this config would actually launch, when the editor
+     * holds enough to say. Resolution is the host's own, so the options
+     * offered are the options of the bundle that will run the game.
+     */
+    private fun resolvedBundle(): InstalledPlugin? {
+        val engineName = engine?.takeIf { it.isNotBlank() } ?: return null
+        val version = runCatching { Version.parse(versionField.text.toString().trim()) }.getOrNull()
+            ?: return null
+        val requirements = runCatching {
+            runtimeRequirements?.let { json ->
+                json.keys().asSequence().associateWith { Version.parse(json.getString(it)) }
+            }.orEmpty()
+        }.getOrNull() ?: return null
+        val constraint = pluginVersionConstraint?.let {
+            runCatching { VersionConstraint.parse(it) }.getOrNull() ?: return null
+        }
+        return runCatching {
+            PluginRegistry.resolve(this, engineName, engineContext, version, requirements, constraint)?.plugin
+        }.getOrNull()
+    }
 
     private fun renderOptions() {
         optionsList.removeAllViews()
