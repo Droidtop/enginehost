@@ -25,7 +25,10 @@ class PluginRegistryTest {
             .put("dexFiles", JSONArray().put("classes.dex"))
             .put("resourceApks", JSONArray())
             .put("runtimeTransport", RUNTIME_TRANSPORT_PLUGIN)
-            .put("capabilities", JSONArray())
+            .put(
+                "capabilities",
+                JSONArray().put(JSONObject().put("id", "run").put("runtimeVersion", "1.0")),
+            )
         File(directory, PluginRegistry.INSTALL_RECORD).writeText(record.toString())
     }
 
