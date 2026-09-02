@@ -71,10 +71,29 @@ object PluginRegistry {
 
     fun root(context: Context): File = File(context.filesDir, "engine-bundles-v1").apply { mkdirs() }
 
-    fun discover(context: Context): List<InstalledPlugin> = root(context).listFiles()
+    fun discover(context: Context): List<InstalledPlugin> = discoverIn(root(context))
+
+    /**
+     * Split out from [discover] so the staging-directory filter below --
+     * the property this class actually needs to be correct -- can be
+     * exercised in a plain JVM test against a temp directory, with no
+     * Android Context involved.
+     */
+    internal fun discoverIn(root: File): List<InstalledPlugin> = root.listFiles()
         .orEmpty()
         .asSequence()
         .filter(File::isDirectory)
+        // A STAGING_PREFIX directory is a bundle install still being
+        // unpacked (or one that was interrupted mid-unpack and is waiting
+        // for EngineBundleInstaller.sweepOrphanedStaging to clean it up).
+        // It can, in principle, contain a fully-written install record if
+        // the owning process died between writing that record and the
+        // final rename -- readRecord() has no other way to tell it apart
+        // from a real install, so this name check is the thing standing
+        // between that half-finished directory and being loaded as a
+        // plugin. Not an incidental detail: the staging prefix is
+        // load-bearing.
+        .filter { !it.name.startsWith(STAGING_PREFIX) }
         .mapNotNull { directory -> runCatching { readRecord(directory) }.getOrNull() }
         .toList()
 
@@ -130,6 +149,9 @@ object PluginRegistry {
         discover(context), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
     )
 }
+
+/** Shared with [EngineBundleInstaller], which is the sole creator of these directories. */
+internal const val STAGING_PREFIX = ".staging-"
 
 internal val BUNDLE_ID = Regex("[a-z0-9]+(?:[._-][a-z0-9]+)*")
 const val RUNTIME_TRANSPORT_PLUGIN = "plugin-api"

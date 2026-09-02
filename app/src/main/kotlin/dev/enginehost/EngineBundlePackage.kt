@@ -149,7 +149,7 @@ object EngineBundleInstaller {
         require(archive.isFile) { "Engine bundle does not exist" }
         val archiveSha = sha256(archive)
         val root = PluginRegistry.root(context)
-        val staging = File(root, ".staging-${UUID.randomUUID()}")
+        val staging = File(root, "$STAGING_PREFIX${UUID.randomUUID()}")
         require(staging.mkdir()) { "Could not create bundle staging directory" }
         try {
             val extracted = extractVerified(archive, staging)
@@ -177,9 +177,51 @@ object EngineBundleInstaller {
             require(staging.renameTo(destination)) { "Could not atomically install engine bundle" }
             return PluginRegistry.readRecord(destination)
         } catch (error: Throwable) {
-            staging.walkBottomUp().forEach { it.setWritable(true, true) }
-            staging.deleteRecursively()
+            forceDeleteRecursively(staging)
             throw error
+        }
+    }
+
+    /*
+     * Deletes every leftover STAGING_PREFIX directory under the bundle root.
+     *
+     * The catch block in install() above only runs when installation fails
+     * by throwing. It never runs when the process is killed outright
+     * instead -- another component force-stopping the app mid-unpack, the
+     * system reclaiming memory, and so on -- which leaves a staging
+     * directory holding a partial bundle (up to hundreds of MB) on disk
+     * forever, since nothing else ever revisits it.
+     *
+     * Call this once, from EnginehostApplication.onCreate, before this
+     * process has had any opportunity to call install() itself. That
+     * timing is what makes the sweep safe rather than a size or age
+     * threshold: install() is only ever invoked from the default process.
+     * RuntimeActivity and BundledActivityProxy, the two components
+     * declared with android:process=":runtime" in the manifest, never
+     * install bundles. So a staging directory that exists at the moment
+     * this fresh default-process instance starts up cannot belong to an
+     * install this process is running, since none has started yet, and
+     * cannot belong to one still running in another process either,
+     * because the only other process that ever calls install() is the
+     * previous incarnation of this very process, and that incarnation is,
+     * by construction, the one that just ended. EnginehostApplication
+     * restricts the call to the default process for exactly this reason:
+     * running it from the runtime process own onCreate would have no such
+     * guarantee, since the default process could be mid-install at that
+     * exact moment.
+     */
+    fun sweepOrphanedStaging(context: Context) = sweepOrphanedStagingIn(PluginRegistry.root(context))
+
+    /**
+     * Split out from [sweepOrphanedStaging] so it can be exercised in a
+     * plain JVM test against a temp directory, with no Android Context
+     * involved.
+     */
+    internal fun sweepOrphanedStagingIn(root: File) {
+        root.listFiles().orEmpty().forEach { entry ->
+            if (entry.isDirectory && entry.name.startsWith(STAGING_PREFIX)) {
+                runCatching { forceDeleteRecursively(entry) }
+            }
         }
     }
 
@@ -316,6 +358,19 @@ private fun copyExact(
         payloadDigest.update(buffer, 0, read)
         remaining -= read
     }
+}
+
+/*
+ * A signed bundle payload file is extracted mode 0444, read-only, as it
+ * is written, and some may still carry that mode when a staging
+ * directory is cleaned up. A plain deleteRecursively() silently leaves
+ * those behind, which is exactly what turned a manual rm -rf into a
+ * no-op on device tonight. Restoring write permission bottom-up first
+ * makes deletion actually work.
+ */
+private fun forceDeleteRecursively(dir: File) {
+    dir.walkBottomUp().forEach { it.setWritable(true, true) }
+    dir.deleteRecursively()
 }
 
 private fun safeChild(root: File, path: String): File {
