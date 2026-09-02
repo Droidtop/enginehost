@@ -105,3 +105,68 @@ reports and has no notion of a file name suffix.
 An unrecognised `type` falls back to the free-text editor rather than being
 rejected, so a bundle declaring a type a given Enginehost build predates
 stays usable.
+
+## Runtime components (subplugins)
+
+Some games need more than a stock engine: Goodbye Eternity is a Godot 4.5
+game whose scenes are Spine animations, and its own desktop exports are
+custom Godot builds with EsotericSoftware's `spine_godot` runtime compiled
+in. An engine bundle must therefore be able to carry extensions to its
+engine. Spine is the first; the format treats it as a general concept so
+the next one follows the same path.
+
+A runtime component ships **inside the parent bundle's signed payload** —
+same tar, same manifest, same signature, same pinned origin key. A
+component is native code loaded into the `:runtime` process, so it carries
+exactly the trust weight of the engine itself; a separately-delivered or
+separately-signed component would be a second trust mechanism beside the
+existing one, and is deliberately not part of the format. Adding a
+component means publishing a new bundle build.
+
+A capability declares what it carries in `runtimeComponents`, a JSON
+object of component name to exact version:
+
+```json
+"capabilities": [{
+  "id": "godot-4.5-standard-v1",
+  "runtimeVersion": "4.5.1",
+  "supportedSeries": ["4.5"],
+  "runtimeComponents": { "spine-godot": "4.2" }
+}]
+```
+
+The name is scoped to the engine's ecosystem (`spine-godot`, not `spine`);
+the version is the component's compatibility line as its own ecosystem
+defines it — for spine-godot, the Spine editor major.minor whose exported
+skeletons the runtime loads. A game's `enginehost.json` states what it
+needs in `runtimeRequirements`, and a capability is eligible only when
+every named component is present at exactly the required version:
+
+```json
+{ "engine": "godot", "engineVersion": "4.5.1",
+  "runtimeRequirements": { "spine-godot": "4.2" } }
+```
+
+This reuses the engine-version vocabulary rather than inventing one — it
+is the same two-sided constraint mkxp-z already expresses by declaring
+`vxace` against both Ruby 3.1.3 and 1.9.2. When no installed capability
+satisfies the requirements, plugin selection fails before launch with the
+requirements named, which is a legible answer; the alternative this
+section exists to prevent is the engine coming up without the component
+and rendering black.
+
+How the engine finds the component at runtime is engine-specific and
+deliberately outside this contract. For Godot, `spine_godot` is compiled
+into `libgodot_android.so` as an engine module — the same way the games'
+own desktop exports embed it; such games ship no `.gdextension`, so the
+classes must exist in the engine binary before their scripts parse. A
+future component for another engine may instead be a payload shared
+library its plugin loads at startup. Either way the bytes are signed
+payload members, and the manifest's `source` may record the component's
+upstream and revision under `source.components`.
+
+A component's licence travels with it: the Spine Runtimes License permits
+redistribution only when the licence and copyright notice are included, so
+the Godot bundle ships `LICENSE-spine-runtimes.txt` in its payload beside
+`LICENSE.txt` and `COPYRIGHT.txt`, and the manifest lists the licence in
+`licenses`.
