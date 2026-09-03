@@ -45,7 +45,7 @@ class PluginUpdatesTest {
         "renpy-8.2-v1",
         "https://example.invalid/bundle",
         null,
-        prerelease = false,
+        stream = PluginStream.STABLE,
     )
 
     @Test
