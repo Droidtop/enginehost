@@ -75,3 +75,34 @@ the authoritative game path.
 
 Capability declarations must describe observed compatibility, not the broadest
 generation an underlying project nominally recognizes.
+
+## Run Time Packages (decided 2026-09-03, not yet built)
+
+XP, VX, VX Ace, 2000 and 2003 games commonly depend on the generation's Run
+Time Package (RTP) for default graphics and audio; MV and MZ have none. The
+RTPs are Gotcha Gotcha Games' copyrighted material under their own licence,
+so enginehost neither bundles them nor downloads them on the user's behalf.
+
+What enginehost does instead is own them once for the whole family:
+
+- One **RTP store**, kept by the host, with one slot per generation
+  (`2000`, `2003`, `xp`, `vx`, `vxace`). A game whose plugin reports a
+  missing RTP, or the user from settings, is pointed at the official download
+  page (`https://www.rpgmakerweb.com/run-time-package`) and asked to hand the
+  downloaded file to enginehost.
+- Enginehost **unpacks the file on the device** into the slot. The official
+  downloads are installers, not archives: `RPGVXAce_RTP.zip` holds an Inno
+  Setup `Setup.exe` plus `Setup-1.bin` (slice format), `xp_rtp104e.exe` is
+  Inno Setup 5.2.3, `vx_rtp102e.zip` holds an Inno Setup `Setup.exe`, and
+  `rpg2000_rtp_installer.exe` / `rpg2003_rtp_installer.zip` are NSIS 2.46.
+  Unpacking therefore needs an Inno Setup extractor (innoextract, C++,
+  buildable with the NDK) and an NSIS extractor (7-Zip's NSIS handler). A
+  user who already has an extracted RTP folder can point at that instead.
+- Every `rpgmaker` plugin receives the slot for its context as the
+  `rtpPaths` option, filled in by the host below the game's own config and
+  the caller's, the way detected `runtimeRequirements` are. No plugin knows
+  where the store lives, and no plugin ships or fetches RTP content.
+
+Until the store exists, a game that needs an RTP fails inside the engine with
+the engine's own missing-file message; that is the plugin working correctly
+on incomplete input, not a plugin bug.
