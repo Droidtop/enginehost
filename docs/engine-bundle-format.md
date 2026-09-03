@@ -28,7 +28,13 @@ size, POSIX permission bits, and SHA-256 digest.
 Within one `bundleId`, `pluginVersion` is the total order on builds: a
 release with the same ID from the same origin and a strictly higher
 `pluginVersion` is an update and replaces the older build in place, while a
-new ID (a new series, or a deliberate `-vN` bump) coexists. How updates are
+new ID (a new series, or a deliberate `-vN` bump) coexists. The repository's
+metadata declares only the major and minor components as a statement of
+intent; `build-engine-bundle.py` sets the third component to the CI run
+counter (`GITHUB_RUN_NUMBER`, or `--build-number`), so every build of a line
+is a strictly newer build than the one before it without anyone editing a
+file. A hand-written third component is therefore replaced in CI, and a
+deliberate bump is expressed in major or minor. How updates are
 discovered, gated and approved is docs/plugin-catalog.md's Updates section;
 the invariant that matters here is that replacing bytes never carries over
 approval, which is bound to the exact archive digest and signer.

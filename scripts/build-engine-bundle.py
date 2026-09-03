@@ -75,6 +75,10 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--release-envelope", type=Path)
     parser.add_argument("--public-key-document", type=Path)
+    parser.add_argument("--build-number", type=int,
+                        help="CI build counter; defaults to GITHUB_RUN_NUMBER when set. "
+                             "Becomes pluginVersion's third component so every build of a line "
+                             "is a strictly newer build than the one before it.")
     parser.add_argument("--repository-key-document", type=Path,
                         help="Existing certified repository key document to validate and copy")
     args = parser.parse_args()
@@ -89,6 +93,21 @@ def main() -> None:
     missing = sorted(required - metadata.keys())
     if missing:
         raise SystemExit("metadata is missing: " + ", ".join(missing))
+
+    # pluginVersion is the total order on builds within a bundle id (see
+    # docs/engine-bundle-format.md), yet the value in a repository's metadata
+    # is hand-written and rarely touched: every CI build of a line carried the
+    # same "1.0.0", so no build was ever a newer build of another and the
+    # in-app update check had nothing to offer. The CI run counter fixes the
+    # third component: major.minor stay the maintainer's statement of intent,
+    # the patch component becomes "which build", monotonic per repository.
+    build_number = args.build_number
+    if build_number is None and os.environ.get("GITHUB_RUN_NUMBER", "").isdigit():
+        build_number = int(os.environ["GITHUB_RUN_NUMBER"])
+    if build_number is not None:
+        declared = [int(part) for part in str(metadata["pluginVersion"]).split(".")]
+        major_minor = (declared + [0, 0])[:2]
+        metadata["pluginVersion"] = ".".join(str(part) for part in major_minor + [build_number])
 
     files = payload_files(args.payload)
     aggregate = hashlib.sha256()
