@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Android 12 paints its own splash for a cold-started activity: the
+        app icon on a plain ground. For the launch screen that is exactly
+        the generic frame it exists to replace, so the system splash is
+        reduced to the screen's own background with no icon; the first
+        thing drawn is the game.
+    -->
+    <style name="Theme.Enginehost.Launch" parent="Theme.Enginehost">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowSplashScreenBackground">@color/eh_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/eh_background</item>
+    </style>
+
+</resources>
