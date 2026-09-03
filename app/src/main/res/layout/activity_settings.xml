@@ -106,28 +106,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/detection_rules"
-            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/detection_rules_hint"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-        <Button
-            android:id="@+id/updateDetectionRulesButton"
-            style="@style/Widget.Enginehost.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/update_detection_rules" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
             android:text="@string/updates_section"
             android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 

@@ -217,15 +217,10 @@
     <string name="engine_family">Engine family</string>
     <string name="engine_version">Engine version</string>
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
-    <string name="detection_rules">Detection rules</string>
-    <string name="detection_rules_hint">Engine detection reads a published engines database shared with other launchers, so every app that uses it classifies a game the same way. Update it here without waiting for an app release.</string>
-    <string name="update_detection_rules">Update detection rules</string>
-    <string name="detection_rules_updated">Detection rules updated (%1$d engines)</string>
-    <string name="detection_rules_update_failed">Update failed: %1$s</string>
     <string name="update_to_build">Update to build %1$s</string>
     <string name="updates_section">Updates</string>
     <string name="updates_check_daily">Check for updates once a day</string>
-    <string name="updates_check_daily_hint">Lists the published releases of the repositories your installed plugins came from, plus the newest Enginehost build — nothing about this device or your games is sent. Turning this off stops all automatic update traffic.</string>
+    <string name="updates_check_daily_hint">Lists the published releases of the repositories your installed plugins came from, the newest Enginehost build, and the current engine detection rules — nothing about this device or your games is sent. Turning this off stops all automatic update traffic.</string>
     <string name="updates_install_plugins_automatically">Install plugin updates automatically</string>
     <string name="updates_install_plugins_automatically_hint">Replaces an installed plugin when its repository publishes a newer signed build. The new build still needs your approval before it runs anything.</string>
     <string name="app_version_line">Enginehost %1$s (build %2$d)</string>

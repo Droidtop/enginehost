@@ -58,10 +58,16 @@ class PluginUpdateCheck(private val context: Context) {
             origins.forEach { origin ->
                 runCatching { cache.save(origin, GithubPluginCatalogClient(context).fetch(origin)) }
             }
-            // The same daily pass also asks what the newest Enginehost build
-            // is -- one more small unauthenticated download, remembered so
-            // the home screen can say an app update exists. Failure is as
-            // silent as a failed catalog fetch.
+            // The engine detection rules ride along too: they are the one
+            // piece of enginehost that changes faster than the app, and a
+            // person with a game that detects wrongly has no way to know a
+            // fix was published. Validate-before-replace inside
+            // EngineRegistryStore.update means a bad download changes nothing.
+            runCatching { EngineRegistryStore.update(context) }
+            // The same pass also asks what the newest Enginehost build is --
+            // one more small unauthenticated download, remembered so the
+            // home screen can say an app update exists. Failure is as silent
+            // as a failed catalog fetch.
             runCatching { AppUpdate.fetch() }.onSuccess { info ->
                 preferences.edit()
                     .putLong(APP_VERSION_CODE, info.versionCode)

@@ -43,7 +43,6 @@ class EnginehostSettingsActivity : AppCompatActivity() {
             browserStartStore.clear()
             refresh()
         }
-        findViewById<Button>(R.id.updateDetectionRulesButton).setOnClickListener { updateDetectionRules() }
 
         val updateCheck = PluginUpdateCheck(this)
         findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.checkUpdatesSwitch).apply {
@@ -164,29 +163,6 @@ class EnginehostSettingsActivity : AppCompatActivity() {
         } else {
             StorageFolder.absolutePath(tree)?.path ?: tree.toString()
         }
-    }
-
-    /**
-     * Refreshes the shared engines-database (the classification
-     * authority this app now shares with droidtop) from the same
-     * droidtop-platforms URL droidtop pulls: one update, both apps.
-     * Validate-before-replace inside [EngineRegistryStore.update], so a
-     * bad download can never blank out detection.
-     */
-    private fun updateDetectionRules() {
-        Thread {
-            val result = runCatching { EngineRegistryStore.update(this) }
-            runOnUiThread {
-                result.fold(
-                    onSuccess = { count ->
-                        Toast.makeText(this, getString(R.string.detection_rules_updated, count), Toast.LENGTH_LONG).show()
-                    },
-                    onFailure = {
-                        Toast.makeText(this, getString(R.string.detection_rules_update_failed, it.message), Toast.LENGTH_LONG).show()
-                    },
-                )
-            }
-        }.start()
     }
 
     companion object {
