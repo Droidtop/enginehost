@@ -10,8 +10,12 @@ object EngineNames {
         "renpy" -> "Ren'Py"
         "godot" -> "Godot"
         "rpgmaker" -> "RPG Maker"
-        "kirikiri" -> "KiriKiri"
+        "kirikiri", "kirikiri2" -> "KiriKiri"
         "buriko" -> "Buriko General Interpreter"
+        "cmvs" -> "CMVS"
+        "catsystem2" -> "CatSystem2"
+        "twine" -> "Twine"
+        "flash_air" -> "Flash / AIR"
         else -> engine
     }
 
@@ -68,12 +72,19 @@ object EngineNames {
         else -> component
     }
 
-    /** The compatibility line a game targets, e.g. "RPG Maker VX Ace". */
+    /**
+     * The compatibility line a game targets, e.g. "RPG Maker VX Ace", from
+     * the engine and context vocabulary the bundles actually publish. A
+     * context that is only an implementation detail (Ren'Py "standard",
+     * KiriKiri "default", Buriko's compiled-script variants) adds nothing a
+     * person would say, so it is left off; an unknown context is shown as
+     * written rather than guessed at.
+     */
     fun line(engine: String, engineContext: String?): String {
         val family = family(engine)
         val context = engineContext?.takeIf { it.isNotBlank() && it != DEFAULT_ENGINE_CONTEXT } ?: return family
-        if (engine == "rpgmaker") {
-            return when (context) {
+        return when (engine) {
+            "rpgmaker" -> when (context) {
                 "xp" -> "RPG Maker XP"
                 "vx" -> "RPG Maker VX"
                 "vxace" -> "RPG Maker VX Ace"
@@ -83,7 +94,23 @@ object EngineNames {
                 "2003" -> "RPG Maker 2003"
                 else -> "$family $context"
             }
+            "renpy" -> if (context == "standard" || context == "python3" || context == "python2") family else "$family $context"
+            "godot" -> if (context == "standard") family else "$family $context"
+            "kirikiri", "kirikiri2" -> if (context == "default") "KiriKiri 2" else "$family $context"
+            "buriko" -> family
+            "cmvs" -> when (context) {
+                "ps2" -> "CMVS PS2"
+                "ps3" -> "CMVS PS3"
+                else -> "$family $context"
+            }
+            "catsystem2" -> if (context == "cst") family else "$family $context"
+            "twine" -> if (context == "compiled-html") family else "$family $context"
+            "flash_air" -> when (context) {
+                "swf" -> "Flash (SWF)"
+                "air" -> "Adobe AIR"
+                else -> "$family $context"
+            }
+            else -> "$family $context"
         }
-        return "$family $context"
     }
 }
