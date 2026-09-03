@@ -91,7 +91,7 @@
             android:name=".RuntimeActivity"
             android:exported="false"
             android:process=":runtime"
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:theme="@style/Theme.Enginehost.Runtime"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <!-- Instantiated as a signed bundle's Activity by EnginehostComponentFactory. -->
@@ -99,7 +99,7 @@
             android:name=".BundledActivityProxy"
             android:exported="false"
             android:process=":runtime"
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:theme="@style/Theme.Enginehost.Runtime"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <!--
@@ -110,13 +110,15 @@
              enginehost.json file this app expects to find at that
              folder's own root. No game import step or per-caller metadata
              to keep in sync; any caller (not just droidtop)
-             just needs a folder with a valid config in it. See
-             LaunchActivity and EngineConfig's own doc comments.
+             just needs a folder with a valid config in it. An optional
+             "title" in the config names the game on the launch screen this
+             activity shows until the engine draws. See LaunchActivity and
+             EngineConfig's own doc comments.
         -->
         <activity
             android:name=".LaunchActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:theme="@style/Theme.Enginehost.Launch"
             android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="dev.enginehost.LAUNCH" />

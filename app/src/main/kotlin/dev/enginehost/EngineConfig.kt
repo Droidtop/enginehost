@@ -32,7 +32,10 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  *
  * `engine` and `engineVersion` are required. `engine` selects a plugin
  * family; optional `engineContext` selects a compatibility line within
- * that family. `engineVersion` is the game's real runtime target.
+ * that family. Optional `title` is the game's display name for the launch
+ * screen; a caller that knows the name better than the folder does (a
+ * launcher with a library) supplies it inline, and the folder name is the
+ * fallback. `engineVersion` is the game's real runtime target.
  * Compatibility must be explicitly advertised by a plugin capability;
  * numerical proximity alone is never enough. `pluginVersion` is an
  * optional comma-separated allowlist of exact versions and/or `lo-hi`
@@ -58,6 +61,7 @@ const val CONFIG_FILE_NAME = "enginehost.json"
 data class EngineConfig(
     val engine: String,
     val engineContext: String?,
+    val title: String? = null,
     val engineVersion: Version,
     val runtimeRequirements: Map<String, Version>,
     val pluginVersionConstraint: VersionConstraint?,
@@ -151,6 +155,7 @@ object EngineConfigReader {
         return EngineConfig(
             engine = engine,
             engineContext = json.optString("engineContext").takeIf { it.isNotBlank() },
+            title = json.optString("title").trim().takeIf { it.isNotBlank() },
             engineVersion = try {
                 Version.parse(engineVersionRaw)
             } catch (_: IllegalArgumentException) {

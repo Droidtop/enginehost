@@ -101,6 +101,9 @@
     <string name="releases_heading">Available releases</string>
     <string name="filtered_compatible">Showing releases compatible with this game.</string>
     <string name="filtered_no_match">No confident match is available. Showing every release so you can choose by engine knowledge.</string>
+    <string name="filtered_missing_component">This game needs %1$s, which nothing installed or published here provides. %2$s Install a bundle whose capability lists it, or set \"runtimeRequirements\" in the game\'s enginehost.json if the game\'s own assets are being read wrongly.</string>
+    <string name="component_carried">Bundles here carry %1$s %2$s.</string>
+    <string name="component_carried_none">No bundle here carries %1$s at all.</string>
     <string name="releases_not_loaded">Releases have not been loaded yet. Refresh to fetch each origin\'s published releases.</string>
     <string name="releases_none_published">These origins have no published releases yet. Refresh again later to check for new ones.</string>
     <string name="installed">Installed</string>
@@ -234,6 +237,11 @@
     <string name="app_update_downloading">Downloading Enginehost %1$s…</string>
     <string name="app_update_handing_to_installer">Handing the update to the Android installer…</string>
     <string name="app_update_failed">Update failed</string>
+    <!-- Launch screen: shown from the tap until the engine draws its first frame. -->
+    <string name="launch_starting">Starting…</string>
+    <string name="launch_engine_line">%1$s %2$s</string>
+    <string name="launch_runtime_line">%1$s · runtime %2$s</string>
+
     <plurals name="plugin_updates_available">
         <item quantity="one">%d plugin update is available</item>
         <item quantity="other">%d plugin updates are available</item>

@@ -102,4 +102,18 @@ class EngineConfigReaderTest {
             )
         }
     }
+
+    @Test
+    fun `title comes from the caller when the folder has none and from the folder otherwise`() {
+        val gameFolder = temporaryFolder.newFolder("Some Folder Name")
+        gameFolder.resolve(CONFIG_FILE_NAME).writeText("""{"engine":"renpy","engineVersion":"8.2.1"}""")
+        val filled = EngineConfigReader.resolve(gameFolder, """{"title":"  A Real Title  "}""")
+        assertEquals("A Real Title", filled.title)
+
+        gameFolder.resolve(CONFIG_FILE_NAME).writeText("""{"engine":"renpy","engineVersion":"8.2.1","title":"Folder Says"}""")
+        val authoritative = EngineConfigReader.resolve(gameFolder, """{"title":"Caller Says"}""")
+        assertEquals("Folder Says", authoritative.title)
+
+        assertNull(EngineConfigReader.parseDocument("""{"engine":"renpy","engineVersion":"8.2.1","title":"   "}""").title)
+    }
 }

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/eh_background"
+    android:paddingHorizontal="@dimen/eh_screen_padding_h"
+    android:paddingVertical="@dimen/eh_screen_padding_v">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/gameIcon"
+            android:layout_width="@dimen/eh_launch_icon"
+            android:layout_height="@dimen/eh_launch_icon"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/gameTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_l"
+            android:fontFamily="@font/gantari_medium"
+            android:gravity="center_horizontal"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:textColor="@color/eh_text_primary"
+            android:textSize="@dimen/eh_launch_title_text" />
+
+        <TextView
+            android:id="@+id/engineLine"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:gravity="center_horizontal"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body"
+            android:textColor="@color/eh_text_secondary" />
+
+        <TextView
+            android:id="@+id/runtimeLine"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:gravity="center_horizontal"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_l"
+            android:text="@string/launch_starting"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/cancelButton"
+        style="@style/Widget.Enginehost.Button.Secondary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:minWidth="160dp"
+        android:text="@string/cancel" />
+</FrameLayout>

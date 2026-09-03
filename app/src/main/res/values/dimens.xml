@@ -22,4 +22,6 @@
 
     <!-- Gap between side by side panes and between grid columns. -->
     <dimen name="eh_column_gap">12dp</dimen>
+    <dimen name="eh_launch_icon">112dp</dimen>
+    <dimen name="eh_launch_title_text">26sp</dimen>
 </resources>

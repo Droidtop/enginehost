@@ -23,6 +23,22 @@
         <item name="alertDialogTheme">@style/Theme.Enginehost.Dialog</item>
     </style>
 
+    <!-- The launch screen: the app theme, edge to edge, no bars. -->
+    <style name="Theme.Enginehost.Launch" parent="Theme.Enginehost">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+    <!--
+        The runtime activities. windowDisablePreview matters: without it
+        Android paints a blank starting window for the :runtime process the
+        moment it is asked for, covering the launch screen with nothing.
+        With it, the launch screen stays until the engine draws.
+    -->
+    <style name="Theme.Enginehost.Runtime" parent="@android:style/Theme.NoTitleBar.Fullscreen">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
     <style name="Theme.Enginehost.Dialog" parent="Theme.AppCompat.DayNight.Dialog.Alert">
         <item name="colorAccent">@color/eh_accent</item>
         <item name="android:windowBackground">@drawable/eh_card_bg</item>
