@@ -137,5 +137,111 @@
 
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_l"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/detection_rules"
+                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/detection_rules_hint"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <Button
+                    android:id="@+id/updateDetectionRulesButton"
+                    style="@style/Widget.Enginehost.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/update_detection_rules" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/eh_column_gap"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/updates_section"
+                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/checkUpdatesSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/updates_check_daily" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/updates_check_daily_hint"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/autoInstallPluginsSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/updates_install_plugins_automatically" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/updates_install_plugins_automatically_hint"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <TextView
+                    android:id="@+id/appVersionValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:background="@drawable/eh_card_bg"
+                    android:padding="@dimen/eh_space_s"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+                <Button
+                    android:id="@+id/checkAppUpdateButton"
+                    style="@style/Widget.Enginehost.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/app_update_check_now" />
+
+                <Button
+                    android:id="@+id/installAppUpdateButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:visibility="gone"
+                    android:text="@string/app_update_install" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
     </LinearLayout>
 </ScrollView>
