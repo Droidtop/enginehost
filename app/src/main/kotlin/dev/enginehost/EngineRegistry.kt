@@ -140,7 +140,22 @@ interface GameTree {
     val dirPaths: List<String>
     fun length(path: String): Long
     fun readHead(path: String, limit: Int): ByteArray
-    fun readTail(path: String, limit: Int): ByteArray
+
+    /**
+     * Up to [limit] bytes starting at [offset]. Random access is what
+     * lets a container's own index be walked -- a Godot pack's file
+     * directory, and from it one skeleton header in the middle of a
+     * gigabyte -- without reading everything before it.
+     */
+    fun read(path: String, offset: Long, limit: Int): ByteArray
+
+    /** The file's last [limit] bytes, or all of it when it is shorter. */
+    fun readTail(path: String, limit: Int): ByteArray {
+        val size = length(path)
+        val count = minOf(limit.toLong(), size)
+        return read(path, size - count, count.toInt())
+    }
+
     fun subtree(dir: String): GameTree
 }
 
@@ -157,12 +172,12 @@ class FileGameTree private constructor(
         File(root, path).inputStream().use { it.readNBytes(limit) }
     }.getOrDefault(ByteArray(0))
 
-    override fun readTail(path: String, limit: Int): ByteArray = runCatching {
+    override fun read(path: String, offset: Long, limit: Int): ByteArray = runCatching {
         val file = File(root, path)
-        val size = file.length()
-        val count = minOf(limit.toLong(), size).toInt()
+        val count = minOf(limit.toLong(), (file.length() - offset).coerceAtLeast(0L)).toInt()
+        if (count <= 0 || offset < 0) return@runCatching ByteArray(0)
         RandomAccessFile(file, "r").use { raf ->
-            raf.seek(size - count)
+            raf.seek(offset)
             ByteArray(count).also { raf.readFully(it) }
         }
     }.getOrDefault(ByteArray(0))
@@ -233,14 +248,15 @@ class SafGameTree private constructor(
         }.getOrDefault(ByteArray(0))
     }
 
-    override fun readTail(path: String, limit: Int): ByteArray {
+    override fun read(path: String, offset: Long, limit: Int): ByteArray {
         val entry = files[path] ?: return ByteArray(0)
+        if (offset < 0) return ByteArray(0)
         return runCatching {
             resolver.openFileDescriptor(entry.uri, "r")?.use { pfd ->
                 java.io.FileInputStream(pfd.fileDescriptor).use { input ->
-                    val size = input.channel.size()
-                    val count = minOf(limit.toLong(), size).toInt()
-                    input.channel.position(size - count)
+                    val count = minOf(limit.toLong(), (input.channel.size() - offset).coerceAtLeast(0L)).toInt()
+                    if (count <= 0) return@use ByteArray(0)
+                    input.channel.position(offset)
                     val buffer = java.nio.ByteBuffer.allocate(count)
                     while (buffer.hasRemaining() && input.channel.read(buffer) >= 0) Unit
                     buffer.array()

@@ -145,11 +145,16 @@ class PluginCatalogActivity : AppCompatActivity() {
             ).map { it.first }.distinctBy { it.bundleId }
         }.orEmpty()
         val available = if (requestedConfig != null && matches.isNotEmpty()) matches else allAvailable
-        if (requestedConfig != null) {
+        requestedConfig?.let { config ->
             releaseFilterNote.visibility = View.VISIBLE
-            releaseFilterNote.setText(
-                if (matches.isNotEmpty()) R.string.filtered_compatible else R.string.filtered_no_match,
-            )
+            releaseFilterNote.text = when {
+                matches.isNotEmpty() -> getString(R.string.filtered_compatible)
+                // A component requirement nothing here carries is the one
+                // failure mode worth spelling out: the game names what it
+                // needs, so say that rather than leaving the user to
+                // guess which of these bundles is missing what.
+                else -> unmetComponentNote(config, allAvailable) ?: getString(R.string.filtered_no_match)
+            }
         }
         if (available.isEmpty()) {
             releasesEmptyState.visibility = View.VISIBLE
@@ -182,6 +187,31 @@ class PluginCatalogActivity : AppCompatActivity() {
         ) {
             refresh()
         }
+    }
+
+    /**
+     * "This game needs spine-godot 4.2. No bundle here carries
+     * spine-godot. Install one that lists it, or set
+     * "runtimeRequirements" in the game's enginehost.json."
+     *
+     * Null when the requirements are all met and the mismatch is
+     * somewhere else (engine family, version, plugin allowlist).
+     */
+    private fun unmetComponentNote(config: EngineConfig, available: List<AvailablePlugin>): String? {
+        if (config.runtimeRequirements.isEmpty()) return null
+        val capabilities = available.flatMap { it.info.capabilities } +
+            PluginRegistry.discover(this).flatMap { it.info.capabilities }
+        val unmet = RuntimeRequirementReport.unmet(config.runtimeRequirements, capabilities)
+        if (unmet.isEmpty()) return null
+        val needed = unmet.keys.sorted().joinToString(", ") { "$it ${config.runtimeRequirements[it]}" }
+        val carried = unmet.entries.sortedBy { it.key }.joinToString(" ") { (name, versions) ->
+            if (versions.isEmpty()) {
+                getString(R.string.component_carried_none, name)
+            } else {
+                getString(R.string.component_carried, name, versions.joinToString(", "))
+            }
+        }
+        return getString(R.string.filtered_missing_component, needed, carried)
     }
 
     private fun addRelease(plugin: AvailablePlugin) {

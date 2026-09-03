@@ -165,58 +165,31 @@ object EngineDetector {
             val version = Regex("(?m)^config/features=.*?[\"'](\\d+(?:\\.\\d+)+)").find(text(tree, project))?.groupValues?.get(1)
             return EngineDetection("godot", row.context, version, tree.pathPrefix + project, "Found a Godot project")
         }
-        tree.filePaths.firstOrNull { '/' !in it && it.lowercase().endsWith(".pck") }?.let { pack ->
-            val header = tree.readHead(pack, 20)
-            godotHeaderVersion(header, 0)?.let { version ->
-                return EngineDetection("godot", row.context, version, tree.pathPrefix + pack, "Found a Godot pack (GDPC)")
+        // A .pck sits beside the export; a self-contained export carries
+        // the pack appended to the platform binary, which is the shape
+        // Godot's own default export produces and the one Goodbye
+        // Eternity ships (.x86_64 and .exe, each with the pack inside).
+        // Reading the pack is also what tells us which Spine export line
+        // the game's skeletons are, so the component requirement comes
+        // from the game rather than from someone typing it in.
+        for (candidate in GodotPack.candidates(tree)) {
+            val header = GodotPack.open(tree, candidate) ?: continue
+            val evidence = if (header.packStart == 0L) {
+                "Found a Godot pack (GDPC)"
+            } else {
+                "Found a Godot pack embedded in the executable"
             }
-        }
-        tree.filePaths.filter { '/' !in it && it.lowercase().endsWith(".exe") }.take(4).forEach { executable ->
-            godotEmbeddedPackVersion(tree, executable)?.let { version ->
-                return EngineDetection(
-                    "godot", row.context, version, tree.pathPrefix + executable,
-                    "Found a Godot pack embedded in the executable",
-                )
-            }
+            val requirements = SpineSkeletonScan.requirement(tree, candidate, header)
+            return EngineDetection(
+                "godot",
+                row.context,
+                header.engineVersion,
+                tree.pathPrefix + candidate,
+                if (requirements.isEmpty()) evidence else "$evidence holding Spine skeletons",
+                requirements,
+            )
         }
         return EngineDetection("godot", row.context, evidence = "Found a Godot export")
-    }
-
-    /** A pack header: GDPC, format version, then engine major/minor/patch, all little-endian. */
-    private fun godotHeaderVersion(bytes: ByteArray, offset: Int): String? {
-        if (bytes.size < offset + 20) return null
-        if (String(bytes, offset, 4, Charsets.US_ASCII) != "GDPC") return null
-        val buffer = java.nio.ByteBuffer.wrap(bytes, offset + 4, 16).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-        buffer.int
-        val major = buffer.int
-        val minor = buffer.int
-        val patch = buffer.int
-        if (major !in 1..9 || minor !in 0..99 || patch !in 0..999) return null
-        return "$major.$minor.$patch"
-    }
-
-    /**
-     * A pack appended to an executable ends with an 8-byte little-endian
-     * pack size followed by GDPC at EOF; the pack itself begins at
-     * length - 12 - packSize with the same header as a standalone pack.
-     * Reading the whole tail (packSize + 12 bytes capped at the trailer
-     * region) is avoided: only the 12-byte trailer and the 20-byte pack
-     * head are fetched.
-     */
-    private fun godotEmbeddedPackVersion(tree: GameTree, path: String): String? {
-        val size = tree.length(path)
-        if (size < 32) return null
-        val trailer = tree.readTail(path, 12)
-        if (trailer.size != 12 || String(trailer, 8, 4, Charsets.US_ASCII) != "GDPC") return null
-        val packSize = java.nio.ByteBuffer.wrap(trailer, 0, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).long
-        val start = size - 12 - packSize
-        if (start < 0 || start > size - 20) return null
-        // readTail gives the last N bytes; the pack head sits N-from-end where N = size - start.
-        val fromEnd = size - start
-        if (fromEnd > Int.MAX_VALUE) return null
-        val tail = tree.readTail(path, fromEnd.toInt())
-        if (tail.size.toLong() != fromEnd) return null
-        return godotHeaderVersion(tail, 0)
     }
 
     private fun twine(row: EngineRow, tree: GameTree): EngineDetection {

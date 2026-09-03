@@ -63,6 +63,26 @@ data class EngineCapability(
         requirements.all { (name, version) -> runtimeComponents[name] == version }
 }
 
+/**
+ * Why a set of capabilities cannot serve a game's runtime requirements.
+ *
+ * Selection refusing to run is the correct behaviour -- an engine
+ * starting up without a component the game's assets need does not fail
+ * loudly, it renders nothing -- but a refusal is only useful if it says
+ * what was wanted and what is actually here.
+ */
+object RuntimeRequirementReport {
+    /** Each unmet component, mapped to the versions [capabilities] do carry under that name. */
+    fun unmet(
+        requirements: Map<String, Version>,
+        capabilities: List<EngineCapability>,
+    ): Map<String, List<Version>> = requirements
+        .filterNot { (name, version) -> capabilities.any { it.runtimeComponents[name] == version } }
+        .mapValues { (name, _) ->
+            capabilities.mapNotNull { it.runtimeComponents[name] }.distinct().sorted()
+        }
+}
+
 object PluginCapabilitiesReader {
     fun parse(raw: String): List<EngineCapability> {
         val root = JSONObject(raw)

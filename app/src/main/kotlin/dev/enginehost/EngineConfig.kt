@@ -84,11 +84,41 @@ object EngineConfigReader {
         val configFile = File(gameFolder, CONFIG_FILE_NAME)
         val folderJson = configFile.takeIf { it.isFile }?.let { parseObject(it.readText(), CONFIG_FILE_NAME) }
         val callerJson = inlineJson?.let { parseObject(it, "inline config") }
-        if (folderJson != null) return parse(mergeAuthoritative(folderJson, callerJson))
-        if (callerJson != null) return parse(callerJson)
-        throw InvalidEngineConfigException(
-            "No $CONFIG_FILE_NAME in ${gameFolder.absolutePath} and no inline config was passed",
-        )
+        val config = when {
+            folderJson != null -> parse(mergeAuthoritative(folderJson, callerJson))
+            callerJson != null -> parse(callerJson)
+            else -> throw InvalidEngineConfigException(
+                "No $CONFIG_FILE_NAME in ${gameFolder.absolutePath} and no inline config was passed",
+            )
+        }
+        return withDetectedRequirements(config, gameFolder)
+    }
+
+    /**
+     * Runtime requirements the game's own assets prove, filled in for
+     * component names no config named.
+     *
+     * This sits strictly *below* both configs: a name already present --
+     * in the folder's `enginehost.json` or in the caller's inline JSON --
+     * is left exactly as written, so a hand-set requirement stays the
+     * override the folder-authoritative rule promises. It only supplies
+     * what nobody stated, which is the common case: nothing about a game
+     * folder tells a person which Spine version its skeletons were
+     * exported from, and getting it wrong renders the game black with no
+     * message (see [SpineSkeletonScan]).
+     */
+    private fun withDetectedRequirements(config: EngineConfig, gameFolder: File): EngineConfig {
+        if (config.engine != "godot" || !gameFolder.isDirectory) return config
+        if (config.runtimeRequirements.containsKey(SpineSkeletonScan.COMPONENT)) return config
+        val detected = runCatching {
+            SpineSkeletonScan.requirementFor(FileGameTree.scan(gameFolder), config.execFile)
+        }.getOrDefault(emptyMap())
+        if (detected.isEmpty()) return config
+        val parsed = detected.mapNotNull { (name, version) ->
+            runCatching { name to Version.parse(version) }.getOrNull()
+        }
+        if (parsed.isEmpty()) return config
+        return config.copy(runtimeRequirements = config.runtimeRequirements + parsed)
     }
 
     private fun parseObject(raw: String, source: String): JSONObject = try {
