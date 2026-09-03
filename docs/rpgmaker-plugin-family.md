@@ -21,13 +21,20 @@ Each repository is independently installable and uses the standard engine-fork
 branch model where an upstream exists:
 
 - the upstream-facing branch follows the engine project;
-- `plugin-core` contains only the portable Android/enginehost changeset;
+- `plugin-core` is an orphan branch that contains only the portable
+  Android/enginehost changeset: `enginehost/` metadata and integration, the
+  plugin workflow, the repository key document, and the wrapper's hooks into
+  the engine's own Android project (an activity, a manifest, a build file).
+  Never engine sources. It builds nothing by itself, so its workflow does
+  not run on pushes to it (since 2026-09-03; the previous engine-carrying
+  plugin-core branches are kept as `archive/plugin-core-<date>`);
 - `plugin/<compatibility-line>` starts at a selected upstream revision and
-  merges `plugin-core`;
-- shared fixes originate in `plugin-core` and are merged into applicable
-  compatibility lines;
-- runtime-specific compatibility fixes stay on their version line or are
-  backported deliberately.
+  merges `plugin-core` with `--allow-unrelated-histories`; that merge is what
+  turns an upstream checkout into an enginehost plugin;
+- shared wrapper fixes originate in `plugin-core` and are merged into every
+  applicable line;
+- engine fixes stay on their line (or go upstream) and are backported
+  deliberately.
 
 The MV/MZ shell has no single upstream RPG Maker engine repository because the
 deployed engine JavaScript ships with each game. Its main branch is therefore
