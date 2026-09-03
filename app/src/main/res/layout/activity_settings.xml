@@ -68,6 +68,34 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_l"
+            android:text="@string/engine_save_overrides"
+            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/engine_save_overrides_hint"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <TextView
+            android:id="@+id/engineSaveEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/engine_save_none_installed"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <LinearLayout
+            android:id="@+id/engineSaveRows"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_l"
             android:text="@string/browser_start"
             android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
@@ -109,18 +137,39 @@
             android:text="@string/updates_section"
             android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/checkUpdatesSwitch"
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/updates_check_daily" />
+            android:text="@string/updates_frequency_label"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+        <Spinner
+            android:id="@+id/updateFrequencySpinner"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/eh_touch_target"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:entries="@array/update_frequency_entries" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/updates_check_daily_hint"
+            android:text="@string/updates_check_hint"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/unmeteredOnlySwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/updates_unmetered_only" />
+
+        <TextView
+            android:id="@+id/lastCheckedValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
         <androidx.appcompat.widget.SwitchCompat

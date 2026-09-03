@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/eh_space_m"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/engineName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+    <TextView
+        android:id="@+id/engineSavePath"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:background="@drawable/eh_card_bg"
+        android:padding="@dimen/eh_space_s"
+        android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+    <Button
+        android:id="@+id/chooseEngineFolderButton"
+        style="@style/Widget.Enginehost.Button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:text="@string/choose_folder" />
+
+    <Button
+        android:id="@+id/useSharedEngineFolderButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:text="@string/use_shared_save_folder" />
+
+</LinearLayout>

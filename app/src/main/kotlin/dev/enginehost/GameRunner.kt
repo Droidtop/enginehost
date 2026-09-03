@@ -88,7 +88,7 @@ object GameRunner {
         val intent = Intent(context, runtimeClass).apply {
             putExtra(RuntimeActivity.EXTRA_PATH, gameFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE, resolved.plugin.bundleId)
-            putExtra(RuntimeActivity.EXTRA_SAVE_PATH, SaveLocationStore(context).saveRoot().absolutePath)
+            putExtra(RuntimeActivity.EXTRA_SAVE_PATH, SaveLocationStore(context).saveRootFor(config.engine).absolutePath)
             putExtra(RuntimeActivity.EXTRA_ENGINE, config.engine)
             putExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT, config.engineContext ?: DEFAULT_ENGINE_CONTEXT)
             putExtra(RuntimeActivity.EXTRA_ENGINE_VERSION, config.engineVersion.toString())

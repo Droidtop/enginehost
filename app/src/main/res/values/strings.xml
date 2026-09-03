@@ -121,6 +121,11 @@
     <string name="choose_folder">Choose folder</string>
     <string name="migrate_saves">Migrate old Enginehost saves</string>
     <string name="use_default_internal">Use default internal storage</string>
+    <string name="engine_save_overrides">Save folders per engine</string>
+    <string name="engine_save_overrides_hint">Each engine uses the shared folder above unless you choose a folder for it here. Existing saves stay where they are.</string>
+    <string name="engine_save_none_installed">No engine plugins are installed yet.</string>
+    <string name="engine_save_uses_shared">Shared folder</string>
+    <string name="use_shared_save_folder">Use the shared folder</string>
     <string name="browser_start">Game browser start folder</string>
     <string name="browser_start_hint">Game and config folder pickers open here first. You can still browse anywhere.</string>
     <string name="choose_browsing_folder">Choose game browsing folder</string>
@@ -219,8 +224,17 @@
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
     <string name="update_to_build">Update to build %1$s</string>
     <string name="updates_section">Updates</string>
-    <string name="updates_check_daily">Check for updates once a day</string>
-    <string name="updates_check_daily_hint">Lists the published releases of the repositories your installed plugins came from, the newest Enginehost build, and the current engine detection rules — nothing about this device or your games is sent. Turning this off stops all automatic update traffic.</string>
+    <string name="updates_check_hint">Lists the published releases of the repositories your installed plugins came from, the newest Enginehost build, and the current engine detection rules — nothing about this device or your games is sent. Turning this off stops all automatic update traffic.</string>
+    <string name="updates_frequency_label">Check for updates</string>
+    <string-array name="update_frequency_entries">
+        <item>Never</item>
+        <item>Every day</item>
+        <item>Every week</item>
+        <item>Every month</item>
+    </string-array>
+    <string name="updates_unmetered_only">Only on Wi-Fi and other unmetered networks</string>
+    <string name="updates_last_checked">Last checked %1$s</string>
+    <string name="updates_never_checked">Not checked yet</string>
     <string name="updates_install_plugins_automatically">Install plugin updates automatically</string>
     <string name="updates_install_plugins_automatically_hint">Replaces an installed plugin when its repository publishes a newer signed build. The new build still needs your approval before it runs anything.</string>
     <string name="app_version_line">Enginehost %1$s (build %2$d)</string>

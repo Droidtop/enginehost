@@ -1,33 +1,43 @@
 package dev.enginehost
 
 import android.content.Context
+import android.net.ConnectivityManager
 
 /**
- * The at-most-daily plugin update pass.
- *
- * What it does on the network, and deliberately nothing more: it lists the
- * published GitHub releases of exactly those repositories that have a bundle
- * installed from them -- the same unauthenticated request the catalog screen's
- * own Refresh button makes -- and nothing about the device, the game library
- * or the installed bundles is ever sent anywhere. Being offline, or any fetch
- * failing, is silent: the pass just runs again after the next interval.
- *
- * "Install updates automatically" replaces the bundle's bytes only. Execution
- * approval is bound to the exact archive digest and signer (PluginTrustStore),
- * so an automatically installed update still puts the trust prompt in front
- * of the user before it runs anything. Both behaviours have off switches in
- * settings; turning the check off stops all of this feature's network use.
+ * The automatic update pass and the choices that govern it. Nothing here
+ * installs an app; the pass fetches small documents (plugin catalogs, the
+ * newest Enginehost build's description, the engine detection rules) so the
+ * home screen can say what is available, and installs a plugin update only
+ * when the person has turned that on.
  */
 class PluginUpdateCheck(private val context: Context) {
     private val preferences = context.getSharedPreferences("plugin-update-check-v1", Context.MODE_PRIVATE)
 
-    var checkAutomatically: Boolean
-        get() = preferences.getBoolean(CHECK, true)
-        set(value) = preferences.edit().putBoolean(CHECK, value).apply()
+    /** How often the pass may run. [OFF] means never without being asked. */
+    enum class Frequency(val intervalMs: Long) {
+        OFF(Long.MAX_VALUE),
+        DAILY(24L * 60 * 60 * 1000),
+        WEEKLY(7 * 24L * 60 * 60 * 1000),
+        MONTHLY(30 * 24L * 60 * 60 * 1000),
+    }
+
+    var frequency: Frequency
+        get() = preferences.getString(FREQUENCY, null)?.let { name -> Frequency.entries.firstOrNull { it.name == name } }
+            // Before there was a frequency there was one switch; honour what it said.
+            ?: if (preferences.getBoolean(LEGACY_CHECK, true)) Frequency.DAILY else Frequency.OFF
+        set(value) = preferences.edit().putString(FREQUENCY, value.name).remove(LEGACY_CHECK).apply()
 
     var installAutomatically: Boolean
         get() = preferences.getBoolean(INSTALL, false)
         set(value) = preferences.edit().putBoolean(INSTALL, value).apply()
+
+    /** Skip the pass on metered connections (mobile data, tethering). */
+    var unmeteredOnly: Boolean
+        get() = preferences.getBoolean(UNMETERED_ONLY, false)
+        set(value) = preferences.edit().putBoolean(UNMETERED_ONLY, value).apply()
+
+    /** When the pass last ran, as epoch milliseconds, or null if it never has. */
+    val lastAttempt: Long? get() = preferences.getLong(LAST_ATTEMPT, 0L).takeIf { it > 0 }
 
     /** Updates for installed bundles, computed from the already-cached catalogs alone. */
     fun pending(): List<AvailablePlugin> {
@@ -37,20 +47,28 @@ class PluginUpdateCheck(private val context: Context) {
     }
 
     /**
-     * Runs the pass if it is enabled and due, then reports the updates still
-     * pending (after any automatic installs). When the pass is not due, the
-     * cached catalogs answer instead -- reading them still verifies every
-     * cached manifest signature, so even that happens off the caller's
-     * thread. The callback always arrives on a background thread.
+     * Runs the pass if it is enabled, due, and allowed on the current
+     * network, then reports the updates still pending (after any automatic
+     * installs). When the pass does not run, the cached catalogs answer
+     * instead -- reading them still verifies every cached manifest
+     * signature, so even that happens off the caller's thread. The callback
+     * always arrives on a background thread.
      */
     fun maybeRun(onPending: (List<AvailablePlugin>) -> Unit) {
-        if (!checkAutomatically) return
+        val frequency = frequency
+        if (frequency == Frequency.OFF) return
         val now = System.currentTimeMillis()
-        if (now - preferences.getLong(LAST_ATTEMPT, 0L) < INTERVAL_MS) {
+        val due = now - preferences.getLong(LAST_ATTEMPT, 0L) >= frequency.intervalMs
+        if (!due || (unmeteredOnly && isMetered())) {
             Thread { onPending(pending()) }.start()
             return
         }
-        preferences.edit().putLong(LAST_ATTEMPT, now).apply()
+        run(onPending)
+    }
+
+    /** Runs the pass now, regardless of schedule or network. */
+    fun run(onPending: (List<AvailablePlugin>) -> Unit) {
+        preferences.edit().putLong(LAST_ATTEMPT, System.currentTimeMillis()).apply()
         Thread {
             val installed = PluginRegistry.discover(context)
             val origins = installed.map { it.origin }.filter(String::isNotBlank).distinct()
@@ -86,19 +104,23 @@ class PluginUpdateCheck(private val context: Context) {
         }.start()
     }
 
-    /** The newest Enginehost build the daily pass has seen, when newer than what is running. */
+    /** The newest Enginehost build the pass has seen, when newer than what is running. */
     fun newerAppVersionName(): String? {
         val seen = preferences.getLong(APP_VERSION_CODE, 0L)
         if (seen <= AppUpdate.installedVersionCode(context)) return null
         return preferences.getString(APP_VERSION_NAME, null)
     }
 
+    private fun isMetered(): Boolean =
+        context.getSystemService(ConnectivityManager::class.java)?.isActiveNetworkMetered ?: false
+
     companion object {
-        private const val CHECK = "checkAutomatically"
+        private const val LEGACY_CHECK = "checkAutomatically"
+        private const val FREQUENCY = "frequency"
         private const val INSTALL = "installAutomatically"
+        private const val UNMETERED_ONLY = "unmeteredOnly"
         private const val LAST_ATTEMPT = "lastAttemptMs"
         private const val APP_VERSION_CODE = "newestAppVersionCode"
         private const val APP_VERSION_NAME = "newestAppVersionName"
-        private const val INTERVAL_MS = 24L * 60 * 60 * 1000
     }
 }

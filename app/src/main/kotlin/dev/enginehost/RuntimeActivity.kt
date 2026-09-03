@@ -67,7 +67,7 @@ class RuntimeActivity : FragmentActivity() {
         try {
             val verifiedManifest = InstalledBundleVerifier.verify(this, resolved.plugin)
             val instance = loadPlugin(resolved.plugin)
-            val host = RuntimeHost(this, gameFolder, resolved.plugin.bundleId)
+            val host = RuntimeHost(this, gameFolder, resolved.plugin.bundleId, config.engine)
             instance.onCreate(
                 EnginePluginSession(
                     resolved.plugin.directory, display, host, gameFolder.absolutePath, config.engine,
@@ -248,10 +248,11 @@ private class RuntimeHost(
     private val activity: Activity,
     private val gameFolder: File,
     pluginPackage: String,
+    engine: String,
 ) : EngineHost {
     private val gameId = MessageDigest.getInstance("SHA-256")
         .digest(gameFolder.canonicalPath.toByteArray()).take(12).joinToString("") { "%02x".format(it) }
-    private val save = SaveLocationStore(activity).saveRoot()
+    private val save = SaveLocationStore(activity).saveRootFor(engine)
     private val cache = File(activity.cacheDir, "plugins/$pluginPackage/$gameId").apply { mkdirs() }
     private val files = RuntimeFileSystem(gameFolder)
 
