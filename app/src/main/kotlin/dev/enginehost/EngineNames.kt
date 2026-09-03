@@ -41,6 +41,24 @@ object EngineNames {
             }
         }
 
+    /** The engines a bundle supports, for its card title: the plugin's own list, else derived. */
+    fun engines(manifest: EngineBundleManifest): List<String> =
+        manifest.engines.ifEmpty {
+            manifest.info.capabilities.map { line(manifest.info.engine, it.engineContext) }.distinct()
+        }
+
+    /** "Includes Ruby 1.9.2 / 3.1.3 · Spine 4.2", or null when a bundle carries no extra runtime components. */
+    fun includes(capabilities: List<EngineCapability>): String? =
+        capabilities.flatMap { it.runtimeComponents.entries }
+            .groupBy({ it.key }, { it.value })
+            .map { (name, values) -> "${componentName(name)} ${values.distinct().sorted().joinToString(" / ")}" }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(" · ")
+
+    /** The engine versions a bundle ships, for the right-hand side of its card. */
+    fun shippedVersions(capabilities: List<EngineCapability>): String =
+        capabilities.map { it.runtimeVersion }.distinct().sorted().joinToString(" / ")
+
     /** Runtime component names as a person knows them; unknown ones pass through. */
     fun componentName(component: String): String = when (component) {
         "ruby" -> "Ruby"

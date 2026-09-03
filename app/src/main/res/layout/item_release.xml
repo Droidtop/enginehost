@@ -8,6 +8,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:baselineAligned="false"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -23,7 +24,16 @@
             style="@style/Widget.Enginehost.Badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/eh_space_s" />
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/releaseVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle"
+            android:textColor="@color/eh_text_secondary" />
     </LinearLayout>
 
     <TextView
@@ -34,11 +44,12 @@
         android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
     <TextView
-        android:id="@+id/releaseMeta"
+        android:id="@+id/releaseIncludes"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_xs"
-        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+        android:layout_marginTop="2dp"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/releaseActions"
@@ -46,5 +57,30 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/eh_space_s"
         android:orientation="vertical" />
+
+    <TextView
+        android:id="@+id/releaseOlderToggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:minHeight="@dimen/eh_touch_target"
+        android:gravity="center_vertical"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:textColor="@color/eh_accent"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/releaseOlderList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/releaseMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
 </LinearLayout>

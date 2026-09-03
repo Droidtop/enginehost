@@ -111,6 +111,10 @@
     <string name="install">Install</string>
     <string name="release_runs">Runs games made with %1$s</string>
     <string name="release_meta">Plugin build %1$s · %2$s · %3$s</string>
+    <string name="release_includes">Includes %1$s</string>
+    <string name="release_other_versions">Other versions (%1$d)</string>
+    <string name="release_hide_other_versions">Hide other versions</string>
+    <string name="release_build_line">Build %1$s · %2$s</string>
     <string name="stream_stable">Stable</string>
     <string name="stream_testing">Testing</string>
     <string name="stream_unstable">Unstable</string>

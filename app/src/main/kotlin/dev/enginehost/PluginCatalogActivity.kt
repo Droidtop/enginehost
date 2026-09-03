@@ -167,12 +167,13 @@ class PluginCatalogActivity : AppCompatActivity() {
         } else {
             releasesEmptyState.visibility = View.GONE
         }
-        available.groupBy { it.origin }.toSortedMap().forEach { (origin, releases) ->
-            val heading = layoutInflater.inflate(R.layout.item_group_heading, releaseList, false) as TextView
-            heading.text = origin.substringAfter("github.com/")
-            releaseList.addView(heading)
-            releases.forEach { plugin -> addRelease(plugin) }
-        }
+        // A store, not a ledger: one card per plugin showing its newest build,
+        // ordered by the engine a person is looking for. Older builds stay a
+        // tap away for whoever needs one; they are not thrown at everyone.
+        available.groupBy { it.bundleId }.values
+            .map { builds -> builds.maxBy { it.info.pluginVersion } to builds.sortedByDescending { it.info.pluginVersion }.drop(1) }
+            .sortedWith(compareBy({ EngineNames.engines(it.first.manifest).firstOrNull() ?: "" }, { it.first.bundleId }))
+            .forEach { (newest, older) -> addRelease(newest, older) }
         if (
             intent.getBooleanExtra(EXTRA_AUTOINSTALL, false) && !autoAttempted &&
             matches.isNotEmpty() && !isInstalled(matches.first().bundleId)
@@ -214,28 +215,71 @@ class PluginCatalogActivity : AppCompatActivity() {
         return getString(R.string.filtered_missing_component, needed, carried)
     }
 
-    private fun addRelease(plugin: AvailablePlugin) {
+    private fun streamName(stream: PluginStream): String = when (stream) {
+        PluginStream.STABLE -> getString(R.string.stream_stable)
+        PluginStream.TESTING -> getString(R.string.stream_testing)
+        PluginStream.UNSTABLE -> getString(R.string.stream_unstable)
+    }
+
+    /**
+     * One plugin's card. What a person is deciding is "does this run my
+     * game", so the engines it supports lead and the engine version it ships
+     * sits on the right; what it bundles beyond the engine is the next line,
+     * only when there is something to say; the plugin's own build number,
+     * stream and repository are one small line at the bottom. [older]
+     * builds are reachable through one control and otherwise out of the way.
+     */
+    private fun addRelease(plugin: AvailablePlugin, older: List<AvailablePlugin> = emptyList()) {
         val card = layoutInflater.inflate(R.layout.item_release, releaseList, false)
-        // What a person is deciding is "does this run my game": engine and
-        // versions lead, the runtime it ships is next, and the plugin's own
-        // build number, stream and tag come last, in small type.
-        val lines = plugin.info.capabilities.map { EngineNames.line(plugin.info.engine, it.engineContext) }.distinct()
-        card.findViewById<TextView>(R.id.releaseTitle).text = lines.joinToString(" · ")
+        card.findViewById<TextView>(R.id.releaseTitle).text = EngineNames.engines(plugin.manifest).joinToString(" · ")
+        card.findViewById<TextView>(R.id.releaseVersion).text = EngineNames.shippedVersions(plugin.info.capabilities)
         card.findViewById<TextView>(R.id.releaseCompatibility).text = getString(
             R.string.release_runs,
             EngineNames.compatibility(plugin.info.engine, plugin.info.capabilities).joinToString("\n"),
         )
-        card.findViewById<TextView>(R.id.releaseStream).text = when (plugin.stream) {
-            PluginStream.STABLE -> getString(R.string.stream_stable)
-            PluginStream.TESTING -> getString(R.string.stream_testing)
-            PluginStream.UNSTABLE -> getString(R.string.stream_unstable)
+        card.findViewById<TextView>(R.id.releaseIncludes).apply {
+            val includes = EngineNames.includes(plugin.info.capabilities)
+            visibility = if (includes == null) View.GONE else View.VISIBLE
+            includes?.let { text = getString(R.string.release_includes, it) }
+        }
+        card.findViewById<TextView>(R.id.releaseStream).apply {
+            text = streamName(plugin.stream)
+            // Stable is the expectation; only the other two need pointing out.
+            visibility = if (plugin.stream == PluginStream.STABLE) View.GONE else View.VISIBLE
         }
         card.findViewById<TextView>(R.id.releaseMeta).text = getString(
             R.string.release_meta,
             plugin.info.pluginVersion.toString(),
-            plugin.releaseTag,
+            streamName(plugin.stream),
             plugin.origin.removePrefix("https://github.com/"),
         )
+        val olderList = card.findViewById<LinearLayout>(R.id.releaseOlderList)
+        card.findViewById<TextView>(R.id.releaseOlderToggle).apply {
+            visibility = if (older.isEmpty()) View.GONE else View.VISIBLE
+            text = getString(R.string.release_other_versions, older.size)
+            setOnClickListener {
+                val open = olderList.visibility != View.VISIBLE
+                olderList.visibility = if (open) View.VISIBLE else View.GONE
+                text = getString(if (open) R.string.release_hide_other_versions else R.string.release_other_versions, older.size)
+            }
+        }
+        if (!intent.getBooleanExtra(EXTRA_SELECTION_ONLY, false)) {
+            older.forEach { build ->
+                val row = layoutInflater.inflate(R.layout.item_release_build, olderList, false)
+                row.findViewById<TextView>(R.id.buildLabel).text =
+                    getString(R.string.release_build_line, build.info.pluginVersion.toString(), streamName(build.stream))
+                row.findViewById<Button>(R.id.buildInstallButton).setOnClickListener { view ->
+                    view.isEnabled = false
+                    PluginInstaller.install(
+                        this@PluginCatalogActivity,
+                        build,
+                        onError = { message -> view.isEnabled = true; toast(message) },
+                        onStatus = { status -> runOnUiThread { statusText.text = status } },
+                    )
+                }
+                olderList.addView(row)
+            }
+        }
         val actions = card.findViewById<LinearLayout>(R.id.releaseActions)
         if (intent.getBooleanExtra(EXTRA_SELECTION_ONLY, false)) {
             plugin.info.capabilities.forEach { capability ->

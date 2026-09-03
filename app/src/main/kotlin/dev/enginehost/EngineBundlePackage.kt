@@ -35,6 +35,12 @@ data class EngineBundleManifest(
     val runtimeTransport: String,
     val payloadSha256: String,
     val files: List<BundleFileRecord>,
+    /**
+     * The engines this bundle runs, as the plugin's author names them for a
+     * person ("RPG Maker XP", "RPG Maker VX Ace"). Optional: when a bundle
+     * says nothing, the host derives the list from its capabilities.
+     */
+    val engines: List<String> = emptyList(),
 ) {
     fun installedRecord(archiveSha256: String): JSONObject = JSONObject()
         .put("formatVersion", 1)
@@ -124,6 +130,9 @@ object EngineBundleManifestReader {
             },
             json.requiredSha256("payloadSha256"),
             files,
+            engines = json.optJSONArray("engines")?.let { array ->
+                (0 until array.length()).map { array.getString(it).trim() }.filter(String::isNotEmpty)
+            }.orEmpty(),
         )
     }
 
