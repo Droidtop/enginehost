@@ -237,6 +237,11 @@
     <string name="app_update_downloading">Downloading Enginehost %1$s…</string>
     <string name="app_update_handing_to_installer">Handing the update to the Android installer…</string>
     <string name="app_update_failed">Update failed</string>
+    <!-- Catalog: a game names a runtime component nothing installed or listed carries. -->
+    <string name="filtered_missing_component">This game needs %1$s. %2$s Install a bundle that lists it, or change \"runtimeRequirements\" in the game's enginehost.json.</string>
+    <string name="component_carried">Bundles here carry %1$s %2$s.</string>
+    <string name="component_carried_none">No bundle here carries %1$s.</string>
+
     <!-- Launch screen: shown from the tap until the engine draws its first frame. -->
     <string name="launch_starting">Starting…</string>
     <string name="launch_engine_line">%1$s %2$s</string>
