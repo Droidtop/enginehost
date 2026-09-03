@@ -284,7 +284,7 @@ class PluginCatalogActivity : AppCompatActivity() {
             val failures = mutableListOf<String>()
             origins.all().forEach { origin ->
                 directory.refresh(origin)
-                runCatching { GithubPluginCatalogClient(this).fetch(origin) }
+                runCatching { GithubPluginCatalogClient(this).fetch(origin, PluginUpdateCheck(this).stream) }
                     .onSuccess { cache.save(origin, it) }
                     .onFailure { failures += origin.substringAfterLast('/') }
             }

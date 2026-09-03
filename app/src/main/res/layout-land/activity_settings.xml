@@ -205,6 +205,27 @@
                     android:text="@string/updates_check_hint"
                     android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_m"
+                    android:text="@string/updates_stream_label"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                <Spinner
+                    android:id="@+id/pluginStreamSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/eh_touch_target"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:entries="@array/plugin_stream_entries" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/updates_stream_hint"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
                 <androidx.appcompat.widget.SwitchCompat
                     android:id="@+id/unmeteredOnlySwitch"
                     android:layout_width="match_parent"

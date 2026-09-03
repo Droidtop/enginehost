@@ -10,6 +10,32 @@ import java.net.URL
 import java.security.MessageDigest
 import java.util.Base64
 
+/**
+ * How far from "proven on hardware" a release is. Every plugin repository
+ * publishes all three: every green build of a line lands in [UNSTABLE]
+ * automatically, a maintainer promotes a build to [TESTING] when it runs
+ * games but has not been lived with, and to [STABLE] when it has. A person
+ * picks the most adventurous stream they want in Settings; the catalog and
+ * the update check then consider that stream and every steadier one, so
+ * choosing "testing" still offers stable builds when those are newer.
+ */
+enum class PluginStream(val channel: String) {
+    STABLE("stable"),
+    TESTING("testing"),
+    UNSTABLE("unstable");
+
+    /** Whether a release on this stream is offered to someone who chose [chosen]. */
+    fun offeredTo(chosen: PluginStream): Boolean = ordinal <= chosen.ordinal
+
+    companion object {
+        fun fromChannel(channel: String?, prerelease: Boolean): PluginStream =
+            entries.firstOrNull { it.channel == channel }
+                // Envelopes from before streams existed: GitHub's own flag is the
+                // only signal, and a pre-release was the old "not yet proven".
+                ?: if (prerelease) TESTING else STABLE
+    }
+}
+
 /** One signed engine bundle advertised by a repository's GitHub release. */
 data class AvailablePlugin(
     val manifest: EngineBundleManifest,
@@ -17,7 +43,7 @@ data class AvailablePlugin(
     val releaseTag: String,
     val archiveUrl: String,
     val archiveSha256: String?,
-    val prerelease: Boolean,
+    val stream: PluginStream,
 ) {
     val info: PluginInfo get() = manifest.info
     val origin: String get() = manifest.origin
@@ -42,6 +68,7 @@ object PluginReleaseReader {
     ): List<AvailablePlugin> {
         val root = JSONObject(raw)
         require(root.getInt("formatVersion") == 1) { "Unsupported release catalog envelope" }
+        val stream = PluginStream.fromChannel(root.optString("channel").takeIf(String::isNotBlank), prerelease)
         val bundles = root.getJSONArray("bundles")
         return (0 until bundles.length()).map { index ->
             val envelope = bundles.getJSONObject(index)
@@ -62,14 +89,20 @@ object PluginReleaseReader {
                 releaseTag,
                 asset.first,
                 asset.second?.let(::normalizeGithubDigest),
-                prerelease,
+                stream,
             )
         }
     }
 }
 
 class GithubPluginCatalogClient(private val context: Context) {
-    fun fetch(origin: String, includePrereleases: Boolean = false): List<AvailablePlugin> {
+    /**
+     * Every release of [origin] on [stream] or a steadier one. Releases are
+     * read whatever GitHub's pre-release flag says and filtered on the
+     * envelope's own channel afterwards, because the flag alone cannot tell
+     * testing from unstable.
+     */
+    fun fetch(origin: String, stream: PluginStream): List<AvailablePlugin> {
         val normalized = normalizeGithubOrigin(origin)
         val match = GITHUB_ORIGIN.matchEntire(normalized) ?: error("Not a GitHub repository origin")
         var next: String? = "https://api.github.com/repos/${match.groupValues[1]}/${match.groupValues[2]}/releases?per_page=100"
@@ -81,7 +114,6 @@ class GithubPluginCatalogClient(private val context: Context) {
                 val release = releases.getJSONObject(index)
                 if (release.optBoolean("draft")) continue
                 val prerelease = release.optBoolean("prerelease")
-                if (prerelease && !includePrereleases) continue
                 val assets = release.getJSONArray("assets")
                 val byName = linkedMapOf<String, Pair<String, String?>>()
                 var catalogUrl: String? = null
@@ -100,7 +132,7 @@ class GithubPluginCatalogClient(private val context: Context) {
                     prerelease,
                     byName,
                     PluginOriginKeyStore(context),
-                )
+                ).filter { it.stream.offeredTo(stream) }
             }
             next = nextLink(response.link)
         }
@@ -212,7 +244,7 @@ private fun AvailablePlugin.toJson() = JSONObject()
     .put("releaseTag", releaseTag)
     .put("archiveUrl", archiveUrl)
     .put("archiveSha256", archiveSha256)
-    .put("prerelease", prerelease)
+    .put("stream", stream.channel)
 
 private fun availablePluginFromJson(json: JSONObject, keys: PluginOriginKeyStore): AvailablePlugin {
     val manifestBytes = Base64.getDecoder().decode(json.requiredString("manifestBase64"))
@@ -226,7 +258,7 @@ private fun availablePluginFromJson(json: JSONObject, keys: PluginOriginKeyStore
         json.requiredString("releaseTag"),
         json.requiredString("archiveUrl"),
         json.optString("archiveSha256").takeIf(String::isNotBlank)?.let(::normalizeGithubDigest),
-        json.optBoolean("prerelease"),
+        PluginStream.fromChannel(json.optString("stream").takeIf(String::isNotBlank), json.optBoolean("prerelease")),
     )
 }
 

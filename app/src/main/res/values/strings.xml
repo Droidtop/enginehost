@@ -232,6 +232,13 @@
         <item>Every week</item>
         <item>Every month</item>
     </string-array>
+    <string name="updates_stream_label">Plugin releases to offer</string>
+    <string-array name="plugin_stream_entries">
+        <item>Stable</item>
+        <item>Testing</item>
+        <item>Unstable</item>
+    </string-array>
+    <string name="updates_stream_hint">Stable builds have been used with real games. Testing builds run games but are still being lived with. Unstable is every green build, straight from CI. A more adventurous choice still includes the steadier streams.</string>
     <string name="updates_unmetered_only">Only on Wi-Fi and other unmetered networks</string>
     <string name="updates_last_checked">Last checked %1$s</string>
     <string name="updates_never_checked">Not checked yet</string>

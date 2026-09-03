@@ -31,6 +31,12 @@ class PluginUpdateCheck(private val context: Context) {
         get() = preferences.getBoolean(INSTALL, false)
         set(value) = preferences.edit().putBoolean(INSTALL, value).apply()
 
+    /** The most adventurous release stream to offer; see [PluginStream]. */
+    var stream: PluginStream
+        get() = preferences.getString(STREAM, null)?.let { name -> PluginStream.entries.firstOrNull { it.name == name } }
+            ?: PluginStream.STABLE
+        set(value) = preferences.edit().putString(STREAM, value.name).apply()
+
     /** Skip the pass on metered connections (mobile data, tethering). */
     var unmeteredOnly: Boolean
         get() = preferences.getBoolean(UNMETERED_ONLY, false)
@@ -74,7 +80,7 @@ class PluginUpdateCheck(private val context: Context) {
             val origins = installed.map { it.origin }.filter(String::isNotBlank).distinct()
             val cache = PluginCatalogCache(context)
             origins.forEach { origin ->
-                runCatching { cache.save(origin, GithubPluginCatalogClient(context).fetch(origin)) }
+                runCatching { cache.save(origin, GithubPluginCatalogClient(context).fetch(origin, stream)) }
             }
             // The engine detection rules ride along too: they are the one
             // piece of enginehost that changes faster than the app, and a
@@ -117,6 +123,7 @@ class PluginUpdateCheck(private val context: Context) {
     companion object {
         private const val LEGACY_CHECK = "checkAutomatically"
         private const val FREQUENCY = "frequency"
+        private const val STREAM = "stream"
         private const val INSTALL = "installAutomatically"
         private const val UNMETERED_ONLY = "unmeteredOnly"
         private const val LAST_ATTEMPT = "lastAttemptMs"

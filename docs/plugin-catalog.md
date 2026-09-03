@@ -47,6 +47,25 @@ once that exact build has installed and booted a real game on hardware.
 Compiling, packaging and even verifying signatures prove nothing about
 whether the runtime starts.
 
+Every repository publishes on three streams, and the release envelope
+(`enginehost-release.json`) names the stream in its `channel` field:
+
+- `unstable`: every green build of a `plugin/**` branch, published by CI
+  itself to the rolling pre-release `<line>-unstable`, replaced on each build.
+  Nothing is claimed about it beyond "it built and signed".
+- `testing`: a build a maintainer promoted (manual dispatch with
+  `channel=testing`) because it runs real games but has not been lived with.
+  Tag `<line>-testing`, marked pre-release.
+- `stable`: promoted with `channel=stable` once the build has been used with
+  real games on hardware. Tag `<line>`, a full release.
+
+The person chooses the most adventurous stream they want in enginehost's
+Settings (stable by default); the catalog and the update check offer that
+stream and every steadier one, and the newest `pluginVersion` among them
+wins. Envelopes without a `channel` are read as stable, or testing when
+GitHub's pre-release flag is set, so releases from before streams existed
+keep their meaning.
+
 `scripts/promote-plugin-release.py` is the promotion step. It takes the
 successful run, re-verifies every bundle offline against the key document
 committed at that run's own commit, requires an `--evidence` statement of

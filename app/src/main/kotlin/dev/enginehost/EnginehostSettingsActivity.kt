@@ -72,6 +72,22 @@ class EnginehostSettingsActivity : AppCompatActivity() {
                 override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             }
         }
+        findViewById<Spinner>(R.id.pluginStreamSpinner).apply {
+            setSelection(updateCheck.stream.ordinal, false)
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    val chosen = PluginStream.entries[position]
+                    if (chosen == updateCheck.stream) return
+                    updateCheck.stream = chosen
+                    // The cached catalogs were filtered for the old choice;
+                    // fetch again so the home screen and catalog reflect this one.
+                    updateCheck.run { }
+                    refreshLastChecked()
+                }
+
+                override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            }
+        }
         findViewById<SwitchCompat>(R.id.unmeteredOnlySwitch).apply {
             isChecked = updateCheck.unmeteredOnly
             setOnCheckedChangeListener { _, checked -> updateCheck.unmeteredOnly = checked }
