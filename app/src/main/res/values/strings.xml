@@ -218,7 +218,7 @@
     <string name="engine_version">Engine version</string>
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
     <string name="detection_rules">Detection rules</string>
-    <string name="detection_rules_hint">Engine detection reads the shared engines database droidtop uses, so both apps always classify a game the same way. Update it here without waiting for an app release.</string>
+    <string name="detection_rules_hint">Engine detection reads a published engines database shared with other launchers, so every app that uses it classifies a game the same way. Update it here without waiting for an app release.</string>
     <string name="update_detection_rules">Update detection rules</string>
     <string name="detection_rules_updated">Detection rules updated (%1$d engines)</string>
     <string name="detection_rules_update_failed">Update failed: %1$s</string>
