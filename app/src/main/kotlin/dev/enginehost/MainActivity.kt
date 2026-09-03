@@ -215,11 +215,20 @@ class MainActivity : AppCompatActivity() {
         }.getOrNull()
             ?: return GameStatus(
                 false,
-                getString(R.string.status_no_plugin, config.engine, config.engineVersion.toString()),
+                getString(
+                    R.string.status_no_plugin,
+                    EngineNames.line(config.engine, config.engineContext),
+                    config.engineVersion.toString(),
+                ),
             )
         return GameStatus(
             true,
-            getString(R.string.status_ready, config.engine, resolved.plugin.info.pluginVersion.toString()),
+            getString(
+                R.string.status_ready,
+                EngineNames.line(config.engine, config.engineContext),
+                config.engineVersion.toString(),
+                resolved.capability.runtimeVersion.toString(),
+            ),
         )
     }
 

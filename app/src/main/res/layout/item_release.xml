@@ -5,25 +5,40 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="@dimen/eh_space_s">
 
-    <TextView
-        android:id="@+id/releaseTitle"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/releaseTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+        <TextView
+            android:id="@+id/releaseStream"
+            style="@style/Widget.Enginehost.Badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s" />
+    </LinearLayout>
 
     <TextView
-        android:id="@+id/releaseContexts"
+        android:id="@+id/releaseCompatibility"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+    <TextView
+        android:id="@+id/releaseMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
         android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-    <TextView
-        android:id="@+id/releaseTag"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
 
     <LinearLayout
         android:id="@+id/releaseActions"

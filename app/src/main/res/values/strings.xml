@@ -36,8 +36,8 @@
     <string name="status_missing">Folder is not currently available. Reconnect its storage or remove this entry.</string>
     <string name="status_no_config">Not configured yet. Select to detect the engine and finish setup.</string>
     <string name="status_bad_config">Configuration problem: %1$s</string>
-    <string name="status_no_plugin">No installed plugin runs %1$s %2$s. Select to pick one from the catalog.</string>
-    <string name="status_ready">Ready · %1$s via plugin %2$s</string>
+    <string name="status_no_plugin">No installed plugin runs %1$s %2$s games. Select to pick one from the catalog.</string>
+    <string name="status_ready">%1$s %2$s · runs on the %3$s runtime</string>
     <string name="action_launch">Launch</string>
     <string name="action_edit_config">Edit configuration</string>
     <string name="action_remove">Remove from list</string>
@@ -108,7 +108,12 @@
     <string name="releases_none_published">These origins have no published releases yet. Refresh again later to check for new ones.</string>
     <string name="installed">Installed</string>
     <string name="requires_api">Requires Enginehost API %1$d</string>
-    <string name="install_asset">Install %1$s</string>
+    <string name="install">Install</string>
+    <string name="release_runs">Runs games made with %1$s</string>
+    <string name="release_meta">Plugin build %1$s · %2$s · %3$s</string>
+    <string name="stream_stable">Stable</string>
+    <string name="stream_testing">Testing</string>
+    <string name="stream_unstable">Unstable</string>
     <string name="use_capability">Use %1$s %2$s</string>
     <string name="custom_origin_removed">Custom origin removed</string>
     <string name="verifying_bundle">Verifying the selected bundle…</string>

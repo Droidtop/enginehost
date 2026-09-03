@@ -216,11 +216,26 @@ class PluginCatalogActivity : AppCompatActivity() {
 
     private fun addRelease(plugin: AvailablePlugin) {
         val card = layoutInflater.inflate(R.layout.item_release, releaseList, false)
-        card.findViewById<TextView>(R.id.releaseTitle).text =
-            getString(R.string.plugin_line, plugin.info.engine, plugin.info.pluginVersion.toString())
-        card.findViewById<TextView>(R.id.releaseContexts).text =
-            plugin.info.capabilities.joinToString { "${it.engineContext} ${it.runtimeVersion}" }
-        card.findViewById<TextView>(R.id.releaseTag).text = plugin.releaseTag
+        // What a person is deciding is "does this run my game": engine and
+        // versions lead, the runtime it ships is next, and the plugin's own
+        // build number, stream and tag come last, in small type.
+        val lines = plugin.info.capabilities.map { EngineNames.line(plugin.info.engine, it.engineContext) }.distinct()
+        card.findViewById<TextView>(R.id.releaseTitle).text = lines.joinToString(" · ")
+        card.findViewById<TextView>(R.id.releaseCompatibility).text = getString(
+            R.string.release_runs,
+            EngineNames.compatibility(plugin.info.engine, plugin.info.capabilities).joinToString("\n"),
+        )
+        card.findViewById<TextView>(R.id.releaseStream).text = when (plugin.stream) {
+            PluginStream.STABLE -> getString(R.string.stream_stable)
+            PluginStream.TESTING -> getString(R.string.stream_testing)
+            PluginStream.UNSTABLE -> getString(R.string.stream_unstable)
+        }
+        card.findViewById<TextView>(R.id.releaseMeta).text = getString(
+            R.string.release_meta,
+            plugin.info.pluginVersion.toString(),
+            plugin.releaseTag,
+            plugin.origin.removePrefix("https://github.com/"),
+        )
         val actions = card.findViewById<LinearLayout>(R.id.releaseActions)
         if (intent.getBooleanExtra(EXTRA_SELECTION_ONLY, false)) {
             plugin.info.capabilities.forEach { capability ->
@@ -253,7 +268,7 @@ class PluginCatalogActivity : AppCompatActivity() {
                 installed.isNotEmpty() && !update -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
                 update -> getString(R.string.update_to_build, plugin.info.pluginVersion.toString())
-                else -> getString(R.string.install_asset, plugin.manifest.assetName)
+                else -> getString(R.string.install)
             }
             button.text = idleLabel
             button.isEnabled = (installed.isEmpty() || update) && supportedApi
