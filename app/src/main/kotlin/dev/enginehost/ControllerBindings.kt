@@ -91,7 +91,7 @@ object ControllerActions {
             "confirm" to "Confirm (C)",
             "cancel" to "Cancel / menu (B)",
             "menu" to "Menu (B)",
-            "skip" to "Skip messages (Ctrl)",
+            "skip" to "Ctrl key (skip, or the menu in games that use it)",
             "auto" to "Dash (A / Shift)",
             "history" to "X input (A key)",
             "quick_save" to "Y input (S key)",
