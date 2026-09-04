@@ -38,7 +38,13 @@ class ProblemReportActivity : AppCompatActivity() {
 
         val gameFolder = intent.getStringExtra(EXTRA_PATH)?.let(::File)
         val symptoms = resources.getStringArray(R.array.report_symptoms)
-        symptom = symptoms.first()
+        // A runtime that died after starting closed; one that died before its
+        // first frame never started. The person can still change it.
+        symptom = when {
+            !intent.hasExtra(EXTRA_CRASH_REASON) -> symptoms.first()
+            intent.getBooleanExtra(EXTRA_CRASH_BEFORE_START, false) -> symptoms.first()
+            else -> symptoms[1]
+        }
         findViewById<View>(R.id.symptomRow).setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle(R.string.report_symptom_label)
@@ -75,8 +81,18 @@ class ProblemReportActivity : AppCompatActivity() {
         field(R.id.reportGame).setText(report.gameName)
         field(R.id.reportEngine).setText("${report.engineLine} ${report.engineVersion}".trim())
         field(R.id.reportEnvironment).setText(report.environment())
-        field(R.id.reportLog).setText(report.log)
-        log = report.log
+        val crash = intent.getStringExtra(EXTRA_CRASH_REASON)?.let { reason ->
+            buildString {
+                append("Crash: ").append(reason)
+                intent.getStringExtra(EXTRA_CRASH_TRACE)?.takeIf { it.isNotBlank() }?.let {
+                    appendLine()
+                    append(ProblemReport.scrub(it, File(intent.getStringExtra(EXTRA_PATH).orEmpty())))
+                }
+            }
+        }
+        val combined = listOfNotNull(crash, report.log.takeIf { it.isNotBlank() }).joinToString(BLANK_LINE)
+        field(R.id.reportLog).setText(combined)
+        log = combined
         findViewById<Button>(R.id.sendReportButton).isEnabled = true
         findViewById<Button>(R.id.copyReportButton).isEnabled = true
     }
@@ -131,11 +147,29 @@ class ProblemReportActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_PATH = "path"
+        private const val EXTRA_CRASH_REASON = "crashReason"
+        private const val EXTRA_CRASH_TRACE = "crashTrace"
+        private const val EXTRA_CRASH_BEFORE_START = "crashBeforeStart"
+        private val BLANK_LINE = System.lineSeparator() + System.lineSeparator()
 
-        /** Report a game, or Enginehost itself when [gameFolder] is null. */
-        fun intent(context: Context, gameFolder: File?): Intent =
-            Intent(context, ProblemReportActivity::class.java).apply {
-                gameFolder?.let { putExtra(EXTRA_PATH, it.absolutePath) }
+        /**
+         * Report a game, or Enginehost itself when [gameFolder] is null. A
+         * [crash] the watch noticed leads the log; [beforeStart] says whether
+         * the runtime ever drew a frame, which is the difference between the
+         * two symptoms a crash can be.
+         */
+        fun intent(
+            context: Context,
+            gameFolder: File?,
+            crash: CrashWatch.Crash? = null,
+            beforeStart: Boolean = false,
+        ): Intent = Intent(context, ProblemReportActivity::class.java).apply {
+            gameFolder?.let { putExtra(EXTRA_PATH, it.absolutePath) }
+            crash?.let {
+                putExtra(EXTRA_CRASH_REASON, it.reason)
+                putExtra(EXTRA_CRASH_TRACE, it.trace)
+                putExtra(EXTRA_CRASH_BEFORE_START, beforeStart)
             }
+        }
     }
 }

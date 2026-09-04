@@ -301,6 +301,10 @@
     <string name="report_form_title">Report a problem</string>
     <string name="report_open_in_browser">Browser</string>
     <string name="action_report">Report a problem</string>
+    <string name="crash_title">%1$s stopped unexpectedly</string>
+    <string name="crash_message">%1$s. A report tells us which game and carries the crash data, which is what gets it fixed.</string>
+    <string name="crash_report">Report it</string>
+    <string name="crash_not_now">Not now</string>
     <string-array name="report_symptoms">
         <item>It does not start</item>
         <item>It starts, then closes</item>

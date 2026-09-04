@@ -152,7 +152,12 @@ class LaunchActivity : AppCompatActivity() {
         findViewById<Button>(R.id.cancelButton).apply {
             setText(R.string.action_report)
             setOnClickListener {
-                startActivity(ProblemReportActivity.intent(this@LaunchActivity, File(intent.getStringExtra(EXTRA_PATH).orEmpty())))
+                val gameFolder = File(intent.getStringExtra(EXTRA_PATH).orEmpty())
+                startActivity(
+                    ProblemReportActivity.intent(
+                        this@LaunchActivity, gameFolder, CrashWatch.consume(this@LaunchActivity), beforeStart = true,
+                    ),
+                )
                 finish()
             }
         }

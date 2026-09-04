@@ -64,6 +64,7 @@ class RuntimeActivity : FragmentActivity() {
             return failAndFinish("Plugin approval is missing")
         }
 
+        CrashWatch.arm(this, gameFolder, resolved.plugin.bundleId)
         try {
             val verifiedManifest = InstalledBundleVerifier.verify(this, resolved.plugin)
             val instance = loadPlugin(resolved.plugin)
@@ -140,7 +141,10 @@ class RuntimeActivity : FragmentActivity() {
         resourceHandles.asReversed().forEach { runCatching { it.close() } }
         resourceHandles.clear()
         super.onDestroy()
-        if (isFinishing) Process.killProcess(Process.myPid())
+        if (isFinishing) {
+            CrashWatch.disarm(this)
+            Process.killProcess(Process.myPid())
+        }
     }
 
     private fun callPlugin(phase: String, block: EnginePlugin.() -> Unit) {

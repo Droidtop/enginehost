@@ -32,6 +32,7 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val manifest = InstalledBundleVerifier.verify(context, installed)
         require(manifest.entrypoint == installed.entrypointClass)
         Log.i(TAG, "Loading bundle=$bundleId entrypoint=${installed.entrypointClass}")
+        intent.getStringExtra(RuntimeActivity.EXTRA_PATH)?.let { CrashWatch.arm(context, File(it), bundleId) }
         val resourceApks = installed.resourceApks.map {
             safeRuntimeChild(installed.directory.canonicalFile, it)
         }
