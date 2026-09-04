@@ -73,6 +73,19 @@
         "algorithm": "SHA256withECDSA",
         "id": "enginehost-official-v1",
         "keySha256": "D5191180B94C64B0F95106DB440E17501253B506752BBC178C94A70C3D4A5FDD",
+        "signature": "MEUCIFm3EbrJN3IoIPB0ThSEGIlxvBxg3Jr8McazHOajaWY1AiEAvjEw0CgI0rXun/0RcH5ypVh/KcD28r5EuRD9M6gxUX0="
+      },
+      "keySha256": "27A6D3CBB1FA59BF4558344D187858BF9036A01471BCBAA47DE290E4784245A5",
+      "origin": "https://github.com/droidtop/enginehost-html-plugin",
+      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERTdkE2I3PkdKfgHew/D3yzQsC+0TpC7y5idudecr+SuVdma5qgFcMXJUAPomRjL7Ol9YEdimtgeopu7jH605Iw=="
+    },
+    {
+      "algorithm": "SHA256withECDSA",
+      "formatVersion": 1,
+      "issuer": {
+        "algorithm": "SHA256withECDSA",
+        "id": "enginehost-official-v1",
+        "keySha256": "D5191180B94C64B0F95106DB440E17501253B506752BBC178C94A70C3D4A5FDD",
         "signature": "MEUCIQDklKXahEXeDxlzXkUYCy8cXM3kfKemHj81WGEikWsBxgIgXQZa0twypiOY5ZrS50+EgS6JFzY5UOTcJsdNt5uMD+Q="
       },
       "keySha256": "78362228F1E82FEC8A84AD4216504345794C640536EECB2954188068731456E1",
@@ -130,19 +143,6 @@
       "keySha256": "A397FD4C5113D1DC9218753EC7C225E2B00B04FFE34F8EE2E1CEB28357246F27",
       "origin": "https://github.com/droidtop/enginehost-rpgmaker-mv-mz-plugin",
       "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhTAaM2yVuUvuhckDclowoYid0uvqUx/I4YqCAa5ITbJu2s+Tsc4JzjbryC3YLSaGp1aVwAu1WgjCONbr0vjxuw=="
-    },
-    {
-      "algorithm": "SHA256withECDSA",
-      "formatVersion": 1,
-      "issuer": {
-        "algorithm": "SHA256withECDSA",
-        "id": "enginehost-official-v1",
-        "keySha256": "D5191180B94C64B0F95106DB440E17501253B506752BBC178C94A70C3D4A5FDD",
-        "signature": "MEYCIQClaVcvYYncDQs3oRAp6hi9Nyo5ilqF7mSw5ikBpVtkTgIhAIdNBsAnU9DR1P8W0ZMogDhUVsIIdAvkD9rOaz2NFM9I"
-      },
-      "keySha256": "CBF81EAEE34F9AE5A7A7A00B38814071544DFF9AA1532C8D1ABB4F5D34B802AB",
-      "origin": "https://github.com/droidtop/enginehost-web-plugin",
-      "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVgwTrXnNyov34lDW7FLiBjWmjWCPae68596gzkQ/Z0gFzB/fnnM6BeXD2oVbH1FNOLUV+vMgQpqOWn4w19BMkQ=="
     }
   ]
 }

@@ -145,27 +145,18 @@
       },
       "origin": "https://github.com/droidtop/enginehost-rpgmaker-mv-mz-plugin"
     },
-    "https://github.com/droidtop/enginehost-web-plugin": {
-      "description": "Runs HTML games, RPG Maker MV and MZ, and Flash/AIR in a confined browser with saves kept on disk",
+    "https://github.com/droidtop/enginehost-html-plugin": {
+      "description": "Runs HTML games (Twine stories included) in a confined browser with saves kept on disk",
       "engine": "html",
       "engineContexts": [
-        "compiled-html",
-        "mv",
-        "mz",
-        "swf",
-        "air"
+        "compiled-html"
       ],
       "formatVersion": 1,
       "implementation": {
-        "id": "enginehost-web",
-        "name": "Enginehost web runtime"
+        "id": "enginehost-html",
+        "name": "Enginehost HTML runtime"
       },
-      "origin": "https://github.com/droidtop/enginehost-web-plugin",
-      "engines": [
-        "html",
-        "rpgmaker",
-        "flash_air"
-      ]
+      "origin": "https://github.com/droidtop/enginehost-html-plugin"
     }
   }
 }

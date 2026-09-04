@@ -298,7 +298,7 @@ class PluginOriginStore(private val context: Context) {
             "https://github.com/droidtop/enginehost-catsystem2-plugin",
             "https://github.com/droidtop/enginehost-cmvs-plugin",
             "https://github.com/droidtop/enginehost-flash-air-plugin",
-            "https://github.com/droidtop/enginehost-web-plugin",
+            "https://github.com/droidtop/enginehost-html-plugin",
             "https://github.com/droidtop/enginehost-godot-plugin",
         )
     }
