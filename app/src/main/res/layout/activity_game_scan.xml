@@ -13,11 +13,28 @@
         android:paddingTop="@dimen/eh_screen_padding_v"
         android:paddingBottom="@dimen/eh_screen_padding_v">
 
-        <TextView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/scan_title"
-            android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/scan_title"
+                android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+            <Button
+                android:id="@+id/chooseScanFolderButton"
+                style="@style/Widget.Enginehost.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:drawableStart="@drawable/ic_folder"
+                android:text="@string/scan_choose" />
+
+        </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
@@ -26,19 +43,11 @@
             android:text="@string/scan_intro"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-        <Button
-            android:id="@+id/chooseScanFolderButton"
-            style="@style/Widget.Enginehost.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_m"
-            android:text="@string/scan_choose" />
-
         <TextView
             android:id="@+id/scanRoot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
+            android:layout_marginTop="@dimen/eh_space_m"
             android:background="@drawable/eh_card_bg"
             android:padding="@dimen/eh_space_s"
             android:textAppearance="@style/TextAppearance.Enginehost.Mono"
@@ -52,22 +61,31 @@
             android:textAppearance="@style/TextAppearance.Enginehost.Body"
             android:visibility="gone" />
 
-        <Button
-            android:id="@+id/cancelScanButton"
-            style="@style/Widget.Enginehost.Button.Danger"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/scan_cancel"
-            android:visibility="gone" />
+            android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/addAllButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/scan_add_all"
-            android:visibility="gone" />
+            <Button
+                android:id="@+id/addAllButton"
+                style="@style/Widget.Enginehost.Button.Tonal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/scan_add_all"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/cancelScanButton"
+                style="@style/Widget.Enginehost.Button.Danger"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/eh_space_s"
+                android:text="@string/scan_cancel"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/resultList"

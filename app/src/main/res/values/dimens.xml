@@ -4,10 +4,12 @@
     <dimen name="eh_space_s">8dp</dimen>
     <dimen name="eh_space_m">16dp</dimen>
     <dimen name="eh_space_l">24dp</dimen>
-    <dimen name="eh_corner">12dp</dimen>
-    <dimen name="eh_corner_small">8dp</dimen>
+    <dimen name="eh_corner">16dp</dimen>
+    <dimen name="eh_corner_small">10dp</dimen>
     <dimen name="eh_touch_target">48dp</dimen>
     <dimen name="eh_focus_stroke">3dp</dimen>
+    <dimen name="eh_icon">22dp</dimen>
+    <dimen name="eh_row_height">56dp</dimen>
 
     <!--
         Density tokens. Portrait runs out of width, landscape runs out of
@@ -15,13 +17,13 @@
         values-land tightens only the vertical ones. Screens and cards read
         these instead of the raw spacing scale, so one override retunes both.
     -->
-    <dimen name="eh_screen_padding_h">16dp</dimen>
+    <dimen name="eh_screen_padding_h">20dp</dimen>
     <dimen name="eh_screen_padding_v">16dp</dimen>
     <dimen name="eh_card_padding_h">16dp</dimen>
-    <dimen name="eh_card_padding_v">16dp</dimen>
+    <dimen name="eh_card_padding_v">14dp</dimen>
 
     <!-- Gap between side by side panes and between grid columns. -->
-    <dimen name="eh_column_gap">12dp</dimen>
+    <dimen name="eh_column_gap">16dp</dimen>
     <dimen name="eh_launch_icon">112dp</dimen>
     <dimen name="eh_launch_title_text">26sp</dimen>
 </resources>

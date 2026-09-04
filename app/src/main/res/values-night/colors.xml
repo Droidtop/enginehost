@@ -9,6 +9,9 @@
     <color name="eh_accent">#7CA7F4</color>
     <color name="eh_accent_pressed">#5D8CE0</color>
     <color name="eh_on_accent">#0D1B33</color>
+    <color name="eh_accent_container">#22375F</color>
+    <color name="eh_accent_container_pressed">#2B457A</color>
+    <color name="eh_on_accent_container">#CFE0FF</color>
     <color name="eh_danger">#E06C65</color>
     <color name="eh_official">#63CD8C</color>
     <color name="eh_official_container">#143221</color>
@@ -19,4 +22,12 @@
     <color name="eh_community">#A0A8B2</color>
     <color name="eh_community_container">#262C34</color>
     <color name="eh_on_community_container">#CDD3DA</color>
+
+    <color name="eh_engine_renpy">#B39DF0</color>
+    <color name="eh_engine_rpgmaker">#5FD2B0</color>
+    <color name="eh_engine_kirikiri">#F08BB8</color>
+    <color name="eh_engine_godot">#7FB8F5</color>
+    <color name="eh_engine_html">#F0B45A</color>
+    <color name="eh_engine_flash">#F28A66</color>
+    <color name="eh_engine_other">#A0A8B2</color>
 </resources>

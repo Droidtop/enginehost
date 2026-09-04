@@ -12,35 +12,60 @@
     android:layout_gravity="fill_horizontal"
     android:layout_marginEnd="@dimen/eh_column_gap"
     android:layout_marginBottom="@dimen/eh_space_s"
+    android:gravity="center_vertical"
     android:minHeight="@dimen/eh_touch_target"
-    android:gravity="center_vertical">
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/gameTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+        <TextView
+            android:id="@+id/gamePath"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="start"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/gameStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
     <TextView
-        android:id="@+id/gameTitle"
-        android:layout_width="match_parent"
+        android:id="@+id/gameEngine"
+        style="@style/Widget.Enginehost.Chip"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
-
-    <TextView
-        android:id="@+id/gamePath"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:maxLines="1"
-        android:ellipsize="start"
-        android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+        android:layout_marginStart="@dimen/eh_space_s"
         android:visibility="gone" />
 
-    <TextView
-        android:id="@+id/gameStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:maxLines="2"
-        android:ellipsize="end"
-        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-        android:visibility="gone" />
+    <ImageView
+        android:layout_width="@dimen/eh_icon"
+        android:layout_height="@dimen/eh_icon"
+        android:layout_marginStart="@dimen/eh_space_s"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_play"
+        android:tint="@color/eh_accent" />
 
 </LinearLayout>

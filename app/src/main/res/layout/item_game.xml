@@ -1,37 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One game in the library: its name and one line of state. The folder path
-    is kept for the actions sheet and accessibility but not shown; a person
-    knows their games by name.
+    One game in the library: its name, one line of state, the engine as a
+    coloured chip, and a play mark. The folder path is kept for the actions
+    sheet and accessibility but not shown; a person knows their games by name.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card.Focusable"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="@dimen/eh_space_s"
+    android:gravity="center_vertical"
     android:minHeight="@dimen/eh_touch_target"
-    android:gravity="center_vertical">
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/gameTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+        <TextView
+            android:id="@+id/gamePath"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/gameStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
     <TextView
-        android:id="@+id/gameTitle"
-        android:layout_width="match_parent"
+        android:id="@+id/gameEngine"
+        style="@style/Widget.Enginehost.Chip"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
-
-    <TextView
-        android:id="@+id/gamePath"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+        android:layout_marginStart="@dimen/eh_space_s"
         android:visibility="gone" />
 
-    <TextView
-        android:id="@+id/gameStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-        android:visibility="gone" />
+    <ImageView
+        android:layout_width="@dimen/eh_icon"
+        android:layout_height="@dimen/eh_icon"
+        android:layout_marginStart="@dimen/eh_space_s"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_play"
+        android:tint="@color/eh_accent" />
 
 </LinearLayout>

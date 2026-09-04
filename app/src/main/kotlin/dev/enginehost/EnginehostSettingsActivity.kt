@@ -5,10 +5,8 @@ import android.os.Bundle
 import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.AdapterView
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -17,8 +15,10 @@ import androidx.appcompat.widget.SwitchCompat
 import java.io.File
 
 /**
- * Global Enginehost configuration: where saves go (shared, with per-engine
- * exceptions), where the game browser starts, and how updates are checked.
+ * Global Enginehost configuration as a list of rows: where saves go (shared,
+ * with per-engine exceptions), where the game browser starts, how updates
+ * arrive, and the app itself. Each row shows its current value; a tap offers
+ * the choices in a dialog, so the screen reads as settings, not as a form.
  */
 class EnginehostSettingsActivity : AppCompatActivity() {
     private lateinit var store: SaveLocationStore
@@ -42,51 +42,63 @@ class EnginehostSettingsActivity : AppCompatActivity() {
         engineSaveRows = findViewById(R.id.engineSaveRows)
         browserStartLocation = findViewById(R.id.browserStartValue)
 
-        findViewById<Button>(R.id.chooseSaveFolderButton).setOnClickListener {
-            startActivityForResult(StorageFolder.pickerIntent(), REQUEST_FOLDER)
-        }
-        findViewById<Button>(R.id.migrateSavesButton).setOnClickListener {
-            migrate(store.legacyRoot())
-        }
-        findViewById<Button>(R.id.useDefaultSaveButton).setOnClickListener {
-            changeRoot(store.defaultRoot())
-        }
-        findViewById<Button>(R.id.chooseBrowserStartButton).setOnClickListener {
-            startActivityForResult(
-                StorageFolder.pickerIntent(browserStartStore.initialUri()),
-                REQUEST_BROWSER_START,
+        findViewById<View>(R.id.saveRootRow).setOnClickListener {
+            choose(
+                R.string.settings_save_folder,
+                listOf(
+                    getString(R.string.choose_folder) to { startActivityForResult(StorageFolder.pickerIntent(), REQUEST_FOLDER) },
+                    getString(R.string.use_default_internal) to { changeRoot(store.defaultRoot()) },
+                    getString(R.string.migrate_saves) to { migrate(store.legacyRoot()) },
+                ),
             )
         }
-        findViewById<Button>(R.id.useDefaultBrowserStartButton).setOnClickListener {
-            browserStartStore.clear()
-            refresh()
+        findViewById<View>(R.id.browserStartRow).setOnClickListener {
+            choose(
+                R.string.browser_start,
+                listOf(
+                    getString(R.string.choose_folder) to {
+                        startActivityForResult(StorageFolder.pickerIntent(browserStartStore.initialUri()), REQUEST_BROWSER_START)
+                    },
+                    getString(R.string.use_android_default) to {
+                        browserStartStore.clear()
+                        refresh()
+                    },
+                ),
+            )
         }
-
-        findViewById<Spinner>(R.id.updateFrequencySpinner).apply {
-            setSelection(updateCheck.frequency.ordinal, false)
-            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    updateCheck.frequency = PluginUpdateCheck.Frequency.entries[position]
+        findViewById<View>(R.id.updateFrequencyRow).setOnClickListener {
+            val labels = resources.getStringArray(R.array.update_frequency_entries)
+            AlertDialog.Builder(this)
+                .setTitle(R.string.updates_frequency_label)
+                .setSingleChoiceItems(labels, updateCheck.frequency.ordinal) { dialog, which ->
+                    updateCheck.frequency = PluginUpdateCheck.Frequency.entries[which]
+                    dialog.dismiss()
+                    refresh()
                 }
-
-                override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-            }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
         }
-        findViewById<Spinner>(R.id.pluginStreamSpinner).apply {
-            setSelection(updateCheck.stream.ordinal, false)
-            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    val chosen = PluginStream.entries[position]
-                    if (chosen == updateCheck.stream) return
-                    updateCheck.stream = chosen
-                    // The cached catalogs were filtered for the old choice;
-                    // fetch again so the home screen and catalog reflect this one.
-                    updateCheck.run { }
-                    refreshLastChecked()
+        findViewById<View>(R.id.pluginStreamRow).setOnClickListener {
+            val labels = arrayOf(
+                getString(R.string.stream_stable_desc),
+                getString(R.string.stream_testing_desc),
+                getString(R.string.stream_unstable_desc),
+            )
+            AlertDialog.Builder(this)
+                .setTitle(R.string.updates_stream_label)
+                .setSingleChoiceItems(labels, updateCheck.stream.ordinal) { dialog, which ->
+                    dialog.dismiss()
+                    val chosen = PluginStream.entries[which]
+                    if (chosen != updateCheck.stream) {
+                        updateCheck.stream = chosen
+                        // The cached catalogs were filtered for the old choice;
+                        // fetch again so the home screen and catalog reflect this one.
+                        updateCheck.run { }
+                    }
+                    refresh()
                 }
-
-                override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-            }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
         }
         findViewById<SwitchCompat>(R.id.unmeteredOnlySwitch).apply {
             isChecked = updateCheck.unmeteredOnly
@@ -101,15 +113,25 @@ class EnginehostSettingsActivity : AppCompatActivity() {
             packageManager.getPackageInfo(packageName, 0).versionName,
             AppUpdate.installedVersionCode(this),
         )
-        findViewById<Button>(R.id.checkAppUpdateButton).setOnClickListener { checkAppUpdate() }
+        findViewById<View>(R.id.appVersionRow).setOnClickListener { checkAppUpdate() }
         refresh()
     }
 
+    /** A short list of actions for one row. */
+    private fun choose(title: Int, actions: List<Pair<String, () -> Unit>>) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
     private fun checkAppUpdate() {
-        val checkButton = findViewById<Button>(R.id.checkAppUpdateButton)
+        val row = findViewById<View>(R.id.appVersionRow)
+        val lastChecked = findViewById<TextView>(R.id.lastCheckedValue)
         val installButton = findViewById<Button>(R.id.installAppUpdateButton)
-        checkButton.isEnabled = false
-        checkButton.setText(R.string.app_update_checking)
+        row.isEnabled = false
+        lastChecked.setText(R.string.app_update_checking)
         // "Check now" is the whole pass -- plugins, detection rules and the
         // app -- so the home screen's notice is current afterwards too.
         updateCheck.run { }
@@ -117,8 +139,7 @@ class EnginehostSettingsActivity : AppCompatActivity() {
             val result = runCatching { AppUpdate.fetch() }
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
-                checkButton.isEnabled = true
-                checkButton.setText(R.string.app_update_check_now)
+                row.isEnabled = true
                 refreshLastChecked()
                 result.onSuccess { info ->
                     if (info.versionCode > AppUpdate.installedVersionCode(this)) {
@@ -129,9 +150,7 @@ class EnginehostSettingsActivity : AppCompatActivity() {
                             AppUpdate.downloadAndInstall(
                                 this,
                                 info,
-                                onStatus = { status ->
-                                    runOnUiThread { installButton.text = status }
-                                },
+                                onStatus = { status -> runOnUiThread { installButton.text = status } },
                                 onError = { message ->
                                     runOnUiThread {
                                         installButton.isEnabled = true
@@ -146,8 +165,7 @@ class EnginehostSettingsActivity : AppCompatActivity() {
                         Toast.makeText(this, R.string.app_update_none, Toast.LENGTH_LONG).show()
                     }
                 }.onFailure { error ->
-                    Toast.makeText(this, error.message ?: getString(R.string.app_update_failed), Toast.LENGTH_LONG)
-                        .show()
+                    Toast.makeText(this, error.message ?: getString(R.string.app_update_failed), Toast.LENGTH_LONG).show()
                 }
             }
         }.start()
@@ -223,6 +241,10 @@ class EnginehostSettingsActivity : AppCompatActivity() {
         } else {
             StorageFolder.absolutePath(tree)?.path ?: tree.toString()
         }
+        findViewById<TextView>(R.id.updateFrequencyValue).text =
+            resources.getStringArray(R.array.update_frequency_entries)[updateCheck.frequency.ordinal]
+        findViewById<TextView>(R.id.pluginStreamValue).text =
+            resources.getStringArray(R.array.plugin_stream_entries)[updateCheck.stream.ordinal]
         refreshEngineRows()
         refreshLastChecked()
     }
@@ -245,15 +267,23 @@ class EnginehostSettingsActivity : AppCompatActivity() {
             val override = store.overrideFor(engine)
             row.findViewById<TextView>(R.id.engineSavePath).text =
                 override?.path ?: getString(R.string.engine_save_uses_shared)
-            row.findViewById<Button>(R.id.chooseEngineFolderButton).setOnClickListener {
-                startActivityForResult(StorageFolder.pickerIntent(), REQUEST_ENGINE_FOLDER + index)
-            }
-            row.findViewById<Button>(R.id.useSharedEngineFolderButton).apply {
-                isEnabled = override != null
-                setOnClickListener {
-                    store.clearOverride(engine)
-                    refresh()
+            row.setOnClickListener {
+                val actions = mutableListOf<Pair<String, () -> Unit>>(
+                    getString(R.string.choose_folder) to {
+                        startActivityForResult(StorageFolder.pickerIntent(), REQUEST_ENGINE_FOLDER + index)
+                    },
+                )
+                if (override != null) {
+                    actions += getString(R.string.use_shared_save_folder) to {
+                        store.clearOverride(engine)
+                        refresh()
+                    }
                 }
+                AlertDialog.Builder(this)
+                    .setTitle(EngineNames.family(engine))
+                    .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
             }
             engineSaveRows.addView(row)
         }
@@ -267,9 +297,7 @@ class EnginehostSettingsActivity : AppCompatActivity() {
         } else {
             getString(
                 R.string.updates_last_checked,
-                DateUtils.getRelativeDateTimeString(
-                    this, last, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0,
-                ),
+                DateUtils.getRelativeDateTimeString(this, last, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0),
             )
         }
     }

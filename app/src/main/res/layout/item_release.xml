@@ -37,8 +37,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/eh_space_s"
-            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle"
-            android:textColor="@color/eh_text_secondary" />
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+            android:textSize="14sp" />
     </LinearLayout>
 
     <TextView
@@ -76,8 +76,8 @@
         android:id="@+id/releaseOlderToggle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:minHeight="@dimen/eh_touch_target"
         android:gravity="center_vertical"
+        android:minHeight="@dimen/eh_touch_target"
         android:textAppearance="@style/TextAppearance.Enginehost.Caption"
         android:textColor="@color/eh_accent"
         android:visibility="gone" />

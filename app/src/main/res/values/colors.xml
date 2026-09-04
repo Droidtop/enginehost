@@ -1,14 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The light palette. A cool, slightly blue-grey neutral family, one blue
+    accent with a tonal container for secondary actions, semantic colours for
+    trust and caution, and one hue per engine family so a game card says
+    what it is before it is read. values-night carries the dark set of the
+    same names.
+-->
 <resources>
-    <color name="eh_background">#F5F6F8</color>
+    <color name="eh_background">#F4F5F8</color>
     <color name="eh_surface">#FFFFFF</color>
-    <color name="eh_surface_variant">#EBEDF1</color>
-    <color name="eh_outline">#D3D8DF</color>
-    <color name="eh_text_primary">#1A1D22</color>
-    <color name="eh_text_secondary">#565E68</color>
-    <color name="eh_accent">#2B62D9</color>
-    <color name="eh_accent_pressed">#1F4CAE</color>
+    <color name="eh_surface_variant">#E9ECF2</color>
+    <color name="eh_outline">#D5DAE3</color>
+    <color name="eh_text_primary">#171B22</color>
+    <color name="eh_text_secondary">#5A6270</color>
+    <color name="eh_accent">#2F62D8</color>
+    <color name="eh_accent_pressed">#244FB3</color>
     <color name="eh_on_accent">#FFFFFF</color>
+    <color name="eh_accent_container">#DCE6FB</color>
+    <color name="eh_accent_container_pressed">#C9D8F7</color>
+    <color name="eh_on_accent_container">#173A82</color>
     <color name="eh_danger">#B3261E</color>
     <color name="eh_official">#1B7A43</color>
     <color name="eh_official_container">#DCF2E3</color>
@@ -19,4 +29,13 @@
     <color name="eh_community">#4C555F</color>
     <color name="eh_community_container">#E6E9ED</color>
     <color name="eh_on_community_container">#2E353D</color>
+
+    <!-- Engine families. Chips draw the hue as text over the hue at low alpha. -->
+    <color name="eh_engine_renpy">#6A4BC7</color>
+    <color name="eh_engine_rpgmaker">#0F8A6A</color>
+    <color name="eh_engine_kirikiri">#C2437A</color>
+    <color name="eh_engine_godot">#2E7DD6</color>
+    <color name="eh_engine_html">#B26A00</color>
+    <color name="eh_engine_flash">#D14F2A</color>
+    <color name="eh_engine_other">#5B6472</color>
 </resources>

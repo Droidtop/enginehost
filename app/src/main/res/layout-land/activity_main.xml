@@ -2,7 +2,7 @@
 <!--
     Landscape home. The library takes two thirds of the width as a two
     column grid that scrolls on its own; the two library actions and the
-    four destinations sit in a sidebar beside it.
+    four destinations sit in a sidebar beside it, each an icon and a name.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -34,9 +34,9 @@
             android:layout_marginStart="@dimen/eh_space_m"
             android:paddingTop="@dimen/eh_space_s"
             android:paddingBottom="@dimen/eh_space_s"
-            android:visibility="gone"
             android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle"
-            android:textColor="@color/eh_accent" />
+            android:textColor="@color/eh_accent"
+            android:visibility="gone" />
 
     </LinearLayout>
 
@@ -100,41 +100,52 @@
                     style="@style/Widget.Enginehost.Button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:drawableStart="@drawable/ic_add"
                     android:text="@string/add_game_folder" />
 
                 <Button
                     android:id="@+id/scanFolderButton"
+                    style="@style/Widget.Enginehost.Button.Tonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_s"
+                    android:drawableStart="@drawable/ic_scan"
                     android:text="@string/scan_folder" />
 
                 <Button
                     android:id="@+id/pluginCatalogButton"
+                    style="@style/Widget.Enginehost.Button.Nav"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_l"
+                    android:drawableStart="@drawable/ic_plugins"
                     android:text="@string/browse_plugins" />
 
                 <Button
                     android:id="@+id/controllerConfigButton"
+                    style="@style/Widget.Enginehost.Button.Nav"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_s"
+                    android:drawableStart="@drawable/ic_controller"
                     android:text="@string/controller_settings" />
 
                 <Button
                     android:id="@+id/enginehostSettingsButton"
+                    style="@style/Widget.Enginehost.Button.Nav"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_s"
+                    android:drawableStart="@drawable/ic_settings"
                     android:text="@string/enginehost_settings" />
 
                 <Button
                     android:id="@+id/createConfigButton"
+                    style="@style/Widget.Enginehost.Button.Nav"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_s"
+                    android:drawableStart="@drawable/ic_setup"
                     android:text="@string/open_config_creator" />
 
             </LinearLayout>

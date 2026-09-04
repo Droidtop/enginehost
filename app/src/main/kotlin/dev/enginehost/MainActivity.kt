@@ -146,14 +146,14 @@ class MainActivity : AppCompatActivity() {
             gameList.addView(empty)
             return
         }
-        val statusViews = mutableMapOf<String, TextView>()
+        val rows = mutableMapOf<String, View>()
         games.forEach { folder ->
             val row = layoutInflater.inflate(R.layout.item_game, gameList, false)
             val title = folder.name.ifBlank { folder.absolutePath }
             row.findViewById<TextView>(R.id.gameTitle).text =
                 if (folder.isDirectory) title else getString(R.string.game_row_unavailable, title)
             row.findViewById<TextView>(R.id.gamePath).text = folder.absolutePath
-            statusViews[folder.path] = row.findViewById(R.id.gameStatus)
+            rows[folder.path] = row
             row.contentDescription = getString(R.string.launch_game_description, folder.absolutePath)
             row.setOnClickListener { launchGame(folder) }
             row.setOnLongClickListener {
@@ -162,21 +162,22 @@ class MainActivity : AppCompatActivity() {
             }
             gameList.addView(row)
         }
-        resolveStatuses(generation, games, statusViews)
+        resolveStatuses(generation, games, rows)
     }
 
     /**
      * Resolution touches disk and the plugin registry, so it runs off the UI
      * thread and each row fills in when its answer is known.
      */
-    private fun resolveStatuses(generation: Int, games: List<File>, statusViews: Map<String, TextView>) {
+    private fun resolveStatuses(generation: Int, games: List<File>, rows: Map<String, View>) {
         Thread {
             games.forEach { folder ->
                 if (generation != renderGeneration) return@Thread
                 val status = computeStatus(folder)
                 runOnUiThread {
                     if (generation != renderGeneration) return@runOnUiThread
-                    statusViews[folder.path]?.apply {
+                    val row = rows[folder.path] ?: return@runOnUiThread
+                    row.findViewById<TextView>(R.id.gameStatus).apply {
                         text = status.text
                         setTextColor(
                             ContextCompat.getColor(
@@ -186,12 +187,22 @@ class MainActivity : AppCompatActivity() {
                         )
                         visibility = View.VISIBLE
                     }
+                    // The engine as a coloured chip, once the config has said which it is.
+                    row.findViewById<TextView>(R.id.gameEngine).apply {
+                        if (status.engine == null) {
+                            visibility = View.GONE
+                        } else {
+                            text = status.chip
+                            EngineHues.paintChip(this, status.engine)
+                            visibility = View.VISIBLE
+                        }
+                    }
                 }
             }
         }.start()
     }
 
-    private data class GameStatus(val ok: Boolean, val text: String)
+    private data class GameStatus(val ok: Boolean, val text: String, val engine: String? = null, val chip: String = "")
 
     private fun computeStatus(folder: File): GameStatus {
         if (!folder.isDirectory) return GameStatus(false, getString(R.string.status_missing))
@@ -210,23 +221,11 @@ class MainActivity : AppCompatActivity() {
                 config.runtimeRequirements, config.pluginVersionConstraint,
             )
         }.getOrNull()
-            ?: return GameStatus(
-                false,
-                getString(
-                    R.string.status_no_plugin,
-                    EngineNames.line(config.engine, config.engineContext),
-                    config.engineVersion.toString(),
-                ),
-            )
-        return GameStatus(
-            true,
-            getString(
-                R.string.status_ready,
-                EngineNames.line(config.engine, config.engineContext),
-                config.engineVersion.toString(),
-                resolved.capability.runtimeVersion.toString(),
-            ),
-        )
+        val chip = "${EngineNames.line(config.engine, config.engineContext)} ${config.engineVersion}"
+        if (resolved == null) {
+            return GameStatus(false, getString(R.string.status_no_plugin_short), config.engine, chip)
+        }
+        return GameStatus(true, getString(R.string.status_ready_short), config.engine, chip)
     }
 
     private fun showGameActions(folder: File) {

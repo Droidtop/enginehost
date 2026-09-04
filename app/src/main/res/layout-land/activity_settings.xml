@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Landscape settings. The two sections are independent, so they sit as two
-    columns instead of one stacked run of full width buttons. D-pad left/right
-    crosses between the columns, up/down walks a column.
--->
+<!-- Landscape settings: saves on the left, updates and the app on the right. Same rows, same ids. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -31,6 +27,7 @@
             android:baselineAligned="false"
             android:orientation="horizontal">
 
+            <!-- Saves. -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -40,80 +37,119 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
                     android:text="@string/save_location"
                     android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:text="@string/save_location_hint"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-                <TextView
-                    android:id="@+id/saveLocationValue"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:background="@drawable/eh_card_bg"
-                    android:paddingLeft="@dimen/eh_space_s"
-                    android:paddingRight="@dimen/eh_space_s"
-                    android:paddingTop="@dimen/eh_space_s"
-                    android:paddingBottom="@dimen/eh_space_s"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
-
-                <Button
-                    android:id="@+id/chooseSaveFolderButton"
-                    style="@style/Widget.Enginehost.Button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/choose_folder" />
-
-                <Button
-                    android:id="@+id/migrateSavesButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/migrate_saves" />
-
-                <Button
-                    android:id="@+id/useDefaultSaveButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/use_default_internal" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_l"
-                    android:text="@string/engine_save_overrides"
-                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:text="@string/engine_save_overrides_hint"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-                <TextView
-                    android:id="@+id/engineSaveEmpty"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/engine_save_none_installed"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
                 <LinearLayout
-                    android:id="@+id/engineSaveRows"
+                    style="@style/Widget.Enginehost.Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:paddingLeft="4dp"
+                    android:paddingRight="4dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <LinearLayout
+                        android:id="@+id/saveRootRow"
+                        style="@style/Widget.Enginehost.Row"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/settings_save_folder"
+                                android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                            <TextView
+                                android:id="@+id/saveLocationValue"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="start"
+                                android:maxLines="1"
+                                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="@dimen/eh_icon"
+                            android:layout_height="@dimen/eh_icon"
+                            android:layout_marginStart="@dimen/eh_space_s"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_chevron"
+                            android:tint="@color/eh_text_secondary" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/engineSaveRows"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <TextView
+                        android:id="@+id/engineSaveEmpty"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingLeft="12dp"
+                        android:paddingRight="12dp"
+                        android:paddingBottom="10dp"
+                        android:text="@string/engine_save_none_installed"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                    <LinearLayout
+                        android:id="@+id/browserStartRow"
+                        style="@style/Widget.Enginehost.Row"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/browser_start"
+                                android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                            <TextView
+                                android:id="@+id/browserStartValue"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="start"
+                                android:maxLines="1"
+                                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="@dimen/eh_icon"
+                            android:layout_height="@dimen/eh_icon"
+                            android:layout_marginStart="@dimen/eh_space_s"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_chevron"
+                            android:tint="@color/eh_text_secondary" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
 
             </LinearLayout>
 
+            <!-- Updates and the app. -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -124,160 +160,165 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/browser_start"
-                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:text="@string/browser_start_hint"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-                <TextView
-                    android:id="@+id/browserStartValue"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:background="@drawable/eh_card_bg"
-                    android:paddingLeft="@dimen/eh_space_s"
-                    android:paddingRight="@dimen/eh_space_s"
-                    android:paddingTop="@dimen/eh_space_s"
-                    android:paddingBottom="@dimen/eh_space_s"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
-
-                <Button
-                    android:id="@+id/chooseBrowserStartButton"
-                    style="@style/Widget.Enginehost.Button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/choose_browsing_folder" />
-
-                <Button
-                    android:id="@+id/useDefaultBrowserStartButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/use_android_default" />
-
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
-            android:baselineAligned="false"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
                     android:text="@string/updates_section"
                     android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
-                <TextView
+                <LinearLayout
+                    style="@style/Widget.Enginehost.Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/updates_frequency_label"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+                    android:paddingLeft="4dp"
+                    android:paddingRight="4dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
 
-                <Spinner
-                    android:id="@+id/updateFrequencySpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/eh_touch_target"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:entries="@array/update_frequency_entries" />
+                    <LinearLayout
+                        android:id="@+id/updateFrequencyRow"
+                        style="@style/Widget.Enginehost.Row"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/updates_frequency_label"
+                            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                        <TextView
+                            android:id="@+id/updateFrequencyValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                        <ImageView
+                            android:layout_width="@dimen/eh_icon"
+                            android:layout_height="@dimen/eh_icon"
+                            android:layout_marginStart="@dimen/eh_space_xs"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_chevron"
+                            android:tint="@color/eh_text_secondary" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/pluginStreamRow"
+                        style="@style/Widget.Enginehost.Row"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/updates_stream_label"
+                            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                        <TextView
+                            android:id="@+id/pluginStreamValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                        <ImageView
+                            android:layout_width="@dimen/eh_icon"
+                            android:layout_height="@dimen/eh_icon"
+                            android:layout_marginStart="@dimen/eh_space_xs"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_chevron"
+                            android:tint="@color/eh_text_secondary" />
+
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/unmeteredOnlySwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="@dimen/eh_row_height"
+                        android:paddingLeft="12dp"
+                        android:paddingRight="12dp"
+                        android:text="@string/updates_unmetered_only"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/autoInstallPluginsSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="@dimen/eh_row_height"
+                        android:paddingLeft="12dp"
+                        android:paddingRight="12dp"
+                        android:text="@string/updates_install_plugins_automatically"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:text="@string/updates_check_hint"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                    android:layout_marginTop="@dimen/eh_space_l"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/settings_about"
+                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_m"
-                    android:text="@string/updates_stream_label"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Body" />
-
-                <Spinner
-                    android:id="@+id/pluginStreamSpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/eh_touch_target"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:entries="@array/plugin_stream_entries" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:text="@string/updates_stream_hint"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/unmeteredOnlySwitch"
+                <LinearLayout
+                    style="@style/Widget.Enginehost.Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/updates_unmetered_only" />
+                    android:paddingLeft="4dp"
+                    android:paddingRight="4dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
 
-                <TextView
-                    android:id="@+id/lastCheckedValue"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                    <LinearLayout
+                        android:id="@+id/appVersionRow"
+                        style="@style/Widget.Enginehost.Row"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
 
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/autoInstallPluginsSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/updates_install_plugins_automatically" />
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:text="@string/updates_install_plugins_automatically_hint"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                            <TextView
+                                android:id="@+id/appVersionValue"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
-                <TextView
-                    android:id="@+id/appVersionValue"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:background="@drawable/eh_card_bg"
-                    android:padding="@dimen/eh_space_s"
-                    android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+                            <TextView
+                                android:id="@+id/lastCheckedValue"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-                <Button
-                    android:id="@+id/checkAppUpdateButton"
-                    style="@style/Widget.Enginehost.Button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/app_update_check_now" />
+                        </LinearLayout>
 
-                <Button
-                    android:id="@+id/installAppUpdateButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:visibility="gone"
-                    android:text="@string/app_update_install" />
+                        <ImageView
+                            android:layout_width="@dimen/eh_icon"
+                            android:layout_height="@dimen/eh_icon"
+                            android:layout_marginStart="@dimen/eh_space_s"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_refresh"
+                            android:tint="@color/eh_accent" />
+
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/installAppUpdateButton"
+                        style="@style/Widget.Enginehost.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/eh_space_s"
+                        android:text="@string/app_update_install"
+                        android:visibility="gone" />
+
+                </LinearLayout>
 
             </LinearLayout>
 

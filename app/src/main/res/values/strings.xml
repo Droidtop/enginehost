@@ -129,6 +129,13 @@
     <string name="install_failed_generic">Install failed</string>
 
     <!-- Settings -->
+    <string name="settings_save_folder">Save folder</string>
+    <string name="settings_about">About</string>
+    <string name="stream_stable_desc">Stable · played on real games</string>
+    <string name="stream_testing_desc">Testing · runs games, still being lived with</string>
+    <string name="stream_unstable_desc">Unstable · every green build</string>
+    <string name="status_ready_short">Ready</string>
+    <string name="status_no_plugin_short">Needs a plugin. Tap to install one.</string>
     <string name="settings_title">Settings</string>
     <string name="save_location">Saves</string>
     <string name="save_location_hint">Every engine keeps its saves under this folder.</string>
