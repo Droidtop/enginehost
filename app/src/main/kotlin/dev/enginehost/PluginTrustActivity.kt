@@ -54,9 +54,9 @@ class PluginTrustActivity : AppCompatActivity() {
         val state = trust.state(plugin)
         val card = layoutInflater.inflate(R.layout.item_plugin_trust, list, false)
 
-        card.findViewById<TextView>(R.id.pluginTitle).text = plugin.info.capabilities
-            .map { EngineNames.line(plugin.info.engineOf(it), it.engineContext) }
-            .distinct()
+        // Named the way the catalog names it: the engine and the versions this
+        // build runs ("Ren'Py 7.5.x"), so two lines of one engine tell apart.
+        card.findViewById<TextView>(R.id.pluginTitle).text = EngineNames.compatibility(plugin.info.engine, plugin.info.capabilities)
             .ifEmpty { listOf(EngineNames.family(plugin.info.engine)) }
             .joinToString(" · ")
         card.findViewById<TextView>(R.id.trustBuildLine).text = getString(
