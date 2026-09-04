@@ -123,6 +123,11 @@ class LaunchActivity : AppCompatActivity() {
         val icon = findViewById<ImageView>(R.id.gameIcon)
         // The executable can be large and sits on removable storage; never
         // read it on the main thread while the runtime is starting.
+        // Without a config there is no engine to look the icon up by.
+        if (config == null) {
+            icon.visibility = View.GONE
+            return
+        }
         Thread {
             val bitmap = GameIcon.load(gameFolder, config)
             runOnUiThread {
