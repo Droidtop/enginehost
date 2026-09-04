@@ -197,7 +197,9 @@ object EngineDetector {
         val version = html?.let {
             Regex("creator-version=[\"']([^\"']+)", RegexOption.IGNORE_CASE)
                 .find(String(tree.readHead(it, 512 * 1024), Charsets.UTF_8))
-                ?.groupValues?.get(1)?.takeIf(::isNumericVersion)
+                // Tweego stamps its build hash on the version ("2.1.1+81d1d71");
+                // the number before it is the version.
+                ?.groupValues?.get(1)?.substringBefore('+')?.substringBefore('-')?.takeIf(::isNumericVersion)
         }
         return EngineDetection("twine", row.context, version, html?.let { tree.pathPrefix + it }, "Found Twine story metadata")
     }
