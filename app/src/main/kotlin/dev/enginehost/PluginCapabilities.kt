@@ -32,6 +32,8 @@ enum class ControllerInput { NATIVE, HOST }
 
 data class EngineCapability(
     val id: String,
+    /** The engine this capability serves when the bundle runs several; null means the bundle's own. */
+    val engine: String? = null,
     val engineContext: String,
     val runtimeVersion: Version,
     val supportedVersions: Set<Version>,
@@ -135,7 +137,8 @@ object PluginCapabilitiesReader {
                 }
                 add(
                     EngineCapability(
-                        id, context, runtimeVersion, versions, series, ranges, components,
+                        id, entry.optString("engine").takeIf { it.isNotBlank() },
+                        context, runtimeVersion, versions, series, ranges, components,
                         entry.optBoolean("acceptsAnyEngineVersion", false),
                         if (entry.optString("controllerInput").equals("host", ignoreCase = true)) {
                             ControllerInput.HOST

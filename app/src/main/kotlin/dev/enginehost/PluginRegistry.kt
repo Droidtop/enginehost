@@ -12,6 +12,9 @@ data class PluginInfo(
     val engines: List<String> = emptyList(),
 ) {
     fun runs(requested: String): Boolean = requested == engine || requested in engines
+
+    /** The engine a capability serves: its own when it names one, else the bundle's. */
+    fun engineOf(capability: EngineCapability): String = capability.engine ?: engine
 }
 
 /** One verified, extracted, co-installable engine bundle. */
@@ -52,8 +55,8 @@ object PluginResolver {
             .flatMap { plugin ->
                 plugin.info.capabilities.asSequence()
                     .filter {
-                        it.engineContext == requestedContext && it.supports(engineVersion) &&
-                            it.satisfies(runtimeRequirements)
+                        plugin.info.engineOf(it) == engine && it.engineContext == requestedContext &&
+                            it.supports(engineVersion) && it.satisfies(runtimeRequirements)
                     }
                     .map { ResolvedPlugin(plugin, it) }
             }

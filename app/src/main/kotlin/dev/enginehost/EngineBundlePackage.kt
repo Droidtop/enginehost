@@ -452,6 +452,7 @@ private fun ByteArray.hex(): String = joinToString("") { "%02X".format(it) }
 
 private fun EngineCapability.toJson() = JSONObject()
     .put("id", id)
+    .putOpt("engine", engine)
     .put("engineContext", engineContext)
     .put("runtimeVersion", runtimeVersion.toString())
     .put("acceptsAnyEngineVersion", acceptsAnyEngineVersion)

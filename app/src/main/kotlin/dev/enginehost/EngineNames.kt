@@ -28,7 +28,7 @@ object EngineNames {
      * not the games it accepts.
      */
     fun compatibility(engine: String, capabilities: List<EngineCapability>): List<String> =
-        capabilities.groupBy { line(engine, it.engineContext) }.map { (lineName, group) ->
+        capabilities.groupBy { line(it.engine ?: engine, it.engineContext) }.map { (lineName, group) ->
             val versions = group.flatMap { capability ->
                 capability.supportedSeries.map { "$it.x" } +
                     capability.supportedVersions.map(Version::toString) +
@@ -45,11 +45,9 @@ object EngineNames {
             }
         }
 
-    /** The engines a bundle supports, for its card title: the plugin's own list, else derived. */
+    /** The compatibility lines a bundle serves, for its card title, each named under the engine it belongs to. */
     fun engines(manifest: EngineBundleManifest): List<String> =
-        manifest.engines.ifEmpty {
-            manifest.info.capabilities.map { line(manifest.info.engine, it.engineContext) }.distinct()
-        }
+        manifest.info.capabilities.map { line(manifest.info.engineOf(it), it.engineContext) }.distinct()
 
     /** "Includes Ruby 1.9.2 / 3.1.3 · Spine 4.2", or null when a bundle carries no extra runtime components. */
     fun includes(capabilities: List<EngineCapability>): String? =

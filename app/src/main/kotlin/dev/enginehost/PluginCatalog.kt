@@ -195,9 +195,9 @@ object AvailablePluginResolver {
             .filter { it.info.runs(engine) }
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
             .flatMap { plugin -> plugin.info.capabilities.asSequence().map { plugin to it } }
-            .filter { (_, capability) ->
-                capability.engineContext == requestedContext && capability.supports(engineVersion) &&
-                    capability.satisfies(runtimeRequirements)
+            .filter { (plugin, capability) ->
+                plugin.info.engineOf(capability) == engine && capability.engineContext == requestedContext &&
+                    capability.supports(engineVersion) && capability.satisfies(runtimeRequirements)
             }
             .sortedWith(
                 compareByDescending<Pair<AvailablePlugin, EngineCapability>> { it.second.runtimeVersion == engineVersion }
@@ -298,7 +298,7 @@ class PluginOriginStore(private val context: Context) {
             "https://github.com/droidtop/enginehost-catsystem2-plugin",
             "https://github.com/droidtop/enginehost-cmvs-plugin",
             "https://github.com/droidtop/enginehost-flash-air-plugin",
-            "https://github.com/droidtop/enginehost-twine-plugin",
+            "https://github.com/droidtop/enginehost-web-plugin",
             "https://github.com/droidtop/enginehost-godot-plugin",
         )
     }

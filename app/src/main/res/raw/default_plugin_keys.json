@@ -141,7 +141,7 @@
         "signature": "MEQCIFRjgSJsZ2OtKqTOMd0anb6ehNjxKJuXXWvqeVdSEsDAAiAWXG55TWl/30k/yoM5GR+wiYe3zuETtPgxNH0PylQhQQ=="
       },
       "keySha256": "C168B7B3CB94ABEC8767698BD12446EAFEB6AC99CECFB33D220039A78070E160",
-      "origin": "https://github.com/droidtop/enginehost-twine-plugin",
+      "origin": "https://github.com/droidtop/enginehost-web-plugin",
       "publicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAElRzowloZu1uPJ0xZwShsB++nS+1tZ7O3yVMmAZm14boWdjWaLk+GGOWyx/TXAVnVgEaPrYQPI6cyzcmXX7qzTA=="
     }
   ]

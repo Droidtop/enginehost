@@ -22,11 +22,15 @@ self-declared key therefore does not impersonate the repository.
 
 The manifest includes `bundleId`, `assetName`, `engine`, `pluginVersion`,
 `apiVersion`, `entrypoint`, `origin`, `signing`, `dexFiles`, `capabilities`,
-`payloadSha256`, and `files`. An optional `engines` array names the engines the
-bundle supports the way a person reads them ("RPG Maker XP", "RPG Maker VX
-Ace"); it is the catalog card's title, and when absent the host derives the
-list from the capabilities' contexts. Every `files` item signs the relative path, byte
-size, POSIX permission bits, and SHA-256 digest.
+`payloadSha256`, and `files`. A bundle that runs several engines (the web
+runtime serves `html`, `rpgmaker` and `flash_air` from one browser) lists
+their ids in an optional `engines` array and names the engine each
+capability serves in its `engine` field; a capability without one belongs to
+the bundle's `engine`. A game resolves against a bundle when its engine is
+one the bundle runs and a capability for that engine matches its context and
+version. The catalog card's title is derived from the capabilities. Every
+`files` item signs the relative path, byte size, POSIX permission bits, and
+SHA-256 digest.
 
 Within one `bundleId`, `pluginVersion` is the total order on builds: a
 release with the same ID from the same origin and a strictly higher

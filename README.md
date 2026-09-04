@@ -65,6 +65,20 @@ permits, letting a game exclude plugin revisions with known bugs.
 `execFile` is optional — the
 specific file to run within the folder, for engines that need one.
 
+`title` is optional: the name the launch screen shows, when the game's
+files state one (a Twine story's name). `saveFolder` is optional and only
+meaningful for engines whose runtime has no save naming of its own (HTML
+games, RPG Maker MV/MZ, Flash/AIR): the single folder name their saves go
+under beneath the engine's save root. Enginehost derives it from what the
+engine itself would use, a story's title or the game's folder name, so it is
+the same on every device that has the game.
+
+A folder with no `enginehost.json` is not a dead end. Detection reads the
+engine, version, entry file, title and save folder from the folder's own
+files; when all of that is evident the config is written and the launch
+continues, and only a folder that leaves a question open is shown in the
+config editor with detection prefilled.
+
 `options` is a generic, opaque-to-enginehost bag of post-resolution
 engine-specific settings, passed straight through to the resolved plugin
 without being inspected. Examples include a decryption key, RTP paths,
