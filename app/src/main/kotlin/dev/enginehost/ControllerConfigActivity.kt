@@ -103,7 +103,7 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
             // An inherited binding is marked, so it is obvious which
             // values belong to this engine and which are borrowed.
             button.text = buildString {
-                append(getString(R.string.binding_row, action.title, store.get(action).label()))
+                append(getString(R.string.binding_row, ControllerActions.title(action, scope), store.get(action).label()))
                 if (scope != null && !overridden) append("  ").append(getString(R.string.marker_inherited))
             }
             button.setOnClickListener { capturing = action; render() }

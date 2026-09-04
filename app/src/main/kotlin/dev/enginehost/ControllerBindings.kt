@@ -50,6 +50,59 @@ object ControllerActions {
         ControllerAction("left_trigger", "Left trigger", ControllerBinding.Axis(MotionEvent.AXIS_LTRIGGER, 1)),
         ControllerAction("right_trigger", "Right trigger", ControllerBinding.Axis(MotionEvent.AXIS_RTRIGGER, 1)),
     )
+
+    /**
+     * Per-engine defaults. An engine family listed here gets these bindings
+     * before the global map is consulted, so remapping a button for every
+     * engine at once never silently changes a family whose layout was
+     * settled on purpose. RPG Maker's layout is the one played and approved
+     * on hardware on 2026-09-03: the RGSS keys behind each action are the
+     * plugin's business (see the mkxp-z wrapper), the buttons are these.
+     */
+    val engineDefaults: Map<String, Map<String, ControllerBinding>> = mapOf(
+        "rpgmaker" to mapOf(
+            "up" to ControllerBinding.Key(KeyEvent.KEYCODE_DPAD_UP),
+            "down" to ControllerBinding.Key(KeyEvent.KEYCODE_DPAD_DOWN),
+            "left" to ControllerBinding.Key(KeyEvent.KEYCODE_DPAD_LEFT),
+            "right" to ControllerBinding.Key(KeyEvent.KEYCODE_DPAD_RIGHT),
+            "confirm" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_A),
+            "cancel" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_B),
+            "menu" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_START),
+            "skip" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_X),
+            "auto" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_Y),
+            "history" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_SELECT),
+            "quick_save" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_L1),
+            "quick_load" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_R1),
+            "page_previous" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_L2),
+            "page_next" to ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_R2),
+            "left_x" to ControllerBinding.Axis(MotionEvent.AXIS_X),
+            "left_y" to ControllerBinding.Axis(MotionEvent.AXIS_Y),
+        ),
+    )
+
+    /**
+     * What an action is called for an engine family, when its own vocabulary
+     * differs from the shared one. RPG Maker has no "auto" or "quick save";
+     * those buttons are its dash and its X/Y/Z/L/R inputs, and the controller
+     * screen should say so.
+     */
+    val engineTitles: Map<String, Map<String, String>> = mapOf(
+        "rpgmaker" to mapOf(
+            "confirm" to "Confirm (C)",
+            "cancel" to "Cancel / menu (B)",
+            "menu" to "Menu (B)",
+            "skip" to "Skip messages (Ctrl)",
+            "auto" to "Dash (A / Shift)",
+            "history" to "X input (A key)",
+            "quick_save" to "Y input (S key)",
+            "quick_load" to "Z input (D key)",
+            "page_previous" to "L input (Q key)",
+            "page_next" to "R input (W key)",
+        ),
+    )
+
+    fun title(action: ControllerAction, engine: String?): String =
+        engine?.let { engineTitles[it.lowercase()]?.get(action.id) } ?: action.title
 }
 
 /**
@@ -61,8 +114,10 @@ object ControllerActions {
  * in RPG Maker; its dash and menu buttons mean nothing in a VN), so one
  * flat map cannot serve both.
  *
- * Resolution is engine override, then global, then the action's default.
- * That way remapping Confirm once applies everywhere, and only genuinely
+ * Resolution is engine override, then the engine family's own default
+ * ([ControllerActions.engineDefaults]), then global, then the action's
+ * default. That way remapping Confirm once applies everywhere except to a
+ * family whose layout was settled deliberately, and only genuinely
  * engine-specific actions need per-engine attention.
  */
 class ControllerBindingStore(context: Context, private val engine: String? = null) {
@@ -75,7 +130,10 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
         ?.let { runCatching { parse(JSONObject(it)) }.getOrNull() }
 
     fun get(action: ControllerAction): ControllerBinding =
-        scopedKey(action)?.let(::read) ?: read(action.id) ?: action.default
+        scopedKey(action)?.let(::read)
+            ?: engine?.let { ControllerActions.engineDefaults[it.lowercase()]?.get(action.id) }
+            ?: read(action.id)
+            ?: action.default
 
     /** True when this engine overrides [action] rather than inheriting it. */
     fun isOverridden(action: ControllerAction): Boolean =
