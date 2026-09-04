@@ -18,7 +18,8 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = if (versionRevision > 0) versionRevision else 1
-        versionName = if (versionRevision > 0) "0.1.5-dev-$versionRevision" else "0.1.5-local"
+        val baseVersion = providers.gradleProperty("enginehost.version").get()
+        versionName = if (versionRevision > 0) "$baseVersion-dev-$versionRevision" else "$baseVersion-local"
     }
 
     val ciKeystore = System.getenv("ENGINEHOST_ANDROID_KEYSTORE")

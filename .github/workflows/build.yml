@@ -55,6 +55,9 @@ jobs:
           name: enginehost-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Read the app version
+        run: echo "ENGINEHOST_VERSION=$(sed -n 's/^enginehost\.version=//p' gradle.properties)" >> "$GITHUB_ENV"
+
       - name: Publish rolling "latest" release
         # Same shape as droidtop's: a permanent, linkable "give this to
         # someone to install" release that always points at the newest
@@ -79,7 +82,7 @@ jobs:
               {
                   "formatVersion": 1,
                   "versionCode": ${{ github.run_number }},
-                  "versionName": "0.1.0-dev-${{ github.run_number }}",
+                  "versionName": "${{ env.ENGINEHOST_VERSION }}-dev-${{ github.run_number }}",
                   "apkName": "enginehost-latest.apk",
                   "apkSha256": digest,
                   "commit": "${{ github.sha }}",
