@@ -265,7 +265,7 @@ class PluginCatalogActivity : AppCompatActivity() {
         }
         card.findViewById<TextView>(R.id.releaseMeta).text = getString(
             R.string.release_meta,
-            plugin.info.pluginVersion.toString(),
+            PluginVersions.display(plugin.info.pluginVersion),
             streamName(plugin.stream),
         )
         val progress = card.findViewById<View>(R.id.releaseProgress)
@@ -283,7 +283,7 @@ class PluginCatalogActivity : AppCompatActivity() {
             older.forEach { build ->
                 val row = layoutInflater.inflate(R.layout.item_release_build, olderList, false)
                 row.findViewById<TextView>(R.id.buildLabel).text =
-                    getString(R.string.release_build_line, build.info.pluginVersion.toString(), streamName(build.stream))
+                    getString(R.string.release_build_line, PluginVersions.display(build.info.pluginVersion), streamName(build.stream))
                 row.findViewById<Button>(R.id.buildInstallButton).setOnClickListener { view ->
                     view.isEnabled = false
                     PluginInstaller.install(
@@ -327,7 +327,7 @@ class PluginCatalogActivity : AppCompatActivity() {
             val idleLabel = when {
                 installed.isNotEmpty() && !update -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
-                update -> getString(R.string.update_to_build, plugin.info.pluginVersion.toString())
+                update -> getString(R.string.update_to_build, PluginVersions.build(plugin.info.pluginVersion))
                 else -> getString(R.string.install)
             }
             button.text = idleLabel

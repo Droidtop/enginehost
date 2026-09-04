@@ -61,7 +61,7 @@ class PluginTrustActivity : AppCompatActivity() {
             .joinToString(" · ")
         card.findViewById<TextView>(R.id.trustBuildLine).text = getString(
             R.string.trust_build_line,
-            plugin.info.pluginVersion.toString(),
+            PluginVersions.display(plugin.info.pluginVersion),
             plugin.origin.removePrefix("https://github.com/"),
         )
         card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId

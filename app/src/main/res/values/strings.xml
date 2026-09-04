@@ -74,7 +74,7 @@
     <string name="badge_ultimate">Ultimate</string>
     <string name="badge_community">Community</string>
     <string name="plugin_line">%1$s · plugin %2$s</string>
-    <string name="trust_build_line">Build %1$s · %2$s</string>
+    <string name="trust_build_line">%1$s · %2$s</string>
     <string name="trust_state_label">Trust</string>
     <string name="trust_state_pending">Waiting for your approval</string>
     <string name="trust_state_approved">Approved</string>
@@ -115,11 +115,11 @@
     <string name="requires_api">Needs a newer Enginehost</string>
     <string name="install">Install</string>
     <string name="release_runs">%1$s</string>
-    <string name="release_meta">Build %1$s · %2$s</string>
+    <string name="release_meta">%1$s · %2$s</string>
     <string name="release_includes">Includes %1$s</string>
     <string name="release_other_versions">Other versions (%1$d)</string>
     <string name="release_hide_other_versions">Hide other versions</string>
-    <string name="release_build_line">Build %1$s · %2$s</string>
+    <string name="release_build_line">%1$s · %2$s</string>
     <string name="stream_stable">Stable</string>
     <string name="stream_testing">Testing</string>
     <string name="stream_unstable">Unstable</string>
