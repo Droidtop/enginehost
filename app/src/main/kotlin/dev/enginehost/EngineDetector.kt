@@ -88,7 +88,9 @@ object EngineDetector {
             family == "html" -> html(row, tree)
             family == "flash_air" && row.context == "swf" -> swf(row, tree)
             family == "flash_air" -> air(row, tree)
-            family == "kirikiri2" -> EngineDetection(family, row.context, evidence = "Found KiriKiri XP3/TJS assets")
+            // KiriKiri games state no engine version and the runtime accepts any;
+            // "2.0" names the line so the config can be written unasked.
+            family == "kirikiri2" -> EngineDetection(family, row.context, "2.0", evidence = "Found KiriKiri XP3/TJS assets")
             family == "catsystem2" -> scriptDetection(row, tree, "cst", "Found a CatSystem2 CST script; runtime version still needs confirmation")
             family == "cmvs" && row.context != null -> scriptDetection(row, tree, row.context, "Found a CMVS ${row.context.uppercase()} script; runtime version still needs confirmation")
             family == "cmvs" -> EngineDetection(family, evidence = "Found the CMVS runtime; choose the ps2 or ps3 context")
