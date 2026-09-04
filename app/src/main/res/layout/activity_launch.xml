@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The launch screen and the floor the game stands on. While the engine
+    starts: icon, title, engine, runtime, "Starting", Cancel. After a failure
+    the status line says what happened and the actions appear.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -50,19 +55,50 @@
             android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/launchStatus"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_l"
+            android:gravity="center_horizontal"
+            android:maxWidth="560dp"
             android:text="@string/launch_starting"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+            android:textAppearance="@style/TextAppearance.Enginehost.Body"
+            android:textColor="@color/eh_text_secondary" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/cancelButton"
-        style="@style/Widget.Enginehost.Button.Secondary"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
-        android:minWidth="160dp"
-        android:text="@string/cancel" />
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/cancelButton"
+            style="@style/Widget.Enginehost.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="140dp"
+            android:text="@string/cancel" />
+
+        <Button
+            android:id="@+id/reportButton"
+            style="@style/Widget.Enginehost.Button.Tonal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:minWidth="140dp"
+            android:text="@string/action_report"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/retryButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:minWidth="140dp"
+            android:text="@string/launch_retry"
+            android:visibility="gone" />
+    </LinearLayout>
 </FrameLayout>
