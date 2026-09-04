@@ -221,15 +221,6 @@ Current plugin repositories:
 
 ## Status
 
-The host contract, authoritative config merge, capability resolver, signed
-bundle installer, trust gate, and in-process runtime loader are implemented.
-Engine implementations and Android
-plugin releases are developed in their engine-specific forks. Legacy staged
-plugin sources under `plugins/` are being migrated out and are not part of the
-host's final repository boundary. See each plugin repository's capability
-manifest for the exact engine contexts and versions that a particular bundle
-claims to support.
-
 ## Third-party assets
 
 - The launch screen sets the game title in Gantari (Lafontype), licensed
