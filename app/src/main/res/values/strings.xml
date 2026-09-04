@@ -11,20 +11,13 @@
     <string name="choose_shared_storage_file">Choose a file on internal or removable storage</string>
 
     <!-- Home -->
-    <string name="main_subtitle">Runs PC games from their own folders.</string>
-    <string name="section_games">Games</string>
     <string name="games_empty">Add a game folder to start.</string>
     <string name="add_game_folder">Add a game</string>
     <string name="game_row_unavailable">%1$s (unavailable)</string>
     <string name="launch_game_description">Launch %1$s</string>
-    <string name="section_configuration">Game setup</string>
-    <string name="configuration_hint">Edit a game\'s enginehost.json by hand.</string>
     <string name="open_config_creator">Game setup</string>
-    <string name="section_input_storage">Input and storage</string>
     <string name="controller_settings">Controller</string>
     <string name="enginehost_settings">Settings</string>
-    <string name="section_plugins">Plugins</string>
-    <string name="plugins_hint">Engines are plugins. Install the ones your games need.</string>
     <string name="manage_plugin_trust">Installed plugins</string>
     <string name="browse_plugins">Plugins</string>
     <string name="needs_native_access">Launching needs folder access; game setup still works without it</string>
@@ -38,8 +31,6 @@
     <string name="status_missing">Folder not available. Reconnect its storage or remove this entry.</string>
     <string name="status_no_config">Not set up yet. Tap to detect the engine.</string>
     <string name="status_bad_config">Configuration problem: %1$s</string>
-    <string name="status_no_plugin">%1$s %2$s · needs a plugin. Tap to install one.</string>
-    <string name="status_ready">%1$s %2$s · %3$s</string>
     <string name="action_launch">Launch</string>
     <string name="action_edit_config">Edit setup</string>
     <string name="action_remove">Remove from list</string>
@@ -73,7 +64,6 @@
     <string name="badge_official">Official</string>
     <string name="badge_ultimate">Ultimate</string>
     <string name="badge_community">Community</string>
-    <string name="plugin_line">%1$s · plugin %2$s</string>
     <string name="trust_build_line">%1$s · %2$s</string>
     <string name="trust_state_label">Trust</string>
     <string name="trust_state_pending">Waiting for your approval</string>
@@ -103,7 +93,6 @@
     <string name="origins_heading">Sources</string>
     <string name="sources_toggle">Sources (%1$d)</string>
     <string name="sources_hide">Hide sources</string>
-    <string name="releases_heading">Available</string>
     <string name="filtered_compatible">Plugins that run this game.</string>
     <string name="filtered_no_match">Nothing published runs this game yet. Every plugin is listed.</string>
     <string name="filtered_missing_component">This game needs %1$s, which no plugin here provides. %2$s</string>
@@ -126,7 +115,6 @@
     <string name="use_capability">Use %1$s %2$s</string>
     <string name="custom_origin_removed">Source removed</string>
     <string name="verifying_bundle">Verifying…</string>
-    <string name="install_failed_generic">Install failed</string>
 
     <!-- Settings -->
     <string name="settings_save_folder">Save folder</string>
@@ -138,18 +126,13 @@
     <string name="status_no_plugin_short">Needs a plugin. Tap to install one.</string>
     <string name="settings_title">Settings</string>
     <string name="save_location">Saves</string>
-    <string name="save_location_hint">Every engine keeps its saves under this folder.</string>
     <string name="choose_folder">Choose folder</string>
     <string name="migrate_saves">Move old saves here</string>
     <string name="use_default_internal">Use internal storage</string>
-    <string name="engine_save_overrides">Per engine</string>
-    <string name="engine_save_overrides_hint">An engine can have its own folder instead.</string>
     <string name="engine_save_none_installed">No plugins installed yet.</string>
     <string name="engine_save_uses_shared">Shared folder</string>
     <string name="use_shared_save_folder">Use the shared folder</string>
     <string name="browser_start">Browse from</string>
-    <string name="browser_start_hint">Where folder pickers open first.</string>
-    <string name="choose_browsing_folder">Choose folder</string>
     <string name="use_android_default">Android default</string>
     <string name="android_default">Android default</string>
     <string name="move_saves_title">Move existing saves?</string>
@@ -245,7 +228,6 @@
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
     <string name="update_to_build">Update to build %1$s</string>
     <string name="updates_section">Updates</string>
-    <string name="updates_check_hint">Checks the plugins\' repositories and Enginehost\'s own releases. Nothing about this device is sent.</string>
     <string name="updates_frequency_label">Check for updates</string>
     <string-array name="update_frequency_entries">
         <item>Never</item>
@@ -259,15 +241,12 @@
         <item>Testing</item>
         <item>Unstable</item>
     </string-array>
-    <string name="updates_stream_hint">Stable: played on real games. Testing: runs games. Unstable: every build.</string>
     <string name="updates_unmetered_only">Only on Wi‑Fi</string>
     <string name="updates_last_checked">Last checked %1$s</string>
     <string name="updates_never_checked">Not checked yet</string>
     <string name="updates_install_plugins_automatically">Install plugin updates automatically</string>
-    <string name="updates_install_plugins_automatically_hint">New builds still need your approval before they run.</string>
     <string name="app_version_line">Enginehost %1$s (build %2$d)</string>
     <string name="app_update_available">Enginehost %1$s is available</string>
-    <string name="app_update_check_now">Check for an Enginehost update</string>
     <string name="app_update_checking">Checking…</string>
     <string name="app_update_none">This is the newest build</string>
     <string name="app_update_install">Install Enginehost %1$s</string>
@@ -278,7 +257,9 @@
     <string name="launch_starting">Starting…</string>
     <string name="launch_engine_line">%1$s %2$s</string>
     <string name="launch_runtime_line">%1$s · runtime %2$s</string>
-    <string name="launch_runtime_died">The %1$s runtime stopped before it drew anything. Try updating the plugin.</string>
+    <string name="launch_runtime_died">The %1$s runtime stopped before it drew anything.</string>
+    <string name="launch_crashed">Stopped unexpectedly: %1$s.</string>
+    <string name="launch_retry">Try again</string>
 
     <!-- Reporting a game that will not behave -->
     <string name="report_title">Report a problem</string>
@@ -301,10 +282,6 @@
     <string name="report_form_title">Report a problem</string>
     <string name="report_open_in_browser">Browser</string>
     <string name="action_report">Report a problem</string>
-    <string name="crash_title">%1$s stopped unexpectedly</string>
-    <string name="crash_message">%1$s. A report tells us which game and carries the crash data, which is what gets it fixed.</string>
-    <string name="crash_report">Report it</string>
-    <string name="crash_not_now">Not now</string>
     <string-array name="report_symptoms">
         <item>It does not start</item>
         <item>It starts, then closes</item>

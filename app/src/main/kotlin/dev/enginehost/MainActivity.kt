@@ -62,7 +62,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (::library.isInitialized) renderLibrary()
-        CrashWatch.consume(this)?.let(::offerCrashReport)
         val check = PluginUpdateCheck(this)
         check.maybeRun { pending ->
             runOnUiThread {
@@ -92,21 +91,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    /**
-     * The runtime for [crash] died rather than ended. Say so, and offer the
-     * report, because a crash the person only shrugs at never gets fixed.
-     */
-    private fun offerCrashReport(crash: CrashWatch.Crash) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.crash_title, crash.gameFolder.name))
-            .setMessage(getString(R.string.crash_message, crash.reason))
-            .setPositiveButton(R.string.crash_report) { _, _ ->
-                startActivity(ProblemReportActivity.intent(this, crash.gameFolder, crash))
-            }
-            .setNegativeButton(R.string.crash_not_now, null)
-            .show()
     }
 
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")

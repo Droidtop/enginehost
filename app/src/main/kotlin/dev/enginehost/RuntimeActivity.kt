@@ -215,9 +215,14 @@ class RuntimeActivity : FragmentActivity() {
         finish()
     }
 
+    /**
+     * Startup cannot continue and the reason is known. The launch screen
+     * beneath this one shows the sentence; nothing is toasted over a screen
+     * that is about to disappear.
+     */
     private fun failAndFinish(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         Log.e(TAG, message)
+        setResult(RESULT_FIRST_USER, Intent().putExtra(EXTRA_ERROR, message))
         finish()
     }
 
@@ -225,6 +230,8 @@ class RuntimeActivity : FragmentActivity() {
         private const val TAG = "enginehost-runtime"
         private const val REQUEST_PATCH = 0x9a71
         const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
+        /** On a failed startup's result: the sentence the runtime has for the launch screen. */
+        const val EXTRA_ERROR = "dev.enginehost.runtime.ERROR"
         const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
         const val EXTRA_SAVE_PATH = "dev.enginehost.runtime.SAVE_PATH"
