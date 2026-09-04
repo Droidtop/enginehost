@@ -53,6 +53,7 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         title = getString(R.string.controller_settings)
         store = ControllerBindingStore(this, scope)
         setContentView(R.layout.activity_controller_config)
+        wireBackButton()
         connectedControllers = findViewById(R.id.connectedControllers)
         scopeList = findViewById(R.id.scopeList)
         scopeHint = findViewById(R.id.scopeHint)

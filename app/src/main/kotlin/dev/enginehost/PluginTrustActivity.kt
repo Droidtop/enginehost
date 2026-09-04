@@ -22,6 +22,7 @@ class PluginTrustActivity : AppCompatActivity() {
         title = getString(R.string.trust_title)
         trust = PluginTrustStore(this)
         setContentView(R.layout.activity_plugin_trust)
+        wireBackButton()
         list = findViewById(R.id.pluginList)
         emptyState = findViewById(R.id.emptyState)
         openCatalogButton = findViewById(R.id.openCatalogButton)

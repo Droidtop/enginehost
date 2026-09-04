@@ -38,6 +38,7 @@ class EnginehostSettingsActivity : AppCompatActivity() {
         browserStartStore = GameBrowserStartStore(this)
         updateCheck = PluginUpdateCheck(this)
         setContentView(R.layout.activity_settings)
+        wireBackButton()
         location = findViewById(R.id.saveLocationValue)
         engineSaveRows = findViewById(R.id.engineSaveRows)
         browserStartLocation = findViewById(R.id.browserStartValue)

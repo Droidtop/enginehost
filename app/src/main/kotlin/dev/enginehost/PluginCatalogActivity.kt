@@ -42,6 +42,7 @@ class PluginCatalogActivity : AppCompatActivity() {
             }.getOrNull()
         }
         setContentView(R.layout.activity_plugin_catalog)
+        wireBackButton()
         statusText = findViewById(R.id.statusText)
         refreshButton = findViewById(R.id.refreshButton)
         releaseFilterNote = findViewById(R.id.releaseFilterNote)

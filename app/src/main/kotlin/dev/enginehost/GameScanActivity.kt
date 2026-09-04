@@ -37,6 +37,7 @@ class GameScanActivity : AppCompatActivity() {
         title = getString(R.string.scan_title)
         library = GameLibraryStore(this)
         setContentView(R.layout.activity_game_scan)
+        wireBackButton()
         chooseButton = findViewById(R.id.chooseScanFolderButton)
         rootLabel = findViewById(R.id.scanRoot)
         statusText = findViewById(R.id.scanStatus)

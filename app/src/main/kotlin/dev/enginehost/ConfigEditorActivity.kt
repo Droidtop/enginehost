@@ -60,6 +60,7 @@ class ConfigEditorActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_config_editor)
+        wireBackButton()
 
         folderLabel = findViewById(R.id.configFolderLabel)
         detectionLabel = findViewById(R.id.detectionLabel)
