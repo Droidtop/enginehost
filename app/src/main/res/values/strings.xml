@@ -266,6 +266,8 @@
     <string name="launch_starting">Starting…</string>
     <string name="launch_engine_line">%1$s %2$s</string>
     <string name="launch_runtime_line">%1$s · runtime %2$s</string>
+    <string name="launch_runtime_died">The %1$s runtime stopped before it drew anything. Try updating the plugin from the catalog.</string>
+    <string name="back">Back</string>
 
     <plurals name="plugin_updates_available">
         <item quantity="one">%d plugin update is available</item>

@@ -92,7 +92,9 @@ object EngineDetector {
             family == "catsystem2" -> scriptDetection(row, tree, "cst", "Found a CatSystem2 CST script; runtime version still needs confirmation")
             family == "cmvs" && row.context != null -> scriptDetection(row, tree, row.context, "Found a CMVS ${row.context.uppercase()} script; runtime version still needs confirmation")
             family == "cmvs" -> EngineDetection(family, evidence = "Found the CMVS runtime; choose the ps2 or ps3 context")
-            family == "buriko" -> EngineDetection(family, row.context, evidence = "Found Buriko engine evidence; runtime version still needs confirmation")
+            // BGI games state no runtime version and the runtime accepts any; "1.0"
+            // is the line's single version, so the config can be written unasked.
+            family == "buriko" -> EngineDetection(family, row.context, "1.0", evidence = "Found Buriko engine evidence")
             else -> EngineDetection(family, row.context, evidence = "Matched the ${row.id} registry row", runtimeRequirements = row.extras)
         }
     }

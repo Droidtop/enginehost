@@ -36,6 +36,9 @@ import java.io.File
  */
 class LaunchActivity : AppCompatActivity() {
     private var runtimeStarted = false
+    /** Set once the runtime has covered this screen: the engine drew, and a later exit is the game ending. */
+    private var runtimeCovered = false
+    private var runtimePlugin: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +92,7 @@ class LaunchActivity : AppCompatActivity() {
             plan.resolved.capability.runtimeVersion.toString(),
         )
         findViewById<Button>(R.id.cancelButton).setOnClickListener { cancel() }
+        runtimePlugin = plan.resolved.plugin.bundleId
 
         val icon = findViewById<ImageView>(R.id.gameIcon)
         // The executable can be large and sits on removable storage; never
@@ -123,15 +127,27 @@ class LaunchActivity : AppCompatActivity() {
         super.onStop()
         // Stopped means something else now fills the screen: the engine has
         // drawn its first frame. This screen's job is over.
-        if (runtimeStarted && !isFinishing) finish()
+        if (runtimeStarted && !isFinishing) {
+            runtimeCovered = true
+            finish()
+        }
     }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         // The runtime ended before it ever covered this screen: it failed to
-        // start. Its own error reporting has already spoken; get out of the way.
-        if (requestCode == REQUEST_RUNTIME) finish()
+        // start. A plugin that reported its own error has spoken; a runtime
+        // process that simply died has not, and the person is owed a sentence
+        // rather than a return to wherever they came from.
+        if (requestCode != REQUEST_RUNTIME) return
+        if (runtimeCovered) {
+            finish()
+            return
+        }
+        runtimeStarted = false
+        findViewById<TextView>(R.id.runtimeLine).text = getString(R.string.launch_runtime_died, runtimePlugin ?: "")
+        findViewById<Button>(R.id.cancelButton).setText(R.string.back)
     }
 
     companion object {

@@ -298,7 +298,10 @@ class PluginOriginStore(private val context: Context) {
             "https://github.com/droidtop/enginehost-catsystem2-plugin",
             "https://github.com/droidtop/enginehost-cmvs-plugin",
             "https://github.com/droidtop/enginehost-flash-air-plugin",
-            "https://github.com/droidtop/enginehost-web-plugin",
+            // The web runtime (HTML, RPG Maker MV/MZ, Flash/AIR). The repository was
+            // renamed enginehost-web-plugin; its key is certified for this URL and
+            // GitHub redirects it, so the pinned origin keeps the certified name.
+            "https://github.com/droidtop/enginehost-twine-plugin",
             "https://github.com/droidtop/enginehost-godot-plugin",
         )
     }
