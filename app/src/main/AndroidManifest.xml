@@ -75,6 +75,16 @@
             android:grantUriPermissions="false" />
 
         <activity
+            android:name=".ProblemReportActivity"
+            android:exported="false"
+            android:label="@string/report_title" />
+
+        <activity
+            android:name=".ProblemReportFormActivity"
+            android:exported="false"
+            android:label="@string/report_form_title" />
+
+        <activity
             android:name=".PluginTrustActivity"
             android:exported="false" />
 

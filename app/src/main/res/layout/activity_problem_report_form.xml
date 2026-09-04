@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The report form, in Enginehost's own window, with a way out to the device's browser. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="@dimen/eh_screen_padding_h"
+        android:paddingRight="@dimen/eh_screen_padding_h"
+        android:paddingTop="@dimen/eh_space_s"
+        android:paddingBottom="@dimen/eh_space_s">
+
+        <ImageView
+            android:id="@+id/backButton"
+            android:layout_width="@dimen/eh_touch_target"
+            android:layout_height="@dimen/eh_touch_target"
+            android:layout_marginEnd="@dimen/eh_space_xs"
+            android:background="@drawable/eh_row_bg"
+            android:clickable="true"
+            android:contentDescription="@string/back"
+            android:focusable="true"
+            android:padding="13dp"
+            android:src="@drawable/ic_back"
+            android:tint="@color/eh_text_primary" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/report_form_title"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+        <Button
+            android:id="@+id/openInBrowserButton"
+            style="@style/Widget.Enginehost.Button.Tonal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/report_open_in_browser" />
+
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/formProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true" />
+
+    <WebView
+        android:id="@+id/formWebView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

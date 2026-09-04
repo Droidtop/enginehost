@@ -232,6 +232,7 @@ class MainActivity : AppCompatActivity() {
         val actions = arrayOf(
             getString(R.string.action_launch),
             getString(R.string.action_edit_config),
+            getString(R.string.action_report),
             getString(R.string.action_remove),
         )
         AlertDialog.Builder(this)
@@ -243,7 +244,8 @@ class MainActivity : AppCompatActivity() {
                         Intent(this, ConfigEditorActivity::class.java)
                             .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
                     )
-                    2 -> confirmForget(folder)
+                    2 -> startActivity(ProblemReportActivity.intent(this, folder))
+                    3 -> confirmForget(folder)
                 }
             }
             .setNegativeButton(R.string.cancel, null)

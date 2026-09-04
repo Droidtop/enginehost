@@ -280,6 +280,38 @@
     <string name="launch_runtime_line">%1$s · runtime %2$s</string>
     <string name="launch_runtime_died">The %1$s runtime stopped before it drew anything. Try updating the plugin.</string>
 
+    <!-- Reporting a game that will not behave -->
+    <string name="report_title">Report a problem</string>
+    <string name="report_intro">Enginehost fills in what it knows. Correct anything that is wrong before sending.</string>
+    <string name="report_game_label">The game</string>
+    <string name="report_game_hint">Game name</string>
+    <string name="report_game_required">A report needs the game's name</string>
+    <string name="report_engine_hint">Engine and version</string>
+    <string name="report_symptom_label">What happens</string>
+    <string name="report_details_hint">Anything else worth knowing</string>
+    <string name="report_environment_heading">Plugin and device</string>
+    <string name="report_log_heading">Log</string>
+    <string name="report_include_log">Include the log and crash data</string>
+    <string name="report_include_log_note">Without the log and crash data, a report is unlikely to be fixed: it says what the engine actually did, and nobody else has your copy of the game.</string>
+    <string name="report_log_hint">No log was found for this game</string>
+    <string name="report_no_plugin">No plugin resolved</string>
+    <string name="report_send">Open the form</string>
+    <string name="report_copy">Copy</string>
+    <string name="report_copied">Report copied</string>
+    <string name="report_form_title">Report a problem</string>
+    <string name="report_open_in_browser">Browser</string>
+    <string name="action_report">Report a problem</string>
+    <string-array name="report_symptoms">
+        <item>It does not start</item>
+        <item>It starts, then closes</item>
+        <item>A black or blank screen</item>
+        <item>The controller does nothing</item>
+        <item>Saves are not kept</item>
+        <item>Sound or video is wrong</item>
+        <item>It runs badly</item>
+        <item>Something else</item>
+    </string-array>
+
     <plurals name="plugin_updates_available">
         <item quantity="one">%d plugin update is available</item>
         <item quantity="other">%d plugin updates are available</item>

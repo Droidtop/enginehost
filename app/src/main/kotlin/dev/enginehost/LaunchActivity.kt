@@ -147,7 +147,15 @@ class LaunchActivity : AppCompatActivity() {
         }
         runtimeStarted = false
         findViewById<TextView>(R.id.runtimeLine).text = getString(R.string.launch_runtime_died, runtimePlugin ?: "")
-        findViewById<Button>(R.id.cancelButton).setText(R.string.back)
+        // A runtime that died is exactly what a report is for, so offer it here
+        // rather than making someone find their way back to the game's menu.
+        findViewById<Button>(R.id.cancelButton).apply {
+            setText(R.string.action_report)
+            setOnClickListener {
+                startActivity(ProblemReportActivity.intent(this@LaunchActivity, File(intent.getStringExtra(EXTRA_PATH).orEmpty())))
+                finish()
+            }
+        }
     }
 
     companion object {

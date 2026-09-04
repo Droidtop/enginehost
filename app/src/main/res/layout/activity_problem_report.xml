@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Reporting a game that will not behave. Enginehost fills in what it knows
+    and every field stays editable: detection is a guess, and the person with
+    the game in front of them is the one who can correct it.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/eh_screen_padding_h"
+        android:paddingRight="@dimen/eh_screen_padding_h"
+        android:paddingTop="@dimen/eh_screen_padding_v"
+        android:paddingBottom="@dimen/eh_screen_padding_v">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/backButton"
+                android:layout_width="@dimen/eh_touch_target"
+                android:layout_height="@dimen/eh_touch_target"
+                android:layout_marginEnd="@dimen/eh_space_xs"
+                android:background="@drawable/eh_row_bg"
+                android:clickable="true"
+                android:contentDescription="@string/back"
+                android:focusable="true"
+                android:padding="13dp"
+                android:src="@drawable/ic_back"
+                android:tint="@color/eh_text_primary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/report_title"
+                android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/report_intro"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:layout_marginStart="12dp"
+            android:text="@string/report_game_label"
+            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+        <EditText
+            android:id="@+id/reportGame"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:hint="@string/report_game_hint"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="2" />
+
+        <EditText
+            android:id="@+id/reportEngine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:hint="@string/report_engine_hint"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="2" />
+
+        <LinearLayout
+            style="@style/Widget.Enginehost.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
+
+            <LinearLayout
+                android:id="@+id/symptomRow"
+                style="@style/Widget.Enginehost.Row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/report_symptom_label"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                <TextView
+                    android:id="@+id/symptomValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <ImageView
+                    android:layout_width="@dimen/eh_icon"
+                    android:layout_height="@dimen/eh_icon"
+                    android:layout_marginStart="@dimen/eh_space_xs"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron"
+                    android:tint="@color/eh_text_secondary" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/reportDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:gravity="top|start"
+            android:hint="@string/report_details_hint"
+            android:importantForAutofill="no"
+            android:inputType="textMultiLine|textCapSentences"
+            android:minLines="3" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_l"
+            android:layout_marginStart="12dp"
+            android:text="@string/report_environment_heading"
+            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+        <EditText
+            android:id="@+id/reportEnvironment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:gravity="top|start"
+            android:importantForAutofill="no"
+            android:inputType="textMultiLine"
+            android:minLines="4"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:layout_marginStart="12dp"
+            android:text="@string/report_log_heading"
+            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/includeLogSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:checked="true"
+            android:minHeight="@dimen/eh_touch_target"
+            android:text="@string/report_include_log"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+        <TextView
+            android:id="@+id/includeLogNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/report_include_log_note"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <EditText
+            android:id="@+id/reportLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:gravity="top|start"
+            android:hint="@string/report_log_hint"
+            android:importantForAutofill="no"
+            android:inputType="textMultiLine"
+            android:maxLines="10"
+            android:minLines="4"
+            android:scrollbars="vertical"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/sendReportButton"
+                style="@style/Widget.Enginehost.Button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:enabled="false"
+                android:text="@string/report_send" />
+
+            <Button
+                android:id="@+id/copyReportButton"
+                style="@style/Widget.Enginehost.Button.Tonal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/eh_space_s"
+                android:enabled="false"
+                android:text="@string/report_copy" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
