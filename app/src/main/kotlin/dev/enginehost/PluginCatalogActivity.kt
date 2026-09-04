@@ -28,6 +28,8 @@ class PluginCatalogActivity : AppCompatActivity() {
 
     private var refreshing = false
     private var autoAttempted = false
+    /** One automatic refresh per visit when the stored catalogs are old, so an install never picks a build that is no longer current. */
+    private var staleRefreshAttempted = false
     private var requestedConfig: EngineConfig? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -187,6 +189,14 @@ class PluginCatalogActivity : AppCompatActivity() {
             .map { builds -> builds.maxBy { it.info.pluginVersion } to builds.sortedByDescending { it.info.pluginVersion }.drop(1) }
             .sortedWith(compareBy({ EngineNames.engines(it.first.manifest).firstOrNull() ?: "" }, { it.first.bundleId }))
             .forEach { (newest, older) -> addRelease(newest, older) }
+        // A catalog stored a while ago may describe builds that have since
+        // been replaced; installing from it would fetch the old one by its
+        // old checksum. Refresh first, once, and come back here afterwards.
+        if (!staleRefreshAttempted && !refreshing && allOrigins.any { cache.isStale(it, CATALOG_MAX_AGE_MS) }) {
+            staleRefreshAttempted = true
+            refresh()
+            return
+        }
         if (
             intent.getBooleanExtra(EXTRA_AUTOINSTALL, false) && !autoAttempted &&
             matches.isNotEmpty() && !isInstalled(matches.first().bundleId)
@@ -393,6 +403,8 @@ class PluginCatalogActivity : AppCompatActivity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
+        /** How old a stored catalog may be before this screen fetches again on its own. */
+        private const val CATALOG_MAX_AGE_MS = 10L * 60 * 1000
         const val EXTRA_GAME_PATH = "dev.enginehost.catalog.GAME_PATH"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.catalog.CALLER_CONFIG"
         const val EXTRA_AUTOINSTALL = "dev.enginehost.catalog.AUTOINSTALL"

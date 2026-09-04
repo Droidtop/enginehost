@@ -234,6 +234,18 @@ class PluginCatalogCache(context: Context) {
     /** Whether a release refresh has ever stored a catalog for this origin, even an empty one. */
     fun hasFetched(origin: String): Boolean = file(origin).isFile
 
+    /**
+     * Whether the stored catalog for this origin is older than [maxAgeMs].
+     * A catalog describes builds by checksum, and a build published after
+     * the catalog was stored is invisible until it is fetched again; a stale
+     * catalog quietly installs the previous build. An origin never fetched
+     * counts as stale.
+     */
+    fun isStale(origin: String, maxAgeMs: Long): Boolean {
+        val f = file(origin)
+        return !f.isFile || System.currentTimeMillis() - f.lastModified() > maxAgeMs
+    }
+
     private fun file(origin: String): File {
         val name = MessageDigest.getInstance("SHA-256").digest(normalizeGithubOrigin(origin).toByteArray())
             .take(16).joinToString("") { "%02x".format(it) }
