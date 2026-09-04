@@ -103,7 +103,20 @@ object EngineConfigReader {
                 "No $CONFIG_FILE_NAME in ${gameFolder.absolutePath} and no inline config was passed",
             )
         }
-        return withDetectedRequirements(config, gameFolder)
+        return withDefaultSaveFolder(withDetectedRequirements(config, gameFolder), gameFolder)
+    }
+
+    /**
+     * A config written before save folders existed, or by hand, names none.
+     * For an engine whose runtime cannot name its own saves, the game
+     * folder's name is the default the detector would have written, so it
+     * is supplied here rather than left to fall into the engine's shared
+     * folder. A folder-authoritative or inline saveFolder is never replaced.
+     */
+    private fun withDefaultSaveFolder(config: EngineConfig, gameFolder: File): EngineConfig {
+        if (config.saveFolder != null) return config
+        val name = SaveFolders.defaultFor(config.engine, config.engineContext, null, gameFolder.name) ?: return config
+        return config.copy(saveFolder = name)
     }
 
     /**
