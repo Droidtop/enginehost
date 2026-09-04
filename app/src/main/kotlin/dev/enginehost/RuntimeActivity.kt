@@ -232,6 +232,8 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_RUNTIME_REQUIREMENTS = "dev.enginehost.runtime.RUNTIME_REQUIREMENTS"
         const val EXTRA_EXEC_FILE = "dev.enginehost.runtime.EXEC_FILE"
         const val EXTRA_OPTIONS = "dev.enginehost.runtime.OPTIONS"
+        /** The person's controller map for this engine; see ControllerBindingStore.exportJson. */
+        const val EXTRA_CONTROLLER_BINDINGS = "dev.enginehost.runtime.CONTROLLER_BINDINGS"
     }
 }
 

@@ -226,3 +226,21 @@ been proven against these games' module-imported resources on device.
 Verifying that one game renders identically under the extension build is
 what settles it; when it does, the compiled-in module should be retired
 so there is one mechanism, not two.
+
+## Controller input for android-activity plugins
+
+Enginehost owns the controller map: one set of actions (`up`, `down`, `left`,
+`right`, `confirm`, `cancel`, `menu`, `skip`, `auto`, `history`, `quick_save`,
+`quick_load`, `page_previous`, `page_next`, the stick axes and triggers), a
+global binding for each, and per-engine overrides, all edited in Enginehost's
+controller settings. A plugin never hardcodes what a pad button does.
+
+Plugin-api plugins receive the mapped actions through `onControllerEvent`.
+Plugins on the android-activity transport receive the resolved map as the
+`dev.enginehost.runtime.CONTROLLER_BINDINGS` extra, a JSON object from action
+id to binding, `{"type":"key","code":<KeyEvent code>}` or
+`{"type":"axis","axis":<MotionEvent axis>,"direction":-1|0|1}`. Such a plugin
+matches incoming pad events against that map and translates each action into
+whatever its engine understands (a keyboard key, an engine input, a touch);
+the translation from action to engine input is the plugin's, the choice of
+button is the person's.

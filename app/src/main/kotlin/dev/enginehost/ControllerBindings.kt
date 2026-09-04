@@ -95,6 +95,19 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
         scopedKey(action)?.let { preferences.edit().remove(it).apply() }
     }
 
+    /**
+     * The resolved map for every action, as the runtime extra a plugin on
+     * the android-activity transport reads: `{ "confirm": {"type":"key",
+     * "code":96}, "left_x": {"type":"axis","axis":0,"direction":0}, ... }`.
+     * Plugin-api plugins get the same map applied for them by
+     * [RuntimeControllerRouter]; activity plugins own their input and must
+     * apply it themselves, so the pad means what the person configured in
+     * either case.
+     */
+    fun exportJson(): JSONObject = JSONObject().apply {
+        ControllerActions.all.forEach { action -> put(action.id, encode(get(action))) }
+    }
+
     /** Clears this scope only; the global map survives an engine reset. */
     fun reset() {
         if (engine == null) {

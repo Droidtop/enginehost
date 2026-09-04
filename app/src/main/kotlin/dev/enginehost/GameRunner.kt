@@ -98,6 +98,10 @@ object GameRunner {
                 RuntimeActivity.EXTRA_RUNTIME_REQUIREMENTS,
                 org.json.JSONObject(config.runtimeRequirements.mapValues { it.value.toString() }).toString(),
             )
+            putExtra(
+                RuntimeActivity.EXTRA_CONTROLLER_BINDINGS,
+                ControllerBindingStore(context, config.engine).exportJson().toString(),
+            )
             config.execFile?.let { putExtra(RuntimeActivity.EXTRA_EXEC_FILE, it) }
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
             inlineJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
