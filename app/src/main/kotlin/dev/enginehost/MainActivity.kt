@@ -53,9 +53,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.enginehostSettingsButton).setOnClickListener {
             startActivity(Intent(this, EnginehostSettingsActivity::class.java))
         }
-        findViewById<Button>(R.id.pluginTrustButton).setOnClickListener {
-            startActivity(Intent(this, PluginTrustActivity::class.java))
-        }
         findViewById<Button>(R.id.pluginCatalogButton).setOnClickListener {
             startActivity(Intent(this, PluginCatalogActivity::class.java))
         }

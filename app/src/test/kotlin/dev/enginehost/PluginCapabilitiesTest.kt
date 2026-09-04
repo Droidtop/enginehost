@@ -154,6 +154,7 @@ class PluginCapabilitiesTest {
         components: Map<String, String> = emptyMap(),
     ) = EngineCapability(
         id,
+        null,
         context,
         Version.parse(runtimeVersion),
         emptySet(),

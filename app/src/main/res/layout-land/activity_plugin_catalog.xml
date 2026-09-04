@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape plugin catalog. Releases and origins are independent lists that
-    portrait has to stack, so landscape puts them side by side and lets each
-    scroll on its own. Release cards stay one per column, which halves their
-    width instead of leaving them spanning the whole screen, and the group
-    headings the catalog inflates into the release list still line up.
+    Landscape plugins. The store list scrolls on its own; the folded sources
+    panel opens beneath the header bar in the same column, so the two
+    orientations behave alike.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -38,133 +36,112 @@
             android:text="@string/catalog_intro"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
+        <TextView
+            android:id="@+id/sourcesToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:minHeight="@dimen/eh_touch_target"
+            android:gravity="center_vertical"
+            android:paddingLeft="@dimen/eh_space_s"
+            android:paddingRight="@dimen/eh_space_s"
+            android:text="@string/origins_heading"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+            android:textColor="@color/eh_accent" />
+
+        <Button
+            android:id="@+id/installedPluginsButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:text="@string/manage_plugin_trust" />
+
         <Button
             android:id="@+id/refreshButton"
-            style="@style/Widget.Enginehost.Button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/eh_space_s"
             android:text="@string/refresh_all" />
 
-        <Button
-            android:id="@+id/installFromFileButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/eh_space_s"
-            android:text="@string/install_from_file" />
-
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/sourcesPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/originList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/originInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="@string/origin_url_hint"
+                android:importantForAutofill="no"
+                android:inputType="textUri"
+                android:maxLines="1" />
+
+            <Button
+                android:id="@+id/addOriginButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/eh_space_s"
+                android:text="@string/add_custom_origin" />
+
+            <Button
+                android:id="@+id/installFromFileButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/eh_space_s"
+                android:text="@string/install_from_file" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/releaseFilterNote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/releasesEmptyState"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:textAppearance="@style/TextAppearance.Enginehost.Body"
+        android:visibility="gone" />
+
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="@dimen/eh_space_s"
-        android:orientation="horizontal">
+        android:scrollbars="none">
 
-        <!-- Releases. -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="3"
-            android:orientation="vertical">
+            android:id="@+id/releaseList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/releases_heading"
-                android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-            <TextView
-                android:id="@+id/releaseFilterNote"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/releasesEmptyState"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:textAppearance="@style/TextAppearance.Enginehost.Body"
-                android:visibility="gone" />
-
-            <ScrollView
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/releaseList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-
-            </ScrollView>
-
-        </LinearLayout>
-
-        <!-- Origins. -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="2"
-            android:layout_marginStart="@dimen/eh_column_gap"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/origins_heading"
-                android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-            <ScrollView
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/originList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-
-            </ScrollView>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_s"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <EditText
-                    android:id="@+id/originInput"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="@string/origin_url_hint"
-                    android:importantForAutofill="no"
-                    android:inputType="textUri"
-                    android:maxLines="1" />
-
-                <Button
-                    android:id="@+id/addOriginButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/eh_space_s"
-                    android:text="@string/add_custom_origin" />
-
-            </LinearLayout>
-
-        </LinearLayout>
-
-    </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>

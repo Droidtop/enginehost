@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape library row. Same card, sized to sit in one weighted column of
-    the GridLayout that replaces the single column list in layout-land, so a
-    1920px wide screen shows two games per row instead of one.
+    Landscape library card, sized for one weighted column of the two column
+    GridLayout that replaces the list, so a 1920px wide screen shows two
+    games per row.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card.Focusable"
@@ -30,13 +30,14 @@
         android:layout_marginTop="2dp"
         android:maxLines="1"
         android:ellipsize="start"
-        android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+        android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/gameStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_xs"
+        android:layout_marginTop="2dp"
         android:maxLines="2"
         android:ellipsize="end"
         android:textAppearance="@style/TextAppearance.Enginehost.Caption"

@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    One installed plugin: what it runs, its provenance badge, its build and
+    source on one line, and the decision. The identifiers a security review
+    wants (bundle id, verified origin, signer fingerprint) are one tap away
+    under Details rather than in everyone's face.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card"
     android:layout_width="match_parent"
@@ -28,21 +34,7 @@
     </LinearLayout>
 
     <TextView
-        android:id="@+id/bundleId"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_xs"
-        android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
-
-    <TextView
-        android:id="@+id/originValue"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_s"
-        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-    <TextView
-        android:id="@+id/signerValue"
+        android:id="@+id/trustBuildLine"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
@@ -54,6 +46,45 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+    <TextView
+        android:id="@+id/trustDetailsToggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/eh_touch_target"
+        android:gravity="center_vertical"
+        android:text="@string/details"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:textColor="@color/eh_accent" />
+
+    <LinearLayout
+        android:id="@+id/trustDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/bundleId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+        <TextView
+            android:id="@+id/originValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <TextView
+            android:id="@+id/signerValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+    </LinearLayout>
 
     <TextView
         android:id="@+id/trustWarning"

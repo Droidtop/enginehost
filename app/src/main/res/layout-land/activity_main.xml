@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape home. The library is the daily driver surface, so it takes two
-    thirds of the width as a two column grid that scrolls on its own, and
-    everything that is not the library collapses into a sidebar beside it.
-    Title and subtitle share one line so the grid starts near the top edge.
+    Landscape home. The library takes two thirds of the width as a two
+    column grid that scrolls on its own; the two library actions and the
+    four destinations sit in a sidebar beside it.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -17,7 +16,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:baselineAligned="true"
+        android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <TextView
@@ -27,26 +26,19 @@
             android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
         <TextView
+            android:id="@+id/updateNotice"
+            style="@style/Widget.Enginehost.Card.Focusable"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="@dimen/eh_space_m"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="@string/main_subtitle"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+            android:paddingTop="@dimen/eh_space_s"
+            android:paddingBottom="@dimen/eh_space_s"
+            android:visibility="gone"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle"
+            android:textColor="@color/eh_accent" />
 
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/updateNotice"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_s"
-        android:background="@drawable/eh_card_bg"
-        android:padding="@dimen/eh_space_s"
-        android:visibility="gone"
-        android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -62,17 +54,10 @@
             android:layout_weight="2"
             android:orientation="vertical">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/section_games"
-                android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
             <EditText
                 android:id="@+id/gameSearch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
                 android:hint="@string/search_hint"
                 android:importantForAutofill="no"
                 android:inputType="text"
@@ -97,7 +82,7 @@
 
         </LinearLayout>
 
-        <!-- Everything that is not the library. -->
+        <!-- Sidebar. -->
         <ScrollView
             android:layout_width="0dp"
             android:layout_height="match_parent"
@@ -124,32 +109,18 @@
                     android:layout_marginTop="@dimen/eh_space_s"
                     android:text="@string/scan_folder" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/section_configuration"
-                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
                 <Button
-                    android:id="@+id/createConfigButton"
+                    android:id="@+id/pluginCatalogButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:text="@string/open_config_creator" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/section_input_storage"
-                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+                    android:layout_marginTop="@dimen/eh_space_l"
+                    android:text="@string/browse_plugins" />
 
                 <Button
                     android:id="@+id/controllerConfigButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:layout_marginTop="@dimen/eh_space_s"
                     android:text="@string/controller_settings" />
 
                 <Button
@@ -159,26 +130,12 @@
                     android:layout_marginTop="@dimen/eh_space_s"
                     android:text="@string/enginehost_settings" />
 
-                <TextView
+                <Button
+                    android:id="@+id/createConfigButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/section_plugins"
-                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-                <Button
-                    android:id="@+id/pluginTrustButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_xs"
-                    android:text="@string/manage_plugin_trust" />
-
-                <Button
-                    android:id="@+id/pluginCatalogButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:text="@string/browse_plugins" />
+                    android:text="@string/open_config_creator" />
 
             </LinearLayout>
 

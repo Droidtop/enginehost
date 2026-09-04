@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    One plugin in the store: what it runs, its channel when that is not
+    Stable, the engine versions it ships, and one button. Download progress
+    shows in the button and the bar beneath it, on the card itself.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card"
     android:layout_width="match_parent"
@@ -41,7 +46,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/eh_space_xs"
-        android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
     <TextView
         android:id="@+id/releaseIncludes"
@@ -58,11 +63,19 @@
         android:layout_marginTop="@dimen/eh_space_s"
         android:orientation="vertical" />
 
+    <ProgressBar
+        android:id="@+id/releaseProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/releaseOlderToggle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_xs"
         android:minHeight="@dimen/eh_touch_target"
         android:gravity="center_vertical"
         android:textAppearance="@style/TextAppearance.Enginehost.Caption"

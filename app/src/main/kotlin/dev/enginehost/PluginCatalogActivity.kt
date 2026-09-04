@@ -52,6 +52,18 @@ class PluginCatalogActivity : AppCompatActivity() {
         addOriginButton = findViewById(R.id.addOriginButton)
 
         refreshButton.setOnClickListener { refresh() }
+        findViewById<Button>(R.id.installedPluginsButton).setOnClickListener {
+            startActivity(Intent(this, PluginTrustActivity::class.java))
+        }
+        val sourcesPanel = findViewById<View>(R.id.sourcesPanel)
+        findViewById<TextView>(R.id.sourcesToggle).apply {
+            text = getString(R.string.sources_toggle, origins.all().size)
+            setOnClickListener {
+                val open = sourcesPanel.visibility != View.VISIBLE
+                sourcesPanel.visibility = if (open) View.VISIBLE else View.GONE
+                text = if (open) getString(R.string.sources_hide) else getString(R.string.sources_toggle, origins.all().size)
+            }
+        }
         findViewById<Button>(R.id.installFromFileButton).setOnClickListener {
             startActivityForResult(
                 Intent(Intent.ACTION_OPEN_DOCUMENT)
@@ -232,7 +244,11 @@ class PluginCatalogActivity : AppCompatActivity() {
     private fun addRelease(plugin: AvailablePlugin, older: List<AvailablePlugin> = emptyList()) {
         val card = layoutInflater.inflate(R.layout.item_release, releaseList, false)
         card.findViewById<TextView>(R.id.releaseTitle).text = EngineNames.engines(plugin.manifest).joinToString(" · ")
-        card.findViewById<TextView>(R.id.releaseVersion).text = EngineNames.shippedVersions(plugin.info.capabilities)
+        card.findViewById<TextView>(R.id.releaseVersion).apply {
+            // A runtime that accepts any engine version ships no version worth a number.
+            text = EngineNames.shippedVersions(plugin.info.capabilities)
+            visibility = if (text.isBlank()) View.GONE else View.VISIBLE
+        }
         card.findViewById<TextView>(R.id.releaseCompatibility).text = getString(
             R.string.release_runs,
             EngineNames.compatibility(plugin.info.engine, plugin.info.capabilities).joinToString("\n"),
@@ -251,8 +267,8 @@ class PluginCatalogActivity : AppCompatActivity() {
             R.string.release_meta,
             plugin.info.pluginVersion.toString(),
             streamName(plugin.stream),
-            plugin.origin.removePrefix("https://github.com/"),
         )
+        val progress = card.findViewById<View>(R.id.releaseProgress)
         val olderList = card.findViewById<LinearLayout>(R.id.releaseOlderList)
         card.findViewById<TextView>(R.id.releaseOlderToggle).apply {
             visibility = if (older.isEmpty()) View.GONE else View.VISIBLE
@@ -317,17 +333,23 @@ class PluginCatalogActivity : AppCompatActivity() {
             button.text = idleLabel
             button.isEnabled = (installed.isEmpty() || update) && supportedApi
             button.setOnClickListener {
+                // Progress belongs on the card being installed, not in a
+                // status line somewhere else on the screen.
                 button.isEnabled = false
                 button.setText(R.string.installing)
+                progress.visibility = View.VISIBLE
                 PluginInstaller.install(
                     this@PluginCatalogActivity,
                     plugin,
                     onError = { message ->
-                        button.isEnabled = true
-                        button.text = idleLabel
-                        toast(message)
+                        runOnUiThread {
+                            progress.visibility = View.GONE
+                            button.isEnabled = true
+                            button.text = idleLabel
+                            toast(message)
+                        }
                     },
-                    onStatus = { status -> runOnUiThread { statusText.text = status } },
+                    onStatus = { status -> runOnUiThread { button.text = status } },
                 )
             }
             actions.addView(button)

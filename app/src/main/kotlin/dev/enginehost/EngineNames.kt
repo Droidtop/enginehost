@@ -59,7 +59,7 @@ object EngineNames {
 
     /** The engine versions a bundle ships, for the right-hand side of its card. */
     fun shippedVersions(capabilities: List<EngineCapability>): String =
-        capabilities.map { it.runtimeVersion }.distinct().sorted().joinToString(" / ")
+        capabilities.filterNot { it.acceptsAnyEngineVersion }.map { it.runtimeVersion }.distinct().sorted().joinToString(" / ")
 
     /** Runtime component names as a person knows them; unknown ones pass through. */
     fun componentName(component: String): String = when (component) {

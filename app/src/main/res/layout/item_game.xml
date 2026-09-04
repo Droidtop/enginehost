@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    One game in the library: its name and one line of state. The folder path
+    is kept for the actions sheet and accessibility but not shown; a person
+    knows their games by name.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card.Focusable"
     android:layout_width="match_parent"
@@ -18,13 +23,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+        android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/gameStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_xs"
+        android:layout_marginTop="2dp"
         android:textAppearance="@style/TextAppearance.Enginehost.Caption"
         android:visibility="gone" />
 

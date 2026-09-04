@@ -54,9 +54,21 @@ class PluginTrustActivity : AppCompatActivity() {
         val state = trust.state(plugin)
         val card = layoutInflater.inflate(R.layout.item_plugin_trust, list, false)
 
-        card.findViewById<TextView>(R.id.pluginTitle).text =
-            getString(R.string.plugin_line, plugin.info.engine, plugin.info.pluginVersion.toString())
+        card.findViewById<TextView>(R.id.pluginTitle).text = plugin.info.capabilities
+            .map { EngineNames.line(plugin.info.engineOf(it), it.engineContext) }
+            .distinct()
+            .ifEmpty { listOf(EngineNames.family(plugin.info.engine)) }
+            .joinToString(" · ")
+        card.findViewById<TextView>(R.id.trustBuildLine).text = getString(
+            R.string.trust_build_line,
+            plugin.info.pluginVersion.toString(),
+            plugin.origin.removePrefix("https://github.com/"),
+        )
         card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId
+        val details = card.findViewById<View>(R.id.trustDetails)
+        card.findViewById<TextView>(R.id.trustDetailsToggle).setOnClickListener {
+            details.visibility = if (details.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
 
         val badge = card.findViewById<TextView>(R.id.trustBadge)
         val (label, container, onContainer) = when {
