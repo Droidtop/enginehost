@@ -8,7 +8,11 @@ data class PluginInfo(
     val engine: String,
     val pluginVersion: Version,
     val capabilities: List<EngineCapability>,
-)
+    /** Every engine this bundle runs; [engine] is the first. A browser runtime serves several. */
+    val engines: List<String> = emptyList(),
+) {
+    fun runs(requested: String): Boolean = requested == engine || requested in engines
+}
 
 /** One verified, extracted, co-installable engine bundle. */
 data class InstalledPlugin(
@@ -43,7 +47,7 @@ object PluginResolver {
         val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
         return plugins.asSequence()
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }
-            .filter { it.info.engine == engine }
+            .filter { it.info.runs(engine) }
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
             .flatMap { plugin ->
                 plugin.info.capabilities.asSequence()
@@ -112,6 +116,7 @@ object PluginRegistry {
                 json.requiredString("engine"),
                 Version.parse(json.requiredString("pluginVersion")),
                 PluginCapabilitiesReader.parse(capabilityDocument.toString()),
+                engines = json.optJSONArray("engines")?.let { array -> (0 until array.length()).map { array.getString(it) } }.orEmpty(),
             ),
             bundleId,
             json.requiredString("entrypoint"),

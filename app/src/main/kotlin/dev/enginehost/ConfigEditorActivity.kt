@@ -671,9 +671,22 @@ class ConfigEditorActivity : AppCompatActivity() {
         if ((runtimeRequirements?.length() ?: 0) == 0 && detection.runtimeRequirements.isNotEmpty()) {
             runtimeRequirements = JSONObject(detection.runtimeRequirements)
         }
+        // The title and save folder ride along in the document: they are the
+        // game's own facts, not choices, and the editor preserves them.
+        if (!loadedDocument.has("title")) detection.title?.let { loadedDocument.put("title", it) }
+        if (!loadedDocument.has("saveFolder")) {
+            SaveFolders.defaultFor(engine ?: detection.engine, engineContext, detection.saveFolder, currentFolderName())
+                ?.let { loadedDocument.put("saveFolder", it) }
+        }
         refreshEditors()
         detectionLabel.text = getString(R.string.detected_engine, detection.engine, detection.evidence)
     }
+
+    /** The chosen folder's own name, whichever way it was chosen. */
+    private fun currentFolderName(): String =
+        folderPath?.name
+            ?: folderUri?.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
+            ?: ""
 
     private fun buildDocument(): JSONObject {
         val result = JSONObject(loadedDocument.toString())

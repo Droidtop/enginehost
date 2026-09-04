@@ -35,7 +35,13 @@ class PluginUpdateCheck(private val context: Context) {
     var stream: PluginStream
         get() = preferences.getString(STREAM, null)?.let { name -> PluginStream.entries.firstOrNull { it.name == name } }
             ?: PluginStream.STABLE
-        set(value) = preferences.edit().putString(STREAM, value.name).apply()
+        set(value) {
+            if (value == stream) return
+            preferences.edit().putString(STREAM, value.name).apply()
+            // The cached catalogs were fetched for the old stream; the next
+            // look at the catalog fetches for this one instead of showing them.
+            PluginCatalogCache(context).clear()
+        }
 
     /** Skip the pass on metered connections (mobile data, tethering). */
     var unmeteredOnly: Boolean

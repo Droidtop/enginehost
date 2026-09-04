@@ -46,6 +46,7 @@ data class EngineBundleManifest(
         .put("formatVersion", 1)
         .put("bundleId", bundleId)
         .put("engine", info.engine)
+        .put("engines", org.json.JSONArray(info.engines))
         .put("pluginVersion", info.pluginVersion.toString())
         .put("apiVersion", apiVersion)
         .put("entrypoint", entrypoint)
@@ -105,6 +106,9 @@ object EngineBundleManifestReader {
         require(resourceApks.all { apk -> files.any { it.path == apk } }) {
             "Every resource APK must be part of the signed payload"
         }
+        val engines = json.optJSONArray("engines")?.let { array ->
+            (0 until array.length()).map { array.getString(it).trim() }.filter(String::isNotEmpty)
+        }.orEmpty()
         return EngineBundleManifest(
             rawBytes,
             json.requiredString("assetName").also {
@@ -115,6 +119,7 @@ object EngineBundleManifestReader {
                 json.requiredString("engine"),
                 Version.parse(json.requiredString("pluginVersion")),
                 PluginCapabilitiesReader.parse(capabilityDocument.toString()),
+                engines = engines,
             ),
             json.getInt("apiVersion").also { require(it > 0) },
             json.requiredString("entrypoint"),
@@ -130,9 +135,7 @@ object EngineBundleManifestReader {
             },
             json.requiredSha256("payloadSha256"),
             files,
-            engines = json.optJSONArray("engines")?.let { array ->
-                (0 until array.length()).map { array.getString(it).trim() }.filter(String::isNotEmpty)
-            }.orEmpty(),
+            engines = engines,
         )
     }
 

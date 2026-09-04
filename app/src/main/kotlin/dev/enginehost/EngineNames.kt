@@ -14,7 +14,7 @@ object EngineNames {
         "buriko" -> "Buriko General Interpreter"
         "cmvs" -> "CMVS"
         "catsystem2" -> "CatSystem2"
-        "twine" -> "Twine"
+        "html" -> "HTML game"
         "flash_air" -> "Flash / AIR"
         else -> engine
     }
@@ -104,7 +104,7 @@ object EngineNames {
                 else -> "$family $context"
             }
             "catsystem2" -> if (context == "cst") family else "$family $context"
-            "twine" -> if (context == "compiled-html") family else "$family $context"
+            "html" -> if (context == "compiled-html") family else "$family $context"
             "flash_air" -> when (context) {
                 "swf" -> "Flash (SWF)"
                 "air" -> "Adobe AIR"

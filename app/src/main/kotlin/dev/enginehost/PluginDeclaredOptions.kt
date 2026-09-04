@@ -96,7 +96,7 @@ object DeclaredOptionsReader {
         if (resolved != null) return listOf(resolved)
         if (engine.isNullOrBlank()) return emptyList()
         return installed
-            .filter { it.info.engine == engine }
+            .filter { it.info.runs(engine) }
             .sortedWith(compareBy<InstalledPlugin> { it.bundleId }.thenByDescending { it.info.pluginVersion })
     }
 

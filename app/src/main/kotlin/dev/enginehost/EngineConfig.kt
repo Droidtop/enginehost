@@ -66,6 +66,14 @@ data class EngineConfig(
     val runtimeRequirements: Map<String, Version>,
     val pluginVersionConstraint: VersionConstraint?,
     val execFile: String?,
+    /**
+     * The folder this game's saves live in, beneath the engine's save root,
+     * for engines whose runtime has no naming of its own (a browser has
+     * none; Ren'Py and RGSS name theirs). Derived from what the engine
+     * itself would use, so it is the same on every device that has the
+     * game: see [SaveFolders].
+     */
+    val saveFolder: String? = null,
     val options: JSONObject?,
 )
 
@@ -177,6 +185,11 @@ object EngineConfigReader {
                 null
             },
             execFile = json.optString("execFile").takeIf { it.isNotBlank() },
+            saveFolder = json.optString("saveFolder").takeIf { it.isNotBlank() }?.also {
+                if (!SaveFolders.isPlainName(it)) {
+                    throw InvalidEngineConfigException("Config field \"saveFolder\" must be a single folder name")
+                }
+            },
             options = json.optJSONObject("options"),
         )
     }

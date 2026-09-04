@@ -192,7 +192,7 @@ object AvailablePluginResolver {
         val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
         return plugins.asSequence()
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }
-            .filter { it.info.engine == engine }
+            .filter { it.info.runs(engine) }
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
             .flatMap { plugin -> plugin.info.capabilities.asSequence().map { plugin to it } }
             .filter { (_, capability) ->
@@ -227,6 +227,9 @@ class PluginCatalogCache(context: Context) {
     }.getOrDefault(emptyList())
 
     fun loadAll(origins: Collection<String>): List<AvailablePlugin> = origins.flatMap(::load)
+
+    /** Forget every fetched catalog, so the next refresh starts from nothing. */
+    fun clear() { directory.listFiles()?.forEach { it.delete() } }
 
     /** Whether a release refresh has ever stored a catalog for this origin, even an empty one. */
     fun hasFetched(origin: String): Boolean = file(origin).isFile

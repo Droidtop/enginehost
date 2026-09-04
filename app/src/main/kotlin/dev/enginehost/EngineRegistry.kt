@@ -354,14 +354,12 @@ object EngineRuleEvaluator {
 /** The named byte-magic probes the database's `builtin` conditions reference. An unknown name fails its rule (soundness over optimism), same as droidtop. */
 object EngineBuiltinProbes {
     private val GODOT_EXECUTABLE_SUFFIXES = setOf("exe", "x86_64", "x86", "")
-    private const val TWINE_READ_WINDOW = 512 * 1024
-    private val TWINE_MARKERS = listOf("<tw-storydata", "twinejs", "SugarCube", "Harlowe").map { it.toByteArray(Charsets.US_ASCII) }
     private val UNITY_PLAYER_FILENAMES = setOf("UnityPlayer.dll", "UnityPlayer.so", "UnityPlayer.dylib")
     private val SWF_SIGNATURES = setOf("FWS", "CWS", "ZWS")
 
     fun holds(name: String, tree: GameTree): Boolean = when (name) {
         "godot" -> isGodot(tree)
-        "twine" -> isTwine(tree)
+        "html" -> isHtml(tree)
         "unity" -> isUnity(tree)
         "swf" -> isSwf(tree)
         else -> false
@@ -389,11 +387,12 @@ object EngineBuiltinProbes {
         return offset in 1 until size
     }
 
-    private fun isTwine(tree: GameTree): Boolean =
-        rootFiles(tree).filter { ext(it) == "html" }.any { html ->
-            val chunk = tree.readHead(html, TWINE_READ_WINDOW)
-            TWINE_MARKERS.any { marker -> indexOf(chunk, marker) >= 0 }
-        }
+    /**
+     * A page at the root is an HTML game. This row sits last in the
+     * registry: engines that also ship a root page (Godot and Unity web
+     * exports) have had their say by the time it is asked.
+     */
+    private fun isHtml(tree: GameTree): Boolean = rootFiles(tree).any { ext(it) == "html" }
 
     private fun isUnity(tree: GameTree): Boolean =
         tree.filePaths.any { path ->
@@ -405,17 +404,6 @@ object EngineBuiltinProbes {
             val header = tree.readHead(swf, 4)
             header.size == 4 && String(header, 0, 3, Charsets.US_ASCII) in SWF_SIGNATURES
         }
-
-    private fun indexOf(haystack: ByteArray, needle: ByteArray): Int {
-        if (needle.isEmpty() || needle.size > haystack.size) return -1
-        outer@ for (i in 0..haystack.size - needle.size) {
-            for (j in needle.indices) {
-                if (haystack[i + j] != needle[j]) continue@outer
-            }
-            return i
-        }
-        return -1
-    }
 }
 
 /**

@@ -34,6 +34,17 @@ class SaveLocationStore(context: Context) {
     /** The save folder handed to an engine family's runtime, created and checked writable. */
     fun saveRootFor(engine: String): File = ensureUsable(File(rootFor(engine), "saves"))
 
+    /**
+     * The folder a game's runtime saves into: the engine's save root, or
+     * the game's own folder beneath it when the config names one.
+     */
+    fun saveFolderFor(config: EngineConfig): File {
+        val root = saveRootFor(config.engine)
+        val name = config.saveFolder ?: return root
+        require(SaveFolders.isPlainName(name)) { "A save folder must be a single folder name" }
+        return ensureUsable(File(root, name))
+    }
+
     /** Every engine family that has its own root, by engine id. */
     fun overrides(): Map<String, File> = preferences.all
         .filterKeys { it.startsWith(KEY_ENGINE_PREFIX) }
@@ -134,5 +145,45 @@ class SaveLocationStore(context: Context) {
     companion object {
         private const val KEY_ROOT = "root"
         private const val KEY_ENGINE_PREFIX = "root."
+    }
+}
+
+/**
+ * How a game's save folder is named when the runtime cannot name it.
+ *
+ * Engines that keep saves beside the game on a desktop, or in a browser's
+ * storage, have no identity of their own to offer; two such games would
+ * share one folder and one localStorage. The name comes from what the
+ * engine would have used: a Twine story is stored under its story title,
+ * an RPG Maker MV/MZ or AIR game under its install folder. Both are the
+ * same for everyone who has the game, so saves move between devices and
+ * survive a reinstall. Engines that name their own saves (Ren'Py, RGSS,
+ * Godot) get no folder here and keep doing what they do.
+ */
+object SaveFolders {
+    private val NAMED_BY_THE_HOST = setOf("html", "flash_air")
+
+    /** Whether this engine and context need Enginehost to name the save folder. */
+    fun applies(engine: String, engineContext: String?): Boolean =
+        engine in NAMED_BY_THE_HOST || (engine == "rpgmaker" && (engineContext == "mv" || engineContext == "mz"))
+
+    /**
+     * The default folder name: [detectedName] (a story's own title) when
+     * there is one, else the game folder's name, made safe for a
+     * filesystem. Null for engines that name their own saves.
+     */
+    fun defaultFor(engine: String, engineContext: String?, detectedName: String?, folderName: String): String? {
+        if (!applies(engine, engineContext)) return null
+        return sanitize(detectedName?.takeIf { it.isNotBlank() } ?: folderName)
+    }
+
+    /** One folder name: no separators, no traversal, nothing a filesystem rejects. */
+    fun isPlainName(name: String): Boolean =
+        name.isNotBlank() && name != "." && name != ".." && name.none { it in "/\\\u0000" }
+
+    fun sanitize(name: String): String {
+        val cleaned = name.trim().map { if (it in "/\\:*?\"<>|\u0000" || it.code < 32) '_' else it }.joinToString("")
+            .trimEnd('.', ' ')
+        return cleaned.ifBlank { "game" }
     }
 }

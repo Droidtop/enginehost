@@ -45,10 +45,14 @@ object GameRunner {
         val config = try {
             EngineConfigReader.resolve(gameFolder, inlineJson)
         } catch (e: InvalidEngineConfigException) {
-            // A folder with no config at all is a setup gap, not a dead end:
-            // route into the config editor with detection running, instead of
-            // failing into a toast over a blank screen.
+            // A folder with no config at all is a setup gap, not a dead end.
+            // When the folder says everything a config needs, the config is
+            // written and the launch carries on; only a folder that leaves a
+            // question open goes to the editor, with detection prefilled.
             if (gameFolder.isDirectory && !File(gameFolder, CONFIG_FILE_NAME).isFile) {
+                if (DetectedConfig.write(context, gameFolder, inlineJson)) {
+                    return plan(context, gameFolder, inlineJson, autoInstallPlugin)
+                }
                 return Plan.Detour(
                     Intent(context, ConfigEditorActivity::class.java).apply {
                         putExtra(ConfigEditorActivity.EXTRA_PATH, gameFolder.absolutePath)
@@ -88,7 +92,7 @@ object GameRunner {
         val intent = Intent(context, runtimeClass).apply {
             putExtra(RuntimeActivity.EXTRA_PATH, gameFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE, resolved.plugin.bundleId)
-            putExtra(RuntimeActivity.EXTRA_SAVE_PATH, SaveLocationStore(context).saveRootFor(config.engine).absolutePath)
+            putExtra(RuntimeActivity.EXTRA_SAVE_PATH, SaveLocationStore(context).saveFolderFor(config).absolutePath)
             putExtra(RuntimeActivity.EXTRA_ENGINE, config.engine)
             putExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT, config.engineContext ?: DEFAULT_ENGINE_CONTEXT)
             putExtra(RuntimeActivity.EXTRA_ENGINE_VERSION, config.engineVersion.toString())

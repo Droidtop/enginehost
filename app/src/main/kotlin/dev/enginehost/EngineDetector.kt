@@ -11,6 +11,10 @@ data class EngineDetection(
     val execFile: String? = null,
     val evidence: String,
     val runtimeRequirements: Map<String, String> = emptyMap(),
+    /** The game's own title when its files state one (a Twine story's name). */
+    val title: String? = null,
+    /** The name the engine itself would store this game's saves under, when it has one. */
+    val saveFolder: String? = null,
 )
 
 /**
@@ -81,9 +85,9 @@ object EngineDetector {
             )
             family == "renpy" -> renpy(row, tree)
             family == "godot" -> godot(row, tree)
-            family == "twine" -> twine(row, tree)
+            family == "html" -> html(row, tree)
             family == "flash_air" && row.context == "swf" -> swf(row, tree)
-            family == "flash_air" -> EngineDetection(family, row.context, evidence = "Found an Adobe AIR package (META-INF + mimetype)")
+            family == "flash_air" -> air(row, tree)
             family == "kirikiri2" -> EngineDetection(family, row.context, evidence = "Found KiriKiri XP3/TJS assets")
             family == "catsystem2" -> scriptDetection(row, tree, "cst", "Found a CatSystem2 CST script; runtime version still needs confirmation")
             family == "cmvs" && row.context != null -> scriptDetection(row, tree, row.context, "Found a CMVS ${row.context.uppercase()} script; runtime version still needs confirmation")
@@ -192,16 +196,56 @@ object EngineDetector {
         return EngineDetection("godot", row.context, evidence = "Found a Godot export")
     }
 
-    private fun twine(row: EngineRow, tree: GameTree): EngineDetection {
-        val html = tree.filePaths.firstOrNull { '/' !in it && it.lowercase().endsWith(".html") }
-        val version = html?.let {
-            Regex("creator-version=[\"']([^\"']+)", RegexOption.IGNORE_CASE)
-                .find(String(tree.readHead(it, 512 * 1024), Charsets.UTF_8))
-                // Tweego stamps its build hash on the version ("2.1.1+81d1d71");
-                // the number before it is the version.
-                ?.groupValues?.get(1)?.substringBefore('+')?.substringBefore('-')?.takeIf(::isNumericVersion)
+    /**
+     * An HTML game: a page at the folder's root, played in a browser. Most
+     * are Twine stories, which carry their metadata in a tw-storydata
+     * element: the story's name (the title, and what SugarCube keys its
+     * saves by), the story format and its version, and the Twine or
+     * Tweego build that compiled it. A page without that element is still
+     * an HTML game; it just says less about itself.
+     */
+    private fun html(row: EngineRow, tree: GameTree): EngineDetection {
+        val pages = tree.filePaths.filter { '/' !in it && it.lowercase().endsWith(".html") }.sorted()
+        val page = pages.firstOrNull { it.equals("index.html", ignoreCase = true) } ?: pages.firstOrNull()
+        val head = page?.let { String(tree.readHead(it, 512 * 1024), Charsets.UTF_8) } ?: ""
+        val story = Regex("<tw-storydata\\s([^>]*)>", RegexOption.IGNORE_CASE).find(head)?.groupValues?.get(1)
+        fun attribute(name: String): String? = story?.let {
+            Regex("(?:^|\\s)$name=[\"']([^\"']*)", RegexOption.IGNORE_CASE).find(it)?.groupValues?.get(1)
+        }?.takeIf { it.isNotBlank() }
+        val name = attribute("name")?.let(::decodeEntities)
+        val format = attribute("format")
+        // Tweego stamps its build hash on the version ("2.1.1+81d1d71"); the
+        // number before it is the version. The story format's version is the
+        // one that decides how the story behaves, so it is the engine version.
+        val version = listOfNotNull(attribute("format-version"), attribute("creator-version"))
+            .map { it.substringBefore('+').substringBefore('-') }
+            .firstOrNull(::isNumericVersion) ?: "1.0"
+        val evidence = when {
+            story != null && format != null -> "Found a Twine story ($format)"
+            story != null -> "Found a Twine story"
+            else -> "Found an HTML page at the folder's root"
         }
-        return EngineDetection("twine", row.context, version, html?.let { tree.pathPrefix + it }, "Found Twine story metadata")
+        return EngineDetection(
+            "html", row.context, version, page?.let { tree.pathPrefix + it }, evidence,
+            title = name, saveFolder = name,
+        )
+    }
+
+    private fun decodeEntities(text: String): String = text
+        .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+        .replace("&quot;", "\"").replace("&#39;", "'").replace("&apos;", "'")
+
+    /**
+     * An Adobe AIR application: its descriptor's namespace names the AIR
+     * runtime version it was built for ("http://ns.adobe.com/air/application/50.0").
+     */
+    private fun air(row: EngineRow, tree: GameTree): EngineDetection {
+        val descriptor = tree.filePaths.firstOrNull { it.equals("META-INF/AIR/application.xml", ignoreCase = true) }
+        val version = descriptor?.let {
+            Regex("ns\\.adobe\\.com/air/application/(\\d+(?:\\.\\d+)*)").find(String(tree.readHead(it, 64 * 1024), Charsets.UTF_8))
+                ?.groupValues?.get(1)
+        }
+        return EngineDetection("flash_air", row.context, version, evidence = "Found an Adobe AIR package (META-INF + mimetype)")
     }
 
     private fun swf(row: EngineRow, tree: GameTree): EngineDetection {

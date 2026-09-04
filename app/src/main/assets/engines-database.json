@@ -500,28 +500,6 @@
    "notes": "Detection is specifically the AIR package shape, so the air context is the real answer, not a coin flip. Plain .swf: droidtop routes it through the flash player entries in players-database.json (Ruffle etc.), enginehost detects it via the flash-swf row at the end of this file."
   },
   {
-   "id": "twine",
-   "detect": [
-    {
-     "all": [
-      {
-       "type": "builtin",
-       "name": "twine"
-      }
-     ]
-    }
-   ],
-   "strategies": [
-    "ENGINEHOST",
-    "WINE_PREFIX"
-   ],
-   "enginehost": {
-    "family": "twine",
-    "context": "compiled-html"
-   },
-   "notes": "HTML export; the builtin probe reads the first 512KB of root .html files for tw-storydata/twinejs/SugarCube/Harlowe."
-  },
-  {
    "id": "godot",
    "detect": [
     {
@@ -639,6 +617,28 @@
     "context": "swf"
    },
    "notes": "ENGINEHOST-ONLY row (droidtop maps no engine id to it, so droidtop skips it - plain .swf is deliberately droidtop's players-database path). The builtin probe checks root .swf files for a real FWS/CWS/ZWS header. Last on purpose: a stray .swf asset inside any richer game tree must never outrank the real engine."
+  },
+  {
+   "id": "html",
+   "detect": [
+    {
+     "all": [
+      {
+       "type": "builtin",
+       "name": "html"
+      }
+     ]
+    }
+   ],
+   "strategies": [
+    "ENGINEHOST",
+    "WINE_PREFIX"
+   ],
+   "enginehost": {
+    "family": "html",
+    "context": "compiled-html"
+   },
+   "notes": "An HTML game: a page at the folder's root, Twine stories included. Last in the file on purpose: Godot and Unity web exports also ship an index.html and must be classified first. The builtin probe accepts any root .html file."
   }
  ]
 }
