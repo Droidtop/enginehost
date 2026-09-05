@@ -98,10 +98,7 @@ object EngineDetector {
             // scripts run on the 2.x line, ps3 scripts on the 3.x line.
             family == "cmvs" && row.context != null ->
                 scriptDetection(row, tree, row.context, "Found a CMVS ${row.context.uppercase()} script", version = if (row.context == "ps2") "2.0" else "3.0")
-            // The runtime alone (cmvs32/cmvs64 with cmvs.cfg, scripts packed in
-            // archives) is the modern engine: the 64-bit runtime shipped only
-            // with the PS3 generation, so that is the line to start on.
-            family == "cmvs" -> EngineDetection(family, "ps3", "3.0", evidence = "Found the 64-bit CMVS runtime, the PS3 generation")
+            family == "cmvs" -> cmvs(row, tree)
             // BGI games state no runtime version and the runtime accepts any; "1.0"
             // is the line's single version, so the config can be written unasked.
             family == "buriko" -> EngineDetection(family, row.context, "1.0", evidence = "Found Buriko engine evidence")
@@ -258,6 +255,33 @@ object EngineDetector {
                 ?.groupValues?.get(1)
         }
         return EngineDetection("flash_air", row.context, version, evidence = "Found an Adobe AIR package (META-INF + mimetype)")
+    }
+
+    /**
+     * A CMVS install names its generation in the data folder, not the
+     * executable: `cmvs.cfg` points at the script folder (`SCRIPT_INIT_PATH`),
+     * and the scripts there are `.ps3` on the 3.x line or `.ps2` on the 2.x
+     * line. Only when neither is visible does the 64-bit runtime, which
+     * shipped only with the PS3 generation, stand in as the tell.
+     */
+    private fun cmvs(row: EngineRow, tree: GameTree): EngineDetection {
+        val cfg = rootFile(tree, "cmvs.cfg")
+        val scriptDir = cfg?.let {
+            Regex("(?im)^\s*SCRIPT_INIT_PATH\s*=\s*(.+?)\s*$")
+                .find(String(tree.readHead(it, 16 * 1024), Charsets.ISO_8859_1))
+                ?.groupValues?.get(1)?.replace('\', '/')?.trim('/')
+        }
+        val inScriptDir: (String) -> Boolean = { path ->
+            scriptDir == null || path.startsWith("$scriptDir/", ignoreCase = true)
+        }
+        val ps3 = tree.filePaths.any { it.lowercase().endsWith(".ps3") && inScriptDir(it) }
+        val ps2 = !ps3 && tree.filePaths.any { it.lowercase().endsWith(".ps2") && inScriptDir(it) }
+        return when {
+            ps3 -> EngineDetection(row.family!!, "ps3", "3.0", evidence = "Found CMVS PS3 scripts in the script folder")
+            ps2 -> EngineDetection(row.family!!, "ps2", "2.0", evidence = "Found CMVS PS2 scripts in the script folder")
+            rootFile(tree, "cmvs64.exe") != null -> EngineDetection(row.family!!, "ps3", "3.0", evidence = "Found the 64-bit CMVS runtime, shipped only with the PS3 generation")
+            else -> EngineDetection(row.family!!, "ps2", "2.0", evidence = "Found the CMVS runtime with no visible scripts; the 2.x line")
+        }
     }
 
     private fun swf(row: EngineRow, tree: GameTree): EngineDetection {
