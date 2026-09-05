@@ -75,7 +75,7 @@ class EngineDetectorTest {
     }
 
     @Test
-    fun `RPG_RT database needs its exe or map tree, and the pair proves the family only`() {
+    fun `RPG_RT database needs its exe or map tree, and an unreadable database proves the family only`() {
         val root = tempRoot()
         File(root, "RPG_RT.ldb").writeBytes(byteArrayOf(1))
         assertNull(detect(root))
@@ -83,6 +83,39 @@ class EngineDetectorTest {
         val detection = detect(root)!!
         assertEquals("rpgmaker", detection.engine)
         assertNull(detection.engineContext)
+    }
+
+    @Test
+    fun `RPG_RT database identifies RPG Maker 2003 from the canonical ldb id`() {
+        val root = tempRoot()
+        File(root, "RPG_RT.lmt").writeBytes(byteArrayOf(1))
+        File(root, "RPG_RT.ldb").writeBytes(
+            byteArrayOf(11) + "LcfDataBase".toByteArray() + byteArrayOf(
+                0x16, 0x04, // System chunk, four payload bytes.
+                0x0a, 0x02, 0x8f.toByte(), 0x53, // ldb_id = BER(2003).
+                0,
+            ),
+        )
+
+        val detection = detect(root)!!
+        assertEquals("2003", detection.engineContext)
+        assertEquals("2003", detection.engineVersion)
+    }
+
+    @Test
+    fun `RPG_RT database without an ldb id identifies RPG Maker 2000`() {
+        val root = tempRoot()
+        File(root, "RPG_RT.lmt").writeBytes(byteArrayOf(1))
+        File(root, "RPG_RT.ldb").writeBytes(
+            byteArrayOf(11) + "LcfDataBase".toByteArray() + byteArrayOf(
+                0x16, 0x01, 0, // Empty System chunk: RPG Maker 2000.
+                0,
+            ),
+        )
+
+        val detection = detect(root)!!
+        assertEquals("2000", detection.engineContext)
+        assertEquals("2000", detection.engineVersion)
     }
 
     @Test

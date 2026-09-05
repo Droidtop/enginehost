@@ -75,10 +75,7 @@ object EngineDetector {
         return when {
             family == "rpgmaker" && (row.context == "xp" || row.context == "vx" || row.context == "vxace") -> rgss(row, tree)
             family == "rpgmaker" && (row.context == "mv" || row.context == "mz") -> mvmz(row, tree)
-            family == "rpgmaker" && row.id == "rpgmaker-2000-2003" -> EngineDetection(
-                family,
-                evidence = "Found RPG Maker 2000/2003 data; choose the exact context",
-            )
+            family == "rpgmaker" && row.id == "rpgmaker-2000-2003" -> rpg2000Or2003(tree)
             family == "rpgmaker" -> EngineDetection(
                 family,
                 evidence = "Found an RPG Maker MV/MZ web runtime without its core script; choose context mv or mz",
@@ -157,6 +154,74 @@ object EngineDetector {
         }
         val execFile = core?.let { tree.pathPrefix + it.substringBeforeLast("js/$coreName") + "index.html" }
         return EngineDetection("rpgmaker", row.context, version, execFile, "Found $coreName")
+    }
+
+    /**
+     * RPG Maker 2000 and 2003 share the same filenames. Their database does
+     * not: liblcf's canonical discriminator is System chunk 0x16, field 0x0a
+     * (`ldb_id`), whose value is 2003 for RPG Maker 2003 and is absent/zero
+     * for RPG Maker 2000. Reading that tiny LCF structure lets a bare launch
+     * choose EasyRPG's exact capability instead of stopping at a manual
+     * variant picker.
+     */
+    private fun rpg2000Or2003(tree: GameTree): EngineDetection {
+        val database = rootFile(tree, "rpg_rt.ldb")
+        val context = database?.let { rpgDatabaseContext(tree.readHead(it, 2 * 1024 * 1024)) }
+        return EngineDetection(
+            "rpgmaker",
+            engineContext = context,
+            engineVersion = context,
+            evidence = if (context != null) {
+                "RPG_RT.ldb identifies RPG Maker $context"
+            } else {
+                "Found RPG Maker 2000/2003 data; choose the exact context"
+            },
+        )
+    }
+
+    internal fun rpgDatabaseContext(bytes: ByteArray): String? {
+        var position = 0
+        fun integer(end: Int = bytes.size): Int? {
+            var value = 0
+            var count = 0
+            while (position < end && count++ < 6) {
+                val byte = bytes[position++].toInt() and 0xff
+                value = (value shl 7) or (byte and 0x7f)
+                if (byte and 0x80 == 0) return value
+            }
+            return null
+        }
+
+        val headerLength = integer() ?: return null
+        if (headerLength < 0 || position + headerLength > bytes.size) return null
+        val header = String(bytes, position, headerLength, Charsets.US_ASCII)
+        if (header != "LcfDataBase") return null
+        position += headerLength
+
+        while (position < bytes.size) {
+            val id = integer() ?: return null
+            if (id == 0) break
+            val length = integer() ?: return null
+            if (length < 0 || position + length > bytes.size) return null
+            val end = position + length
+            if (id == 0x16) {
+                while (position < end) {
+                    val field = integer(end) ?: return null
+                    if (field == 0) break
+                    val fieldLength = integer(end) ?: return null
+                    if (fieldLength < 0 || position + fieldLength > end) return null
+                    val fieldEnd = position + fieldLength
+                    if (field == 0x0a) {
+                        val ldbId = integer(fieldEnd) ?: return null
+                        return if (ldbId == 2003) "2003" else "2000"
+                    }
+                    position = fieldEnd
+                }
+                return "2000"
+            }
+            position = end
+        }
+        return null
     }
 
     private fun renpy(row: EngineRow, tree: GameTree): EngineDetection {
@@ -267,9 +332,9 @@ object EngineDetector {
     private fun cmvs(row: EngineRow, tree: GameTree): EngineDetection {
         val cfg = rootFile(tree, "cmvs.cfg")
         val scriptDir = cfg?.let {
-            Regex("(?im)^\s*SCRIPT_INIT_PATH\s*=\s*(.+?)\s*$")
+            Regex("""(?im)^\s*SCRIPT_INIT_PATH\s*=\s*(.+?)\s*$""")
                 .find(String(tree.readHead(it, 16 * 1024), Charsets.ISO_8859_1))
-                ?.groupValues?.get(1)?.replace('\', '/')?.trim('/')
+                ?.groupValues?.get(1)?.replace('\\', '/')?.trim('/')
         }
         val inScriptDir: (String) -> Boolean = { path ->
             scriptDir == null || path.startsWith("$scriptDir/", ignoreCase = true)
