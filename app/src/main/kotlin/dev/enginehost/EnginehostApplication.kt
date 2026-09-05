@@ -17,6 +17,20 @@ class EnginehostApplication : Application() {
         // mid-install at that same moment.
         if (isDefaultProcess()) {
             runCatching { EngineBundleInstaller.sweepOrphanedStaging(this) }
+            runCatching { removeSharedRenpyTree() }
+        }
+    }
+
+    /**
+     * Until 2026-09-05 every Ren'Py line unpacked its engine into the root
+     * of this app's files dir, as stock RAPT does; the lines now unpack
+     * into renpy-engine/<line>. What the old layout left behind is dead
+     * weight (about 11 MB) that no code reads any more, and only the host
+     * should delete at the root of its own files dir. Exact names only.
+     */
+    private fun removeSharedRenpyTree() {
+        for (name in LEGACY_RENPY_ROOT_NAMES) {
+            File(filesDir, name).takeIf { it.exists() }?.deleteRecursively()
         }
     }
 
@@ -30,5 +44,7 @@ class EnginehostApplication : Application() {
     companion object {
         @Volatile lateinit var instance: EnginehostApplication
             private set
+
+        private val LEGACY_RENPY_ROOT_NAMES = listOf("lib", "renpy", "main.py", "private.version")
     }
 }
