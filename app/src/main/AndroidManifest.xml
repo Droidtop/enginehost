@@ -74,6 +74,21 @@
             android:exported="true"
             android:grantUriPermissions="false" />
 
+        <!--
+             Development only: install a bundle file already on the device.
+             Answers only in a debuggable build; the bundle is verified and
+             approved exactly like a downloaded one. See BundleInstallActivity.
+        -->
+        <activity
+            android:name=".BundleInstallActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="dev.enginehost.INSTALL_BUNDLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".ProblemReportActivity"
             android:exported="false"
