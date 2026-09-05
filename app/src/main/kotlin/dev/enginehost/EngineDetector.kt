@@ -91,9 +91,17 @@ object EngineDetector {
             // KiriKiri games state no engine version and the runtime accepts any;
             // "2.0" names the line so the config can be written unasked.
             family == "kirikiri2" -> EngineDetection(family, row.context, "2.0", evidence = "Found KiriKiri XP3/TJS assets")
-            family == "catsystem2" -> scriptDetection(row, tree, "cst", "Found a CatSystem2 CST script; runtime version still needs confirmation")
-            family == "cmvs" && row.context != null -> scriptDetection(row, tree, row.context, "Found a CMVS ${row.context.uppercase()} script; runtime version still needs confirmation")
-            family == "cmvs" -> EngineDetection(family, evidence = "Found the CMVS runtime; choose the ps2 or ps3 context")
+            // CatSystem2 games state no engine version and the one runtime line
+            // accepts any 2.x; "2.0" names it so the config can be written unasked.
+            family == "catsystem2" -> scriptDetection(row, tree, "cst", "Found a CatSystem2 CST script", version = "2.0")
+            // A CMVS script found loose names its generation by extension: ps2
+            // scripts run on the 2.x line, ps3 scripts on the 3.x line.
+            family == "cmvs" && row.context != null ->
+                scriptDetection(row, tree, row.context, "Found a CMVS ${row.context.uppercase()} script", version = if (row.context == "ps2") "2.0" else "3.0")
+            // The runtime alone (cmvs32/cmvs64 with cmvs.cfg, scripts packed in
+            // archives) is the modern engine: the 64-bit runtime shipped only
+            // with the PS3 generation, so that is the line to start on.
+            family == "cmvs" -> EngineDetection(family, "ps3", "3.0", evidence = "Found the 64-bit CMVS runtime, the PS3 generation")
             // BGI games state no runtime version and the runtime accepts any; "1.0"
             // is the line's single version, so the config can be written unasked.
             family == "buriko" -> EngineDetection(family, row.context, "1.0", evidence = "Found Buriko engine evidence")
@@ -259,11 +267,12 @@ object EngineDetector {
         return EngineDetection("flash_air", row.context, version, swf?.let { tree.pathPrefix + it }, "Found a SWF header")
     }
 
-    private fun scriptDetection(row: EngineRow, tree: GameTree, extension: String, evidence: String): EngineDetection {
+    private fun scriptDetection(row: EngineRow, tree: GameTree, extension: String, evidence: String, version: String? = null): EngineDetection {
         val script = tree.filePaths.firstOrNull { '/' !in it && it.lowercase().endsWith(".$extension") }
         return EngineDetection(
             row.family!!,
             row.context,
+            version,
             execFile = script?.let { tree.pathPrefix + it },
             evidence = evidence,
             runtimeRequirements = row.extras,
