@@ -149,13 +149,6 @@ interface GameTree {
      */
     fun read(path: String, offset: Long, limit: Int): ByteArray
 
-    /** The file's last [limit] bytes, or all of it when it is shorter. */
-    fun readTail(path: String, limit: Int): ByteArray {
-        val size = length(path)
-        val count = minOf(limit.toLong(), size)
-        return read(path, size - count, count.toInt())
-    }
-
     fun subtree(dir: String): GameTree
 }
 
@@ -353,7 +346,6 @@ object EngineRuleEvaluator {
 
 /** The named byte-magic probes the database's `builtin` conditions reference. An unknown name fails its rule (soundness over optimism), same as droidtop. */
 object EngineBuiltinProbes {
-    private val GODOT_EXECUTABLE_SUFFIXES = setOf("exe", "x86_64", "x86", "")
     private val UNITY_PLAYER_FILENAMES = setOf("UnityPlayer.dll", "UnityPlayer.so", "UnityPlayer.dylib")
     private val SWF_SIGNATURES = setOf("FWS", "CWS", "ZWS")
 
@@ -369,23 +361,13 @@ object EngineBuiltinProbes {
 
     private fun rootFiles(tree: GameTree): List<String> = tree.filePaths.filter { '/' !in it }
 
-    private fun isGodot(tree: GameTree): Boolean {
-        val roots = rootFiles(tree)
-        if (roots.any { ext(it) == "pck" }) return true
-        return roots.any { ext(it) in GODOT_EXECUTABLE_SUFFIXES && hasEmbeddedPckTrailer(tree, it) }
-    }
-
-    /** The executable's last 12 bytes: an 8-byte little-endian offset then the ASCII magic GDPC — Godot's own embedded-pack export trailer. */
-    private fun hasEmbeddedPckTrailer(tree: GameTree, path: String): Boolean {
-        val size = tree.length(path)
-        if (size < 12) return false
-        val tail = tree.readTail(path, 12)
-        if (tail.size != 12) return false
-        if (String(tail, 8, 4, Charsets.US_ASCII) != "GDPC") return false
-        var offset = 0L
-        for (i in 7 downTo 0) offset = (offset shl 8) or (tail[i].toLong() and 0xFF)
-        return offset in 1 until size
-    }
+    /**
+     * A Godot export is whatever [GodotPack] can open: a side .pck, or a
+     * binary carrying one in its `pck` PE section or behind an EOF
+     * trailer. Classification and enrichment read the same bytes the
+     * same way, so a game is never "Godot" with no version or the reverse.
+     */
+    private fun isGodot(tree: GameTree): Boolean = GodotPack.present(tree)
 
     /**
      * A page at the root is an HTML game. This row sits last in the

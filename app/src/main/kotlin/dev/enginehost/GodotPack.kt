@@ -23,10 +23,12 @@ import java.nio.ByteOrder
  * per-file flags. A file's real offset is `fileBase + offset`, and for V3
  * `fileBase` is itself relative to the pack start.
  *
- * A pack appended to a self-contained export is found through a 12-byte
- * trailer at EOF: a 64-bit pack size then `GDPC` again. Godot also looks
- * for a pack in a dedicated executable section; that form is not read
- * here, so a game shipping it yields no answer rather than a wrong one.
+ * A pack embedded in a self-contained export is found the way Godot's own
+ * loader finds it, in the same order: first a PE section named `pck`
+ * (what the Windows export template's `fixup_embedded_pck` writes; such
+ * an export need not carry any trailer), then the 12-byte trailer at
+ * EOF, a 64-bit pack size followed by `GDPC` again, which the Linux
+ * templates and older Windows exports use.
  */
 object GodotPack {
     private const val MAGIC = "GDPC"
@@ -38,7 +40,8 @@ object GodotPack {
     private const val MAX_DIRECTORY_ENTRIES = 2_000_000
     private const val MAX_NAME_BYTES = 4096
     private const val MAX_BINARY_PROBES = 4
-    private val EXPORT_BINARY_SUFFIXES = listOf(".exe", ".x86_64", ".x86_32")
+    private val EXPORT_BINARY_SUFFIXES = listOf(".exe", ".x86_64", ".x86_32", ".arm64")
+    private const val PE_PACK_SECTION = "pck"
     private const val NUL = '\u0000'
 
     /** Where a pack starts inside a file, and what its header declares. */
@@ -56,7 +59,8 @@ object GodotPack {
 
     /**
      * Root-level files in [tree] worth probing for a pack: a standalone
-     * .pck, then the export binaries Godot's own templates produce.
+     * .pck, then the export binaries Godot's own templates produce, then
+     * extensionless files, which is how a renamed Linux export looks.
      * Capped so a folder full of executables cannot turn a probe into a
      * scan of all of them.
      */
@@ -64,17 +68,33 @@ object GodotPack {
         val root = tree.filePaths.filter { '/' !in it }
         val packs = root.filter { it.lowercase().endsWith(".pck") }
         val binaries = root.filter { path -> EXPORT_BINARY_SUFFIXES.any { path.lowercase().endsWith(it) } }
-        return packs.sorted() + binaries.sorted().take(MAX_BINARY_PROBES)
+        val bare = root.filter { '.' !in it }
+        return packs.sorted() + (binaries.sorted() + bare.sorted()).take(MAX_BINARY_PROBES)
     }
 
-    /** The pack at offset 0, or the one a self-contained export appends to itself. */
+    /** Whether any candidate in [tree] carries a readable pack: the one test of "this is a Godot export". */
+    fun present(tree: GameTree): Boolean = candidates(tree).any { open(tree, it) != null }
+
+    /** The pack at offset 0, or the one a self-contained export carries inside itself. */
     fun open(tree: GameTree, path: String): Header? {
         headerAt(tree, path, 0L)?.let { return it }
-        val start = embeddedStart(tree, path) ?: return null
+        peSectionStart(tree, path)?.let { start -> headerAt(tree, path, start)?.let { return it } }
+        val start = trailerStart(tree, path) ?: return null
         return headerAt(tree, path, start)
     }
 
-    private fun embeddedStart(tree: GameTree, path: String): Long? {
+    /**
+     * Where a Windows export keeps its pack: the raw data of the PE section
+     * named `pck`. Only an .exe is walked; an ELF export has no PE headers.
+     */
+    private fun peSectionStart(tree: GameTree, path: String): Long? {
+        if (!path.lowercase().endsWith(".exe")) return null
+        val image = PeImage.parse { offset, size -> tree.read(path, offset, size) } ?: return null
+        val section = image.section(PE_PACK_SECTION) ?: return null
+        return section.rawPointer.takeIf { section.rawSize >= HEADER_BYTES && it > 0 }
+    }
+
+    private fun trailerStart(tree: GameTree, path: String): Long? {
         val size = tree.length(path)
         if (size <= TRAILER_BYTES) return null
         val trailer = tree.read(path, size - TRAILER_BYTES, TRAILER_BYTES)

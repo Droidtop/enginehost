@@ -78,40 +78,19 @@ object PeIcon {
         images.maxWithOrNull(compareBy<IconImage>({ it.width * it.height }, { it is IconImage.Png }))
 
     private class Parser(private val source: ReadAt) {
-        private lateinit var sections: List<Section>
+        private lateinit var image: PeImage
         private var resourceBase = 0L
 
-        private class Section(val virtualAddress: Long, val virtualSize: Long, val rawPointer: Long, val rawSize: Long)
-
         fun applicationIcon(): List<IconImage>? {
-            val dos = source.read(0, 0x40)
-            if (dos.size < 0x40 || dos[0] != 'M'.code.toByte() || dos[1] != 'Z'.code.toByte()) return null
-            val peOffset = dos.u32(0x3C)
-            val coff = source.read(peOffset, 24)
-            if (coff.size < 24 || coff.u32(0) != 0x4550L) return null
-            val sectionCount = coff.u16(6)
-            val optionalSize = coff.u16(20)
-            val optional = source.read(peOffset + 24, optionalSize)
-            if (optional.size < optionalSize) return null
-            val directoriesAt = when (optional.u16(0)) {
-                0x10b -> 96
-                0x20b -> 112
-                else -> return null
-            }
+            image = PeImage.parse(source) ?: return null
+            val optional = image.optionalHeader
+            val directoriesAt = image.dataDirectoriesAt ?: return null
             // Data directory 2 is the resource table.
             val resourceEntry = directoriesAt + 2 * 8
             if (optional.size < resourceEntry + 8) return null
             val resourceRva = optional.u32(resourceEntry)
             if (resourceRva == 0L) return null
-
-            val tableAt = peOffset + 24 + optionalSize
-            val table = source.read(tableAt, sectionCount * 40)
-            if (table.size < sectionCount * 40) return null
-            sections = (0 until sectionCount).map { i ->
-                val at = i * 40
-                Section(table.u32(at + 12), table.u32(at + 8), table.u32(at + 20), table.u32(at + 16))
-            }
-            resourceBase = fileOffset(resourceRva) ?: return null
+            resourceBase = image.fileOffset(resourceRva) ?: return null
 
             val groupDirectory = subdirectories(0)[RT_GROUP_ICON] ?: return null
             val group = firstLeafData(groupDirectory) ?: return null
@@ -133,13 +112,6 @@ object PeIcon {
                     ?.let(images::add)
             }
             return images.takeIf { it.isNotEmpty() }
-        }
-
-        private fun fileOffset(rva: Long): Long? {
-            val section = sections.firstOrNull {
-                rva >= it.virtualAddress && rva < it.virtualAddress + maxOf(it.virtualSize, it.rawSize)
-            } ?: return null
-            return rva - section.virtualAddress + section.rawPointer
         }
 
         private data class Entry(val id: Int?, val offset: Long, val isDirectory: Boolean)
@@ -181,7 +153,7 @@ object PeIcon {
             if (entry.size < 16) return null
             val size = entry.u32(4)
             if (size <= 0 || size > MAX_RESOURCE_BYTES) return null
-            val at = fileOffset(entry.u32(0)) ?: return null
+            val at = image.fileOffset(entry.u32(0)) ?: return null
             val data = source.read(at, size.toInt())
             return data.takeIf { it.size == size.toInt() }
         }

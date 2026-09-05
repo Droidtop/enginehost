@@ -211,6 +211,32 @@ class EngineDetectorTest {
     }
 
     @Test
+    fun `a windows export keeps its pack in a pe section named pck`() {
+        val root = tempRoot()
+        // DOS header (0x40) -> PE signature at 0x40 -> COFF (20) -> empty optional header -> one section header.
+        val packAt = 0x200
+        val exe = java.nio.ByteBuffer.allocate(packAt + 40).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        exe.put(0, 'M'.code.toByte()); exe.put(1, 'Z'.code.toByte())
+        exe.putInt(0x3C, 0x40)
+        exe.putInt(0x40, 0x4550)
+        exe.putShort(0x40 + 4 + 2, 1)
+        exe.putShort(0x40 + 4 + 16, 2)
+        exe.putShort(0x40 + 24, 0x10b)
+        val section = 0x40 + 24 + 2
+        exe.put(section, "pck".toByteArray(Charsets.US_ASCII))
+        exe.putInt(section + 16, 40)
+        exe.putInt(section + 20, packAt)
+        exe.position(packAt)
+        exe.put("GDPC".toByteArray(Charsets.US_ASCII))
+        exe.putInt(2); exe.putInt(4); exe.putInt(4); exe.putInt(1)
+        File(root, "Another girl.exe").writeBytes(exe.array())
+
+        val detection = detect(root)!!
+        assertEquals("godot", detection.engine)
+        assertEquals("4.4.1", detection.engineVersion)
+    }
+
+    @Test
     fun `unity is recognized but flagged as unhosted, with its scripting backend`() {
         val root = tempRoot()
         File(root, "MyGame_Data/il2cpp_data").mkdirs()
