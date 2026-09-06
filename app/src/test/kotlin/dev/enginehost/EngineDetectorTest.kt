@@ -184,6 +184,19 @@ class EngineDetectorTest {
     }
 
     @Test
+    fun `a python 2 renpy build writes its version with a u prefix`() {
+        val root = tempRoot()
+        File(root, "renpy").mkdirs()
+        File(root, "renpy/vc_version.py").writeText("version = u'7.6.3.23091805'\nofficial = True\n")
+        File(root, "game").mkdirs()
+        File(root, "game/script.rpyc").writeBytes(byteArrayOf(1))
+
+        val detection = detect(root)!!
+        assertEquals("renpy", detection.engine)
+        assertEquals("7.6.3.23091805", detection.engineVersion)
+    }
+
+    @Test
     fun `a cmvs script names its generation`() {
         val root = tempRoot()
         File(root, "scene.ps3").writeBytes(byteArrayOf(1))

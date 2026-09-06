@@ -227,9 +227,11 @@ object EngineDetector {
     private fun renpy(row: EngineRow, tree: GameTree): EngineDetection {
         // Modern Ren'Py writes the full version into vc_version.py; older
         // builds keep only a build stamp there and the real version_tuple
-        // in the runtime's own __init__.py.
+        // in the runtime's own __init__.py. 7.6 through 7.8 generate the file
+        // under Python 2 with unicode_literals, so the string carries a u
+        // prefix there (version = u'7.6.3...'); 8.x writes it bare.
         val version = findSuffix(tree, "renpy/vc_version.py")
-            ?.let { Regex("(?m)^version\\s*=\\s*[\"'](\\d+(?:\\.\\d+)+)").find(text(tree, it))?.groupValues?.get(1) }
+            ?.let { Regex("(?m)^version\\s*=\\s*u?[\"'](\\d+(?:\\.\\d+)+)").find(text(tree, it))?.groupValues?.get(1) }
             ?: findSuffix(tree, "renpy/__init__.py")?.let {
                 Regex("version_tuple\\s*=\\s*\\((\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)")
                     .find(text(tree, it))?.groupValues?.drop(1)?.joinToString(".")
