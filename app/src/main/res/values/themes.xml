@@ -34,7 +34,15 @@
         moment it is asked for, covering the launch screen with nothing.
         With it, the launch screen stays until the engine draws.
     -->
-    <style name="Theme.Enginehost.Runtime" parent="@android:style/Theme.NoTitleBar.Fullscreen">
+    <!--
+         An AppCompat descendant on purpose: a bundle's activity may extend
+         AppCompatActivity (EasyRPG's does), and AppCompat refuses to
+         inflate under a platform theme. Plain Activity subclasses (SDL,
+         Godot) see the same fullscreen black window they always did.
+    -->
+    <style name="Theme.Enginehost.Runtime" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowDisablePreview">true</item>
         <item name="android:windowBackground">@android:color/black</item>
     </style>

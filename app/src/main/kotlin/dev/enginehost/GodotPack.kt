@@ -13,7 +13,7 @@ import java.nio.ByteOrder
  * the flag constants in `file_access_pack.h`:
  *
  * A pack begins with the ASCII magic `GDPC`, a 32-bit pack format version
- * (2 and 3 are loadable), the engine major/minor/patch as three more
+ * (1 is Godot 3, 2 and 3 are Godot 4), the engine major/minor/patch as three more
  * 32-bit values, 32-bit pack flags, then a 64-bit file base. Everything is
  * little-endian. In V3 a 64-bit directory offset follows, relative to the
  * pack start; in V2 the directory follows the header after 16 reserved
@@ -112,11 +112,19 @@ object GodotPack {
         val buffer = little(bytes)
         buffer.int
         val format = buffer.int
-        if (format != 2 && format != 3) return null
+        // 1 is Godot 3's pack; no plugin runs it yet, but naming the engine
+        // and its version is what lets the catalog say so instead of
+        // "not recognised".
+        if (format != 1 && format != 2 && format != 3) return null
         val major = buffer.int
         val minor = buffer.int
         val patch = buffer.int
         if (major !in 1..9 || minor !in 0..99 || patch !in 0..999) return null
+        // V1 has no flags or file base: 16 reserved words follow the
+        // version and every entry offset is relative to the pack start.
+        if (format == 1) {
+            return Header(packStart, format, "$major.$minor.$patch", packStart + 84, packStart, false)
+        }
         val flags = buffer.int
         val rawFileBase = buffer.long
         val fileBase =

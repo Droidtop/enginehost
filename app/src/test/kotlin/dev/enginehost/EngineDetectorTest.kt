@@ -197,6 +197,22 @@ class EngineDetectorTest {
     }
 
     @Test
+    fun `a godot 3 pack is named with its version even though nothing runs it`() {
+        val root = tempRoot()
+        val header = java.nio.ByteBuffer.allocate(88).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        header.put("GDPC".toByteArray(Charsets.US_ASCII))
+        header.putInt(1)
+        header.putInt(3)
+        header.putInt(5)
+        header.putInt(3)
+        File(root, "game.pck").writeBytes(header.array())
+
+        val detection = detect(root)!!
+        assertEquals("godot", detection.engine)
+        assertEquals("3.5.3", detection.engineVersion)
+    }
+
+    @Test
     fun `a cmvs script names its generation`() {
         val root = tempRoot()
         File(root, "scene.ps3").writeBytes(byteArrayOf(1))
