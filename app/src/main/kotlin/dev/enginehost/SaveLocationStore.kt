@@ -161,7 +161,15 @@ class SaveLocationStore(context: Context) {
  * namespace (Ren'Py and Godot) get no folder here and keep doing what they do.
  */
 object SaveFolders {
-    private val NAMED_BY_THE_HOST = setOf("html", "flash_air")
+    /** Families whose desktop convention is the game folder or generic filenames. */
+    private val NAMED_BY_THE_HOST = setOf(
+        "html",
+        "flash_air",
+        "kirikiri2",
+        "buriko",
+        "catsystem2",
+        "cmvs",
+    )
 
     /** Whether this engine and context need Enginehost to name the save folder. */
     fun applies(engine: String, engineContext: String?): Boolean =

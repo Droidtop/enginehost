@@ -13,6 +13,13 @@ class SaveFoldersTest {
     }
 
     @Test
+    fun `folder-local engine families get stable per-game save namespaces`() {
+        listOf("html", "flash_air", "kirikiri2", "buriko", "catsystem2", "cmvs").forEach { engine ->
+            assertEquals("My Game", SaveFolders.defaultFor(engine, null, null, "My Game"))
+        }
+    }
+
+    @Test
     fun `engines with their own external namespace keep control`() {
         assertNull(SaveFolders.defaultFor("renpy", null, null, "My Game"))
         assertNull(SaveFolders.defaultFor("godot", null, null, "My Game"))

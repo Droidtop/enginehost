@@ -68,10 +68,10 @@ specific file to run within the folder, for engines that need one.
 `title` is optional: the name the launch screen shows, when the game's
 files state one (a Twine story's name). `saveFolder` is optional and only
 meaningful for engines whose runtime has no safe external namespace of its
-own (HTML games, every RPG Maker generation, Flash/AIR): the single folder
-name their saves go under beneath the engine's save root. This is essential
-for RPG Maker because different games reuse generic filenames such as
-`Save01.lsd`; placing those files directly in one family root would collide.
+own (HTML, Flash/AIR, KiriKiri, Buriko, CatSystem2, CMVS, and every RPG Maker
+generation): the single folder name their saves go under beneath the engine's
+save root. This is essential because different games reuse generic filenames
+such as `Save01.lsd`; placing those files directly in one family root would collide.
 Enginehost derives the namespace from what the engine itself would use, a
 story's title or the game's folder name, so it is stable across devices.
 
