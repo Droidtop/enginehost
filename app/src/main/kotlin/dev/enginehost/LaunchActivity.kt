@@ -203,7 +203,17 @@ class LaunchActivity : AppCompatActivity() {
         handler.postDelayed({ if (!isDestroyed && !isFinishing) classifyExit() }, EXIT_RECORD_DELAY_MS)
     }
 
-    private fun classifyExit() {
+    /**
+     * A natively crashing runtime is still alive when its activity's result
+     * arrives (crash_dump holds it while the tombstone is written), and the
+     * exit record follows later still. Wait, in short steps and for a bounded
+     * time, until the process is gone and recorded; only then decide.
+     */
+    private fun classifyExit(attempt: Int = 0) {
+        if (attempt < EXIT_RECORD_MAX_ATTEMPTS && CrashWatch.pending(this)) {
+            handler.postDelayed({ if (!isDestroyed && !isFinishing) classifyExit(attempt + 1) }, EXIT_RECORD_DELAY_MS)
+            return
+        }
         val crash = CrashWatch.consume(this)
         when {
             crash != null -> {
@@ -226,6 +236,8 @@ class LaunchActivity : AppCompatActivity() {
         private const val TAG = "enginehost"
         private const val REQUEST_RUNTIME = 41
         private const val EXIT_RECORD_DELAY_MS = 400L
+        /** With the delay above, about six seconds before giving up on a record. */
+        private const val EXIT_RECORD_MAX_ATTEMPTS = 15
         private const val STATE_COVERED = "covered"
         private const val STATE_STARTED = "started"
         private const val STATE_PLUGIN = "plugin"

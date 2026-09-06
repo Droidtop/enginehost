@@ -72,6 +72,23 @@ object CrashWatch {
      * once and a clean exit is never mentioned. Returns null while the
      * runtime is still alive.
      */
+    /**
+     * True while the runtime process the note names is still alive, or has
+     * ended without Android having filed its exit record yet. A native crash
+     * keeps the process alive for about a second while crash_dump writes the
+     * tombstone, and the activity result arrives before that; classifying at
+     * that moment reads as "no crash". Callers poll this before [consume].
+     */
+    fun pending(context: Context): Boolean {
+        val note = runCatching { JSONObject(file(context).readText()) }.getOrNull() ?: return false
+        if (note.optBoolean("ended")) return false
+        val pid = note.optInt("pid")
+        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        if (manager.runningAppProcesses?.any { it.pid == pid } == true) return true
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        return manager.getHistoricalProcessExitReasons(context.packageName, pid, 1).isEmpty()
+    }
+
     fun consume(context: Context): Crash? {
         val f = file(context)
         val note = runCatching { JSONObject(f.readText()) }.getOrNull() ?: return null
