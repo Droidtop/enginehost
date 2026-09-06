@@ -153,19 +153,19 @@ class SaveLocationStore(context: Context) {
  *
  * Engines that keep saves beside the game on a desktop, or in a browser's
  * storage, have no identity of their own to offer; two such games would
- * share one folder and one localStorage. The name comes from what the
- * engine would have used: a Twine story is stored under its story title,
- * an RPG Maker MV/MZ or AIR game under its install folder. Both are the
- * same for everyone who has the game, so saves move between devices and
- * survive a reinstall. Engines that name their own saves (Ren'Py, RGSS,
- * Godot) get no folder here and keep doing what they do.
+ * share generic names such as `Save01.lsd` or one localStorage. The name
+ * comes from what the engine would have used: a Twine story is stored under
+ * its story title, an RPG Maker game or AIR game under its install folder.
+ * That name is stable across devices, so saves move between devices and
+ * survive a reinstall. Engines that genuinely name their own external save
+ * namespace (Ren'Py and Godot) get no folder here and keep doing what they do.
  */
 object SaveFolders {
     private val NAMED_BY_THE_HOST = setOf("html", "flash_air")
 
     /** Whether this engine and context need Enginehost to name the save folder. */
     fun applies(engine: String, engineContext: String?): Boolean =
-        engine in NAMED_BY_THE_HOST || (engine == "rpgmaker" && (engineContext == "mv" || engineContext == "mz"))
+        engine in NAMED_BY_THE_HOST || engine == "rpgmaker"
 
     /**
      * The default folder name: [detectedName] (a story's own title) when
