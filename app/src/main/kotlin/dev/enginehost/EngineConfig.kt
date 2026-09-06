@@ -68,10 +68,11 @@ data class EngineConfig(
     val execFile: String?,
     /**
      * The folder this game's saves live in, beneath the engine's save root,
-     * for engines whose runtime has no naming of its own (a browser has
-     * none; Ren'Py and RGSS name theirs). Derived from what the engine
-     * itself would use, so it is the same on every device that has the
-     * game: see [SaveFolders].
+     * for engines whose runtime has no collision-safe external namespace of
+     * its own (a browser has none; RPG Maker games reuse generic save names).
+     * Derived from what the engine itself would use, so it is the same on
+     * every device that has the game. Ren'Py and Godot keep control of their
+     * own names: see [SaveFolders].
      */
     val saveFolder: String? = null,
     val options: JSONObject?,
