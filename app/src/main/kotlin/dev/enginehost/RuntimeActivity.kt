@@ -15,7 +15,6 @@ import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
-import dalvik.system.DexClassLoader
 import dev.enginehost.api.EngineFileSystem
 import dev.enginehost.api.EngineHost
 import dev.enginehost.api.EnginePlugin
@@ -104,12 +103,13 @@ class RuntimeActivity : FragmentActivity() {
         val dexPaths = installed.dexFiles.map { safeRuntimeChild(root, it) }
         require(dexPaths.all(File::isFile)) { "A signed dex file is missing" }
         val nativeLibraryPaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
-        val loader = DexClassLoader(
+        val loader = PluginDexLoader(
             dexPaths.joinToString(File.pathSeparator) { it.absolutePath },
             codeCacheDir.absolutePath,
             nativeLibraryPaths.joinToString(File.pathSeparator) { it.absolutePath }.ifBlank { null },
             classLoader,
         )
+        RuntimeClassLoader.attach(classLoader, loader)
         val entrypoint = Class.forName(installed.entrypointClass, true, loader)
         require(EnginePlugin::class.java.isAssignableFrom(entrypoint)) {
             "${installed.entrypointClass} does not implement EnginePlugin API v${installed.apiVersion}"

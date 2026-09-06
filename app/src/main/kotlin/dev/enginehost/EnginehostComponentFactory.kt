@@ -3,9 +3,9 @@ package dev.enginehost
 import android.app.Activity
 import android.app.AppComponentFactory
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.util.Log
-import dalvik.system.DexClassLoader
 import java.io.File
 
 /**
@@ -14,6 +14,9 @@ import java.io.File
  * the frontend executes under Enginehost's UID and isolated runtime process.
  */
 class EnginehostComponentFactory : AppComponentFactory() {
+    /** Every Enginehost process gets a loader that plugin dex can be attached to; see [RuntimeClassLoader]. */
+    override fun instantiateClassLoader(cl: ClassLoader, aInfo: ApplicationInfo): ClassLoader = RuntimeClassLoader(cl)
+
     override fun instantiateActivity(
         classLoader: ClassLoader,
         className: String,
@@ -53,12 +56,15 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val dex = installed.dexFiles.map { safeRuntimeChild(root, it) }
         require(dex.all(File::isFile)) { "A signed runtime dex file is missing" }
         val nativePaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
-        val loader = DexClassLoader(
+        val loader = PluginDexLoader(
             dex.joinToString(File.pathSeparator) { it.path },
             context.codeCacheDir.path,
             nativePaths.joinToString(File.pathSeparator) { it.path }.ifBlank { null },
             classLoader,
         )
+        // The activity's Context inflates layouts through the application
+        // class loader, so the plugin's classes have to be reachable from it.
+        RuntimeClassLoader.attach(classLoader, loader)
         val runtime = Class.forName(installed.entrypointClass, true, loader)
         require(Activity::class.java.isAssignableFrom(runtime)) { "Bundle entrypoint is not an Activity" }
         @Suppress("UNCHECKED_CAST")
