@@ -99,6 +99,21 @@ object ControllerActions {
             "page_previous" to "L input (Q key)",
             "page_next" to "R input (W key)",
         ),
+        // KiriKiri (KAG) has no pages: the shoulder pair steps one line back
+        // and forward through the text, and saving lives on the system menu.
+        // Same buttons as everywhere else; only the words change.
+        "kirikiri" to mapOf(
+            "confirm" to "Advance / click",
+            "cancel" to "Cancel (Escape)",
+            "menu" to "System menu",
+            "skip" to "Skip (hold)",
+            "auto" to "Auto mode",
+            "history" to "Backlog",
+            "quick_save" to "Not used (save from the system menu)",
+            "quick_load" to "Not used (load from the system menu)",
+            "page_previous" to "Back one line",
+            "page_next" to "Forward one line",
+        ),
     )
 
     fun title(action: ControllerAction, engine: String?): String =
