@@ -28,6 +28,8 @@ class GameScanner(
     private val rows: List<EngineRow>,
     private val maxDepth: Int = MAX_DEPTH,
     private val maxDirectories: Int = MAX_DIRECTORIES,
+    /** Test seam for deterministic unreadable-directory coverage. */
+    private val listDirectory: (File) -> Array<File>? = { it.listFiles() },
 ) {
     @Volatile
     private var cancelled = false
@@ -84,7 +86,7 @@ class GameScanner(
             }
             if (!seen.add(canonical)) continue
             examined++
-            val children = runCatching { directory.listFiles() }.getOrNull()
+            val children = runCatching { listDirectory(directory) }.getOrNull()
             if (children == null) {
                 unreadable++
                 reportProgress()
