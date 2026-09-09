@@ -137,17 +137,15 @@ class GameScannerTest {
         val plain = File(root, "plain").apply { mkdirs() }
         File(plain, "notes.txt").writeText("just some notes")
         // A folder whose listing cannot be read: still examined, counted unreadable.
+        // Model the failed listing directly: chmod-based tests are not reliable
+        // when Gradle runs as root or on a filesystem without POSIX permissions.
         val locked = File(root, "locked").apply { mkdirs() }
         File(locked, "child").mkdirs()
-        check(locked.setReadable(false, false)) { "test setup needs to be able to lock down a folder" }
 
         val collector = Collector()
-        try {
-            GameScanner(rows).scan(root, collector)
-        } finally {
-            // Restore permissions so JVM temp-dir cleanup (and deleteOnExit) can remove it.
-            locked.setReadable(true, false)
-        }
+        GameScanner(rows, listDirectory = { directory ->
+            if (directory.canonicalFile == locked.canonicalFile) null else directory.listFiles()
+        }).scan(root, collector)
 
         assertTrue(collector.finished)
         assertEquals(1, collector.found.size)
