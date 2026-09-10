@@ -102,10 +102,12 @@ object GameRunner {
                 RuntimeActivity.EXTRA_RUNTIME_REQUIREMENTS,
                 org.json.JSONObject(config.runtimeRequirements.mapValues { it.value.toString() }).toString(),
             )
-            putExtra(
-                RuntimeActivity.EXTRA_CONTROLLER_BINDINGS,
-                ControllerBindingStore(context, config.engine).exportJson().toString(),
-            )
+            // A bypassed engine reads the pad itself, and the absence of
+            // this extra is how it is told so: no map, no host bindings,
+            // the engine's own handling and nothing beside it.
+            ControllerBindingStore(context, ControllerScope.of(config.engine, config.engineContext))
+                .takeUnless { it.isBypassed() }
+                ?.let { putExtra(RuntimeActivity.EXTRA_CONTROLLER_BINDINGS, it.exportJson().toString()) }
             config.execFile?.let { putExtra(RuntimeActivity.EXTRA_EXEC_FILE, it) }
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
             inlineJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }

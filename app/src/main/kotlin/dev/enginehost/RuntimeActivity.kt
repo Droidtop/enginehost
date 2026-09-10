@@ -36,7 +36,10 @@ class RuntimeActivity : FragmentActivity() {
     // Scoped to the engine this session is running, so the user's
     // per-engine mappings apply while playing rather than only in settings.
     private val controllers by lazy {
-        RuntimeControllerRouter(this, intent.getStringExtra(EXTRA_ENGINE)) { plugin }
+        RuntimeControllerRouter(
+            this,
+            ControllerScope.of(intent.getStringExtra(EXTRA_ENGINE), intent.getStringExtra(EXTRA_ENGINE_CONTEXT)),
+        ) { plugin }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -243,7 +246,11 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_RUNTIME_REQUIREMENTS = "dev.enginehost.runtime.RUNTIME_REQUIREMENTS"
         const val EXTRA_EXEC_FILE = "dev.enginehost.runtime.EXEC_FILE"
         const val EXTRA_OPTIONS = "dev.enginehost.runtime.OPTIONS"
-        /** The person's controller map for this engine; see ControllerBindingStore.exportJson. */
+        /**
+         * The person's controller map for this engine; see
+         * ControllerBindingStore.exportJson. Absent means the engine's own
+         * controller handling is in use and the host sends no map at all.
+         */
         const val EXTRA_CONTROLLER_BINDINGS = "dev.enginehost.runtime.CONTROLLER_BINDINGS"
     }
 }
