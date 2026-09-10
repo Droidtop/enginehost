@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -18,6 +19,7 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
     private lateinit var scopeList: LinearLayout
     private lateinit var scopeHint: TextView
     private lateinit var bindingList: LinearLayout
+    private lateinit var unbindButton: Button
     private lateinit var resetButton: Button
     private lateinit var store: ControllerBindingStore
     private var capturing: ControllerAction? = null
@@ -58,6 +60,12 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         scopeList = findViewById(R.id.scopeList)
         scopeHint = findViewById(R.id.scopeHint)
         bindingList = findViewById(R.id.bindingList)
+        unbindButton = findViewById(R.id.unbindButton)
+        unbindButton.setOnClickListener {
+            capturing?.let { store.set(it, ControllerBinding.None) }
+            capturing = null
+            render()
+        }
         resetButton = findViewById(R.id.resetButton)
         resetButton.setOnClickListener { capturing = null; store.reset(); render() }
         (getSystemService(Context.INPUT_SERVICE) as InputManager).registerInputDeviceListener(this, null)
@@ -90,7 +98,15 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         addScopeButton(null, getString(R.string.all_engines))
         installedEngines.forEach { engine -> addScopeButton(engine, engine) }
 
-        scopeHint.text = capturing?.let { getString(R.string.capture_prompt, it.title) }
+        // While a capture is open the hint asks for the input, and the
+        // button beside it is how "nothing" is said: the same visible
+        // gesture for every action rather than a hidden one. Long press
+        // still drops a scoped override, which is a different thing --
+        // inherit again, not unbind.
+        val target = capturing
+        unbindButton.visibility = if (target == null) View.GONE else View.VISIBLE
+        target?.let { unbindButton.text = getString(R.string.unbind_action, ControllerActions.title(it, scope)) }
+        scopeHint.text = target?.let { getString(R.string.capture_prompt, ControllerActions.title(it, scope)) }
             ?: when {
                 scope == null -> getString(R.string.global_map_hint)
                 scope in nativeInputEngines -> getString(R.string.native_engine_hint, scope)
@@ -103,8 +119,9 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
             val button = layoutInflater.inflate(R.layout.item_action_button, bindingList, false) as Button
             // An inherited binding is marked, so it is obvious which
             // values belong to this engine and which are borrowed.
+            val label = store.get(action).label(this)
             button.text = buildString {
-                append(getString(R.string.binding_row, ControllerActions.title(action, scope), store.get(action).label()))
+                append(getString(R.string.binding_row, ControllerActions.title(action, scope), label))
                 if (scope != null && !overridden) append("  ").append(getString(R.string.marker_inherited))
             }
             button.setOnClickListener { capturing = action; render() }
@@ -157,22 +174,42 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
         val target = capturing
         if (target != null && event.isControllerInput()) {
-            val range = InputDevice.getDevice(event.deviceId)?.motionRanges
-                ?.filter { (it.source and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK }
-                ?.maxByOrNull { abs(event.getAxisValue(it.axis)) }
+            val range = capturableRanges(event.deviceId).maxByOrNull { abs(event.getAxisValue(it.axis)) }
             val value = range?.let { event.getAxisValue(it.axis) } ?: 0f
             if (range != null && abs(value) >= CAPTURE_THRESHOLD) {
-                val defaultAxis = target.default as? ControllerBinding.Axis
-                store.set(
-                    target,
-                    ControllerBinding.Axis(range.axis, if (defaultAxis?.direction == 0) 0 else if (value < 0) -1 else 1),
-                )
+                store.set(target, ControllerBinding.Axis(range.axis, capturedDirection(target, value)))
                 capturing = null
                 render()
                 return true
             }
         }
         return super.dispatchGenericMotionEvent(event)
+    }
+
+    /**
+     * The axes a capture may land on. The joystick class covers the sticks
+     * and the triggers; the hat pair is named as well because a pad that
+     * reports its d-pad as AXIS_HAT_X/AXIS_HAT_Y sometimes files those
+     * ranges under SOURCE_DPAD, and dropping them would leave the d-pad as
+     * the one input that cannot be captured.
+     */
+    private fun capturableRanges(deviceId: Int): List<InputDevice.MotionRange> =
+        InputDevice.getDevice(deviceId)?.motionRanges.orEmpty().filter { range ->
+            (range.source and InputDevice.SOURCE_CLASS_JOYSTICK) == InputDevice.SOURCE_CLASS_JOYSTICK ||
+                range.axis == MotionEvent.AXIS_HAT_X ||
+                range.axis == MotionEvent.AXIS_HAT_Y
+        }
+
+    /**
+     * An analogue action -- one whose default is an axis read whole,
+     * direction 0 -- stays analogue whatever axis it is moved to.
+     * Everything else is digital, and an axis standing in for a button has
+     * to record which way the stick or hat was pushed, or the plugin
+     * cannot tell left from right on one axis.
+     */
+    private fun capturedDirection(action: ControllerAction, value: Float): Int {
+        val analogue = (action.default as? ControllerBinding.Axis)?.direction == 0
+        return if (analogue) 0 else if (value < 0) -1 else 1
     }
 
     override fun onInputDeviceAdded(deviceId: Int) = render()

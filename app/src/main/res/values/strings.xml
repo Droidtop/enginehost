@@ -155,6 +155,8 @@
     <string name="native_engine_hint">%1$s reads the controller itself; set it up inside the game.</string>
     <string name="scoped_hint">Overrides for %1$s. Anything inherited follows All engines.</string>
     <string name="binding_row">%1$s: %2$s</string>
+    <string name="binding_unbound">Unbound</string>
+    <string name="unbind_action">Unbind %1$s</string>
     <string name="reset_all">Reset all</string>
     <string name="reset_scope">Reset %1$s</string>
 

@@ -10,18 +10,35 @@ import org.json.JSONObject
 import kotlin.math.abs
 
 sealed interface ControllerBinding {
-    fun label(): String
+    /**
+     * What this binding is called on the controller screen. Keys and axes
+     * name themselves out of the platform's own vocabulary; only [None]
+     * has a word of ours, which is why a context is needed.
+     */
+    fun label(context: Context): String
 
     data class Key(val keyCode: Int) : ControllerBinding {
-        override fun label(): String = KeyEvent.keyCodeToString(keyCode).removePrefix("KEYCODE_")
+        override fun label(context: Context): String =
+            KeyEvent.keyCodeToString(keyCode).removePrefix("KEYCODE_")
     }
 
     data class Axis(val axis: Int, val direction: Int = 0) : ControllerBinding {
-        override fun label(): String = MotionEvent.axisToString(axis).removePrefix("AXIS_") + when (direction) {
-            -1 -> " −"
-            1 -> " +"
-            else -> ""
-        }
+        override fun label(context: Context): String =
+            MotionEvent.axisToString(axis).removePrefix("AXIS_") + when (direction) {
+                -1 -> " −"
+                1 -> " +"
+                else -> ""
+            }
+    }
+
+    /**
+     * Bound to nothing, and a binding in its own right rather than an
+     * absence: any action may be None, and an engine feature driven by an
+     * action (KiriKiri's pointer emulation on the stick axes) is simply
+     * off while its actions are unbound. Encodes as `{"type":"none"}`.
+     */
+    object None : ControllerBinding {
+        override fun label(context: Context): String = context.getString(R.string.binding_unbound)
     }
 }
 
@@ -113,6 +130,11 @@ object ControllerActions {
             "quick_load" to "Not used (load from the system menu)",
             "page_previous" to "Back one line",
             "page_next" to "Forward one line",
+            // The left stick steers KAG's mouse pointer, so these two are
+            // named for what they drive rather than for the stick they sit
+            // on: unbinding them reads as turning the pointer off.
+            "left_x" to "Pointer horizontal",
+            "left_y" to "Pointer vertical",
         ),
     )
 
@@ -197,11 +219,13 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
         is ControllerBinding.Key -> JSONObject().put("type", "key").put("code", binding.keyCode)
         is ControllerBinding.Axis -> JSONObject().put("type", "axis").put("axis", binding.axis)
             .put("direction", binding.direction)
+        is ControllerBinding.None -> JSONObject().put("type", "none")
     }
 
     private fun parse(json: JSONObject): ControllerBinding = when (json.getString("type")) {
         "key" -> ControllerBinding.Key(json.getInt("code"))
         "axis" -> ControllerBinding.Axis(json.getInt("axis"), json.optInt("direction"))
+        "none" -> ControllerBinding.None
         else -> error("Unknown controller binding")
     }
 }
