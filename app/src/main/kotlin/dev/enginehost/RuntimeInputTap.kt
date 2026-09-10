@@ -50,6 +50,8 @@ class RuntimeInputTap(private val activity: Activity) {
     private val profiles = ControllerProfileStore(activity)
     private val cache = mutableMapOf<Int, ControllerProfile>()
 
+    private val bindings = ControllerBindingStore(activity, HostMenu.scopeOf(activity))
+
     /**
      * Whether this session corrects the pad at all.
      *
@@ -59,9 +61,13 @@ class RuntimeInputTap(private val activity: Activity) {
      * profile answers "which control is this", the map answers "what does
      * it do here", and asking the second before the first is how a pad
      * that lies ends up mapped twice.
+     *
+     * Asked on every event rather than settled at construction, because
+     * bypass can be turned over from the in-game menu while the game is
+     * running and the store now answers both processes alike.
      */
-    private val corrects: Boolean = !ControllerBindingStore(activity, HostMenu.scopeOf(activity)).isBypassed() ||
-        profiles.appliesInBypass()
+    private val corrects: Boolean
+        get() = !bindings.isBypassed() || profiles.appliesInBypass()
 
     private fun profile(deviceId: Int): ControllerProfile {
         if (!corrects) return ControllerProfile.NONE
