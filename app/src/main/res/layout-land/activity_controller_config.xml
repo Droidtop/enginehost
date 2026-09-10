@@ -100,6 +100,20 @@
             android:layout_marginStart="@dimen/eh_column_gap"
             android:orientation="vertical">
 
+
+            <Button
+                android:id="@+id/hotkeyButton"
+                style="@style/Widget.Enginehost.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/eh_space_s"
+                android:text="@string/host_menu_hotkey_hint"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
             <TextView
                 android:id="@+id/scopeHint"
                 android:layout_width="match_parent"

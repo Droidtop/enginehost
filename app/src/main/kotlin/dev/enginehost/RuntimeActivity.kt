@@ -122,6 +122,7 @@ class RuntimeActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        controllers.refresh()
         if (runtimeStarted) callPlugin("resume") { onResume() }
     }
 

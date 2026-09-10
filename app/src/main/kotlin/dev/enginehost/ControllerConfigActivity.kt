@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import android.content.Context
+import android.content.Intent
 import android.hardware.input.InputManager
 import android.os.Bundle
 import android.view.InputDevice
@@ -19,11 +20,22 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
     private lateinit var scopeList: LinearLayout
     private lateinit var scopeHint: TextView
     private lateinit var bindingList: LinearLayout
+    private lateinit var hotkeyButton: Button
     private lateinit var bypassButton: Button
     private lateinit var unbindButton: Button
     private lateinit var resetButton: Button
     private lateinit var store: ControllerBindingStore
+    private lateinit var hotkeys: HostMenuHotkeyStore
     private var capturing: ControllerAction? = null
+
+    /**
+     * The buttons pressed so far while the host menu shortcut is being
+     * captured, and which of them are still held. The shortcut is whatever
+     * was pressed together, so it is settled when the last one is let go.
+     * Null means no capture is open.
+     */
+    private var hotkeyCapture: LinkedHashSet<Int>? = null
+    private val hotkeyHeld = mutableSetOf<Int>()
 
     /** null = the global map every engine inherits from. */
     private var scope: String? = null
@@ -72,13 +84,25 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = getString(R.string.controller_settings)
+        // A launch from the in-game menu names the scope of the game that
+        // is running, so the screen opens on the engine the person is
+        // actually playing rather than on the global map.
+        scope = intent.getStringExtra(EXTRA_SCOPE)
         store = ControllerBindingStore(this, scope)
+        hotkeys = HostMenuHotkeyStore(this)
         setContentView(R.layout.activity_controller_config)
         wireBackButton()
         connectedControllers = findViewById(R.id.connectedControllers)
         scopeList = findViewById(R.id.scopeList)
         scopeHint = findViewById(R.id.scopeHint)
         bindingList = findViewById(R.id.bindingList)
+        hotkeyButton = findViewById(R.id.hotkeyButton)
+        hotkeyButton.setOnClickListener {
+            capturing = null
+            hotkeyHeld.clear()
+            hotkeyCapture = LinkedHashSet()
+            render()
+        }
         bypassButton = findViewById(R.id.bypassButton)
         bypassButton.setOnClickListener {
             store.setBypass(!store.isBypassed())
@@ -87,8 +111,17 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         }
         unbindButton = findViewById(R.id.unbindButton)
         unbindButton.setOnClickListener {
-            capturing?.let { store.set(it, ControllerBinding.None) }
-            capturing = null
+            // One control, two captures: while a binding is being captured
+            // it says "unbind"; while the shortcut is, it is the way back
+            // to Select + Start. Neither capture is ever open at once.
+            if (hotkeyCapture != null) {
+                hotkeys.reset()
+                hotkeyCapture = null
+                hotkeyHeld.clear()
+            } else {
+                capturing?.let { store.set(it, ControllerBinding.None) }
+                capturing = null
+            }
             render()
         }
         resetButton = findViewById(R.id.resetButton)
@@ -135,10 +168,21 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         // gesture for every action rather than a hidden one. Long press
         // still drops a scoped override, which is a different thing --
         // inherit again, not unbind.
+        val pendingHotkey = hotkeyCapture
+        hotkeyButton.text = getString(R.string.host_menu_hotkey, hotkeys.label())
+
         val target = capturing
-        unbindButton.visibility = if (target == null) View.GONE else View.VISIBLE
-        target?.let { unbindButton.text = getString(R.string.unbind_action, it.title) }
-        scopeHint.text = target?.let { getString(R.string.capture_prompt, it.title) }
+        unbindButton.visibility = if (target == null && pendingHotkey == null) View.GONE else View.VISIBLE
+        when {
+            pendingHotkey != null -> unbindButton.text = getString(R.string.host_menu_hotkey_default)
+            target != null -> unbindButton.text = getString(R.string.unbind_action, target.title)
+        }
+        scopeHint.text = pendingHotkey?.let {
+            getString(
+                R.string.host_menu_hotkey_prompt,
+                if (it.isEmpty()) getString(R.string.host_menu_hotkey_nothing) else HostMenuHotkeyStore.label(it),
+            )
+        } ?: target?.let { getString(R.string.capture_prompt, it.title) }
             ?: when {
                 scope == null -> getString(R.string.global_map_hint)
                 bypassed -> getString(R.string.bypass_hint, scope)
@@ -191,10 +235,31 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         scope = engine
         store = ControllerBindingStore(this, engine)
         capturing = null
+        hotkeyCapture = null
+        hotkeyHeld.clear()
         render()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        hotkeyCapture?.let { pending ->
+            if (!event.isControllerInput()) return@let
+            when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    pending += event.keyCode
+                    hotkeyHeld += event.keyCode
+                    render()
+                }
+                KeyEvent.ACTION_UP -> {
+                    hotkeyHeld -= event.keyCode
+                    if (hotkeyHeld.isEmpty()) {
+                        if (pending.isNotEmpty()) hotkeys.setCombo(pending.toSet())
+                        hotkeyCapture = null
+                    }
+                    render()
+                }
+            }
+            return true
+        }
         val target = capturing
         if (target != null && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && event.isControllerInput()) {
             store.set(target, ControllerBinding.Key(event.keyCode))
@@ -250,5 +315,15 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
     override fun onInputDeviceRemoved(deviceId: Int) = render()
     override fun onInputDeviceChanged(deviceId: Int) = render()
 
-    companion object { private const val CAPTURE_THRESHOLD = 0.65f }
+    companion object {
+        private const val CAPTURE_THRESHOLD = 0.65f
+
+        /** The [ControllerScope] to open on; absent means the global map. */
+        const val EXTRA_SCOPE = "dev.enginehost.controller.SCOPE"
+
+        fun intent(context: Context, scope: String?): Intent =
+            Intent(context, ControllerConfigActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .apply { scope?.let { putExtra(EXTRA_SCOPE, it) } }
+    }
 }

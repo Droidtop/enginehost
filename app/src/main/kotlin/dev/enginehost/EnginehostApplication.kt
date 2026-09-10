@@ -19,6 +19,11 @@ class EnginehostApplication : Application() {
             runCatching { EngineBundleInstaller.sweepOrphanedStaging(this) }
             runCatching { removeSharedRenpyTree() }
         }
+        // Games run here, and only here. Registering the tap this early is
+        // what gives the host first look at the pad inside a bundled
+        // plugin's own Activity, which nothing of ours is otherwise on the
+        // path of; see RuntimeInputTap.
+        if (isRuntimeProcess()) registerActivityLifecycleCallbacks(RuntimeInputInstaller)
     }
 
     /**
@@ -34,12 +39,14 @@ class EnginehostApplication : Application() {
         }
     }
 
-    private fun isDefaultProcess(): Boolean {
-        val name = runCatching {
-            File("/proc/self/cmdline").readBytes().toString(Charsets.UTF_8).substringBefore(Char(0))
-        }.getOrNull() ?: return false
-        return name == packageName
-    }
+    private fun isDefaultProcess(): Boolean = processName() == packageName
+
+    /** The process RuntimeActivity and BundledActivityProxy are declared in. */
+    private fun isRuntimeProcess(): Boolean = processName() == "$packageName:runtime"
+
+    private fun processName(): String? = runCatching {
+        File("/proc/self/cmdline").readBytes().toString(Charsets.UTF_8).substringBefore(Char(0))
+    }.getOrNull()
 
     companion object {
         @Volatile lateinit var instance: EnginehostApplication

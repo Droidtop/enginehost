@@ -549,8 +549,21 @@ class RuntimeControllerRouter(
     private val plugin: () -> EnginePlugin?,
 ) {
     private val bindings = ControllerBindingStore(context, engine)
-    private val actions = bindings.actions()
-    private val bypassed = bindings.isBypassed()
+    private var actions = bindings.actions()
+    private var bypassed = bindings.isBypassed()
+
+    /**
+     * Re-reads the map. The runtime calls this when it comes back to the
+     * front, so a change made in the controller screen and then returned
+     * from is in force without the game being restarted.
+     *
+     * Only what this class caches is re-read; a binding itself is read out
+     * of the store on every event already.
+     */
+    fun refresh() {
+        actions = bindings.actions()
+        bypassed = bindings.isBypassed()
+    }
 
     fun key(event: KeyEvent): Boolean {
         if (bypassed || !event.isControllerInput()) return false
