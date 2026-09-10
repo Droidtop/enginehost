@@ -3,6 +3,7 @@ package dev.enginehost
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import android.view.InputDevice
 import android.view.ActionMode
 import android.view.KeyEvent
 import android.view.KeyboardShortcutGroup
@@ -46,6 +47,28 @@ import android.view.accessibility.AccessibilityEvent
  */
 class RuntimeInputTap(private val activity: Activity) {
     private val combo = HostMenuCombo(HostMenuHotkeyStore(activity).combo())
+    private val profiles = ControllerProfileStore(activity)
+    private val cache = mutableMapOf<Int, ControllerProfile>()
+
+    /**
+     * Whether this session corrects the pad at all.
+     *
+     * Bypass means the engine reads the raw pad, and a profile is not raw,
+     * so a bypassed scope gets none unless the person has said they want
+     * one there. Everything else gets it, ahead of the action map: the
+     * profile answers "which control is this", the map answers "what does
+     * it do here", and asking the second before the first is how a pad
+     * that lies ends up mapped twice.
+     */
+    private val corrects: Boolean = !ControllerBindingStore(activity, HostMenu.scopeOf(activity)).isBypassed() ||
+        profiles.appliesInBypass()
+
+    private fun profile(deviceId: Int): ControllerProfile {
+        if (!corrects) return ControllerProfile.NONE
+        return cache.getOrPut(deviceId) {
+            InputDevice.getDevice(deviceId)?.let(profiles::forDevice) ?: ControllerProfile.NONE
+        }
+    }
 
     /**
      * @param forward how to deliver an event the host is synthesising --
@@ -55,23 +78,24 @@ class RuntimeInputTap(private val activity: Activity) {
      */
     fun key(event: KeyEvent, forward: (KeyEvent) -> Unit): KeyEvent? {
         if (!event.isControllerInput()) return event
-        val verdict = when (event.action) {
-            KeyEvent.ACTION_DOWN -> combo.down(event.keyCode)
-            KeyEvent.ACTION_UP -> combo.up(event.keyCode)
+        val corrected = profile(event.deviceId).apply(event)
+        val verdict = when (corrected.action) {
+            KeyEvent.ACTION_DOWN -> combo.down(corrected.keyCode)
+            KeyEvent.ACTION_UP -> combo.up(corrected.keyCode)
             else -> HostMenuCombo.Verdict.Pass
         }
         return when (verdict) {
             is HostMenuCombo.Verdict.Open -> {
-                verdict.stuck.forEach { forward(release(event, it)) }
+                verdict.stuck.forEach { forward(release(corrected, it)) }
                 HostMenu.show(activity)
                 null
             }
             HostMenuCombo.Verdict.Consume -> null
-            HostMenuCombo.Verdict.Pass -> event
+            HostMenuCombo.Verdict.Pass -> corrected
         }
     }
 
-    fun motion(event: MotionEvent): MotionEvent? = event
+    fun motion(event: MotionEvent): MotionEvent? = profile(event.deviceId).apply(event)
 
     private fun release(source: KeyEvent, keyCode: Int) = KeyEvent(
         source.downTime, source.eventTime, KeyEvent.ACTION_UP, keyCode, 0,
@@ -95,7 +119,13 @@ private class HostWindowCallback(
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
         val onward = tap.motion(event) ?: return true
-        return delegate.dispatchGenericMotionEvent(onward)
+        // A corrected event is a fresh one, and this is the only place that
+        // knows when everything downstream has finished with it.
+        return try {
+            delegate.dispatchGenericMotionEvent(onward)
+        } finally {
+            if (onward !== event) onward.recycle()
+        }
     }
 
     override fun dispatchKeyShortcutEvent(event: KeyEvent): Boolean = delegate.dispatchKeyShortcutEvent(event)

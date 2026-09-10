@@ -39,6 +39,10 @@
         </activity>
 
         <activity
+            android:name=".ControllerProfileActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ControllerConfigActivity"
             android:exported="false" />
 
