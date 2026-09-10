@@ -1,12 +1,15 @@
 package dev.enginehost
 
 import android.content.Context
+import android.os.FileObserver
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import dev.enginehost.api.EngineControllerEvent
 import dev.enginehost.api.EnginePlugin
 import org.json.JSONObject
+import java.io.File
+import java.io.RandomAccessFile
 import kotlin.math.abs
 
 sealed interface ControllerBinding {
@@ -519,15 +522,15 @@ object ControllerActions {
  * and resolve straight to their default.
  */
 class ControllerBindingStore(context: Context, private val engine: String? = null) {
-    private val preferences = context.getSharedPreferences("controller-bindings-v1", Context.MODE_PRIVATE)
+    private val file = ControllerBindingFile.of(context)
 
     private fun scopedKey(action: ControllerAction): String? =
         engine?.lowercase()?.let { "engine.$it.${action.id}" }
 
     private fun bypassKey(): String? = engine?.lowercase()?.let { "bypass.$it" }
 
-    private fun read(key: String): ControllerBinding? = preferences.getString(key, null)
-        ?.let { runCatching { parse(JSONObject(it)) }.getOrNull() }
+    private fun read(key: String): ControllerBinding? =
+        file.binding(key)?.let { runCatching { parse(it) }.getOrNull() }
 
     /** The actions this scope offers, in the engine's own vocabulary. */
     fun actions(): List<ControllerAction> = ControllerActions.forEngine(engine)
@@ -539,7 +542,7 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
 
     /** True when this engine overrides [action] rather than inheriting it. */
     fun isOverridden(action: ControllerAction): Boolean =
-        scopedKey(action)?.let { preferences.contains(it) } == true
+        scopedKey(action)?.let(file::contains) == true
 
     /**
      * Whether the engine handles the controller itself for this scope. On
@@ -548,15 +551,15 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
      * controller map, so the engine's own handling is the only handling.
      */
     fun isBypassed(): Boolean = ControllerActions.offersBypass(engine) &&
-        bypassKey()?.let { preferences.getBoolean(it, true) } == true
+        bypassKey()?.let { file.flag(it, true) } == true
 
     fun setBypass(bypass: Boolean) {
-        bypassKey()?.let { preferences.edit().putBoolean(it, bypass).apply() }
+        bypassKey()?.let { key -> file.edit { it[key] = bypass } }
     }
 
     fun set(action: ControllerAction, binding: ControllerBinding) {
         val key = scopedKey(action) ?: action.id
-        preferences.edit().putString(key, encode(binding).toString()).apply()
+        file.edit { it[key] = encode(binding) }
     }
 
     /**
@@ -565,7 +568,7 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
      * above to inherit from.
      */
     fun clearOverride(action: ControllerAction) {
-        scopedKey(action)?.let { preferences.edit().remove(it).apply() }
+        scopedKey(action)?.let { key -> file.edit { it.remove(key) } }
     }
 
     /**
@@ -585,13 +588,13 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
     /** Clears this scope only; the global map survives an engine reset. */
     fun reset() {
         if (engine == null) {
-            preferences.edit().clear().apply()
+            file.edit { it.clear() }
             return
         }
         val prefixes = listOfNotNull("engine.${engine.lowercase()}.", bypassKey())
-        preferences.edit().apply {
-            preferences.all.keys.filter { key -> prefixes.any(key::startsWith) }.forEach { remove(it) }
-        }.apply()
+        file.edit { values ->
+            values.keys.filter { key -> prefixes.any(key::startsWith) }.forEach { values.remove(it) }
+        }
     }
 
     private fun encode(binding: ControllerBinding) = when (binding) {
@@ -610,11 +613,127 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
 }
 
 /**
+ * Where a binding actually lives: one JSON file in the app's `filesDir`,
+ * read by every process that asks for it.
+ *
+ * `SharedPreferences` could not do this job. Its cache is per process and
+ * there is no supported way to share one, so the controller screen (the
+ * default process) and a running game (`:runtime`) each held their own copy
+ * and a binding changed from the in-game menu only reached the game at its
+ * next launch. A file has one copy, and a process can be told when it
+ * changes.
+ *
+ * - **Writing** is read-modify-write inside a cross-process [java.nio.channels.FileLock],
+ *   landing by atomic rename, so a half-written map is never a state anyone
+ *   can read and two processes writing at once cannot lose each other's
+ *   keys.
+ * - **Reading** is cached, and the cache is dropped by a [FileObserver] on
+ *   the *directory* -- the file is replaced rather than edited, so its
+ *   inode is not a thing to watch. That signal is the whole of what makes a
+ *   change apply immediately; nothing polls and nothing re-reads on resume.
+ *
+ * One instance per process, because one observer and one cache are enough.
+ */
+internal class ControllerBindingFile private constructor(directory: File) {
+    private val file = File(directory, NAME)
+    private val temporary = File(directory, "$NAME.new")
+    private val guard = File(directory, "$NAME.lock")
+    private val writing = Any()
+
+    @Volatile private var cache: Map<String, Any>? = null
+
+    /** Held for its lifetime: an observer that is collected stops watching. */
+    @Suppress("DEPRECATION", "unused") // The File constructor is API 29; this app runs from 26.
+    private val observer = object : FileObserver(
+        directory.absolutePath,
+        FileObserver.MOVED_TO or FileObserver.CLOSE_WRITE or FileObserver.DELETE,
+    ) {
+        override fun onEvent(event: Int, path: String?) {
+            if (path == NAME) cache = null
+        }
+    }.also(FileObserver::startWatching)
+
+    private fun values(): Map<String, Any> = cache ?: load().also { cache = it }
+
+    private fun load(): Map<String, Any> {
+        val text = runCatching { file.readText() }.getOrNull() ?: return emptyMap()
+        val json = runCatching { JSONObject(text) }.getOrNull() ?: return emptyMap()
+        return json.keys().asSequence().associateWith(json::get)
+    }
+
+    fun binding(key: String): JSONObject? = values()[key] as? JSONObject
+
+    fun flag(key: String, fallback: Boolean): Boolean = values()[key] as? Boolean ?: fallback
+
+    fun contains(key: String): Boolean = values().containsKey(key)
+
+    /** [change] applied to the current map and written back, for every process. */
+    fun edit(change: (MutableMap<String, Any>) -> Unit) {
+        synchronized(writing) {
+            RandomAccessFile(guard, "rw").use { handle ->
+                handle.channel.lock().use {
+                    // Loaded inside the lock, not from the cache: another
+                    // process may have written since this one last looked.
+                    val next = load().toMutableMap().also(change)
+                    val json = JSONObject()
+                    next.forEach { (key, value) -> json.put(key, value) }
+                    temporary.writeText(json.toString())
+                    check(temporary.renameTo(file)) { "Could not replace $file" }
+                    cache = next
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val NAME = "controller-bindings-v1.json"
+        private const val LEGACY = "controller-bindings-v1"
+
+        @Volatile private var instance: ControllerBindingFile? = null
+
+        fun of(context: Context): ControllerBindingFile {
+            instance?.let { return it }
+            return synchronized(this) {
+                instance ?: ControllerBindingFile(context.applicationContext.filesDir)
+                    .also { adopt(context.applicationContext, it); instance = it }
+            }
+        }
+
+        /**
+         * Carries a map written by an earlier build into the file, once,
+         * and empties the preferences behind it so there is never a second
+         * place to read. A person's remapping is not something to drop for
+         * the sake of a tidier change.
+         */
+        private fun adopt(context: Context, target: ControllerBindingFile) {
+            if (target.file.exists()) return
+            val legacy = context.getSharedPreferences(LEGACY, Context.MODE_PRIVATE)
+            val stored = legacy.all
+            if (stored.isEmpty()) return
+            target.edit { values ->
+                stored.forEach { (key, value) ->
+                    when (value) {
+                        is String -> runCatching { JSONObject(value) }.getOrNull()?.let { values[key] = it }
+                        is Boolean -> values[key] = value
+                    }
+                }
+            }
+            legacy.edit().clear().apply()
+        }
+    }
+}
+
+/**
  * [engine] is the [ControllerScope] of the bundle this session is running,
  * so the user's per-engine mappings actually apply while playing rather
  * than only existing in settings. A bypassed scope routes nothing: the
  * events fall through to the engine's own handling, which is the same
  * thing the absent intent extra tells an activity plugin.
+ *
+ * Nothing here caches a binding or the bypass flag. [ControllerBindingFile]
+ * is one file with one copy per process and drops that copy the moment the
+ * file changes, so a change made from the in-game menu is in force on the
+ * very next event rather than at the next launch.
  */
 class RuntimeControllerRouter(
     context: Context,
@@ -622,24 +741,12 @@ class RuntimeControllerRouter(
     private val plugin: () -> EnginePlugin?,
 ) {
     private val bindings = ControllerBindingStore(context, engine)
-    private var actions = bindings.actions()
-    private var bypassed = bindings.isBypassed()
 
-    /**
-     * Re-reads the map. The runtime calls this when it comes back to the
-     * front, so a change made in the controller screen and then returned
-     * from is in force without the game being restarted.
-     *
-     * Only what this class caches is re-read; a binding itself is read out
-     * of the store on every event already.
-     */
-    fun refresh() {
-        actions = bindings.actions()
-        bypassed = bindings.isBypassed()
-    }
+    /** Fixed for the session: the set is the scope's, and the scope is the game's. */
+    private val actions = bindings.actions()
 
     fun key(event: KeyEvent): Boolean {
-        if (bypassed || !event.isControllerInput()) return false
+        if (bindings.isBypassed() || !event.isControllerInput()) return false
         val value = if (event.action == KeyEvent.ACTION_UP) 0f else 1f
         return actions.asSequence()
             .filter { (bindings.get(it) as? ControllerBinding.Key)?.keyCode == event.keyCode }
@@ -648,7 +755,7 @@ class RuntimeControllerRouter(
     }
 
     fun motion(event: MotionEvent): Boolean {
-        if (bypassed || !event.isControllerInput()) return false
+        if (bindings.isBypassed() || !event.isControllerInput()) return false
         return actions.asSequence().mapNotNull { action ->
             val binding = bindings.get(action) as? ControllerBinding.Axis ?: return@mapNotNull null
             val raw = event.getAxisValue(binding.axis)
