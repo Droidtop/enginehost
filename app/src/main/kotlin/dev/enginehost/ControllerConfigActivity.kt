@@ -21,11 +21,13 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
     private lateinit var scopeHint: TextView
     private lateinit var bindingList: LinearLayout
     private lateinit var hotkeyButton: Button
+    private lateinit var profileButton: Button
     private lateinit var bypassButton: Button
     private lateinit var unbindButton: Button
     private lateinit var resetButton: Button
     private lateinit var store: ControllerBindingStore
     private lateinit var hotkeys: HostMenuHotkeyStore
+    private lateinit var profiles: ControllerProfileStore
     private var capturing: ControllerAction? = null
 
     /**
@@ -90,6 +92,7 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         scope = intent.getStringExtra(EXTRA_SCOPE)
         store = ControllerBindingStore(this, scope)
         hotkeys = HostMenuHotkeyStore(this)
+        profiles = ControllerProfileStore(this)
         setContentView(R.layout.activity_controller_config)
         wireBackButton()
         connectedControllers = findViewById(R.id.connectedControllers)
@@ -102,6 +105,10 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
             hotkeyHeld.clear()
             hotkeyCapture = LinkedHashSet()
             render()
+        }
+        profileButton = findViewById(R.id.profileButton)
+        profileButton.setOnClickListener {
+            startActivity(android.content.Intent(this, ControllerProfileActivity::class.java))
         }
         bypassButton = findViewById(R.id.bypassButton)
         bypassButton.setOnClickListener {
@@ -148,6 +155,20 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         } else {
             getString(R.string.connected_controllers, controllers.joinToString { it.name })
         }
+
+        // The PROFILE layer, one line: which pad this is and whether
+        // anything about it is being corrected before the map below ever
+        // sees it. Its own screen is where it is changed.
+        profileButton.text = getString(
+            R.string.profile_button,
+            getString(
+                when (controllers.firstOrNull()?.let(profiles::forDevice)?.source) {
+                    ControllerProfile.Source.USER -> R.string.profile_source_user
+                    ControllerProfile.Source.SEED -> R.string.profile_source_seed
+                    else -> R.string.profile_source_none
+                },
+            ),
+        )
 
         scopeList.removeAllViews()
         addScopeButton(null, getString(R.string.all_engines))

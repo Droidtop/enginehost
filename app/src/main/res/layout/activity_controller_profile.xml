@@ -36,88 +36,59 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:text="@string/controller_settings"
+                android:text="@string/controller_profile"
                 android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
         </LinearLayout>
 
         <TextView
-            android:id="@+id/connectedControllers"
+            android:id="@+id/profileDevice"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_xs"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-
-        <Button
-            android:id="@+id/hotkeyButton"
-            style="@style/Widget.Enginehost.Button"
+        <TextView
+            android:id="@+id/profileState"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s" />
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
         <TextView
+            android:id="@+id/profileHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/host_menu_hotkey_hint"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-        <Button
-            android:id="@+id/profileButton"
-            style="@style/Widget.Enginehost.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_l"
-            android:text="@string/applies_to"
-            android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
-
-        <LinearLayout
-            android:id="@+id/scopeList"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
-        <TextView
-            android:id="@+id/scopeHint"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_m"
+            android:layout_marginTop="@dimen/eh_space_s"
             android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
         <Button
-            android:id="@+id/bypassButton"
+            android:id="@+id/captureButton"
             style="@style/Widget.Enginehost.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/unbindButton"
-            style="@style/Widget.Enginehost.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:visibility="gone" />
-
-        <LinearLayout
-            android:id="@+id/bindingList"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:orientation="vertical" />
-
-        <Button
-            android:id="@+id/resetButton"
-            style="@style/Widget.Enginehost.Button.Danger"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_m" />
+
+        <Button
+            android:id="@+id/clearButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s" />
+
+        <Button
+            android:id="@+id/bypassProfileButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s" />
+
+        <LinearLayout
+            android:id="@+id/profileList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:orientation="vertical" />
 
     </LinearLayout>
 </ScrollView>

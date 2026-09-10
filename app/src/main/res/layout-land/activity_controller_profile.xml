@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape controller settings. Scope selection is short and the binding
-    list is long, so the scopes become a fixed sidebar and the bindings get
-    their own scrolling column beside them instead of being pushed off the
-    bottom of the screen.
+    Landscape controller profile. The wizard prompt and the buttons that
+    drive it belong together on the left; the list of what this pad sends
+    is long and gets its own scrolling column, so a capture in progress
+    never pushes the next prompt off the bottom of the screen.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -36,11 +36,11 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/controller_settings"
+            android:text="@string/controller_profile"
             android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
         <TextView
-            android:id="@+id/connectedControllers"
+            android:id="@+id/profileDevice"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -71,93 +71,57 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/profileState"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/applies_to"
-                    android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+                    android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
-                <LinearLayout
-                    android:id="@+id/scopeList"
+                <TextView
+                    android:id="@+id/profileHint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
                 <Button
-                    android:id="@+id/resetButton"
-                    style="@style/Widget.Enginehost.Button.Danger"
+                    android:id="@+id/captureButton"
+                    style="@style/Widget.Enginehost.Button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_m" />
+
+                <Button
+                    android:id="@+id/clearButton"
+                    style="@style/Widget.Enginehost.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs" />
+
+                <Button
+                    android:id="@+id/bypassProfileButton"
+                    style="@style/Widget.Enginehost.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs" />
 
             </LinearLayout>
 
         </ScrollView>
 
-        <LinearLayout
+        <ScrollView
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="2"
+            android:layout_weight="1"
             android:layout_marginStart="@dimen/eh_column_gap"
-            android:orientation="vertical">
+            android:scrollbars="none">
 
-
-            <Button
-                android:id="@+id/hotkeyButton"
-                style="@style/Widget.Enginehost.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <TextView
+            <LinearLayout
+                android:id="@+id/profileList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/host_menu_hotkey_hint"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                android:orientation="vertical" />
 
-            <Button
-                android:id="@+id/profileButton"
-                style="@style/Widget.Enginehost.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/eh_space_s" />
-
-            <TextView
-                android:id="@+id/scopeHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Enginehost.Body" />
-
-            <Button
-                android:id="@+id/bypassButton"
-                style="@style/Widget.Enginehost.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:visibility="gone" />
-
-            <Button
-                android:id="@+id/unbindButton"
-                style="@style/Widget.Enginehost.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:visibility="gone" />
-
-            <ScrollView
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/bindingList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-
-            </ScrollView>
-
-        </LinearLayout>
+        </ScrollView>
 
     </LinearLayout>
 
