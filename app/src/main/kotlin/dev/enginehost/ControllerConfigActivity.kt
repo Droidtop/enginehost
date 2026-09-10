@@ -19,6 +19,7 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
     private lateinit var scopeList: LinearLayout
     private lateinit var scopeHint: TextView
     private lateinit var bindingList: LinearLayout
+    private lateinit var bypassButton: Button
     private lateinit var unbindButton: Button
     private lateinit var resetButton: Button
     private lateinit var store: ControllerBindingStore
@@ -26,27 +27,45 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
 
     /** null = the global map every engine inherits from. */
     private var scope: String? = null
-    private val installedEngines: List<String> by lazy {
+
+    /**
+     * The scopes worth offering: one per compatibility line an installed
+     * bundle serves, because RPG Maker's three runtimes are three engines
+     * with three different action sets. Configuring an engine nobody has
+     * is configuration that cannot apply to anything.
+     */
+    private val installedScopes: List<Pair<String, String>> by lazy {
         runCatching {
-            PluginRegistry.discover(this).map { it.info.engine }.distinct().sorted()
+            PluginRegistry.discover(this).flatMap { manifest ->
+                manifest.info.capabilities.mapNotNull { capability ->
+                    val engine = manifest.info.engineOf(capability)
+                    ControllerScope.of(engine, capability.engineContext)
+                        ?.let { it to EngineNames.line(engine, capability.engineContext) }
+                }
+            }.distinct().sortedBy { it.second }
         }.getOrDefault(emptyList())
     }
 
     /**
-     * Engines whose bundles all handle controllers themselves. Remapping
-     * here does not reach them, and saying so is the difference between
-     * a documented boundary and an apparent bug.
+     * Scopes whose bundles all handle controllers themselves and offer no
+     * bypass toggle of their own. Remapping here does not reach them, and
+     * saying so is the difference between a documented boundary and an
+     * apparent bug.
      */
-    private val nativeInputEngines: Set<String> by lazy {
+    private val nativeInputScopes: Set<String> by lazy {
         runCatching {
-            PluginRegistry.discover(this)
-                .groupBy { it.info.engine }
-                .filterValues { plugins ->
-                    plugins.all { plugin ->
-                        plugin.info.capabilities.all { it.controllerInput == ControllerInput.NATIVE }
-                    }
+            PluginRegistry.discover(this).flatMap { manifest ->
+                manifest.info.capabilities.mapNotNull { capability ->
+                    val engine = manifest.info.engineOf(capability)
+                    ControllerScope.of(engine, capability.engineContext)
+                        ?.let { it to (capability.controllerInput == ControllerInput.NATIVE) }
                 }
+            }
+                .groupBy({ it.first }, { it.second })
+                .filterValues { native -> native.all { it } }
                 .keys
+                .filterNot(ControllerActions::offersBypass)
+                .toSet()
         }.getOrDefault(emptySet())
     }
 
@@ -60,6 +79,12 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         scopeList = findViewById(R.id.scopeList)
         scopeHint = findViewById(R.id.scopeHint)
         bindingList = findViewById(R.id.bindingList)
+        bypassButton = findViewById(R.id.bypassButton)
+        bypassButton.setOnClickListener {
+            store.setBypass(!store.isBypassed())
+            capturing = null
+            render()
+        }
         unbindButton = findViewById(R.id.unbindButton)
         unbindButton.setOnClickListener {
             capturing?.let { store.set(it, ControllerBinding.None) }
@@ -91,12 +116,19 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
             getString(R.string.connected_controllers, controllers.joinToString { it.name })
         }
 
-        // Scope selector. Only families that are actually installed are
-        // offered; configuring an engine nobody has is configuration
-        // that cannot apply to anything.
         scopeList.removeAllViews()
         addScopeButton(null, getString(R.string.all_engines))
-        installedEngines.forEach { engine -> addScopeButton(engine, engine) }
+        installedScopes.forEach { (id, label) -> addScopeButton(id, label) }
+
+        // A bypassed engine reads the pad itself: the host sends it no map
+        // at all, so the rows below are shown as what they would be rather
+        // than as what is in force, and are not editable until the toggle
+        // is off. That is the whole contract in one control.
+        val offersBypass = ControllerActions.offersBypass(scope)
+        val bypassed = offersBypass && store.isBypassed()
+        bypassButton.visibility = if (offersBypass) View.VISIBLE else View.GONE
+        bypassButton.text =
+            getString(if (bypassed) R.string.bypass_on else R.string.bypass_off)
 
         // While a capture is open the hint asks for the input, and the
         // button beside it is how "nothing" is said: the same visible
@@ -105,25 +137,27 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         // inherit again, not unbind.
         val target = capturing
         unbindButton.visibility = if (target == null) View.GONE else View.VISIBLE
-        target?.let { unbindButton.text = getString(R.string.unbind_action, ControllerActions.title(it, scope)) }
-        scopeHint.text = target?.let { getString(R.string.capture_prompt, ControllerActions.title(it, scope)) }
+        target?.let { unbindButton.text = getString(R.string.unbind_action, it.title) }
+        scopeHint.text = target?.let { getString(R.string.capture_prompt, it.title) }
             ?: when {
                 scope == null -> getString(R.string.global_map_hint)
-                scope in nativeInputEngines -> getString(R.string.native_engine_hint, scope)
+                bypassed -> getString(R.string.bypass_hint, scope)
+                scope in nativeInputScopes -> getString(R.string.native_engine_hint, scope)
                 else -> getString(R.string.scoped_hint, scope)
             }
 
         bindingList.removeAllViews()
-        ControllerActions.all.forEach { action ->
+        store.actions().forEach { action ->
             val overridden = store.isOverridden(action)
             val button = layoutInflater.inflate(R.layout.item_action_button, bindingList, false) as Button
             // An inherited binding is marked, so it is obvious which
             // values belong to this engine and which are borrowed.
             val label = store.get(action).label(this)
             button.text = buildString {
-                append(getString(R.string.binding_row, ControllerActions.title(action, scope), label))
+                append(getString(R.string.binding_row, action.title, label))
                 if (scope != null && !overridden) append("  ").append(getString(R.string.marker_inherited))
             }
+            button.isEnabled = !bypassed
             button.setOnClickListener { capturing = action; render() }
             button.setOnLongClickListener {
                 if (scope != null && overridden) {
@@ -144,7 +178,7 @@ class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceLi
         val button = layoutInflater.inflate(R.layout.item_action_button, scopeList, false) as Button
         button.text = buildString {
             append(label)
-            if (engine != null && engine in nativeInputEngines) {
+            if (engine != null && engine in nativeInputScopes) {
                 append("  ").append(getString(R.string.marker_native))
             }
             if (scope == engine) append("  ").append(getString(R.string.marker_editing))

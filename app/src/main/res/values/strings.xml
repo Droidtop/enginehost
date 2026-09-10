@@ -157,6 +157,9 @@
     <string name="binding_row">%1$s: %2$s</string>
     <string name="binding_unbound">Unbound</string>
     <string name="unbind_action">Unbind %1$s</string>
+    <string name="bypass_on">Bypass controller mappings: ON</string>
+    <string name="bypass_off">Bypass controller mappings: OFF</string>
+    <string name="bypass_hint">%1$s handles the controller itself while bypass is on, and gets no map from here. Turn bypass off to use these bindings.</string>
     <string name="reset_all">Reset all</string>
     <string name="reset_scope">Reset %1$s</string>
 
