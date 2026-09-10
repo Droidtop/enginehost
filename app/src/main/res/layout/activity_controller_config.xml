@@ -68,6 +68,14 @@
             android:layout_marginTop="@dimen/eh_space_m"
             android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
+        <Button
+            android:id="@+id/unbindButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/bindingList"
             android:layout_width="match_parent"

@@ -242,9 +242,26 @@ controller settings. A plugin never hardcodes what a pad button does.
 Plugin-api plugins receive the mapped actions through `onControllerEvent`.
 Plugins on the android-activity transport receive the resolved map as the
 `dev.enginehost.runtime.CONTROLLER_BINDINGS` extra, a JSON object from action
-id to binding, `{"type":"key","code":<KeyEvent code>}` or
-`{"type":"axis","axis":<MotionEvent axis>,"direction":-1|0|1}`. Such a plugin
-matches incoming pad events against that map and translates each action into
-whatever its engine understands (a keyboard key, an engine input, a touch);
-the translation from action to engine input is the plugin's, the choice of
-button is the person's.
+id to binding, one of
+
+- `{"type":"key","code":<KeyEvent code>}`
+- `{"type":"axis","axis":<MotionEvent axis>,"direction":-1|0|1}`
+- `{"type":"none"}`
+
+Such a plugin matches incoming pad events against that map and translates each
+action into whatever its engine understands (a keyboard key, an engine input, a
+touch); the translation from action to engine input is the plugin's, the choice
+of button is the person's.
+
+A digital action bound to an axis with direction `-1` or `+1` fires when that
+axis crosses the plugin's threshold in that sign and releases when it comes
+back, so the four directions can live on a stick or on the hat
+(`AXIS_HAT_X`/`AXIS_HAT_Y`) as easily as on the d-pad's keys. Direction `0` is
+an analogue binding: the axis is read whole, as the stick axes are.
+
+`{"type":"none"}` means the action is bound to nothing, and it is a binding
+like any other rather than a missing entry -- every action appears in the map
+whatever its binding. A plugin treats a `none` action as an input the person
+will never send: an engine feature driven entirely by such actions (KiriKiri's
+pointer emulation on `left_x`/`left_y`, say) is off, and nothing raw is read in
+its place.
