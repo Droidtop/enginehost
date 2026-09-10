@@ -160,8 +160,24 @@
     <string name="bypass_on">Bypass controller mappings: ON</string>
     <string name="bypass_off">Bypass controller mappings: OFF</string>
     <string name="bypass_hint">%1$s handles the controller itself while bypass is on, and gets no map from here. Turn bypass off to use these bindings.</string>
+    <string name="host_menu_hotkey">Host menu shortcut: %1$s</string>
+    <string name="host_menu_hotkey_prompt">Hold the buttons you want, together, then let go. Pressed so far: %1$s</string>
+    <string name="host_menu_hotkey_nothing">nothing yet</string>
+    <string name="host_menu_hotkey_default">Use the default shortcut</string>
+    <string name="host_menu_hotkey_hint">Press this during a game to open Enginehost\'s menu. It works in every engine, whether bypass is on or off.</string>
     <string name="reset_all">Reset all</string>
     <string name="reset_scope">Reset %1$s</string>
+
+    <!-- The in-game host menu -->
+    <string name="host_menu_title">Enginehost</string>
+    <string name="host_menu_resume">Resume</string>
+    <string name="host_menu_controller">Controller settings</string>
+    <string name="host_menu_save_location">Save location</string>
+    <string name="host_menu_legend">Controls</string>
+    <string name="host_menu_quit">Quit to Enginehost</string>
+    <string name="host_menu_back">Back</string>
+    <string name="host_menu_legend_bypassed">This engine reads the pad itself while bypass is on. Below is the map it would use with bypass off.</string>
+    <string name="host_menu_save_unknown">This session did not name a save folder.</string>
 
     <!-- Game setup (config editor) -->
     <string name="config_title">Game setup</string>

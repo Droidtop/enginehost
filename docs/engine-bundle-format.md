@@ -264,6 +264,21 @@ paired with an older plugin sends actions the plugin drops.
 Every action ships with a real default binding. `{"type":"none"}` is something
 a person chooses, never something Enginehost hands them.
 
+### The host menu shortcut is reserved
+
+One button combination never reaches an engine: the host menu shortcut, Select
++ Start out of the box and changeable by the person in Settings, Controller.
+Enginehost sees every pad event before the engine does, in both plugin shapes,
+and takes that combination for its own in-game menu. This is not something a
+plugin opts into or can refuse, and it holds whether or not bypass is on.
+
+What a plugin sees: the press that completes the combination never arrives, nor
+does anything done with those buttons until they are all released. If one of
+them had already been pressed and delivered before the combination completed,
+the host sends that button's release, so a plugin is never left holding a
+button down. No plugin code changes; a plugin that binds Select or Start simply
+finds that pressing both together belongs to the host.
+
 ### Engines that handle the controller themselves
 
 Ren'Py, Godot and EasyRPG have controller support of their own worth using, so

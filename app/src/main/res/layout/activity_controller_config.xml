@@ -48,6 +48,20 @@
             android:layout_marginTop="@dimen/eh_space_xs"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
+
+        <Button
+            android:id="@+id/hotkeyButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/host_menu_hotkey_hint"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
