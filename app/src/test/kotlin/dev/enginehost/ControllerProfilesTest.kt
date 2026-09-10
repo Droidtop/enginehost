@@ -89,14 +89,35 @@ class ControllerProfilesTest {
     }
 
     @Test
-    fun `the Retroid pad's own name is not in the shipped database`() {
-        // The console's pad reports as "Retroid Pocket Controller". The
-        // database has three entries called "Retroid Pocket" that disagree
-        // with each other about which button is A, and no entry under the
-        // name this pad actually reports. Nothing is invented for it: with
-        // no name match it gets no seed, which is Android's own mapping,
-        // which is what it had before any of this existed.
+    fun `the Retroid pad is written down, by name and by USB identity`() {
+        // Read on the console from /proc/bus/input/devices and getevent -pl:
+        // bus 0003, vendor 0x2022, product 0x3001, "Retroid Pocket Controller".
+        val pad = KnownControllers.of("Retroid Pocket Controller", 0x2022, 0x3001)
+        assertEquals(KnownControllers.RETROID_POCKET, pad)
+        assertEquals("Retroid Pocket Controller", pad?.name)
+        // Its capability lists cover every standard control: the four face
+        // buttons, both shoulders and both triggers, Select, Start and Mode,
+        // both stick clicks, the d-pad, and the two sticks.
+        assertEquals(StandardControl.entries.toSet(), pad?.controls)
+    }
+
+    @Test
+    fun `a pad is known only when the name and the USB identity both match`() {
+        // The name alone is what the SDL database gets wrong about this pad:
+        // it carries three "Retroid Pocket" entries that disagree about which
+        // button is A, and none under the name this one reports.
+        assertNull(KnownControllers.of("Retroid Pocket", 0x2022, 0x3001))
+        assertNull(KnownControllers.of("Retroid Pocket Controller", 0x2022, 0x3002))
         assertTrue(entries().none { it.name.equals("Retroid Pocket Controller", ignoreCase = true) })
+    }
+
+    @Test
+    fun `being known corrects nothing on its own`() {
+        // Android already reports this pad correctly, so its entry is
+        // identity and labels; a correction would have to come from the
+        // seed database or from a profile the person captured.
+        assertTrue(KnownControllers.entries.isNotEmpty())
+        assertTrue(ControllerProfile.NONE.isEmpty())
     }
 
     @Test

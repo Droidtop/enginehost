@@ -168,6 +168,8 @@
     <string name="controller_profile">Controller profile</string>
     <string name="profile_button">Controller profile: %1$s</string>
     <string name="profile_device">%1$s (%2$s)</string>
+    <string name="profile_device_known">%1$s — %2$s (%3$s)</string>
+    <string name="profile_state_known">Android\'s own mapping, which is the right one for the %1$s. Nothing is being corrected.</string>
     <string name="profile_state_none">Android\'s own mapping. Nothing is being corrected, which is what most pads want.</string>
     <string name="profile_state_seed">Corrected from the bundled controller database.</string>
     <string name="profile_state_user">Corrected by the profile you captured on this device.</string>

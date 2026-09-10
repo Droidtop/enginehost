@@ -37,6 +37,14 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
     private var step: Int? = null
     private val captured = mutableMapOf<StandardControl, Int>()
 
+    /**
+     * What the wizard asks for, settled when it starts: [WIZARD] for a pad
+     * nobody has written down, and only the controls it has for a pad
+     * somebody has. Asking a person to press a button their pad does not
+     * have is a question with no answer.
+     */
+    private var wizard: List<StandardControl> = WIZARD
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = getString(R.string.controller_profile)
@@ -82,9 +90,12 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
 
     private fun render() {
         val device = device()
-        profileDevice.text = device?.let {
-            getString(R.string.profile_device, it.name, it.descriptor)
-        } ?: getString(R.string.no_controller)
+        val known = device?.let(KnownControllers::forDevice)
+        profileDevice.text = when {
+            device == null -> getString(R.string.no_controller)
+            known != null -> getString(R.string.profile_device_known, known.model, device.name, device.descriptor)
+            else -> getString(R.string.profile_device, device.name, device.descriptor)
+        }
 
         val running = step != null
         val profile = device?.let(store::forDevice) ?: ControllerProfile.NONE
@@ -92,6 +103,7 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
             device == null -> getString(R.string.profile_state_no_device)
             profile.source == ControllerProfile.Source.USER -> getString(R.string.profile_state_user)
             profile.source == ControllerProfile.Source.SEED -> getString(R.string.profile_state_seed)
+            known != null -> getString(R.string.profile_state_known, known.model)
             else -> getString(R.string.profile_state_none)
         }
 
@@ -105,7 +117,7 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
         )
         bypassProfileButton.visibility = if (running) View.GONE else View.VISIBLE
 
-        val waiting = step?.let { WIZARD.getOrNull(it) }
+        val waiting = step?.let { wizard.getOrNull(it) }
         profileHint.text = when {
             waiting != null -> getString(R.string.profile_press, waiting.title)
             device == null -> getString(R.string.profile_hint_no_device)
@@ -129,7 +141,7 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
     private fun rows(device: InputDevice?, profile: ControllerProfile): List<String> {
         if (device == null) return emptyList()
         if (step != null) {
-            return WIZARD.take(step ?: 0).map { control ->
+            return wizard.take(step ?: 0).map { control ->
                 val physical = captured[control]
                 getString(
                     R.string.binding_row,
@@ -163,6 +175,9 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
 
     private fun startWizard() {
         captured.clear()
+        wizard = device()?.let(KnownControllers::forDevice)
+            ?.let { known -> WIZARD.filter { it in known.controls } }
+            ?: WIZARD
         step = 0
         render()
     }
@@ -189,7 +204,7 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
      * on one physical control is not a pad anyone has.
      */
     private fun record(physical: Int) {
-        val control = step?.let { WIZARD.getOrNull(it) } ?: return
+        val control = step?.let { wizard.getOrNull(it) } ?: return
         captured.filterValues { it == physical }.keys.filter { it != control }.forEach(captured::remove)
         captured[control] = physical
         advance()
@@ -197,7 +212,7 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
 
     private fun advance() {
         val next = (step ?: return) + 1
-        if (next < WIZARD.size) {
+        if (next < wizard.size) {
             step = next
             render()
             return
@@ -227,7 +242,7 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val control = step?.let { WIZARD.getOrNull(it) }
+        val control = step?.let { wizard.getOrNull(it) }
         if (control?.key != null && event.action == KeyEvent.ACTION_DOWN &&
             event.repeatCount == 0 && event.isControllerInput()
         ) {
@@ -238,7 +253,7 @@ class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceL
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        val control = step?.let { WIZARD.getOrNull(it) }
+        val control = step?.let { wizard.getOrNull(it) }
         if (control?.axis != null && event.isControllerInput()) {
             val range = InputDevice.getDevice(event.deviceId)?.motionRanges.orEmpty()
                 .filter { (it.source and InputDevice.SOURCE_CLASS_JOYSTICK) == InputDevice.SOURCE_CLASS_JOYSTICK }
