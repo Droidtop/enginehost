@@ -7,8 +7,6 @@ import android.provider.DocumentsContract
 import org.json.JSONObject
 import java.io.File
 import java.io.RandomAccessFile
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.ArrayDeque
 
 /**
@@ -397,7 +395,10 @@ object EngineBuiltinProbes {
  */
 object EngineRegistryStore {
     private const val DB_FILE_NAME = "engines-database.json"
-    const val DEFAULT_URL = "https://raw.githubusercontent.com/droidtop/droidtop-platforms/main/$DB_FILE_NAME"
+
+    /** The platform repository, one base for the index and every file under it. */
+    const val DEFAULT_BASE_URL = "https://raw.githubusercontent.com/droidtop/droidtop-platforms/main"
+    const val DEFAULT_URL = "$DEFAULT_BASE_URL/$DB_FILE_NAME"
 
     @Volatile
     private var cached: List<EngineRow>? = null
@@ -421,26 +422,26 @@ object EngineRegistryStore {
         }
     }
 
-    /** Fetch + validate + atomically replace. Returns the row count; throws with a readable message on any failure. */
-    fun update(context: Context, url: String = DEFAULT_URL): Int {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 30_000
-        val text = try {
-            check(connection.responseCode == 200) { "HTTP ${connection.responseCode} from $url" }
-            connection.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            connection.disconnect()
-        }
+    /**
+     * Fetch + validate + atomically replace. Returns the row count; throws
+     * with a readable message on any failure.
+     *
+     * The index is the preferred path -- one small document, then only the
+     * engine files whose hash changed ([PlatformIndex]). A source with no
+     * index (an older platform-repo commit, a fork that publishes only the
+     * monolithic file) falls back to the whole file, which is what this did
+     * before the repository became a tree.
+     */
+    fun update(context: Context, baseUrl: String = DEFAULT_BASE_URL): Int {
+        val composed = runCatching { PlatformIndex.composeEngines(context, baseUrl) }.getOrNull()
+        return install(context, composed ?: Transport.get(baseUrl + "/" + DB_FILE_NAME))
+    }
+
+    /** Validates [text] as a real registry and only then replaces the current copy. */
+    fun install(context: Context, text: String): Int {
         val parsed = EngineRegistryParser.parse(text)
         check(parsed.any { it.detect.isNotEmpty() }) { "Downloaded registry carries no detection rules" }
-
-        val dest = File(context.filesDir, DB_FILE_NAME)
-        val temp = File(context.filesDir, "$DB_FILE_NAME.downloading")
-        temp.writeText(text)
-        check(temp.renameTo(dest) || run { dest.delete(); temp.renameTo(dest) }) {
-            "Couldn't move the downloaded registry into place"
-        }
+        Transport.write(File(context.filesDir, DB_FILE_NAME), text)
         cached = null
         return parsed.size
     }
