@@ -233,11 +233,49 @@ so there is one mechanism, not two.
 
 ## Controller input for android-activity plugins
 
-Enginehost owns the controller map: one set of actions (`up`, `down`, `left`,
-`right`, `confirm`, `cancel`, `menu`, `skip`, `auto`, `history`, `quick_save`,
-`quick_load`, `page_previous`, `page_next`, the stick axes and triggers), a
-global binding for each, and per-engine overrides, all edited in Enginehost's
+Enginehost owns the controller map: a set of actions per engine, a global
+binding for each, and per-engine overrides, all edited in Enginehost's
 controller settings. A plugin never hardcodes what a pad button does.
+
+The action ids are the engine's own, in the engine's own vocabulary, because
+that is what a plugin has to translate and what a person has to recognise:
+`rgss_c` and `rgss_b` for RPG Maker XP/VX/VX Ace, `easyrpg_decision` and
+`easyrpg_shift` for 2000/2003, `mvmz_ok` and `mvmz_pageup` for MV/MZ, Ren'Py's
+`pad_a` and `pad_leftx`, Godot's `joy_a` and `joy_axis_left_x`, CatSystem2's
+`cs2_skip_mode` and `cs2_message_log`. An engine with no input model of its own
+(KiriKiri, Buriko, CMVS, Flash, HTML) takes the shared fallback set: `up`,
+`down`, `left`, `right`, `confirm`, `cancel`, `menu`, `skip`, `auto`,
+`history`, `quick_save`, `quick_load`, `page_previous`, `page_next`, the stick
+axes and the triggers.
+
+The set is chosen by engine family, except that `rpgmaker` names three
+unrelated runtimes, so its sets are chosen by family and context together:
+`rpgmaker/xp`, `rpgmaker/vx`, `rpgmaker/vxace` are RGSS; `rpgmaker/2000` and
+`rpgmaker/2003` are EasyRPG; `rpgmaker/mv` and `rpgmaker/mz` are the web
+runtime.
+
+Because the ids differ per engine, a plugin and a host may disagree about the
+set without either being broken, and both directions degrade the same way: an
+id a plugin does not know is ignored, and an id a plugin expects but does not
+receive is read exactly as `{"type":"none"}`. So an older host paired with a
+newer plugin loses the new actions rather than misfiring them, and a newer host
+paired with an older plugin sends actions the plugin drops.
+
+Every action ships with a real default binding. `{"type":"none"}` is something
+a person chooses, never something Enginehost hands them.
+
+### Engines that handle the controller themselves
+
+Ren'Py, Godot and EasyRPG have controller support of their own worth using, so
+their scopes carry a **Bypass controller mappings** toggle, on by default.
+While it is on the runtime intent carries **no** `CONTROLLER_BINDINGS` extra at
+all: the absence of the extra is the contract, and a plugin that finds no map
+behaves exactly as it does on an older host that never sent one. Their default
+maps are the engine's own defaults, so turning bypass off changes nothing until
+the person actually remaps something.
+
+A plugin never needs to read the toggle: it reads the extra, or finds it
+missing.
 
 Plugin-api plugins receive the mapped actions through `onControllerEvent`.
 Plugins on the android-activity transport receive the resolved map as the
