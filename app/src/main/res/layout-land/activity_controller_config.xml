@@ -106,6 +106,14 @@
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/TextAppearance.Enginehost.Body" />
 
+            <Button
+                android:id="@+id/unbindButton"
+                style="@style/Widget.Enginehost.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:visibility="gone" />
+
             <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
