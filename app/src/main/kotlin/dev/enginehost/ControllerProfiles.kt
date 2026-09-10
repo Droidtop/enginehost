@@ -52,6 +52,78 @@ enum class StandardControl(
 }
 
 /**
+ * A pad whose identity has been read off the hardware, so the host can say
+ * what it is and which controls it has instead of inferring both from a
+ * name.
+ *
+ * Identity and labels, nothing else. Corrections still come from
+ * [ControllerProfileStore], and a pad Android already reports correctly has
+ * none -- being known is not a reason to correct anything.
+ */
+data class KnownController(
+    /** Exactly what Android reports as the device name. */
+    val name: String,
+    val vendorId: Int,
+    val productId: Int,
+    /** What a person calls it. */
+    val model: String,
+    /** The standard controls this pad physically has. */
+    val controls: Set<StandardControl>,
+)
+
+/** The pads whose identity is written down here. */
+object KnownControllers {
+    /**
+     * The Retroid Pocket 5's built-in pad, read on the console on
+     * 2026-09-10 from `/proc/bus/input/devices` and `getevent -pl`: bus
+     * 0003 (USB), vendor 0x2022, product 0x3001, version 0000, name
+     * "Retroid Pocket Controller", on `event9`.
+     *
+     * Keys: `BTN_SOUTH`/`EAST`/`NORTH`/`WEST`, `BTN_TL`/`TR`/`TL2`/`TR2`,
+     * `BTN_SELECT`/`START`/`MODE`, `BTN_THUMBL`/`THUMBR` and the four
+     * `BTN_DPAD_*`. Axes: `ABS_X`/`Y` and `ABS_Z`/`RZ` (the two sticks,
+     * -32767..32767, flat 15), `ABS_GAS` and `ABS_BRAKE` (the analogue
+     * triggers, 0..32767) and `ABS_HAT0X`/`Y` -- the d-pad reports the hat
+     * *and* the keys. It also has `BTN_C` and `BTN_Z`, which are no
+     * standard control, and `KEY_HOME`, `KEY_BACK`, `KEY_VOLUMEUP`/`DOWN`
+     * and `KEY_APPSELECT`, which are the platform's rather than the pad's.
+     *
+     * So it has all 21 standard controls, and Android already reports every
+     * one of them correctly: nothing is corrected for this pad, and nothing
+     * here claims which Android axis its triggers arrive on, because that
+     * was not read and no correction depends on it.
+     *
+     * The SDL database's three "Retroid Pocket" entries are some other pad
+     * wearing part of the same name: they disagree with each other about
+     * which button is A, and none of them carries the name this one
+     * reports.
+     */
+    val RETROID_POCKET = KnownController(
+        name = "Retroid Pocket Controller",
+        vendorId = 0x2022,
+        productId = 0x3001,
+        model = "Retroid Pocket controller",
+        controls = StandardControl.entries.toSet(),
+    )
+
+    val entries: List<KnownController> = listOf(RETROID_POCKET)
+
+    /**
+     * The pad with this identity, or null. Name and USB identity together:
+     * a name alone is what the SDL database gets wrong about this very pad,
+     * and a vendor and product alone would claim every firmware revision
+     * that ever shipped under them.
+     */
+    fun of(name: String, vendorId: Int, productId: Int): KnownController? = entries.firstOrNull {
+        it.name.equals(name.trim(), ignoreCase = true) &&
+            it.vendorId == vendorId && it.productId == productId
+    }
+
+    fun forDevice(device: InputDevice): KnownController? =
+        of(device.name, device.vendorId, device.productId)
+}
+
+/**
  * One physical pad's corrections: which key code this pad sends where a
  * behaving pad would send another, and the same for axes.
  *
