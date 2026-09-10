@@ -83,9 +83,9 @@ object ControllerScope {
  * RGSS's `Input` symbols for RPG Maker XP/VX/VX Ace, EasyRPG's button enum
  * for 2000/2003, `Input.gamepadMapper`'s names for MV/MZ, Ren'Py's pad
  * events, Godot's `JoyButton`/`JoyAxis`, CatSystem2's `startup.xml` action
- * names. Engines with no input model of their own (KiriKiri, Buriko, CMVS,
- * Flash, HTML) take [common], where the names are ours because nobody
- * else's exist.
+ * names, CMVS's `KEY_FUNCTION` table. Engines with no input model of their
+ * own (KiriKiri, Buriko, Flash, HTML) take [common], where the names are
+ * ours because nobody else's exist.
  *
  * A set is one list and one lookup: the title of an action is the action's
  * title and the default of an action is the action's default, so there is
@@ -391,12 +391,84 @@ object ControllerActions {
     )
 
     /**
+     * CMVS's own 24 key functions, read out of the running `cmvsConfig32.exe`
+     * and the engine's `key.cfg` loader (agents/cmvs/KEY-FUNCTIONS.md). The
+     * defaults are the engine's own FACTORY bank, `[KEY_FUNCTION_51..74]` --
+     * the map the original proposes when its config tool restores defaults --
+     * so nothing here is our invention and no action ships bound to nothing.
+     *
+     * Every button this host already had keeps its place: A confirms, B
+     * cancels, Start opens the popup menu, X skips, Y auto-advances, Select
+     * opens the backlog, L1/R1 quick save and load, L2/R2 scroll the backlog,
+     * the hat moves the cursor and the left stick does what it did.
+     *
+     * Four of the twenty-four are not offered, each for a reason of the
+     * engine's own:
+     *
+     * - **09 既読スキップ read-text skip** is not offered, and 08 強制スキップ
+     *   is what X is titled for. Read-skip needs the engine to know which
+     *   text has been read; our CMVS engine keeps no read flags
+     *   (`enginehost-cmvs-plugin/src`, nothing reads or writes them), so 09
+     *   could only ever behave as 08 -- two rows for one behaviour.
+     * - **22 Outerの中央移動** re-centres the game's desktop window. There is
+     *   no desktop window on this console to re-centre, and window and
+     *   session concerns are the host menu's, not a game action.
+     * - **23/24 メニュー増減アップ/ダウン** are the same input as 03/04 in a
+     *   value context: the engine's own factory map binds all four to Up and
+     *   Down. They fold into [cmvs_cursor_up]/[cmvs_cursor_down] rather than
+     *   becoming rows of their own -- the engine tells the two apart by
+     *   context, not by input.
+     */
+    private val cmvs: List<ControllerAction> = listOf(
+        // 03..06, the cursor, on the hat: the engine's own Up/Down/Left/Right.
+        key("cmvs_cursor_up", "Cursor Up", KeyEvent.KEYCODE_DPAD_UP),
+        key("cmvs_cursor_down", "Cursor Down", KeyEvent.KEYCODE_DPAD_DOWN),
+        key("cmvs_cursor_left", "Cursor Left", KeyEvent.KEYCODE_DPAD_LEFT),
+        key("cmvs_cursor_right", "Cursor Right", KeyEvent.KEYCODE_DPAD_RIGHT),
+        // 01 and 02, whose factory defaults are already pad button 1 and 2.
+        key("cmvs_confirm", "Confirm", KeyEvent.KEYCODE_BUTTON_A),
+        key("cmvs_cancel", "Cancel", KeyEvent.KEYCODE_BUTTON_B),
+        key("cmvs_popup_menu", "Popup Menu", KeyEvent.KEYCODE_BUTTON_START),
+        key("cmvs_forced_skip", "Forced Skip (hold)", KeyEvent.KEYCODE_BUTTON_X),
+        key("cmvs_auto_advance", "Auto Advance", KeyEvent.KEYCODE_BUTTON_Y),
+        key("cmvs_history_mode", "History Mode", KeyEvent.KEYCODE_BUTTON_SELECT),
+        key("cmvs_quick_save", "Quick Save", KeyEvent.KEYCODE_BUTTON_L1),
+        key("cmvs_quick_load", "Quick Load", KeyEvent.KEYCODE_BUTTON_R1),
+        key("cmvs_history_up", "History Up", KeyEvent.KEYCODE_BUTTON_L2),
+        key("cmvs_history_down", "History Down", KeyEvent.KEYCODE_BUTTON_R2),
+        // 12: the engine's factory binding is the middle mouse button -- a
+        // click with no direction and no keyboard key of its own. A stick
+        // click is the pad's one equivalent spare click.
+        key("cmvs_replay_voice", "Replay Voice", KeyEvent.KEYCODE_BUTTON_THUMBL),
+        // 07: the "look at the picture" press, which wants a button that is
+        // never in the way of reading. CatSystem2's set puts its own
+        // hide-window slot on the same control, so the two VNs agree.
+        key("cmvs_hide_message_window", "Hide Message Window", KeyEvent.KEYCODE_BUTTON_THUMBR),
+        // 19 and 20: a pair in the engine (factory F3 and F4), so they take
+        // the one symmetric pair of controls left, directly under the L1/R1
+        // quick slots they are the full-screen form of.
+        axis("cmvs_save_screen", "Save Screen", MotionEvent.AXIS_LTRIGGER, 1),
+        axis("cmvs_load_screen", "Load Screen", MotionEvent.AXIS_RTRIGGER, 1),
+        // 18: the last function with no pad home of its own (factory F5). It
+        // takes the free half of the right stick, beside the popup menu that
+        // is the other way into it.
+        axis("cmvs_config_screen", "Config Screen", MotionEvent.AXIS_RZ, -1),
+        // 21: the engine binds it to the wheel's DOWN direction and nothing
+        // else, and the right stick is where a wheel lives on a pad.
+        axis("cmvs_extended_advance", "Extended Message Advance", MotionEvent.AXIS_RZ, 1),
+        // The left stick is the analogue form of 03..06: the engine derives
+        // its own joypad direction codes 8..11 from DIJOYSTATE's lX and lY
+        // past a deadzone, and its factory map gives every cursor function
+        // that pad direction as a second binding.
+        axis("left_x", "Cursor horizontal (stick)", MotionEvent.AXIS_X),
+        axis("left_y", "Cursor vertical (stick)", MotionEvent.AXIS_Y),
+    )
+
+    /**
      * The engines with a set of their own. Everything absent here takes
      * [common]: KiriKiri's neighbours Buriko, Flash and HTML have no input
-     * model to borrow names from, and CMVS's 24 `key.cfg` functions have
-     * no names in the engine yet -- naming them is the CMVS owner's
-     * reverse-engineering work, and inventing names for them here would be
-     * fabrication.
+     * model to borrow names from, so the names there are ours because
+     * nobody else's exist.
      */
     private val sets: Map<String, List<ControllerAction>> = mapOf(
         "renpy" to renpy,
@@ -404,6 +476,7 @@ object ControllerActions {
         "kirikiri" to kirikiri,
         "kirikiri2" to kirikiri,
         "catsystem2" to catsystem2,
+        "cmvs" to cmvs,
         "rpgmaker/xp" to rgss,
         "rpgmaker/vx" to rgss,
         "rpgmaker/vxace" to rgss,

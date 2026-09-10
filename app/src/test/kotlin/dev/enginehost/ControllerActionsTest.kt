@@ -1,5 +1,6 @@
 package dev.enginehost
 
+import android.view.KeyEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
@@ -14,7 +15,7 @@ import org.junit.Test
  */
 class ControllerActionsTest {
     private val scopes = listOf(
-        "renpy", "godot", "kirikiri", "kirikiri2", "catsystem2",
+        "renpy", "godot", "kirikiri", "kirikiri2", "catsystem2", "cmvs",
         "rpgmaker/xp", "rpgmaker/vx", "rpgmaker/vxace",
         "rpgmaker/2000", "rpgmaker/2003",
         "rpgmaker/mv", "rpgmaker/mz",
@@ -51,7 +52,6 @@ class ControllerActionsTest {
     @Test
     fun `an engine without a set of its own falls back to the common list`() {
         assertSame(ControllerActions.common, ControllerActions.forEngine(null))
-        assertSame(ControllerActions.common, ControllerActions.forEngine("cmvs"))
         assertSame(ControllerActions.common, ControllerActions.forEngine("buriko"))
         assertSame(ControllerActions.common, ControllerActions.forEngine("flash_air"))
         assertSame(ControllerActions.common, ControllerActions.forEngine("html"))
@@ -71,6 +71,29 @@ class ControllerActionsTest {
         assertTrue(rgss.any { it.id == "rgss_c" })
         assertTrue(easyrpg.any { it.id == "easyrpg_decision" })
         assertTrue(web.any { it.id == "mvmz_ok" })
+    }
+
+    @Test
+    fun `CMVS offers its own key functions and folds the ones the engine folds`() {
+        val cmvs = ControllerActions.forEngine("cmvs")
+        assertNotEquals(ControllerActions.common, cmvs)
+        // Every button that did something before is still that thing.
+        val onControl = cmvs.associateBy { it.default }
+        assertEquals("cmvs_confirm", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_A)]?.id)
+        assertEquals("cmvs_cancel", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_B)]?.id)
+        assertEquals("cmvs_popup_menu", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_START)]?.id)
+        assertEquals("cmvs_forced_skip", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_X)]?.id)
+        assertEquals("cmvs_auto_advance", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_Y)]?.id)
+        assertEquals("cmvs_history_mode", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_SELECT)]?.id)
+        assertEquals("cmvs_quick_save", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_L1)]?.id)
+        assertEquals("cmvs_quick_load", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_R1)]?.id)
+        assertEquals("cmvs_history_up", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_L2)]?.id)
+        assertEquals("cmvs_history_down", onControl[ControllerBinding.Key(KeyEvent.KEYCODE_BUTTON_R2)]?.id)
+        assertTrue(cmvs.any { it.id == "left_x" } && cmvs.any { it.id == "left_y" })
+        // 09 read-skip, 22 window-centring and 23/24 menu-value are folded or
+        // dropped for the engine's own reasons; none of them is a row.
+        assertTrue(cmvs.none { it.id.contains("read_skip") })
+        assertTrue(cmvs.none { it.id.contains("outer") || it.id.contains("menu_value") })
     }
 
     @Test

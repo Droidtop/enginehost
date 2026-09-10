@@ -242,11 +242,48 @@ that is what a plugin has to translate and what a person has to recognise:
 `rgss_c` and `rgss_b` for RPG Maker XP/VX/VX Ace, `easyrpg_decision` and
 `easyrpg_shift` for 2000/2003, `mvmz_ok` and `mvmz_pageup` for MV/MZ, Ren'Py's
 `pad_a` and `pad_leftx`, Godot's `joy_a` and `joy_axis_left_x`, CatSystem2's
-`cs2_skip_mode` and `cs2_message_log`. An engine with no input model of its own
-(KiriKiri, Buriko, CMVS, Flash, HTML) takes the shared fallback set: `up`,
-`down`, `left`, `right`, `confirm`, `cancel`, `menu`, `skip`, `auto`,
-`history`, `quick_save`, `quick_load`, `page_previous`, `page_next`, the stick
-axes and the triggers.
+`cs2_skip_mode` and `cs2_message_log`, CMVS's `cmvs_confirm` and
+`cmvs_history_mode`. An engine with no input model of its own (KiriKiri,
+Buriko, Flash, HTML) takes the shared fallback set: `up`, `down`, `left`,
+`right`, `confirm`, `cancel`, `menu`, `skip`, `auto`, `history`, `quick_save`,
+`quick_load`, `page_previous`, `page_next`, the stick axes and the triggers.
+
+CMVS is the engine whose ids map one to one onto numbered functions in the
+original, so they are listed in full. `KEY_FUNCTION_nn` is the section of the
+game's own `key.cfg`; the defaults are the engine's factory bank
+(`[KEY_FUNCTION_51..74]`, what its config tool restores).
+
+| id | function | engine name |
+| --- | --- | --- |
+| `cmvs_confirm` | 01 | 決定 Confirm |
+| `cmvs_cancel` | 02 | キャンセル Cancel |
+| `cmvs_cursor_up` | 03 | カーソル↑ Cursor up |
+| `cmvs_cursor_down` | 04 | カーソル↓ Cursor down |
+| `cmvs_cursor_left` | 05 | カーソル← Cursor left |
+| `cmvs_cursor_right` | 06 | カーソル→ Cursor right |
+| `cmvs_hide_message_window` | 07 | メッセージウィンドウ消去 Hide message window |
+| `cmvs_forced_skip` | 08 | 強制スキップ Forced skip (held) |
+| `cmvs_auto_advance` | 10 | 自動送り Auto advance |
+| `cmvs_history_mode` | 11 | 履歴モード History mode |
+| `cmvs_replay_voice` | 12 | 音声再生 Replay voice |
+| `cmvs_quick_save` | 13 | クイックセーブ Quick save |
+| `cmvs_quick_load` | 14 | クイックロード Quick load |
+| `cmvs_popup_menu` | 15 | ポップアップメニュー Popup menu |
+| `cmvs_history_up` | 16 | 履歴アップ History up |
+| `cmvs_history_down` | 17 | 履歴ダウン History down |
+| `cmvs_config_screen` | 18 | 設定画面 Config screen |
+| `cmvs_save_screen` | 19 | セーブ画面 Save screen |
+| `cmvs_load_screen` | 20 | ロード画面 Load screen |
+| `cmvs_extended_advance` | 21 | 拡張メッセージ送り Extended message advance |
+| `left_x`, `left_y` | 03-06 | the analogue form, the engine's own joypad direction codes 8-11 |
+
+Four functions are deliberately not ids. **09 既読スキップ** read-text skip
+needs read flags the engine does not keep, so it could only behave as 08 and
+one of the two is enough. **22 Outerの中央移動** re-centres a desktop window,
+which does not exist here. **23/24 メニュー増減** are 03/04 in a value context
+-- the original's own factory map binds all four to Up and Down -- so
+`cmvs_cursor_up` and `cmvs_cursor_down` drive them, and a plugin should treat
+them as one input, exactly as the engine does.
 
 The set is chosen by engine family, except that `rpgmaker` names three
 unrelated runtimes, so its sets are chosen by family and context together:
