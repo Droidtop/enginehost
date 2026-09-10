@@ -13,7 +13,7 @@ import java.io.File
  */
 class EngineDetectorTest {
     private val rows = EngineRegistryParser.parse(
-        File("src/main/assets/engines-database.json").readText(),
+        SeedAssets.read("engines-database.json"),
     )
 
     private fun tempRoot(): File = createTempDir(prefix = "detect-test").also { it.deleteOnExit() }

@@ -290,7 +290,8 @@
     <string name="updates_last_checked">Last checked %1$s</string>
     <string name="updates_never_checked">Not checked yet</string>
     <string name="updates_install_plugins_automatically">Install plugin updates automatically</string>
-    <string name="app_version_line">Enginehost %1$s (build %2$d)</string>
+    <string name="platform_snapshot_unrecorded">unrecorded</string>
+    <string name="app_version_line">Enginehost %1$s (build %2$d), engine registry snapshot %3$s</string>
     <string name="app_update_available">Enginehost %1$s is available</string>
     <string name="app_update_checking">Checking…</string>
     <string name="app_update_none">This is the newest build</string>

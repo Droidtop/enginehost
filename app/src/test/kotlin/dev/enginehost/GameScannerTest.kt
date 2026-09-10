@@ -10,7 +10,7 @@ class GameScannerTest {
     // tests exercise the exact data the app classifies with, so a
     // registry edit that breaks scanning fails here before it ships.
     private val rows = EngineRegistryParser.parse(
-        File("src/main/assets/engines-database.json").readText(),
+        SeedAssets.read("engines-database.json"),
     )
 
     private class Collector : GameScanner.Listener {

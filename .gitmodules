@@ -1,0 +1,3 @@
+[submodule "vendor/droidtop-platforms"]
+	path = vendor/droidtop-platforms
+	url = https://github.com/Droidtop/droidtop-platforms.git
