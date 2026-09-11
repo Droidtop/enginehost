@@ -2,6 +2,7 @@ package dev.enginehost
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -10,6 +11,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
+import java.util.Date
 
 /** Complete available-release list plus preloaded and custom GitHub origins. */
 class PluginCatalogActivity : AppCompatActivity() {
@@ -31,6 +33,9 @@ class PluginCatalogActivity : AppCompatActivity() {
     /** One automatic refresh per visit when the stored catalogs are old, so an install never picks a build that is no longer current. */
     private var staleRefreshAttempted = false
     private var requestedConfig: EngineConfig? = null
+
+    /** What the last refresh did, per origin, so the screen can say why it shows what it shows. */
+    private var lastOutcomes: Map<String, OriginOutcome> = emptyMap()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -173,12 +178,15 @@ class PluginCatalogActivity : AppCompatActivity() {
         }
         if (available.isEmpty()) {
             releasesEmptyState.visibility = View.VISIBLE
-            // Whether a refresh has ever completed is the difference between
-            // "you have not looked yet" and "there is genuinely nothing there".
-            releasesEmptyState.setText(
-                if (allOrigins.any(cache::hasFetched)) R.string.releases_none_published
-                else R.string.releases_not_loaded,
-            )
+            // A failed refresh is not an empty store. Whether one has ever
+            // completed is then the difference between "you have not looked
+            // yet" and "there is genuinely nothing there".
+            val failure = lastOutcomes.values.filterIsInstance<OriginOutcome.Failed>().firstOrNull()
+            releasesEmptyState.text = when {
+                failure != null -> getString(R.string.releases_unavailable, failureText(failure.reason))
+                allOrigins.any(cache::hasFetched) -> getString(R.string.releases_none_published)
+                else -> getString(R.string.releases_not_loaded)
+            }
         } else {
             releasesEmptyState.visibility = View.GONE
         }
@@ -373,21 +381,53 @@ class PluginCatalogActivity : AppCompatActivity() {
         refreshing = true
         render(getString(R.string.refreshing_message))
         Thread {
-            val failures = mutableListOf<String>()
-            origins.all().forEach { origin ->
-                directory.refresh(origin)
-                runCatching { GithubPluginCatalogClient(this).fetch(origin, PluginUpdateCheck(this).stream) }
-                    .onSuccess { cache.save(origin, it) }
-                    .onFailure { failures += origin.substringAfterLast('/') }
+            val outcomes = CatalogRefresh(this).run(origins.all(), PluginUpdateCheck(this).stream)
+            outcomes.forEach { (origin, outcome) ->
+                // A repository's self-description is another API request per
+                // origin, and it changes about never. Ask only when this
+                // origin actually published something, or when the screen has
+                // nothing to show for it yet.
+                if (outcome is OriginOutcome.Updated || directory.describe(origin) == null) directory.refresh(origin)
             }
             runOnUiThread {
                 refreshing = false
-                render(
-                    if (failures.isEmpty()) getString(R.string.refreshed_ok)
-                    else getString(R.string.refreshed_partial, failures.joinToString()),
-                )
+                lastOutcomes = outcomes
+                render(refreshSummary(outcomes))
             }
         }.start()
+    }
+
+    /**
+     * What the status line says after a refresh. When every origin failed the
+     * same way -- which is what a spent GitHub allowance looks like -- that
+     * one reason IS the message; otherwise it names who could not be reached
+     * and why.
+     */
+    private fun refreshSummary(outcomes: Map<String, OriginOutcome>): String {
+        val failed = outcomes.filterValues { it is OriginOutcome.Failed }
+        if (failed.isEmpty()) return getString(R.string.refreshed_ok)
+        val reasons = failed.values.map { failureText((it as OriginOutcome.Failed).reason) }.distinct()
+        if (failed.size == outcomes.size && reasons.size == 1) return reasons.first()
+        return getString(
+            R.string.refreshed_partial,
+            failed.keys.joinToString { it.substringAfterLast('/') },
+            reasons.joinToString(" "),
+        )
+    }
+
+    /** One failure in the words a person can act on. */
+    private fun failureText(failure: CatalogFailure): String = when (failure) {
+        is CatalogFailure.RateLimited -> failure.resetEpochSeconds
+            ?.let { reset ->
+                getString(
+                    R.string.catalog_rate_limited_until,
+                    DateFormat.getTimeFormat(this).format(Date(reset * 1000)),
+                )
+            }
+            ?: getString(R.string.catalog_rate_limited)
+        is CatalogFailure.Http -> getString(R.string.catalog_http_error, failure.status)
+        CatalogFailure.Offline -> getString(R.string.catalog_offline)
+        is CatalogFailure.Other -> failure.message
     }
 
     private fun isInstalled(bundleId: String): Boolean = PluginRegistry.discover(this).any { it.bundleId == bundleId }

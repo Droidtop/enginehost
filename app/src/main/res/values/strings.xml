@@ -89,7 +89,11 @@
     <string name="refreshing">Refreshing…</string>
     <string name="refreshing_message">Checking for releases…</string>
     <string name="refreshed_ok">Up to date.</string>
-    <string name="refreshed_partial">Refreshed; unavailable: %1$s</string>
+    <string name="refreshed_partial">Refreshed; %1$s unavailable — %2$s</string>
+    <string name="catalog_rate_limited_until">GitHub rate limit, try again after %1$s.</string>
+    <string name="catalog_rate_limited">GitHub rate limit reached; try again later.</string>
+    <string name="catalog_http_error">GitHub returned HTTP %1$d.</string>
+    <string name="catalog_offline">No network connection.</string>
     <string name="origins_heading">Sources</string>
     <string name="sources_toggle">Sources (%1$d)</string>
     <string name="sources_hide">Hide sources</string>
@@ -100,6 +104,7 @@
     <string name="component_carried_none">No plugin here carries %1$s.</string>
     <string name="releases_not_loaded">Not loaded yet. Refresh to fetch releases.</string>
     <string name="releases_none_published">Nothing published yet. Check again later.</string>
+    <string name="releases_unavailable">The catalog could not be loaded. %1$s</string>
     <string name="installed">Installed</string>
     <string name="requires_api">Needs a newer Enginehost</string>
     <string name="install">Install</string>
