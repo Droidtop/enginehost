@@ -367,3 +367,47 @@ whatever its binding. A plugin treats a `none` action as an input the person
 will never send: an engine feature driven entirely by such actions (KiriKiri's
 pointer emulation on `left_x`/`left_y`, say) is off, and nothing raw is read in
 its place.
+
+## Bundle format v2: portable engine bundles (later work, decided 2026-09-11)
+
+Everything above describes **v1**: an Android bundle (dex, an entry class on the
+Android plugin API, often a bundled Activity, `runtime.apk`, `lib/<abi>`). v1
+stays. It is the right shape for engines that genuinely need Android glue of
+their own, and nothing here deprecates it.
+
+**v2 is a second plugin type, platform-neutral.** The direction (user,
+2026-09-11): shift wrapper code into the Enginehost mainline whenever possible,
+so a bundle can be an engine core and nothing else, and the same bundle can one
+day run under a mobile-Linux host.
+
+- **What a v2 bundle carries:** the engine core as native code with no
+  platform API inside it, one payload directory per platform and architecture
+  (`native/android-arm64-v8a/`, `native/android-x86_64/`, later
+  `native/linux-x86_64/`, `native/linux-aarch64/`), engine data the core needs
+  (fonts, shaders, default tables), and a manifest that describes the core
+  once (`formatVersion: 2`, capabilities and contexts exactly as v1, the
+  host-interface version it speaks, the platforms it ships).
+- **What the host provides, per platform:** the glue that today lives in each
+  v1 wrapper: a drawing surface and frame pacing, controller and touch input
+  already translated through the host's controller map, audio output, the
+  game folder as a read-only file tree with archive mounting helpers, the
+  per-game save directory, config and options, logging, the in-game menu
+  hotkey and the trust/verify path. The Android host implements this once;
+  a Linux host would implement the same interface once.
+- **The core-facing interface:** a small, versioned C ABI (the contract is the
+  header, shipped with the host and vendored by plugins): create/destroy,
+  frame step, input events, audio callback, save/load hooks, and the
+  capability/verdict reporting (SUPPORTED, quirks, UNSUPPORTED_*,
+  REQUIRES_WINE) so a core says what it can run before it runs it.
+- **Migration rule:** a v1 plugin becomes v2 by deleting its wrapper, not by
+  rewriting its core. Where a v1 wrapper holds behaviour every engine needs
+  (pointer emulation, backlog UI hooks, save-slot UI, font fallback,
+  encoding conversion, archive mounts), that behaviour moves into the host
+  mainline first, as a service any plugin type can use.
+- **Sequencing:** later work. Nothing in v1 changes now. The prerequisites
+  are: the core-vs-wrapper audit per plugin (which code is Android, which is
+  engine), the host services listed above extracted from wrappers that
+  already carry them (KiriKiri's pointer and navigation layer is the first
+  candidate), and then the v2 manifest and loader beside the v1 ones. The
+  catalog lists both types; the host picks the v2 payload for its platform
+  and architecture the way it picks `lib/<abi>` today.
