@@ -76,6 +76,18 @@ single embedded runtime APK carry code, resources, assets, and JNI libraries
 without being installed as a separate Android package. Native libraries remain
 under `lib/<abi>/` in the bundle so the runtime class loader can resolve them.
 
+A bundle carries **every ABI it supports, in one archive**: `lib/arm64-v8a/` and
+`lib/x86_64/` at minimum, plus `lib/armeabi-v7a/` or `lib/x86/` where the engine's
+upstream provides them. Enginehost picks the directory at load time from
+`Build.SUPPORTED_ABIS`, in the device's own order of preference, so there is no
+per-architecture bundle, channel or download to choose between: one bundle
+installs on the console and on an x86_64 device or emulator alike. A plugin whose
+upstream cannot yet produce a second ABI says so in its metadata `notes` (which
+the manifest passes through verbatim) and in its BRIEF, naming the prebuilt that
+is missing and the upstream it would come from; it does not quietly ship one ABI
+and leave the host to fail at `System.loadLibrary`. A plugin with no native code
+at all carries no `lib/` directory and is architecture-agnostic.
+
 A resource APK must compile its resource table at a package id of its own.
 Android resource IDs are `0xPPTTEEEE`, and aapt2 builds an ordinary
 application at the default `0x7f` — the same id Enginehost's own resources
