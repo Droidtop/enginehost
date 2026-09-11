@@ -105,10 +105,12 @@ sealed interface CatalogFetch {
 
 class GithubPluginCatalogClient(private val context: Context) {
     /**
-     * Every release of [origin] on [stream] or a steadier one. Releases are
-     * read whatever GitHub's pre-release flag says and filtered on the
-     * envelope's own channel afterwards, because the flag alone cannot tell
-     * testing from unstable.
+     * Every release of [origin], on every stream. Releases are read
+     * whatever GitHub's pre-release flag says and the envelope's own
+     * channel is kept on each one; which streams a person is actually
+     * offered is decided where the catalog is read, not here, so the cache
+     * this fills in can answer "what does Testing have" without a second
+     * fetch.
      *
      * [knownEtag] is the ETag stored with the catalog we already hold. GitHub
      * answers 304 when the release list is unchanged, and a 304 is not
@@ -116,7 +118,7 @@ class GithubPluginCatalogClient(private val context: Context) {
      * which the eleven default origins otherwise spend in a handful of
      * refreshes from one address.
      */
-    fun fetch(origin: String, stream: PluginStream, knownEtag: String? = null): CatalogFetch {
+    fun fetch(origin: String, knownEtag: String? = null): CatalogFetch {
         val normalized = normalizeGithubOrigin(origin)
         val match = GITHUB_ORIGIN.matchEntire(normalized) ?: error("Not a GitHub repository origin")
         var next: String? = "https://api.github.com/repos/${match.groupValues[1]}/${match.groupValues[2]}/releases?per_page=100"
@@ -153,7 +155,7 @@ class GithubPluginCatalogClient(private val context: Context) {
                     prerelease,
                     byName,
                     PluginOriginKeyStore(context),
-                ).filter { it.stream.offeredTo(stream) }
+                )
             }
             next = nextLink(response.link)
         }

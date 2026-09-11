@@ -67,6 +67,36 @@
             android:text="@string/catalog_intro"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
+        <LinearLayout
+            android:id="@+id/catalogStreamRow"
+            style="@style/Widget.Enginehost.Row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/catalog_stream_label"
+                android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+            <TextView
+                android:id="@+id/catalogStreamValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+            <ImageView
+                android:layout_width="@dimen/eh_icon"
+                android:layout_height="@dimen/eh_icon"
+                android:layout_marginStart="@dimen/eh_space_xs"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron"
+                android:tint="@color/eh_text_secondary" />
+
+        </LinearLayout>
+
         <TextView
             android:id="@+id/releaseFilterNote"
             android:layout_width="match_parent"
@@ -88,6 +118,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_xs"
             android:textAppearance="@style/TextAppearance.Enginehost.Body"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/streamSwitchActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
             android:visibility="gone" />
 
         <TextView
