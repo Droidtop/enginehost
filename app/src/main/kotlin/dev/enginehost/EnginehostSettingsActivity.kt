@@ -89,13 +89,11 @@ class EnginehostSettingsActivity : AppCompatActivity() {
                 .setTitle(R.string.updates_stream_label)
                 .setSingleChoiceItems(labels, updateCheck.stream.ordinal) { dialog, which ->
                     dialog.dismiss()
-                    val chosen = PluginStream.entries[which]
-                    if (chosen != updateCheck.stream) {
-                        updateCheck.stream = chosen
-                        // The cached catalogs were filtered for the old choice;
-                        // fetch again so the home screen and catalog reflect this one.
-                        updateCheck.run { }
-                    }
+                    // A refresh caches every stream a repository publishes, not
+                    // only the chosen one, so switching here is a local choice:
+                    // no re-fetch needed for the home screen or the catalog to
+                    // reflect it.
+                    updateCheck.stream = PluginStream.entries[which]
                     refresh()
                 }
                 .setNegativeButton(R.string.cancel, null)

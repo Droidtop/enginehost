@@ -192,11 +192,14 @@ object PluginCatalogIndex {
  * Per origin: the plugins index if it covers it, otherwise the GitHub API
  * with the stored ETag, and in both cases a catalog is only stored once it
  * has parsed and verified -- a failure leaves the previous one in place.
+ * Every stream a repository publishes is fetched and cached, not only the
+ * stream currently chosen; [PluginStream.offeredTo] is applied by whoever
+ * reads the cache, so switching streams in Settings or on the catalog
+ * screen is a local choice, never a reason to refetch.
  */
 class CatalogRefresh(private val context: Context) {
     fun run(
         origins: List<String>,
-        stream: PluginStream,
         indexUrl: String = DEFAULT_INDEX_URL,
     ): Map<String, OriginOutcome> {
         val cache = PluginCatalogCache(context)
@@ -204,7 +207,7 @@ class CatalogRefresh(private val context: Context) {
         return origins.associateWith { origin ->
             runCatching {
                 val indexed = index?.origins?.get(normalizeGithubOrigin(origin))
-                if (indexed == null) fromApi(cache, origin, stream) else fromIndex(cache, indexed, origin, stream)
+                if (indexed == null) fromApi(cache, origin) else fromIndex(cache, indexed, origin)
             }.getOrElse { error -> OriginOutcome.Failed(CatalogFailures.of(error)) }
         }
     }
@@ -213,13 +216,15 @@ class CatalogRefresh(private val context: Context) {
         cache: PluginCatalogCache,
         indexed: IndexedOrigin,
         origin: String,
-        stream: PluginStream,
     ): OriginOutcome {
         // What the index says about this origin, reduced to one value. Equal
         // to what we stored means nothing has been published since, so the
-        // refresh costs nothing beyond the index itself.
+        // refresh costs nothing beyond the index itself. Every stream is
+        // fetched and cached; which one a person is offered is decided when
+        // the catalog is read, so the fingerprint does not depend on that
+        // choice -- switching streams never needs a re-fetch.
         val fingerprint = INDEX_ETAG_PREFIX + Transport.sha256(
-            stream.channel + "\n" + indexed.releases.joinToString("\n") { release ->
+            indexed.releases.joinToString("\n") { release ->
                 release.tag + "|" + release.stream.channel + "|" +
                     release.assets.joinToString(",") { asset -> asset.name + "@" + (asset.sha256 ?: asset.size.toString()) }
             },
@@ -228,9 +233,6 @@ class CatalogRefresh(private val context: Context) {
         val keys = PluginOriginKeyStore(context)
         val plugins = mutableListOf<AvailablePlugin>()
         for (release in indexed.releases) {
-            // The index names each release's stream, so a release this person
-            // would not be offered is never downloaded to find that out.
-            if (!release.stream.offeredTo(stream)) continue
             val envelope = release.assets.firstOrNull { it.name == RELEASE_CATALOG } ?: continue
             plugins += PluginReleaseReader.parse(
                 envelopeText(envelope),
@@ -239,18 +241,18 @@ class CatalogRefresh(private val context: Context) {
                 release.stream != PluginStream.STABLE,
                 release.assets.associate { it.name to (it.url to it.sha256) },
                 keys,
-            ).filter { it.stream.offeredTo(stream) }
+            )
         }
         cache.save(origin, plugins, fingerprint)
         return OriginOutcome.Updated(plugins.size)
     }
 
-    private fun fromApi(cache: PluginCatalogCache, origin: String, stream: PluginStream): OriginOutcome {
+    private fun fromApi(cache: PluginCatalogCache, origin: String): OriginOutcome {
         // An index fingerprint is not an ETag and GitHub would reject it.
         val etag = cache.etag(origin)
             ?.takeUnless { it.startsWith(INDEX_ETAG_PREFIX) }
             ?.takeIf { cache.hasFetched(origin) }
-        return when (val fetched = GithubPluginCatalogClient(context).fetch(origin, stream, etag)) {
+        return when (val fetched = GithubPluginCatalogClient(context).fetch(origin, etag)) {
             is CatalogFetch.Unchanged -> OriginOutcome.Unchanged
             is CatalogFetch.Fetched -> {
                 cache.save(origin, fetched.plugins, fetched.etag)

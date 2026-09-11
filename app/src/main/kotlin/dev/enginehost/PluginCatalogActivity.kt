@@ -9,6 +9,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 import java.util.Date
@@ -18,12 +19,15 @@ class PluginCatalogActivity : AppCompatActivity() {
     private lateinit var origins: PluginOriginStore
     private lateinit var cache: PluginCatalogCache
     private lateinit var directory: OriginDirectory
+    private lateinit var updateCheck: PluginUpdateCheck
 
     private lateinit var statusText: TextView
     private lateinit var refreshButton: Button
+    private lateinit var catalogStreamValue: TextView
     private lateinit var releaseFilterNote: TextView
     private lateinit var releaseList: LinearLayout
     private lateinit var releasesEmptyState: TextView
+    private lateinit var streamSwitchActions: LinearLayout
     private lateinit var originList: LinearLayout
     private lateinit var originInput: EditText
     private lateinit var addOriginButton: Button
@@ -43,6 +47,7 @@ class PluginCatalogActivity : AppCompatActivity() {
         origins = PluginOriginStore(this)
         cache = PluginCatalogCache(this)
         directory = OriginDirectory(this)
+        updateCheck = PluginUpdateCheck(this)
         intent.getStringExtra(EXTRA_GAME_PATH)?.let { path ->
             requestedConfig = runCatching {
                 EngineConfigReader.resolve(File(path), intent.getStringExtra(EXTRA_CALLER_CONFIG))
@@ -52,13 +57,16 @@ class PluginCatalogActivity : AppCompatActivity() {
         wireBackButton()
         statusText = findViewById(R.id.statusText)
         refreshButton = findViewById(R.id.refreshButton)
+        catalogStreamValue = findViewById(R.id.catalogStreamValue)
         releaseFilterNote = findViewById(R.id.releaseFilterNote)
         releaseList = findViewById(R.id.releaseList)
         releasesEmptyState = findViewById(R.id.releasesEmptyState)
+        streamSwitchActions = findViewById(R.id.streamSwitchActions)
         originList = findViewById(R.id.originList)
         originInput = findViewById(R.id.originInput)
         addOriginButton = findViewById(R.id.addOriginButton)
 
+        findViewById<View>(R.id.catalogStreamRow).setOnClickListener { pickStream() }
         refreshButton.setOnClickListener { refresh() }
         findViewById<Button>(R.id.installedPluginsButton).setOnClickListener {
             startActivity(Intent(this, PluginTrustActivity::class.java))
@@ -110,8 +118,33 @@ class PluginCatalogActivity : AppCompatActivity() {
         statusText.text = message ?: getString(R.string.catalog_intro)
         refreshButton.setText(if (refreshing) R.string.refreshing else R.string.refresh_all)
         refreshButton.isEnabled = !refreshing
+        catalogStreamValue.text = streamName(updateCheck.stream)
         renderOrigins()
         renderReleases()
+    }
+
+    /**
+     * The stream picker, reachable from the catalog itself and not only
+     * Settings -- switching streams is something a person reaches for right
+     * where the empty store tells them another stream has plugins. The
+     * catalog already holds every stream (see [CatalogRefresh]), so this is
+     * a local choice: no refresh, no network.
+     */
+    private fun pickStream() {
+        val labels = arrayOf(
+            getString(R.string.stream_stable_desc),
+            getString(R.string.stream_testing_desc),
+            getString(R.string.stream_unstable_desc),
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.updates_stream_label)
+            .setSingleChoiceItems(labels, updateCheck.stream.ordinal) { dialog, which ->
+                dialog.dismiss()
+                updateCheck.stream = PluginStream.entries[which]
+                render()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun renderOrigins() {
@@ -156,8 +189,12 @@ class PluginCatalogActivity : AppCompatActivity() {
     private fun renderReleases() {
         releaseList.removeAllViews()
         val allOrigins = origins.all()
-        val allAvailable = cache.loadAll(allOrigins)
+        // Every stream a repository publishes is cached (see CatalogRefresh);
+        // catalogAll is that whole store, and allAvailable is what the
+        // chosen stream actually offers from it.
+        val catalogAll = cache.loadAll(allOrigins)
             .sortedWith(compareBy<AvailablePlugin>({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId }))
+        val allAvailable = catalogAll.filter { it.stream.offeredTo(updateCheck.stream) }
         val matches = requestedConfig?.let { config ->
             AvailablePluginResolver.compatible(
                 allAvailable, config.engine, config.engineContext, config.engineVersion,
@@ -176,6 +213,11 @@ class PluginCatalogActivity : AppCompatActivity() {
                 else -> unmetComponentNote(config, allAvailable) ?: getString(R.string.filtered_no_match)
             }
         }
+        // Streams less steady than the chosen one that already have
+        // something -- the reason a fresh install on Stable (nothing is
+        // published there before 1.0) must not just read as an empty,
+        // unexplained store.
+        val moreAdventurous = StreamAvailability.moreAdventurousWithPlugins(catalogAll, updateCheck.stream)
         if (available.isEmpty()) {
             releasesEmptyState.visibility = View.VISIBLE
             // A failed refresh is not an empty store. Whether one has ever
@@ -184,11 +226,14 @@ class PluginCatalogActivity : AppCompatActivity() {
             val failure = lastOutcomes.values.filterIsInstance<OriginOutcome.Failed>().firstOrNull()
             releasesEmptyState.text = when {
                 failure != null -> getString(R.string.releases_unavailable, failureText(failure.reason))
-                allOrigins.any(cache::hasFetched) -> getString(R.string.releases_none_published)
-                else -> getString(R.string.releases_not_loaded)
+                !allOrigins.any(cache::hasFetched) -> getString(R.string.releases_not_loaded)
+                moreAdventurous.isNotEmpty() -> streamEmptyMessage(moreAdventurous)
+                else -> getString(R.string.releases_none_published)
             }
+            renderStreamSwitchActions(if (failure == null) moreAdventurous else emptyList())
         } else {
             releasesEmptyState.visibility = View.GONE
+            renderStreamSwitchActions(emptyList())
         }
         // A store, not a ledger: one card per plugin showing its newest build,
         // ordered by the engine a person is looking for. Older builds stay a
@@ -250,6 +295,29 @@ class PluginCatalogActivity : AppCompatActivity() {
         PluginStream.STABLE -> getString(R.string.stream_stable)
         PluginStream.TESTING -> getString(R.string.stream_testing)
         PluginStream.UNSTABLE -> getString(R.string.stream_unstable)
+    }
+
+    /** "No plugins on the Stable channel yet. Testing has 3 plugins, Unstable has 5 plugins." */
+    private fun streamEmptyMessage(moreAdventurous: List<Pair<PluginStream, Int>>): String {
+        val counts = moreAdventurous.joinToString(separator = " ") { (stream, count) ->
+            resources.getQuantityString(R.plurals.stream_plugin_count, count, streamName(stream), count) + "."
+        }
+        return getString(R.string.releases_stream_empty, streamName(updateCheck.stream)) + " " + counts
+    }
+
+    /** One tap per stream that has something the chosen one does not. */
+    private fun renderStreamSwitchActions(moreAdventurous: List<Pair<PluginStream, Int>>) {
+        streamSwitchActions.removeAllViews()
+        streamSwitchActions.visibility = if (moreAdventurous.isEmpty()) View.GONE else View.VISIBLE
+        moreAdventurous.forEach { (stream, _) ->
+            val button = layoutInflater.inflate(R.layout.item_action_button, streamSwitchActions, false) as Button
+            button.text = getString(R.string.switch_to_stream, streamName(stream))
+            button.setOnClickListener {
+                updateCheck.stream = stream
+                render()
+            }
+            streamSwitchActions.addView(button)
+        }
     }
 
     /**
@@ -381,7 +449,7 @@ class PluginCatalogActivity : AppCompatActivity() {
         refreshing = true
         render(getString(R.string.refreshing_message))
         Thread {
-            val outcomes = CatalogRefresh(this).run(origins.all(), PluginUpdateCheck(this).stream)
+            val outcomes = CatalogRefresh(this).run(origins.all())
             outcomes.forEach { (origin, outcome) ->
                 // A repository's self-description is another API request per
                 // origin, and it changes about never. Ask only when this

@@ -36,11 +36,12 @@ class PluginUpdateCheck(private val context: Context) {
         get() = preferences.getString(STREAM, null)?.let { name -> PluginStream.entries.firstOrNull { it.name == name } }
             ?: PluginStream.STABLE
         set(value) {
-            if (value == stream) return
+            // A refresh fetches and caches every stream a repository
+            // publishes, not only this one; [PluginStream.offeredTo] is
+            // applied wherever the cache is read, so changing this is a
+            // local choice that needs no re-fetch and loses nothing already
+            // held for the other streams.
             preferences.edit().putString(STREAM, value.name).apply()
-            // The cached catalogs were fetched for the old stream; the next
-            // look at the catalog fetches for this one instead of showing them.
-            PluginCatalogCache(context).clear()
         }
 
     /** Skip the pass on metered connections (mobile data, tethering). */
@@ -55,7 +56,8 @@ class PluginUpdateCheck(private val context: Context) {
     fun pending(): List<AvailablePlugin> {
         val installed = PluginRegistry.discover(context)
         val origins = installed.map { it.origin }.filter(String::isNotBlank).distinct()
-        return PluginUpdates.updatesFor(installed, PluginCatalogCache(context).loadAll(origins)).values.toList()
+        val available = PluginCatalogCache(context).loadAll(origins).filter { it.stream.offeredTo(stream) }
+        return PluginUpdates.updatesFor(installed, available).values.toList()
     }
 
     /**
@@ -89,8 +91,9 @@ class PluginUpdateCheck(private val context: Context) {
             // index first, the GitHub API with the stored ETag where the index
             // does not reach. Failures are recorded per origin and, here, as
             // silent as they have always been -- the screen is where a reason
-            // belongs.
-            CatalogRefresh(context).run(origins, stream)
+            // belongs. Every stream is fetched; only [stream] decides which
+            // of what lands is used for updates below.
+            CatalogRefresh(context).run(origins)
             // The engine detection rules ride along too: they are the one
             // piece of enginehost that changes faster than the app, and a
             // person with a game that detects wrongly has no way to know a
@@ -107,7 +110,10 @@ class PluginUpdateCheck(private val context: Context) {
                     .putString(APP_VERSION_NAME, info.versionName)
                     .apply()
             }
-            val updates = PluginUpdates.updatesFor(installed, cache.loadAll(origins)).values
+            val updates = PluginUpdates.updatesFor(
+                installed,
+                cache.loadAll(origins).filter { it.stream.offeredTo(stream) },
+            ).values
             onPending(
                 updates.filterNot { update ->
                     installAutomatically && runCatching {

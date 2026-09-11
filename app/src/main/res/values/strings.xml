@@ -105,6 +105,9 @@
     <string name="releases_not_loaded">Not loaded yet. Refresh to fetch releases.</string>
     <string name="releases_none_published">Nothing published yet. Check again later.</string>
     <string name="releases_unavailable">The catalog could not be loaded. %1$s</string>
+    <string name="releases_stream_empty">No plugins on the %1$s channel yet.</string>
+    <string name="switch_to_stream">Switch to %1$s</string>
+    <string name="catalog_stream_label">Channel</string>
     <string name="installed">Installed</string>
     <string name="requires_api">Needs a newer Enginehost</string>
     <string name="install">Install</string>
@@ -347,5 +350,10 @@
     <plurals name="plugin_updates_available">
         <item quantity="one">%d plugin update is available</item>
         <item quantity="other">%d plugin updates are available</item>
+    </plurals>
+
+    <plurals name="stream_plugin_count">
+        <item quantity="one">%1$s has %2$d plugin</item>
+        <item quantity="other">%1$s has %2$d plugins</item>
     </plurals>
 </resources>
