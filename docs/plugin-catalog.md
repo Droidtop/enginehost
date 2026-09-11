@@ -38,6 +38,41 @@ and signature. Enginehost verifies those copies against the pinned repository
 key before showing compatibility information. The downloaded archive is then
 verified independently; the envelope is never sufficient to install code.
 
+## Where the catalog comes from, and what it says when it cannot
+
+Listing eleven repositories through GitHub's API costs eleven API requests
+plus a download per release, and GitHub allows an unauthenticated address 60
+requests an hour. A few refreshes from one address spend that, and every
+origin then fails at once. So there are two paths to the same catalog, and
+one mechanism (`CatalogRefresh`) chooses between them for every origin, for
+the Refresh button and the scheduled update pass alike:
+
+1. **The plugins index.** `plugins/index.json` in droidtop-platforms names
+   every default origin's releases -- tag, stream, publication time, and each
+   asset's name, URL, size and sha256 -- and is regenerated there by a
+   workflow with a token, on a schedule and on a `plugin-published` dispatch
+   from a plugin repository. Enginehost fetches that one file from
+   `raw.githubusercontent.com`, which has no API allowance. Only a release
+   envelope it does not already hold is downloaded afterwards, from the
+   release asset host, which is not the API either; the envelope is checked
+   against the sha256 the index published and its signed manifest against the
+   key pinned for that origin, so the index can make the catalog stale but
+   never wrong.
+2. **The GitHub API**, as before, for any origin the index does not name
+   (every custom repository) and for all of them when the index is missing or
+   more than three days old. That path now sends `If-None-Match` with the
+   ETag stored beside each cached catalog; GitHub's 304 costs no allowance at
+   all, and "unchanged" is a real outcome rather than a re-download.
+
+An origin's cached catalog is replaced only once a fetch has parsed and
+verified, so a failed refresh leaves what was already there on screen. What a
+failure does change is what the screen says. The reason is kept per origin
+and shown instead of "Nothing published yet": the rate limit with the time
+GitHub's `X-RateLimit-Reset` names ("GitHub rate limit, try again after
+14:35."), any other HTTP status as itself, and an unreachable network as
+itself. A 403 with allowance left is not a rate limit and does not claim to
+be.
+
 ## Publishing: how a bundle becomes a release
 
 CI builds and signs a bundle set on every push to a `plugin/**` branch, but a

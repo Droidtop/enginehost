@@ -85,9 +85,12 @@ class PluginUpdateCheck(private val context: Context) {
             val installed = PluginRegistry.discover(context)
             val origins = installed.map { it.origin }.filter(String::isNotBlank).distinct()
             val cache = PluginCatalogCache(context)
-            origins.forEach { origin ->
-                runCatching { cache.save(origin, GithubPluginCatalogClient(context).fetch(origin, stream)) }
-            }
+            // The same refresh the catalog screen's button runs: the plugins
+            // index first, the GitHub API with the stored ETag where the index
+            // does not reach. Failures are recorded per origin and, here, as
+            // silent as they have always been -- the screen is where a reason
+            // belongs.
+            CatalogRefresh(context).run(origins, stream)
             // The engine detection rules ride along too: they are the one
             // piece of enginehost that changes faster than the app, and a
             // person with a game that detects wrongly has no way to know a

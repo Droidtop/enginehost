@@ -95,20 +95,41 @@ object PluginReleaseReader {
     }
 }
 
+/** What one look at a repository's releases produced. */
+sealed interface CatalogFetch {
+    data class Fetched(val plugins: List<AvailablePlugin>, val etag: String?) : CatalogFetch
+
+    /** GitHub answered 304: what we hold is still current, and it cost no allowance. */
+    object Unchanged : CatalogFetch
+}
+
 class GithubPluginCatalogClient(private val context: Context) {
     /**
      * Every release of [origin] on [stream] or a steadier one. Releases are
      * read whatever GitHub's pre-release flag says and filtered on the
      * envelope's own channel afterwards, because the flag alone cannot tell
      * testing from unstable.
+     *
+     * [knownEtag] is the ETag stored with the catalog we already hold. GitHub
+     * answers 304 when the release list is unchanged, and a 304 is not
+     * counted against the unauthenticated allowance of 60 requests an hour --
+     * which the eleven default origins otherwise spend in a handful of
+     * refreshes from one address.
      */
-    fun fetch(origin: String, stream: PluginStream): List<AvailablePlugin> {
+    fun fetch(origin: String, stream: PluginStream, knownEtag: String? = null): CatalogFetch {
         val normalized = normalizeGithubOrigin(origin)
         val match = GITHUB_ORIGIN.matchEntire(normalized) ?: error("Not a GitHub repository origin")
         var next: String? = "https://api.github.com/repos/${match.groupValues[1]}/${match.groupValues[2]}/releases?per_page=100"
         val result = mutableListOf<AvailablePlugin>()
+        var etag: String? = null
+        var first = true
         while (next != null) {
-            val response = get(next)
+            // Only the first page carries a condition: it is the one whose
+            // ETag we stored, and an unchanged first page means an unchanged
+            // list. Later pages are fetched normally.
+            val response = get(next, if (first) knownEtag else null) ?: return CatalogFetch.Unchanged
+            if (first) etag = response.etag
+            first = false
             val releases = JSONArray(response.body)
             for (index in 0 until releases.length()) {
                 val release = releases.getJSONObject(index)
@@ -122,11 +143,11 @@ class GithubPluginCatalogClient(private val context: Context) {
                     val name = asset.getString("name")
                     val url = asset.getString("browser_download_url")
                     byName[name] = url to asset.optString("digest").takeIf(String::isNotBlank)
-                    if (name == RELEASE_CATALOG) catalogUrl = url
+                    if (name == CatalogRefresh.RELEASE_CATALOG) catalogUrl = url
                 }
                 if (catalogUrl == null) continue
                 result += PluginReleaseReader.parse(
-                    get(catalogUrl).body,
+                    checkNotNull(get(catalogUrl)).body,
                     normalized,
                     release.getString("tag_name"),
                     prerelease,
@@ -136,12 +157,13 @@ class GithubPluginCatalogClient(private val context: Context) {
             }
             next = nextLink(response.link)
         }
-        return result
+        return CatalogFetch.Fetched(result, etag)
     }
 
-    private data class Response(val body: String, val link: String?)
+    private data class Response(val body: String, val link: String?, val etag: String?)
 
-    private fun get(url: String): Response {
+    /** Null means 304: the condition held and there is no body to read. */
+    private fun get(url: String, ifNoneMatch: String? = null): Response? {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 15_000
         connection.readTimeout = 30_000
@@ -149,8 +171,21 @@ class GithubPluginCatalogClient(private val context: Context) {
         connection.setRequestProperty("Accept", "application/vnd.github+json")
         connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
         connection.setRequestProperty("User-Agent", "enginehost/0.1")
+        ifNoneMatch?.let { connection.setRequestProperty("If-None-Match", it) }
         try {
-            require(connection.responseCode in 200..299) { "GitHub returned HTTP ${connection.responseCode}" }
+            val status = connection.responseCode
+            if (status == HttpURLConnection.HTTP_NOT_MODIFIED) return null
+            if (status !in 200..299) {
+                // The headers are the difference between "you have asked too
+                // often" and "this repository will not answer you"; without
+                // them the screen can only say the request failed.
+                throw GithubHttpException(
+                    status,
+                    connection.getHeaderField("X-RateLimit-Remaining")?.toIntOrNull(),
+                    connection.getHeaderField("X-RateLimit-Reset")?.toLongOrNull(),
+                    "GitHub returned HTTP " + status,
+                )
+            }
             val output = ByteArrayOutputStream()
             connection.inputStream.buffered().use { input ->
                 val buffer = ByteArray(16 * 1024)
@@ -161,7 +196,11 @@ class GithubPluginCatalogClient(private val context: Context) {
                 }
             }
             require(output.size() <= MAX_RESPONSE_BYTES) { "Catalog response is too large" }
-            return Response(output.toString(Charsets.UTF_8.name()), connection.getHeaderField("Link"))
+            return Response(
+                output.toString(Charsets.UTF_8.name()),
+                connection.getHeaderField("Link"),
+                connection.getHeaderField("ETag"),
+            )
         } finally {
             connection.disconnect()
         }
@@ -175,7 +214,6 @@ class GithubPluginCatalogClient(private val context: Context) {
     }
 
     companion object {
-        private const val RELEASE_CATALOG = "enginehost-release.json"
         private const val MAX_RESPONSE_BYTES = 4 * 1024 * 1024
     }
 }
@@ -213,13 +251,25 @@ class PluginCatalogCache(context: Context) {
     private val directory = File(context.filesDir, "plugin-catalogs-v2").apply { mkdirs() }
     private val keys = PluginOriginKeyStore(context)
 
-    fun save(origin: String, plugins: List<AvailablePlugin>) {
+    /**
+     * Stores a catalog and the validator that produced it: an HTTP ETag from
+     * the GitHub API, or the plugins index's fingerprint for this origin.
+     * Both answer the same question on the next refresh -- is what we hold
+     * still what the source has -- so they share one field.
+     */
+    fun save(origin: String, plugins: List<AvailablePlugin>, etag: String? = null) {
         val root = JSONObject().put("origin", normalizeGithubOrigin(origin)).put(
             "plugins",
             JSONArray().apply { plugins.forEach { put(it.toJson()) } },
         )
+        etag?.let { root.put("etag", it) }
         file(origin).writeText(root.toString())
     }
+
+    /** The validator stored with this origin's catalog, if it has one. */
+    fun etag(origin: String): String? = runCatching {
+        JSONObject(file(origin).readText()).optString("etag").takeIf(String::isNotBlank)
+    }.getOrNull()
 
     fun load(origin: String): List<AvailablePlugin> = runCatching {
         val array = JSONObject(file(origin).readText()).getJSONArray("plugins")
