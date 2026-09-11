@@ -368,6 +368,31 @@ will never send: an engine feature driven entirely by such actions (KiriKiri's
 pointer emulation on `left_x`/`left_y`, say) is off, and nothing raw is read in
 its place.
 
+## `hostType` on v1 bundles (decided 2026-09-11, later work)
+
+A v1 bundle is not Android by definition, only by habit: what makes today's
+bundles Android is the wrapper (dex, Activities, `runtime.apk`). The manifest
+gains an optional `hostType` field naming the host a bundle's wrapper is
+written for -- `"android"` today; a future `"linux"` value would name a v1
+bundle whose wrapper is a native or scripted process for a mobile-Linux host.
+
+- **Unspecified:** the host detects it from what the bundle carries (`dexFiles`
+  and an `entrypoint` class mean `android`; a payload under `native/linux-*`
+  with the host-process entry the Linux host defines means `linux`), and
+  records the detected value on the installed bundle.
+- **Override:** the installer accepts an explicit `hostType` in the manifest
+  over detection, and a per-install override for the odd bundle detection gets
+  wrong; the trust screen shows the resolved value with its origin
+  ("declared" / "detected" / "overridden").
+- **Rule:** a host only offers and installs bundles whose `hostType` it can
+  run; the catalog carries the field so a Linux host never downloads an
+  Android bundle by mistake. v2 bundles have no `hostType`: their manifest
+  lists platforms instead.
+
+This is what lets v1 grow non-Android plugins later without a second manifest
+format; v2 below is the portable-core route for engines that do not need a
+wrapper at all.
+
 ## Bundle format v2: portable engine bundles (later work, decided 2026-09-11)
 
 Everything above describes **v1**: an Android bundle (dex, an entry class on the
