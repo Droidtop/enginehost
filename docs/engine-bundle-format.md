@@ -329,7 +329,9 @@ upstream's own app kills its process and relaunches for the same reason). The
 runtime finishes with a result the launch screen beneath it recognises, the
 launch screen waits for the old runtime process to go, and plans the launch
 again from the same intent. A plugin that may run on an older Enginehost
-catches `AbstractMethodError` and falls back to `finish()`: the game closes
+catches `IncompatibleClassChangeError` (the call fails to link as
+`NoSuchMethodError` when the host's interface does not declare it) and falls
+back to `finish()`: the game closes
 instead of sitting on a dead screen. Plugins that run as a bundled Activity
 (`runtimeTransport: activity`) have no host object and are not covered by
 this.
