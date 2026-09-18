@@ -27,6 +27,12 @@ public interface EngineHost {
      * the host's to perform: the launch is planned again from the game
      * folder, which also picks up any setting changed in between.
      *
+     * {@code arguments} are the game's own restart arguments (the list a
+     * Godot game gives {@code OS.set_restart_on_exit}); upstream hands them
+     * to the new instance as its command line, so the next run's plugin
+     * receives them from {@link #restartArguments()}. Empty when the game
+     * gave none.
+     *
      * Added after the first hosts shipped. A plugin that may run on an older
      * Enginehost must catch {@link IncompatibleClassChangeError} (a plugin
      * compiles against its own copy of this interface, so on a host that does
@@ -35,5 +41,13 @@ public interface EngineHost {
      * {@link #finish()}, which closes the game instead of leaving a dead
      * screen.
      */
-    void restart();
+    void restart(String[] arguments);
+
+    /**
+     * What the previous run of this game passed to {@link #restart}, for the
+     * plugin to give its engine; empty on any launch that is not a restart.
+     * Same compatibility rule as {@link #restart}: on an older Enginehost the
+     * call fails to link, and there are no arguments.
+     */
+    String[] restartArguments();
 }

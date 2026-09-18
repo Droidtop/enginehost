@@ -322,10 +322,16 @@ to "components are payload", not a second mechanism.
 
 ### Host services added after apiVersion 1 shipped
 
-`EngineHost.restart()` (2026-09-18): ends the runtime and starts the same game
-again in a fresh process, for an engine whose game asks to be restarted and
-which cannot be de-initialised in place (Godot's Android restart request;
-upstream's own app kills its process and relaunches for the same reason). The
+`EngineHost.restart(arguments)` and `EngineHost.restartArguments()`
+(2026-09-18): ends the runtime and starts the same game again in a fresh
+process, for an engine whose game asks to be restarted and which cannot be
+de-initialised in place. Godot reaches it two ways: a game's
+`OS.set_restart_on_exit(true, args)` ends in `Main::cleanup` calling
+`create_instance(args)`, which arrives at `GodotHost.onNewGodotInstanceRequested`;
+the engine's own restart arrives at `onGodotRestartRequested`. Upstream's app
+answers both by killing its process and relaunching, the first with `args` as
+the new instance's command line. So the arguments travel: the next run's
+plugin reads them from `restartArguments()` (empty on any other launch). The
 runtime finishes with a result the launch screen beneath it recognises, the
 launch screen waits for the old runtime process to go, and plans the launch
 again from the same intent. A plugin that may run on an older Enginehost
