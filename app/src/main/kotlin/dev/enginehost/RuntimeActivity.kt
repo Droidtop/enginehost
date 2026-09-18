@@ -237,6 +237,11 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_ERROR = "dev.enginehost.runtime.ERROR"
         /** Result extra: the engine asked to be restarted. See [EngineHost.restart]. */
         const val EXTRA_RESTART = "dev.enginehost.runtime.RESTART"
+        /**
+         * The game's restart arguments: in the result of a run that asked to
+         * be restarted, and in the launch intent of the run that follows it.
+         */
+        const val EXTRA_RESTART_ARGUMENTS = "dev.enginehost.runtime.RESTART_ARGUMENTS"
         const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
         const val EXTRA_SAVE_PATH = "dev.enginehost.runtime.SAVE_PATH"
@@ -305,10 +310,18 @@ private class RuntimeHost(
      * the process (onDestroy kills it when the activity is finishing), and
      * the launch screen starts the game again once that process is gone.
      */
-    override fun restart() {
-        activity.setResult(Activity.RESULT_FIRST_USER, Intent().putExtra(RuntimeActivity.EXTRA_RESTART, true))
+    override fun restart(arguments: Array<String>) {
+        activity.setResult(
+            Activity.RESULT_FIRST_USER,
+            Intent()
+                .putExtra(RuntimeActivity.EXTRA_RESTART, true)
+                .putExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS, arguments),
+        )
         activity.finish()
     }
+
+    override fun restartArguments(): Array<String> =
+        activity.intent.getStringArrayExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS) ?: emptyArray()
 }
 
 private class RuntimeFileSystem(root: File) : EngineFileSystem {

@@ -77,6 +77,9 @@ class LaunchActivity : AppCompatActivity() {
         outState.putString(STATE_PLUGIN, runtimePlugin)
     }
 
+    /** What the run that just ended passed to EngineHost.restart, until the next run takes it. */
+    private var restartArguments: Array<String>? = null
+
     /** Plan the launch and enter the runtime, or go where the plan says first. */
     private fun launch() {
         val inlineJson = intent.getStringExtra(EXTRA_CONFIG)
@@ -97,6 +100,10 @@ class LaunchActivity : AppCompatActivity() {
                 runtimeCovered = false
                 lastCrash = null
                 runtimePlugin = plan.resolved.plugin.bundleId
+                // Only the run that follows a restart request carries its
+                // arguments; a retry or a later launch starts clean.
+                restartArguments?.let { plan.intent.putExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS, it) }
+                restartArguments = null
                 runCatching { startActivityForResult(plan.intent, REQUEST_RUNTIME) }
                     .onFailure {
                         val message = "Failed to enter the Enginehost runtime: ${it.message}"
@@ -195,6 +202,7 @@ class LaunchActivity : AppCompatActivity() {
             // The engine asked to be restarted (EngineHost.restart). Not an
             // exit and not a crash: plan the launch again, from this same
             // intent, once the old runtime process has gone.
+            restartArguments = data?.getStringArrayExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS)
             showStarting()
             restartWhenRuntimeGone()
             return
