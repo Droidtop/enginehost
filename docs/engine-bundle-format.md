@@ -243,6 +243,83 @@ Verifying that one game renders identically under the extension build is
 what settles it; when it does, the compiled-in module should be retired
 so there is one mechanism, not two.
 
+### The module system: one mechanism for every Godot component (decided 2026-09-17)
+
+Spine is one component, and shipping games use many more. The user's
+direction: "we only support spine, but there are SO MANY other modules." The
+compiled-in spine bundle stays exactly what the section above calls it, a
+first bundle, and the settled shape is this.
+
+**What a game can depend on.** Two things, resolved by one mechanism:
+
+- **GDExtensions the game ships.** A game carries `*.gdextension` files
+  (listed in `res://.godot/extension_list.cfg`) whose `[libraries]` table
+  names one library per platform: `windows.x86_64 = "res://addons/foo/foo.dll"`,
+  `linux.x86_64 = ...`. A desktop export names no `android.*` library at
+  all, so on Android the engine has nothing to load and every class the
+  extension provides is missing. The component Enginehost supplies is the
+  **Android build of that same extension at that same version**: arm64-v8a
+  and x86_64 shared libraries, built from the extension's own source
+  against godot-cpp for the engine line.
+- **Engine modules the game's export template was built with.** A game
+  built on a custom template (spine-godot's module flavor is the case in
+  this library) references the module's classes from its resources
+  (`SpineSkeletonDataResource`, ...). There is no `.gdextension` to read;
+  the classes must exist before the game's scripts parse. The component is
+  the **extension flavor of the same module**, loaded at
+  `INITIALIZATION_LEVEL_CORE` the way the section above describes, or,
+  while a module has no extension flavor, compiled in.
+
+**Detection writes the requirement; nobody types it.** Today
+`runtimeRequirements` is hand-written into a game's `enginehost.json`.
+Instead the Godot detector (the pack resolver that already reads the pack
+header and directory) reads from the pack: every `*.gdextension` entry (name,
+`entry_symbol`, `compatibility_minimum`, the platforms it does ship) and,
+for module-built games, the class names of imported resources against a
+table of known module classes. It writes `runtimeRequirements` as
+`{ "<component>": "<version>" }` where the component id is the extension's
+own name from its `.gdextension` (or the addon's `plugin.cfg` name) and the
+version is the addon's declared version when it has one, else the engine
+line. A person may still override it in `enginehost.json`; detection never
+overwrites a hand-written value.
+
+**Components are bundle payload, one capability per combination.** A
+Godot line's bundle carries one engine runtime and N component libraries
+under `components/<id>/<version>/lib/<abi>/*.so` plus that component's
+`.gdextension` written for Android paths, and declares one capability per
+combination it serves (same `runtimeVersion`, different
+`runtimeComponents`), exactly as the version-matrix section already says.
+A component that is heavy or licence-separate may instead ship as its own
+component bundle (`dev.enginehost.godot.component.<id>.v1`, signed and
+certified like any bundle) that the host installs beside the engine bundle
+and merges into the capability list; the wrapper does not care which.
+
+**The wrapper injects, and never edits the game.** At launch the Godot
+plugin hands the engine, for every required component, the path of the
+component's `.gdextension` through the platform hook the section above
+names (`getPluginGDExtensionLibrariesPaths`), so the classes exist at core
+initialisation. For a game-shipped extension whose own `.gdextension` names
+no Android library, the wrapper provides a `.gdextension` with the same
+`entry_symbol` pointing at the component's Android libraries; the game's
+file in the pack is left as it is. A game whose `.gdextension` already names
+an Android library needs no component: the engine loads it as upstream does.
+
+**Building components.** Each component is a small CI job from the
+extension's upstream source at a pinned revision, against godot-cpp of the
+matching engine line, for arm64-v8a and x86_64, with its licence file
+carried in the payload and listed in `licenses`. The first components are
+the ones this library's games actually need: read every Godot game's pack
+for `.gdextension` entries and module class names, list them, and build in
+that order. A component nobody's game needs is not built.
+
+**What stays out.** Extensions that exist only as Windows DLLs with no
+source cannot be built for Android; detection records the requirement and
+plugin selection fails before launch with the component named, the same
+outcome the version-matrix section defines for an unsatisfied requirement.
+The compiled-in spine module is retired when spine's extension flavor is
+proven on device, per the section above; until then it is the one exception
+to "components are payload", not a second mechanism.
+
 ## Controller input for android-activity plugins
 
 Enginehost owns the controller map: a set of actions per engine, a global
