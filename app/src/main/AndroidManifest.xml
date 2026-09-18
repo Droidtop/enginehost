@@ -142,20 +142,38 @@
              folder's own root. No game import step or per-caller metadata
              to keep in sync; any caller (not just droidtop)
              just needs a folder with a valid config in it. An optional
-             "title" in the config names the game on the launch screen this
-             activity shows until the engine draws. See LaunchActivity and
-             EngineConfig's own doc comments.
+             "title" in the config names the game on the launch screen shown
+             until the engine draws. This activity has no screen of its own;
+             see LaunchEntryActivity, LaunchActivity.start and EngineConfig's
+             own doc comments.
         -->
         <activity
-            android:name=".LaunchActivity"
+            android:name=".LaunchEntryActivity"
             android:exported="true"
-            android:theme="@style/Theme.Enginehost.Launch"
-            android:configChanges="orientation|screenSize|keyboardHidden">
+            android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity="dev.enginehost.entry"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
             <intent-filter>
                 <action android:name="dev.enginehost.LAUNCH" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!--
+             The launch screen, root of the game's own task; the runtime
+             activity it starts sits above it in that task. Its own
+             affinity keeps a game apart from this app's screens, so that
+             starting one never disturbs them and ending one returns to
+             whatever was in front before. Reached only through
+             LaunchActivity.start.
+        -->
+        <activity
+            android:name=".LaunchActivity"
+            android:exported="false"
+            android:taskAffinity="dev.enginehost.game"
+            android:theme="@style/Theme.Enginehost.Launch"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
 
     </application>
 
