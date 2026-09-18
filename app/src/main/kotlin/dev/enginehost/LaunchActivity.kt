@@ -50,8 +50,6 @@ class LaunchActivity : AppCompatActivity() {
     private var runtimeCovered = false
     private var runtimePlugin: String? = null
     private var lastCrash: CrashWatch.Crash? = null
-    /** Set when this screen's game was ended so that another could start. */
-    private var replaced = false
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,7 +81,7 @@ class LaunchActivity : AppCompatActivity() {
     private var restartArguments: Array<String>? = null
 
     /** Plan the launch and enter the runtime, or go where the plan says first. */
-    private fun launch() {
+    private fun launch(waitedForRuntime: Boolean = false) {
         val inlineJson = intent.getStringExtra(EXTRA_CONFIG)
         when (val plan = GameRunner.plan(this, gameFolder, inlineJson, intent.getBooleanExtra(EXTRA_AUTOINSTALL, false))) {
             is GameRunner.Plan.Detour -> {
@@ -99,22 +97,14 @@ class LaunchActivity : AppCompatActivity() {
             is GameRunner.Plan.Runtime -> {
                 showTitle(plan)
                 showStarting()
-                // One runtime process, one game. A launch that arrives while
-                // a game is running (a frontend, or this app's own trust
-                // screen resuming a launch that was then sent again) used to
-                // start a second RuntimeActivity inside the live process, and
-                // the person got the linker's refusal to load the engine
-                // twice as a "plugin startup failed" (rig, 2026-09-18).
-                val running = RunningGame.owner
-                if (running != null && running !== this) {
-                    if (running.gameFolder.canonicalFile == gameFolder.canonicalFile) {
-                        // It is already running, right beneath this screen.
-                        finish()
-                        return
-                    }
-                    // Another game: it is replaced, as launching content
-                    // from a frontend replaces what an emulator was running.
-                    running.endForAnotherGame()
+                // One runtime process, one game. This screen is the root of
+                // a fresh game task (see [start]), so a game that was running
+                // has just been finished along with its task, and its process
+                // may still be on its way out. A RuntimeActivity started now
+                // would land inside it, and the plugin's engine cannot be
+                // loaded twice in one process: the person got the linker's
+                // refusal as a "plugin startup failed" (rig, 2026-09-18).
+                if (!waitedForRuntime && runtimeAlive()) {
                     launchWhenRuntimeGone()
                     return
                 }
@@ -133,7 +123,7 @@ class LaunchActivity : AppCompatActivity() {
                         return
                     }
                 runtimeStarted = true
-                RunningGame.owner = this
+                RunningGame.folder = gameFolder
             }
         }
     }
@@ -220,12 +210,7 @@ class LaunchActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_RUNTIME) return
-        if (RunningGame.owner === this) RunningGame.owner = null
-        if (replaced) {
-            // Ended on purpose so another game could start; nothing to report.
-            finish()
-            return
-        }
+        RunningGame.ended(gameFolder)
         if (data?.getBooleanExtra(RuntimeActivity.EXTRA_RESTART, false) == true) {
             // The engine asked to be restarted (EngineHost.restart). Not an
             // exit and not a crash: plan the launch again, from this same
@@ -272,21 +257,9 @@ class LaunchActivity : AppCompatActivity() {
     }
 
     /**
-     * Ends this screen's game because another one is being launched. The
-     * runtime activity finishes as if the person had left it, which is also
-     * what ends its process (RuntimeActivity.onDestroy), and the result that
-     * follows closes this screen without a word.
-     */
-    private fun endForAnotherGame() {
-        replaced = true
-        RunningGame.owner = null
-        finishActivity(REQUEST_RUNTIME)
-    }
-
-    /**
-     * A runtime that is ending (a restart request, or a game replaced by
-     * another) is still a live process for a moment after its activity is
-     * gone. Starting the runtime activity before that process has exited
+     * A runtime that is ending (a restart request, or a game whose task was
+     * cleared for another) is still a live process for a moment after its
+     * activity is gone. Starting the runtime activity before that process has exited
      * would put the new game in the OLD process, with the engine's native
      * state still loaded -- the very thing a restart exists to get rid of,
      * and a load the linker refuses outright for a second plugin. Wait for
@@ -294,19 +267,23 @@ class LaunchActivity : AppCompatActivity() {
      * exactly as a first launch does.
      */
     private fun launchWhenRuntimeGone(attempt: Int = 0) {
-        val runtimeProcess = "$packageName:runtime"
-        val manager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
-        val alive = manager.runningAppProcesses.orEmpty().any { it.processName == runtimeProcess }
+        val alive = runtimeAlive()
         if (alive && attempt < EXIT_RECORD_MAX_ATTEMPTS) {
             handler.postDelayed({ if (!isDestroyed && !isFinishing) launchWhenRuntimeGone(attempt + 1) }, EXIT_RECORD_DELAY_MS)
             return
         }
         if (alive) Log.w(TAG, "The runtime process outlived the game it was running; launching anyway")
-        launch()
+        launch(waitedForRuntime = true)
+    }
+
+    private fun runtimeAlive(): Boolean {
+        val manager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+        return manager.runningAppProcesses.orEmpty().any { it.processName == "$packageName:runtime" }
     }
 
     override fun onDestroy() {
-        if (RunningGame.owner === this) RunningGame.owner = null
+        // Not set when onCreate found no path and finished at once.
+        if (::gameFolder.isInitialized) RunningGame.ended(gameFolder)
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
@@ -324,20 +301,47 @@ class LaunchActivity : AppCompatActivity() {
         const val EXTRA_CONFIG = "config"
         const val EXTRA_AUTOINSTALL = "autoinstallPlugin"
 
-        fun intent(context: Context, gameFolder: File, inlineJson: String?, autoInstallPlugin: Boolean): Intent =
-            Intent(context, LaunchActivity::class.java).apply {
-                putExtra(EXTRA_PATH, gameFolder.absolutePath)
-                inlineJson?.let { putExtra(EXTRA_CONFIG, it) }
-                if (autoInstallPlugin) putExtra(EXTRA_AUTOINSTALL, true)
+        /**
+         * The one way a game is started, from inside this app or from
+         * outside it ([LaunchEntryActivity]).
+         *
+         * A game is its own task: this screen at the root, the runtime above
+         * it. Android treats two intents that differ only in their extras as
+         * the same intent, and answers NEW_TASK for one that matches a live
+         * task's root by bringing that task forward and dropping the request
+         * -- so a frontend that launched a second game was shown the first
+         * (rig, 2026-09-18). Hence the decision is made here and not left to
+         * the task stack. The game that is already running is brought
+         * forward exactly as it was; anything else starts the game task from
+         * nothing, which finishes a game that was running the way leaving it
+         * does, as launching content from a frontend replaces what an
+         * emulator was running.
+         */
+        fun start(context: Context, gameFolder: File, inlineJson: String?, autoInstallPlugin: Boolean) {
+            val intent = Intent(context, LaunchActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (!RunningGame.isRunning(gameFolder)) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                intent.putExtra(EXTRA_PATH, gameFolder.absolutePath)
+                inlineJson?.let { intent.putExtra(EXTRA_CONFIG, it) }
+                if (autoInstallPlugin) intent.putExtra(EXTRA_AUTOINSTALL, true)
             }
+            context.startActivity(intent)
+        }
     }
 }
 
 /**
- * The launch screen whose game the runtime process is running now, if any.
- * Launch screens all live in the app's main process, so this is enough to
- * keep them from starting two games in the one runtime process.
+ * The game the runtime process is running now, if any. Launch screens and
+ * the launch entry all live in the app's main process, so this is enough to
+ * tell "the game that is already running" from any other launch.
  */
-private object RunningGame {
-    var owner: LaunchActivity? = null
+internal object RunningGame {
+    var folder: File? = null
+
+    fun isRunning(gameFolder: File): Boolean =
+        folder?.canonicalFile == gameFolder.canonicalFile
+
+    fun ended(gameFolder: File) {
+        if (isRunning(gameFolder)) folder = null
+    }
 }

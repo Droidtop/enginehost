@@ -26,6 +26,11 @@ extra "path": absolute path to the game's folder
 extra "config" (optional): a raw enginehost.json-shaped JSON string
 ```
 
+One game runs at a time. Launching the game that is already running brings it
+back exactly as it was; launching any other game ends the running one first,
+the way leaving it does, and starts the new one. Address the action, not a
+component: the activity that answers it is not part of the contract.
+
 That's the whole interface. In the normal case there's no catalog, no
 import step, no metadata to pass beyond the path — enginehost reads a
 small `enginehost.json` file at the root of that folder to figure out

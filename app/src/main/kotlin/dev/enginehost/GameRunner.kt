@@ -33,7 +33,7 @@ object GameRunner {
         inlineJson: String? = null,
         autoInstallPlugin: Boolean = false,
     ) {
-        context.startActivity(LaunchActivity.intent(context, gameFolder, inlineJson, autoInstallPlugin))
+        LaunchActivity.start(context, gameFolder, inlineJson, autoInstallPlugin)
     }
 
     fun plan(
