@@ -28,7 +28,10 @@ public interface EngineHost {
      * folder, which also picks up any setting changed in between.
      *
      * Added after the first hosts shipped. A plugin that may run on an older
-     * Enginehost must catch {@link AbstractMethodError} and fall back to
+     * Enginehost must catch {@link IncompatibleClassChangeError} (a plugin
+     * compiles against its own copy of this interface, so on a host that does
+     * not declare the method the call fails with NoSuchMethodError, not
+     * AbstractMethodError; both are of that type) and fall back to
      * {@link #finish()}, which closes the game instead of leaving a dead
      * screen.
      */
