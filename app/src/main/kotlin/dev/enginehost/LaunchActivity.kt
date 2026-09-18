@@ -50,6 +50,8 @@ class LaunchActivity : AppCompatActivity() {
     private var runtimeCovered = false
     private var runtimePlugin: String? = null
     private var lastCrash: CrashWatch.Crash? = null
+    /** Set when this screen's game was ended so that another could start. */
+    private var replaced = false
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,6 +99,25 @@ class LaunchActivity : AppCompatActivity() {
             is GameRunner.Plan.Runtime -> {
                 showTitle(plan)
                 showStarting()
+                // One runtime process, one game. A launch that arrives while
+                // a game is running (a frontend, or this app's own trust
+                // screen resuming a launch that was then sent again) used to
+                // start a second RuntimeActivity inside the live process, and
+                // the person got the linker's refusal to load the engine
+                // twice as a "plugin startup failed" (rig, 2026-09-18).
+                val running = RunningGame.owner
+                if (running != null && running !== this) {
+                    if (running.gameFolder.canonicalFile == gameFolder.canonicalFile) {
+                        // It is already running, right beneath this screen.
+                        finish()
+                        return
+                    }
+                    // Another game: it is replaced, as launching content
+                    // from a frontend replaces what an emulator was running.
+                    running.endForAnotherGame()
+                    launchWhenRuntimeGone()
+                    return
+                }
                 runtimeCovered = false
                 lastCrash = null
                 runtimePlugin = plan.resolved.plugin.bundleId
@@ -112,6 +133,7 @@ class LaunchActivity : AppCompatActivity() {
                         return
                     }
                 runtimeStarted = true
+                RunningGame.owner = this
             }
         }
     }
@@ -198,13 +220,19 @@ class LaunchActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_RUNTIME) return
+        if (RunningGame.owner === this) RunningGame.owner = null
+        if (replaced) {
+            // Ended on purpose so another game could start; nothing to report.
+            finish()
+            return
+        }
         if (data?.getBooleanExtra(RuntimeActivity.EXTRA_RESTART, false) == true) {
             // The engine asked to be restarted (EngineHost.restart). Not an
             // exit and not a crash: plan the launch again, from this same
             // intent, once the old runtime process has gone.
             restartArguments = data?.getStringArrayExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS)
             showStarting()
-            restartWhenRuntimeGone()
+            launchWhenRuntimeGone()
             return
         }
         val reported = data?.getStringExtra(RuntimeActivity.EXTRA_ERROR)
@@ -244,26 +272,41 @@ class LaunchActivity : AppCompatActivity() {
     }
 
     /**
-     * The runtime activity's result arrives while its process is still
-     * ending. Starting the runtime activity again before that process is gone
-     * would put the new game in the OLD process, with the engine's native
-     * state still loaded -- the very thing a restart exists to get rid of.
-     * Wait for the process to go, in short steps and for a bounded time, then
-     * launch exactly as the first launch did.
+     * Ends this screen's game because another one is being launched. The
+     * runtime activity finishes as if the person had left it, which is also
+     * what ends its process (RuntimeActivity.onDestroy), and the result that
+     * follows closes this screen without a word.
      */
-    private fun restartWhenRuntimeGone(attempt: Int = 0) {
+    private fun endForAnotherGame() {
+        replaced = true
+        RunningGame.owner = null
+        finishActivity(REQUEST_RUNTIME)
+    }
+
+    /**
+     * A runtime that is ending (a restart request, or a game replaced by
+     * another) is still a live process for a moment after its activity is
+     * gone. Starting the runtime activity before that process has exited
+     * would put the new game in the OLD process, with the engine's native
+     * state still loaded -- the very thing a restart exists to get rid of,
+     * and a load the linker refuses outright for a second plugin. Wait for
+     * the process to go, in short steps and for a bounded time, then launch
+     * exactly as a first launch does.
+     */
+    private fun launchWhenRuntimeGone(attempt: Int = 0) {
         val runtimeProcess = "$packageName:runtime"
         val manager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
         val alive = manager.runningAppProcesses.orEmpty().any { it.processName == runtimeProcess }
         if (alive && attempt < EXIT_RECORD_MAX_ATTEMPTS) {
-            handler.postDelayed({ if (!isDestroyed && !isFinishing) restartWhenRuntimeGone(attempt + 1) }, EXIT_RECORD_DELAY_MS)
+            handler.postDelayed({ if (!isDestroyed && !isFinishing) launchWhenRuntimeGone(attempt + 1) }, EXIT_RECORD_DELAY_MS)
             return
         }
-        if (alive) Log.w(TAG, "The runtime process outlived a restart request; launching anyway")
+        if (alive) Log.w(TAG, "The runtime process outlived the game it was running; launching anyway")
         launch()
     }
 
     override fun onDestroy() {
+        if (RunningGame.owner === this) RunningGame.owner = null
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
@@ -288,4 +331,13 @@ class LaunchActivity : AppCompatActivity() {
                 if (autoInstallPlugin) putExtra(EXTRA_AUTOINSTALL, true)
             }
     }
+}
+
+/**
+ * The launch screen whose game the runtime process is running now, if any.
+ * Launch screens all live in the app's main process, so this is enough to
+ * keep them from starting two games in the one runtime process.
+ */
+private object RunningGame {
+    var owner: LaunchActivity? = null
 }
