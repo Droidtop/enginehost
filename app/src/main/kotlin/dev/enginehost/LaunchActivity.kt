@@ -191,6 +191,14 @@ class LaunchActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_RUNTIME) return
+        if (data?.getBooleanExtra(RuntimeActivity.EXTRA_RESTART, false) == true) {
+            // The engine asked to be restarted (EngineHost.restart). Not an
+            // exit and not a crash: plan the launch again, from this same
+            // intent, once the old runtime process has gone.
+            showStarting()
+            restartWhenRuntimeGone()
+            return
+        }
         val reported = data?.getStringExtra(RuntimeActivity.EXTRA_ERROR)
         if (reported != null) {
             // The runtime knew what went wrong and said so. That sentence beats
@@ -225,6 +233,26 @@ class LaunchActivity : AppCompatActivity() {
             // record: the runtime never got going.
             else -> showFailure(getString(R.string.launch_runtime_died, runtimePlugin ?: ""), retry = true)
         }
+    }
+
+    /**
+     * The runtime activity's result arrives while its process is still
+     * ending. Starting the runtime activity again before that process is gone
+     * would put the new game in the OLD process, with the engine's native
+     * state still loaded -- the very thing a restart exists to get rid of.
+     * Wait for the process to go, in short steps and for a bounded time, then
+     * launch exactly as the first launch did.
+     */
+    private fun restartWhenRuntimeGone(attempt: Int = 0) {
+        val runtimeProcess = "$packageName:runtime"
+        val manager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+        val alive = manager.runningAppProcesses.orEmpty().any { it.processName == runtimeProcess }
+        if (alive && attempt < EXIT_RECORD_MAX_ATTEMPTS) {
+            handler.postDelayed({ if (!isDestroyed && !isFinishing) restartWhenRuntimeGone(attempt + 1) }, EXIT_RECORD_DELAY_MS)
+            return
+        }
+        if (alive) Log.w(TAG, "The runtime process outlived a restart request; launching anyway")
+        launch()
     }
 
     override fun onDestroy() {

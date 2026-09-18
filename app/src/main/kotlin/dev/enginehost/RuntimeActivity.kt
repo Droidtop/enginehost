@@ -235,6 +235,8 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
         /** On a failed startup's result: the sentence the runtime has for the launch screen. */
         const val EXTRA_ERROR = "dev.enginehost.runtime.ERROR"
+        /** Result extra: the engine asked to be restarted. See [EngineHost.restart]. */
+        const val EXTRA_RESTART = "dev.enginehost.runtime.RESTART"
         const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
         const val EXTRA_SAVE_PATH = "dev.enginehost.runtime.SAVE_PATH"
@@ -296,6 +298,17 @@ private class RuntimeHost(
         return true
     }
     override fun finish() = activity.finish()
+
+    /**
+     * The result tells the launch screen waiting beneath this activity that
+     * the end is a restart, not an exit or a crash; finishing is what ends
+     * the process (onDestroy kills it when the activity is finishing), and
+     * the launch screen starts the game again once that process is gone.
+     */
+    override fun restart() {
+        activity.setResult(Activity.RESULT_FIRST_USER, Intent().putExtra(RuntimeActivity.EXTRA_RESTART, true))
+        activity.finish()
+    }
 }
 
 private class RuntimeFileSystem(root: File) : EngineFileSystem {
