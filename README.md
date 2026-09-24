@@ -104,6 +104,11 @@ some of them were given a host-named folder instead; when a launch finds save
 files there that the game folder does not have, it offers to copy them into the
 game folder, never deleting or overwriting anything, or to leave them.
 
+The in-game menu's Save location says where a game's saves really are: the
+game's own folder for an engine that saves beside the game, the per-game
+folder for one Enginehost names, and the save root for an engine that names
+its own folder inside it (Ren'Py, Godot).
+
 A folder with no `enginehost.json` is not a dead end. Detection reads the
 engine, version, entry file, title and save folder from the folder's own
 files; when all of that is evident the config is written and the launch

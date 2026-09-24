@@ -258,6 +258,27 @@ object SaveFolders {
      */
     private val FORMERLY_NAMED = setOf("kirikiri2", "buriko", "cmvs")
 
+    /** Where a game's saves really are, which is what the in-game menu must say. */
+    enum class Place {
+        /** In the game's own folder, as on the engine's desktop original. */
+        BESIDE_THE_GAME,
+
+        /** In the per-game folder Enginehost named under the save root ([applies]). */
+        NAMED_BY_THE_HOST,
+
+        /** In a folder the engine names itself, inside the save root (Ren'Py, Godot). */
+        ENGINE_NAMESPACE,
+    }
+
+    /** Engines that save beside the game on their desktop original, whatever an earlier Enginehost did. */
+    private val BESIDE_THE_GAME = setOf("kirikiri2", "buriko", "cmvs", "nscripter")
+
+    fun placeOf(engine: String, engineContext: String?): Place = when {
+        applies(engine, engineContext) -> Place.NAMED_BY_THE_HOST
+        engine in BESIDE_THE_GAME || (engine == "rpgmaker" && engineContext !in WEB_RPG_MAKER) -> Place.BESIDE_THE_GAME
+        else -> Place.ENGINE_NAMESPACE
+    }
+
     /** Whether this engine and context need Enginehost to name the save folder. */
     fun applies(engine: String, engineContext: String?): Boolean =
         engine in NAMED_BY_THE_HOST || (engine == "rpgmaker" && engineContext in WEB_RPG_MAKER)

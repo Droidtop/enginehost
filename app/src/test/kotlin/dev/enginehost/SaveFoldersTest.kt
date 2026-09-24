@@ -30,6 +30,25 @@ class SaveFoldersTest {
     }
 
     @Test
+    fun `the save place is the game folder only for engines that save beside the game`() {
+        listOf("kirikiri2", "buriko", "cmvs", "nscripter").forEach {
+            assertEquals(SaveFolders.Place.BESIDE_THE_GAME, SaveFolders.placeOf(it, null))
+        }
+        listOf("2000", "2003", "xp", "vx", "vxace").forEach {
+            assertEquals(SaveFolders.Place.BESIDE_THE_GAME, SaveFolders.placeOf("rpgmaker", it))
+        }
+        listOf("html", "flash_air", "catsystem2").forEach {
+            assertEquals(SaveFolders.Place.NAMED_BY_THE_HOST, SaveFolders.placeOf(it, null))
+        }
+        listOf("mv", "mz").forEach {
+            assertEquals(SaveFolders.Place.NAMED_BY_THE_HOST, SaveFolders.placeOf("rpgmaker", it))
+        }
+        listOf("renpy", "godot").forEach {
+            assertEquals(SaveFolders.Place.ENGINE_NAMESPACE, SaveFolders.placeOf(it, null))
+        }
+    }
+
+    @Test
     fun `engines with their own external namespace keep control`() {
         assertNull(SaveFolders.defaultFor("renpy", null, null, "My Game"))
         assertNull(SaveFolders.defaultFor("godot", null, null, "My Game"))

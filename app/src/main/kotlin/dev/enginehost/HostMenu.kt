@@ -134,12 +134,7 @@ object HostMenu {
                 activity.startActivity(ControllerConfigActivity.intent(activity, scope))
             }
             .choice(R.string.host_menu_save_location) {
-                info(
-                    activity,
-                    R.string.host_menu_save_location,
-                    activity.intent.getStringExtra(RuntimeActivity.EXTRA_SAVE_PATH)
-                        ?: activity.getString(R.string.host_menu_save_unknown),
-                )
+                info(activity, R.string.host_menu_save_location, saveLocation(activity))
             }
             .choice(R.string.host_menu_legend) { info(activity, R.string.host_menu_legend, legend(activity, scope)) }
             .choice(R.string.host_menu_quit) { quit(activity) }
@@ -156,6 +151,28 @@ object HostMenu {
     private fun quit(activity: Activity) {
         CrashWatch.disarm(activity)
         activity.finish()
+    }
+
+    /**
+     * Where this game's saves really are. The save folder the runtime was
+     * handed is only what the engine's SYSTEM locations mean; an engine
+     * that saves beside the game never writes there, so for it the answer
+     * is the game's own folder (README, saves; UI assessment 2026-09-24).
+     */
+    private fun saveLocation(activity: Activity): String {
+        val intent = activity.intent
+        val engine = intent.getStringExtra(RuntimeActivity.EXTRA_ENGINE)
+        val game = intent.getStringExtra(RuntimeActivity.EXTRA_PATH)
+        val saves = intent.getStringExtra(RuntimeActivity.EXTRA_SAVE_PATH)
+        val place = engine?.let { SaveFolders.placeOf(it, intent.getStringExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT)) }
+        return when {
+            place == SaveFolders.Place.BESIDE_THE_GAME && game != null ->
+                activity.getString(R.string.host_menu_save_beside_game, game)
+            saves == null -> activity.getString(R.string.host_menu_save_unknown)
+            place == SaveFolders.Place.ENGINE_NAMESPACE ->
+                activity.getString(R.string.host_menu_save_engine_namespace, saves)
+            else -> activity.getString(R.string.host_menu_save_named, saves)
+        }
     }
 
     /** What the pad does in this game, in this engine's own words. */
