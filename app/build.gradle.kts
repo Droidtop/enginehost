@@ -33,8 +33,15 @@ android {
                 storeType = "PKCS12"
             }
         }
+        // Both build types carry the one persistent key, so either installs
+        // over the other: the published download is the release build, and
+        // the debug build (with its adb install harness, src/debug) is
+        // published beside it for test rigs.
         buildTypes {
             getByName("debug") {
+                signingConfig = signingConfigs.getByName("enginehostCi")
+            }
+            getByName("release") {
                 signingConfig = signingConfigs.getByName("enginehostCi")
             }
         }
