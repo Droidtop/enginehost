@@ -138,7 +138,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         // app -- so the home screen's notice is current afterwards too.
         updateCheck.run { }
         Thread {
-            val result = runCatching { AppUpdate.fetch() }
+            val result = runCatching { AppUpdate.fetch(this) }
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 row.isEnabled = true

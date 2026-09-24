@@ -104,7 +104,7 @@ class PluginUpdateCheck(private val context: Context) {
             // one more small unauthenticated download, remembered so the
             // home screen can say an app update exists. Failure is as silent
             // as a failed catalog fetch.
-            runCatching { AppUpdate.fetch() }.onSuccess { info ->
+            runCatching { AppUpdate.fetch(context) }.onSuccess { info ->
                 preferences.edit()
                     .putLong(APP_VERSION_CODE, info.versionCode)
                     .putString(APP_VERSION_NAME, info.versionName)

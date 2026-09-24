@@ -30,6 +30,11 @@ import java.net.URL
  * run number -- a plain monotonic integer -- and publishes alongside the APK
  * in release-info.json on the rolling `latest` release. The check is one
  * unauthenticated download of that small file; nothing is sent.
+ *
+ * The release carries two APKs, the release build and the debug build (for
+ * test rigs), and an install updates to the build type it already is: a
+ * debug install that updated itself to release would lose the adb harness
+ * its rig depends on, and a person's release install never becomes debug.
  */
 object AppUpdate {
     private const val RELEASES = "https://github.com/Droidtop/enginehost/releases/download/latest"
@@ -42,8 +47,8 @@ object AppUpdate {
     fun installedVersionCode(context: Context): Long =
         context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
 
-    /** Fetches what the rolling release currently is. Throws on any failure. */
-    fun fetch(): Info {
+    /** Fetches what the rolling release currently is, for this install's build type. Throws on any failure. */
+    fun fetch(context: Context): Info {
         val connection = URL(RELEASE_INFO_URL).openConnection() as HttpURLConnection
         connection.connectTimeout = 15_000
         connection.readTimeout = 30_000
@@ -53,11 +58,12 @@ object AppUpdate {
             require(connection.responseCode in 200..299) { "Release info returned HTTP ${connection.responseCode}" }
             val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
             require(json.getInt("formatVersion") == 1) { "Unsupported release info" }
+            val debug = context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
             return Info(
                 json.getLong("versionCode"),
                 json.requiredString("versionName"),
-                json.requiredString("apkName"),
-                json.requiredSha256("apkSha256"),
+                json.requiredString(if (debug) "debugApkName" else "apkName"),
+                json.requiredSha256(if (debug) "debugApkSha256" else "apkSha256"),
             )
         } finally {
             connection.disconnect()

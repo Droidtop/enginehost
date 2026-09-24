@@ -45,7 +45,7 @@ jobs:
           test -n "$ENGINEHOST_ANDROID_KEYSTORE_BASE64"
           printf '%s' "$ENGINEHOST_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/enginehost-signing.p12"
 
-      - name: Test and build debug APK
+      - name: Test and build the release and debug APKs
         env:
           ENGINEHOST_ANDROID_KEYSTORE: ${{ runner.temp }}/enginehost-signing.p12
           ENGINEHOST_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ENGINEHOST_ANDROID_KEYSTORE_PASSWORD }}
@@ -55,13 +55,15 @@ jobs:
           # app/build.gradle.kts as the versionCode so newer builds are
           # newer to Android and to the in-app update check.
           VERSION_REVISION: ${{ github.run_number }}
-        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: enginehost-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: enginehost-apks
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/debug/app-debug.apk
 
       - name: Read the app version
         run: echo "ENGINEHOST_VERSION=$(sed -n 's/^enginehost\.version=//p' gradle.properties)" >> "$GITHUB_ENV"
@@ -83,10 +85,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk enginehost-latest.apk
+          # The download is the release build. The debug build rides beside
+          # it for test rigs (it carries the adb bundle-install harness); an
+          # install updates to the build type it already is (AppUpdate.kt).
+          cp app/build/outputs/apk/release/app-release.apk enginehost-latest.apk
+          cp app/build/outputs/apk/debug/app-debug.apk enginehost-latest-debug.apk
           python3 - <<'PY'
           import hashlib, json
-          digest = hashlib.sha256(open("enginehost-latest.apk", "rb").read()).hexdigest().upper()
+          def sha(name):
+              return hashlib.sha256(open(name, "rb").read()).hexdigest().upper()
+          digest = sha("enginehost-latest.apk")
           json.dump(
               {
                   "formatVersion": 1,
@@ -94,6 +102,8 @@ jobs:
                   "versionName": "${{ env.ENGINEHOST_VERSION }}-dev-${{ github.run_number }}",
                   "apkName": "enginehost-latest.apk",
                   "apkSha256": digest,
+                  "debugApkName": "enginehost-latest-debug.apk",
+                  "debugApkSha256": sha("enginehost-latest-debug.apk"),
                   "commit": "${{ github.sha }}",
               },
               open("release-info.json", "w"),
@@ -101,6 +111,6 @@ jobs:
           )
           PY
           gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest enginehost-latest.apk release-info.json             --target "${{ github.sha }}" \
+          gh release create latest enginehost-latest.apk enginehost-latest-debug.apk release-info.json             --target "${{ github.sha }}" \
             --title "Enginehost — latest build" \
-            --notes "Automatically built from commit ${{ github.sha }} (build ${{ github.run_number }}). Signed with the persistent Enginehost CI key, so it installs over a previous \"latest\" without uninstalling. release-info.json is what the in-app update check reads."
+            --notes "Automatically built from commit ${{ github.sha }} (build ${{ github.run_number }}). enginehost-latest.apk is the release build; enginehost-latest-debug.apk is the debug build for test rigs. Both are signed with the persistent Enginehost CI key, so either installs over a previous one without uninstalling. release-info.json is what the in-app update check reads."
