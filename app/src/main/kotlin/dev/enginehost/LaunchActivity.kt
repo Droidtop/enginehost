@@ -92,7 +92,7 @@ class LaunchActivity : AppCompatActivity() {
             is GameRunner.Plan.Failure -> {
                 Log.e(TAG, plan.message)
                 showTitle(null)
-                showFailure(plan.message, retry = false)
+                showFailure(plan.message, retry = plan.retry)
             }
             is GameRunner.Plan.Runtime -> {
                 showTitle(plan)

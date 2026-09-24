@@ -19,7 +19,8 @@ object GameRunner {
         /** The runtime can start now; [intent] enters the `:runtime` process. */
         class Runtime(val intent: Intent, val config: EngineConfig, val resolved: ResolvedPlugin) : Plan()
 
-        class Failure(val message: String) : Plan()
+        /** The game cannot start; [retry] when trying again can help once the person has fixed what [message] names. */
+        class Failure(val message: String, val retry: Boolean = false) : Plan()
     }
 
     /**
@@ -48,8 +49,15 @@ object GameRunner {
         // nowhere else, the Ren'Py runtime found it itself on its engine
         // thread and aborted the process through a JNI pending exception
         // (rig, 2026-09-24), and every other engine had its own outcome.
+        // Without the all-files grant (a fresh install started straight from
+        // a frontend) Enginehost can neither read a game on shared storage nor
+        // make its save folder, and the folder check below would wrongly call
+        // a present folder missing. Asked first, for that reason.
+        if (!StorageFolder.hasNativePathAccess()) {
+            return Plan.Failure(context.getString(R.string.launch_needs_all_files), retry = true)
+        }
         if (!gameFolder.isDirectory) {
-            return Plan.Failure(context.getString(R.string.launch_folder_missing, gameFolder.absolutePath))
+            return Plan.Failure(context.getString(R.string.launch_folder_missing, gameFolder.absolutePath), retry = true)
         }
         val config = try {
             EngineConfigReader.resolve(gameFolder, inlineJson)
@@ -71,6 +79,14 @@ object GameRunner {
                 )
             }
             return Plan.Failure(e.message ?: "Invalid $CONFIG_FILE_NAME")
+        }
+        // The save root can be on a card that is not mounted, or a folder
+        // chosen once and gone since; that is a sentence too, not an
+        // exception out of the launch screen.
+        val saveFolder = try {
+            SaveLocationStore(context).saveFolderFor(config)
+        } catch (e: UnusableSaveFolderException) {
+            return Plan.Failure(context.getString(R.string.launch_save_folder_unusable, e.folder.absolutePath), retry = true)
         }
         val resolved = PluginRegistry.resolve(
             context, config.engine, config.engineContext, config.engineVersion,
@@ -101,7 +117,7 @@ object GameRunner {
         val intent = Intent(context, runtimeClass).apply {
             putExtra(RuntimeActivity.EXTRA_PATH, gameFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE, resolved.plugin.bundleId)
-            putExtra(RuntimeActivity.EXTRA_SAVE_PATH, SaveLocationStore(context).saveFolderFor(config).absolutePath)
+            putExtra(RuntimeActivity.EXTRA_SAVE_PATH, saveFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_ENGINE, config.engine)
             putExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT, config.engineContext ?: DEFAULT_ENGINE_CONTEXT)
             putExtra(RuntimeActivity.EXTRA_ENGINE_VERSION, config.engineVersion.toString())

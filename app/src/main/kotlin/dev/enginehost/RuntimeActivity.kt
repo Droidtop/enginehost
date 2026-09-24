@@ -50,6 +50,9 @@ class RuntimeActivity : FragmentActivity() {
             ?: return failAndFinish("Runtime launch omitted the game path")
         val expectedBundle = intent.getStringExtra(EXTRA_PLUGIN_BUNDLE)
             ?: return failAndFinish("Runtime launch omitted the selected plugin")
+        // Made and checked by the planner; not worked out a second time here.
+        val saveFolder = intent.getStringExtra(EXTRA_SAVE_PATH)?.let(::File)
+            ?: return failAndFinish("Runtime launch omitted the save folder")
         val config = try {
             EngineConfigReader.resolve(gameFolder, intent.getStringExtra(EXTRA_CALLER_CONFIG))
         } catch (e: InvalidEngineConfigException) {
@@ -70,7 +73,7 @@ class RuntimeActivity : FragmentActivity() {
         try {
             val verifiedManifest = InstalledBundleVerifier.verify(this, resolved.plugin)
             val instance = loadPlugin(resolved.plugin)
-            val host = RuntimeHost(this, gameFolder, resolved.plugin.bundleId, config)
+            val host = RuntimeHost(this, gameFolder, resolved.plugin.bundleId, saveFolder)
             instance.onCreate(
                 EnginePluginSession(
                     resolved.plugin.directory, display, host, gameFolder.absolutePath, config.engine,
@@ -275,11 +278,10 @@ private class RuntimeHost(
     private val activity: Activity,
     private val gameFolder: File,
     pluginPackage: String,
-    config: EngineConfig,
+    private val save: File,
 ) : EngineHost {
     private val gameId = MessageDigest.getInstance("SHA-256")
         .digest(gameFolder.canonicalPath.toByteArray()).take(12).joinToString("") { "%02x".format(it) }
-    private val save = SaveLocationStore(activity).saveFolderFor(config)
     private val cache = File(activity.cacheDir, "plugins/$pluginPackage/$gameId").apply { mkdirs() }
     private val files = RuntimeFileSystem(gameFolder)
 
