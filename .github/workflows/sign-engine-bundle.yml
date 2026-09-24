@@ -1,0 +1,129 @@
+name: Sign engine bundle
+
+# The one place a plugin repository's signing key is used. Every plugin
+# repository's build job assembles its bundle inputs WITHOUT the key and
+# uploads them as a tar; its `sign` job calls this workflow, pinned by commit:
+#
+#   sign:
+#     needs: android
+#     permissions:
+#       contents: read
+#     uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<sha>
+#     with:
+#       tooling-sha: <the same sha>
+#       unsigned-artifact: ...
+#       bundle: dev.enginehost.<id>.enginehost.tar.xz
+#       artifact-name: ...
+#     secrets:
+#       ENGINEHOST_SIGNING_KEY_PEM: ${{ secrets.ENGINEHOST_SIGNING_KEY_PEM }}
+#
+# Why a separate job: a build job runs code nobody here reviewed line by line
+# (engine SDK downloads, Gradle plugins, third-party actions). All steps of a
+# job share one runner user and one workspace, so any of that code could
+# rewrite the signing script or read the key out of the signing step's
+# environment. This job runs only first-party actions pinned by commit, the
+# signing script from Enginehost at a pinned commit, and the committed
+# repository key document from the caller; the payload is data it hashes and
+# packs, never runs. See docs/security/2026-09-24-ci-supply-chain.md.
+on:
+  workflow_call:
+    inputs:
+      tooling-sha:
+        description: >-
+          Full commit SHA of Droidtop/enginehost whose scripts/ sign the
+          bundle. Use the same commit this workflow is pinned to.
+        type: string
+        required: true
+      unsigned-artifact:
+        description: >-
+          Artifact holding unsigned.tar: payload/ and bundle-metadata.json,
+          made with `tar -cf unsigned.tar -C <dir> payload bundle-metadata.json`
+          so the file modes the manifest signs survive the upload.
+        type: string
+        required: true
+      bundle:
+        description: "Bundle file name, dev.enginehost.<id>.enginehost.tar.xz"
+        type: string
+        required: true
+      artifact-name:
+        description: Artifact the signed bundle, release envelope and key document go to.
+        type: string
+        required: true
+      repository-key-document:
+        description: The repository's committed key document, relative to its root.
+        type: string
+        default: enginehost-public-key.json
+    secrets:
+      ENGINEHOST_SIGNING_KEY_PEM:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check the inputs
+        env:
+          TOOLING_SHA: ${{ inputs.tooling-sha }}
+          BUNDLE: ${{ inputs.bundle }}
+          KEY_DOCUMENT: ${{ inputs.repository-key-document }}
+        run: |
+          set -euo pipefail
+          # A branch or tag name here would let whoever can move it choose the
+          # code that holds the key; only a commit is a pin.
+          [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
+          [[ "$BUNDLE" =~ ^[A-Za-z0-9._-]+\.enginehost\.tar\.xz$ ]] || { echo "bad bundle name '$BUNDLE'" >&2; exit 1; }
+          [[ "$KEY_DOCUMENT" =~ ^[A-Za-z0-9._/-]+$ && "$KEY_DOCUMENT" != *..* ]] || { echo "bad key document path '$KEY_DOCUMENT'" >&2; exit 1; }
+      - name: Check out the repository key document
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: repository
+          persist-credentials: false
+          sparse-checkout: ${{ inputs.repository-key-document }}
+          sparse-checkout-cone-mode: false
+      - name: Check out the signing tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: Droidtop/enginehost
+          ref: ${{ inputs.tooling-sha }}
+          path: enginehost-tooling
+          persist-credentials: false
+          sparse-checkout: scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ inputs.unsigned-artifact }}
+          path: unsigned-download
+      - name: Sign
+        env:
+          ENGINEHOST_SIGNING_KEY_PEM: ${{ secrets.ENGINEHOST_SIGNING_KEY_PEM }}
+          BUNDLE: ${{ inputs.bundle }}
+          KEY_DOCUMENT: repository/${{ inputs.repository-key-document }}
+        run: |
+          set -euo pipefail
+          test -n "$ENGINEHOST_SIGNING_KEY_PEM"
+          test -f "$KEY_DOCUMENT"
+          mkdir -p unsigned output
+          # -p keeps the modes the build gave the payload; the manifest signs them.
+          tar -xpf unsigned-download/unsigned.tar -C unsigned --no-same-owner
+          test -d unsigned/payload
+          test -f unsigned/bundle-metadata.json
+          key="$RUNNER_TEMP/signing-key.pem"
+          trap 'rm -f "$key"' EXIT
+          (umask 077; printf '%s' "$ENGINEHOST_SIGNING_KEY_PEM" > "$key")
+          python3 enginehost-tooling/scripts/build-engine-bundle.py \
+            --metadata unsigned/bundle-metadata.json --payload unsigned/payload \
+            --private-key "$key" \
+            --repository-key-document "$KEY_DOCUMENT" \
+            --output "output/$BUNDLE" \
+            --release-envelope output/enginehost-release.json \
+            --public-key-document output/enginehost-public-key.json
+          # The key that signed must be the one the repository committed and
+          # the official root certified; anything else is the wrong secret.
+          cmp "$KEY_DOCUMENT" output/enginehost-public-key.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: output/*
+          if-no-files-found: error

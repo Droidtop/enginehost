@@ -82,6 +82,15 @@ once that exact build has installed and booted a real game on hardware.
 Compiling, packaging and even verifying signatures prove nothing about
 whether the runtime starts.
 
+Signing is one mechanism, Enginehost's reusable workflow
+`.github/workflows/sign-engine-bundle.yml`. A plugin repository's build job
+never sees its signing key: it tars the unsigned `payload/` and
+`bundle-metadata.json` and uploads them, and a `sign` job calls the reusable
+workflow pinned to a full Enginehost commit SHA (and passes the same SHA as
+`tooling-sha`). The signing script therefore comes from a reviewed commit, and
+no engine SDK, Gradle plugin or third-party action shares a runner with the key.
+Why: `docs/security/2026-09-24-ci-supply-chain.md`.
+
 Every repository publishes on three streams, and the release envelope
 (`enginehost-release.json`) names the stream in its `channel` field:
 
