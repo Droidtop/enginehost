@@ -9,7 +9,6 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SwitchCompat
 import java.io.File
 
@@ -17,7 +16,7 @@ import java.io.File
  * Global Enginehost configuration as a list of rows: where saves go (shared,
  * with per-engine exceptions), where the game browser starts, how updates
  * arrive, and the app itself. Each row shows its current value; a tap offers
- * the choices in a dialog, so the screen reads as settings, not as a form.
+ * the choices in a [Sheet], so the screen reads as settings, not as a form.
  */
 class EnginehostSettingsActivity : EnginehostActivity() {
     private lateinit var store: SaveLocationStore
@@ -68,35 +67,17 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         }
         findViewById<View>(R.id.updateFrequencyRow).setOnClickListener {
             val labels = resources.getStringArray(R.array.update_frequency_entries)
-            AlertDialog.Builder(this)
-                .setTitle(R.string.updates_frequency_label)
-                .setSingleChoiceItems(labels, updateCheck.frequency.ordinal) { dialog, which ->
-                    updateCheck.frequency = PluginUpdateCheck.Frequency.entries[which]
-                    dialog.dismiss()
-                    refresh()
+            Sheet(this).title(R.string.updates_frequency_label).apply {
+                labels.forEachIndexed { index, label ->
+                    choice(label, current = index == updateCheck.frequency.ordinal) {
+                        updateCheck.frequency = PluginUpdateCheck.Frequency.entries[index]
+                        refresh()
+                    }
                 }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
+            }.show()
         }
         findViewById<View>(R.id.pluginStreamRow).setOnClickListener {
-            val labels = arrayOf(
-                getString(R.string.stream_stable_desc),
-                getString(R.string.stream_testing_desc),
-                getString(R.string.stream_unstable_desc),
-            )
-            AlertDialog.Builder(this)
-                .setTitle(R.string.updates_stream_label)
-                .setSingleChoiceItems(labels, updateCheck.stream.ordinal) { dialog, which ->
-                    dialog.dismiss()
-                    // A refresh caches every stream a repository publishes, not
-                    // only the chosen one, so switching here is a local choice:
-                    // no re-fetch needed for the home screen or the catalog to
-                    // reflect it.
-                    updateCheck.stream = PluginStream.entries[which]
-                    refresh()
-                }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
+            showStreamSheet(updateCheck) { refresh() }
         }
         findViewById<SwitchCompat>(R.id.unmeteredOnlySwitch).apply {
             isChecked = updateCheck.unmeteredOnly
@@ -120,13 +101,11 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     }
 
     /** A short list of actions for one row. */
-    private fun choose(title: Int, actions: List<Pair<String, () -> Unit>>) {
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+    private fun choose(title: CharSequence, actions: List<Pair<String, () -> Unit>>) {
+        Sheet(this).title(title).apply { actions.forEach { (label, pick) -> choice(label, pick = pick) } }.show()
     }
+
+    private fun choose(title: Int, actions: List<Pair<String, () -> Unit>>) = choose(getString(title), actions)
 
     private fun checkAppUpdate() {
         val row = findViewById<View>(R.id.appVersionRow)
@@ -213,11 +192,11 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         }.onSuccess {
             refresh()
             if (oldSaves != null && oldSaves.canonicalFile != store.saveRoot().canonicalFile && oldSaves.exists()) {
-                AlertDialog.Builder(this)
-                    .setTitle(R.string.move_saves_title)
-                    .setMessage(R.string.move_saves_message)
-                    .setPositiveButton(R.string.migrate) { _, _ -> migrate(oldSaves) }
-                    .setNegativeButton(R.string.not_now, null)
+                Sheet(this)
+                    .title(R.string.move_saves_title)
+                    .message(R.string.move_saves_message)
+                    .choice(R.string.migrate) { migrate(oldSaves) }
+                    .choice(R.string.not_now) {}
                     .show()
             }
         }
@@ -281,11 +260,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                         refresh()
                     }
                 }
-                AlertDialog.Builder(this)
-                    .setTitle(EngineNames.family(engine))
-                    .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
-                    .setNegativeButton(R.string.cancel, null)
-                    .show()
+                choose(EngineNames.family(engine), actions)
             }
             engineSaveRows.addView(row)
         }

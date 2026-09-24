@@ -1,21 +1,17 @@
 package dev.enginehost
 
-import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.TextView
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /**
- * Every screen a person moves through in Enginehost, with the hint row
+ * Every screen a person moves through in Enginehost, with the [HintRow]
  * docked under it: the printed buttons this screen answers to and what
- * each does here. The row is also the touch route to those buttons (the
- * design language's rule), so each hint is pressable.
+ * each does here.
  *
  * A and B are the pad's own: Android turns an unhandled A into a press
  * on the focused view and an unhandled B (or Escape) into Back, and every
@@ -26,9 +22,6 @@ import androidx.core.content.ContextCompat
  * screen gives them a meaning by listing them in [hints].
  */
 abstract class EnginehostActivity : AppCompatActivity() {
-
-    /** One button's hint: the button as printed, what it does on this screen, and the doing. */
-    class Hint(val button: String, @StringRes val label: Int, val press: () -> Unit)
 
     private var hintRow: LinearLayout? = null
 
@@ -72,47 +65,14 @@ abstract class EnginehostActivity : AppCompatActivity() {
             setBackgroundColor(ContextCompat.getColor(context, R.color.eh_background))
         }
         column.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END or Gravity.CENTER_VERTICAL
-            setBackgroundColor(ContextCompat.getColor(context, R.color.eh_surface))
-            val h = resources.getDimensionPixelSize(R.dimen.eh_screen_padding_h)
-            setPadding(h, 0, h, 0)
-        }
+        val row = HintRow.create(this)
         column.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         hintRow = row
         fill(row)
         return column
     }
 
-    private fun fill(row: LinearLayout) {
-        row.removeAllViews()
-        val space = resources.getDimensionPixelSize(R.dimen.eh_space_s)
-        for (hint in hints()) {
-            val pill = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                minimumHeight = resources.getDimensionPixelSize(R.dimen.eh_touch_target)
-                setPadding(space, 0, space, 0)
-                setBackgroundResource(R.drawable.eh_row_bg)
-                // Pressable by touch, never a stop for the D-pad: the row
-                // names the pad's buttons, it is not somewhere to move to.
-                isClickable = true
-                isFocusable = false
-                contentDescription = getString(hint.label)
-                setOnClickListener { hint.press() }
-            }
-            pill.addView(TextView(this, null, 0, R.style.Widget_Enginehost_Chip).apply { text = hint.button })
-            pill.addView(
-                TextView(this).apply {
-                    setText(hint.label)
-                    setTextAppearance(R.style.TextAppearance_Enginehost_Caption)
-                    setPadding(space, 0, 0, 0)
-                },
-            )
-            row.addView(pill)
-        }
-    }
+    private fun fill(row: LinearLayout) = HintRow.fill(row, hints())
 
     private companion object {
         val OWNED_BUTTONS = setOf(KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y)

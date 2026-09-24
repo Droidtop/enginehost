@@ -24,6 +24,9 @@
 
     <!-- Gap between side by side panes and between grid columns. -->
     <dimen name="eh_column_gap">16dp</dimen>
+    <!-- A landscape sheet's width: a share of the window, never narrower or wider than these. -->
+    <dimen name="eh_sheet_min_width">320dp</dimen>
+    <dimen name="eh_sheet_max_width">480dp</dimen>
     <dimen name="eh_launch_icon">112dp</dimen>
     <dimen name="eh_launch_title_text">26sp</dimen>
 </resources>

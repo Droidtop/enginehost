@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A sheet: title, an optional sentence, optional content of the caller's
+    own, the choices as rows, and the hint row docked at its foot. Sheet.kt
+    fills it and places it: bottom edge held upright, right edge in
+    landscape.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/eh_sheet_bg"
+    android:orientation="vertical">
+
+    <ScrollView
+        android:id="@+id/sheetScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingLeft="@dimen/eh_screen_padding_h"
+            android:paddingRight="@dimen/eh_screen_padding_h"
+            android:paddingTop="@dimen/eh_screen_padding_v"
+            android:paddingBottom="@dimen/eh_space_s">
+
+            <TextView
+                android:id="@+id/sheetTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/sheetMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:textAppearance="@style/TextAppearance.Enginehost.Body"
+                android:textIsSelectable="false"
+                android:visibility="gone" />
+
+            <FrameLayout
+                android:id="@+id/sheetContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/sheetChoices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:orientation="vertical" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/sheetHints"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" />
+
+</LinearLayout>

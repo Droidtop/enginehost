@@ -10,7 +10,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import java.io.File
 
@@ -238,26 +237,17 @@ class MainActivity : EnginehostActivity() {
     }
 
     private fun showGameActions(folder: File) {
-        val actions = arrayOf(
-            getString(R.string.action_launch),
-            getString(R.string.action_edit_config),
-            getString(R.string.action_report),
-            getString(R.string.action_remove),
-        )
-        AlertDialog.Builder(this)
-            .setTitle(folder.name.ifBlank { folder.absolutePath })
-            .setItems(actions) { _, which ->
-                when (which) {
-                    0 -> launchGame(folder)
-                    1 -> startActivity(
-                        Intent(this, ConfigEditorActivity::class.java)
-                            .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
-                    )
-                    2 -> startActivity(ProblemReportActivity.intent(this, folder))
-                    3 -> confirmForget(folder)
-                }
+        Sheet(this)
+            .title(folder.name.ifBlank { folder.absolutePath })
+            .choice(R.string.action_launch) { launchGame(folder) }
+            .choice(R.string.action_edit_config) {
+                startActivity(
+                    Intent(this, ConfigEditorActivity::class.java)
+                        .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
+                )
             }
-            .setNegativeButton(R.string.cancel, null)
+            .choice(R.string.action_report) { startActivity(ProblemReportActivity.intent(this, folder)) }
+            .choice(R.string.action_remove, Sheet.Tone.DANGER) { confirmForget(folder) }
             .show()
     }
 
@@ -270,14 +260,13 @@ class MainActivity : EnginehostActivity() {
     }
 
     private fun confirmForget(folder: File) {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.remove_game_title)
-            .setMessage(R.string.remove_game_message)
-            .setPositiveButton(R.string.remove) { _, _ ->
+        Sheet(this)
+            .title(R.string.remove_game_title)
+            .message(R.string.remove_game_message)
+            .choice(R.string.remove, Sheet.Tone.DANGER) {
                 library.forget(folder)
                 renderLibrary()
             }
-            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 

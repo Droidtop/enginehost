@@ -172,14 +172,14 @@ class RuntimeActivity : FragmentActivity() {
      */
     private fun offerPatch(engineRequiredFile: String?) {
         pendingRequiredFile = engineRequiredFile
-        android.app.AlertDialog.Builder(this)
-            .setTitle("This game requires a patch")
-            .setMessage(
+        Sheet(this)
+            .title("This game requires a patch")
+            .message(
                 "This game's data is packed in a form the engine can't read on its own. " +
                     "If you have the compatibility patch for it, choose the file and " +
                     "Enginehost will put it in place.",
             )
-            .setPositiveButton("Choose file") { _, _ ->
+            .choice("Choose file") {
                 runCatching {
                     startActivityForResult(
                         Intent(Intent.ACTION_OPEN_DOCUMENT)
@@ -189,8 +189,7 @@ class RuntimeActivity : FragmentActivity() {
                     )
                 }.onFailure { failAndFinish("No file picker available on this device") }
             }
-            .setNegativeButton("Cancel") { _, _ -> finish() }
-            .setOnCancelListener { finish() }
+            .onCancel { finish() }
             .show()
     }
 

@@ -9,7 +9,6 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import java.io.File
 import java.util.Date
 
@@ -129,22 +128,7 @@ class PluginCatalogActivity : EnginehostActivity() {
      * catalog already holds every stream (see [CatalogRefresh]), so this is
      * a local choice: no refresh, no network.
      */
-    private fun pickStream() {
-        val labels = arrayOf(
-            getString(R.string.stream_stable_desc),
-            getString(R.string.stream_testing_desc),
-            getString(R.string.stream_unstable_desc),
-        )
-        AlertDialog.Builder(this)
-            .setTitle(R.string.updates_stream_label)
-            .setSingleChoiceItems(labels, updateCheck.stream.ordinal) { dialog, which ->
-                dialog.dismiss()
-                updateCheck.stream = PluginStream.entries[which]
-                render()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
+    private fun pickStream() = showStreamSheet(updateCheck) { render() }
 
     private fun renderOrigins() {
         originList.removeAllViews()
@@ -518,4 +502,25 @@ class PluginCatalogActivity : EnginehostActivity() {
         private const val REQUEST_BUNDLE_FILE = 4711
         const val EXTRA_SELECTION_ONLY = "dev.enginehost.catalog.SELECTION_ONLY"
     }
+}
+
+/**
+ * The stream picker, one sheet for both places it is offered (the catalog
+ * and Settings). A refresh caches every stream a repository publishes, not
+ * only the chosen one, so switching is a local choice: no re-fetch.
+ */
+fun android.app.Activity.showStreamSheet(updateCheck: PluginUpdateCheck, then: () -> Unit) {
+    val labels = listOf(
+        getString(R.string.stream_stable_desc),
+        getString(R.string.stream_testing_desc),
+        getString(R.string.stream_unstable_desc),
+    )
+    Sheet(this).title(R.string.updates_stream_label).apply {
+        labels.forEachIndexed { index, label ->
+            choice(label, current = index == updateCheck.stream.ordinal) {
+                updateCheck.stream = PluginStream.entries[index]
+                then()
+            }
+        }
+    }.show()
 }

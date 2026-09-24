@@ -13,7 +13,6 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 
@@ -153,15 +152,15 @@ class LaunchActivity : AppCompatActivity() {
             earlierSavesAnswered = true
             launch(waitedForRuntime)
         }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.earlier_saves_title)
-            .setMessage(
+        Sheet(this)
+            .title(R.string.earlier_saves_title)
+            .message(
                 resources.getQuantityString(
                     R.plurals.earlier_saves_message, saves.missing.size,
                     saves.missing.size, saves.from.absolutePath,
                 ),
             )
-            .setPositiveButton(R.string.earlier_saves_copy) { _, _ ->
+            .choice(R.string.earlier_saves_copy) {
                 Thread {
                     val result = saves.copy()
                     runOnUiThread {
@@ -178,12 +177,12 @@ class LaunchActivity : AppCompatActivity() {
                     }
                 }.start()
             }
-            .setNegativeButton(R.string.earlier_saves_not_now) { _, _ -> answered() }
-            .setNeutralButton(R.string.earlier_saves_leave) { _, _ ->
+            .choice(R.string.earlier_saves_not_now) { answered() }
+            .choice(R.string.earlier_saves_leave) {
                 SaveLocationStore(this).leaveEarlierSaves(saves)
                 answered()
             }
-            .setOnCancelListener { cancel() }
+            .onCancel { cancel() }
             .show()
     }
 

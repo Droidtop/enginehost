@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A sheet held upright rises from the bottom edge: its top corners are round. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/eh_surface" />
+    <corners
+        android:topLeftRadius="@dimen/eh_corner"
+        android:topRightRadius="@dimen/eh_corner" />
+</shape>

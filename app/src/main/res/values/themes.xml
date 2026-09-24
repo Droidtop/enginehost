@@ -21,7 +21,6 @@
         <item name="editTextStyle">@style/Widget.Enginehost.EditText</item>
         <item name="android:editTextStyle">@style/Widget.Enginehost.EditText</item>
         <item name="switchStyle">@style/Widget.Enginehost.Switch</item>
-        <item name="alertDialogTheme">@style/Theme.Enginehost.Dialog</item>
     </style>
 
     <!-- The launch screen: the app theme, edge to edge, no bars. -->
@@ -48,11 +47,18 @@
         <item name="android:windowBackground">@android:color/black</item>
     </style>
 
-    <style name="Theme.Enginehost.Dialog" parent="Theme.AppCompat.DayNight.Dialog.Alert">
-        <item name="colorAccent">@color/eh_accent</item>
-        <item name="android:windowBackground">@drawable/eh_card_bg</item>
-        <item name="android:textColorPrimary">@color/eh_text_primary</item>
-        <item name="android:textColorSecondary">@color/eh_text_secondary</item>
+    <!--
+        A sheet (Sheet.kt). A platform parent on purpose: the in-game menu
+        draws one over an engine's Activity, whose theme may not be an
+        AppCompat one. The sheet paints its own ground; the window is only a
+        dimmed frame for it.
+    -->
+    <style name="Theme.Enginehost.Sheet" parent="android:Theme.DeviceDefault.Dialog.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowMinWidthMajor">0%</item>
+        <item name="android:windowMinWidthMinor">0%</item>
     </style>
 
 </resources>

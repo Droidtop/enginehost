@@ -160,6 +160,12 @@ Focus has one look everywhere, the accent ring over a raised fill
 fields alike. A filled button draws the ring outside its fill, with a gap, so
 it still shows. No focusable view gets a focus colour of its own.
 
+Every choice and every question is a sheet in the app's own look (`Sheet`),
+never a stock dialog: on the bottom edge while the device is held upright,
+on the right edge in landscape. A sheet takes the pad (D-pad between its
+rows, A to pick, B or Escape to close) and carries its own hint row, so it
+needs no Cancel button. The in-game menu is one too, drawn over the engine.
+
 ## Plugins
 
 Plugins are separately installed, versioned `*.enginehost.tar.xz` bundles, not

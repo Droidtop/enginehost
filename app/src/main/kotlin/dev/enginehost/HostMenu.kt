@@ -1,7 +1,7 @@
 package dev.enginehost
 
 import android.app.Activity
-import android.app.AlertDialog
+import android.app.Dialog
 import android.content.Context
 import android.view.KeyEvent
 
@@ -110,7 +110,7 @@ class HostMenuCombo(private val combo: Set<Int>) {
 
 /**
  * Enginehost's in-game menu: the one screen of ours a person can reach
- * without leaving the game, drawn as a dialog over the running engine in
+ * without leaving the game, drawn as a [Sheet] over the running engine in
  * the `:runtime` process.
  *
  * Its contents are RetroArch's Quick Menu scoped to what this host
@@ -120,37 +120,30 @@ class HostMenuCombo(private val combo: Set<Int>) {
  * cheats, core options -- because those belong to the engines.
  */
 object HostMenu {
-    private var open: AlertDialog? = null
+    private var open: Dialog? = null
 
     fun isOpen(): Boolean = open?.isShowing == true
 
     fun show(activity: Activity) {
         if (isOpen() || activity.isFinishing) return
         val scope = scopeOf(activity)
-        val items = arrayOf(
-            activity.getString(R.string.host_menu_resume),
-            activity.getString(R.string.host_menu_controller),
-            activity.getString(R.string.host_menu_save_location),
-            activity.getString(R.string.host_menu_legend),
-            activity.getString(R.string.host_menu_quit),
-        )
-        open = builder(activity)
-            .setTitle(R.string.host_menu_title)
-            .setItems(items) { _, which ->
-                when (which) {
-                    ITEM_RESUME -> Unit
-                    ITEM_CONTROLLER -> activity.startActivity(ControllerConfigActivity.intent(activity, scope))
-                    ITEM_SAVE_LOCATION -> info(
-                        activity,
-                        R.string.host_menu_save_location,
-                        activity.intent.getStringExtra(RuntimeActivity.EXTRA_SAVE_PATH)
-                            ?: activity.getString(R.string.host_menu_save_unknown),
-                    )
-                    ITEM_LEGEND -> info(activity, R.string.host_menu_legend, legend(activity, scope))
-                    ITEM_QUIT -> quit(activity)
-                }
+        open = Sheet(activity)
+            .title(R.string.host_menu_title)
+            .choice(R.string.host_menu_resume) {}
+            .choice(R.string.host_menu_controller) {
+                activity.startActivity(ControllerConfigActivity.intent(activity, scope))
             }
-            .setOnDismissListener { open = null }
+            .choice(R.string.host_menu_save_location) {
+                info(
+                    activity,
+                    R.string.host_menu_save_location,
+                    activity.intent.getStringExtra(RuntimeActivity.EXTRA_SAVE_PATH)
+                        ?: activity.getString(R.string.host_menu_save_unknown),
+                )
+            }
+            .choice(R.string.host_menu_legend) { info(activity, R.string.host_menu_legend, legend(activity, scope)) }
+            .choice(R.string.host_menu_quit) { quit(activity) }
+            .onDismiss(::closed)
             .show()
     }
 
@@ -178,33 +171,28 @@ object HostMenu {
         }
     }
 
+    /** A page of the menu: its sentence, and the way back to the menu. B closes the menu. */
     private fun info(activity: Activity, titleRes: Int, message: String) {
-        open = builder(activity)
-            .setTitle(titleRes)
-            .setMessage(message)
-            .setPositiveButton(R.string.host_menu_back) { _, _ -> show(activity) }
-            .setOnDismissListener { open = null }
+        open = Sheet(activity)
+            .title(titleRes)
+            .message(message)
+            .choice(R.string.host_menu_back) { show(activity) }
+            .onDismiss(::closed)
             .show()
     }
 
     /**
-     * A platform dialog theme rather than the runtime's own. The runtime
-     * theme is a fullscreen game surface, and the plugin shapes do not
-     * agree on whether their Activity is an AppCompat one, so the one
-     * theme both shapes certainly have is the platform's.
+     * A sheet's dismissal is reported after the fact, so when a choice
+     * opens the next page the old page's report arrives once the new one
+     * is already up; only forget the menu when nothing of it is showing.
      */
-    private fun builder(activity: Activity): AlertDialog.Builder =
-        AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+    private fun closed() {
+        if (open?.isShowing != true) open = null
+    }
 
     /** The scope this session is playing under; the same one settings shows. */
     fun scopeOf(activity: Activity): String? = ControllerScope.of(
         activity.intent.getStringExtra(RuntimeActivity.EXTRA_ENGINE),
         activity.intent.getStringExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT),
     )
-
-    private const val ITEM_RESUME = 0
-    private const val ITEM_CONTROLLER = 1
-    private const val ITEM_SAVE_LOCATION = 2
-    private const val ITEM_LEGEND = 3
-    private const val ITEM_QUIT = 4
 }

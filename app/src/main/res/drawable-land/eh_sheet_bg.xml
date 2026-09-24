@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- In landscape a sheet stands on the right edge: its left corners are round. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/eh_surface" />
+    <corners
+        android:bottomLeftRadius="@dimen/eh_corner"
+        android:topLeftRadius="@dimen/eh_corner" />
+</shape>

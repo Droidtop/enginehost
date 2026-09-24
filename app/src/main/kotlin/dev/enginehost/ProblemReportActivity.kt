@@ -10,7 +10,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
 import java.io.File
@@ -45,15 +44,14 @@ class ProblemReportActivity : EnginehostActivity() {
             else -> symptoms[1]
         }
         findViewById<View>(R.id.symptomRow).setOnClickListener {
-            AlertDialog.Builder(this)
-                .setTitle(R.string.report_symptom_label)
-                .setSingleChoiceItems(symptoms, symptoms.indexOf(symptom)) { dialog, which ->
-                    symptom = symptoms[which]
-                    dialog.dismiss()
-                    findViewById<TextView>(R.id.symptomValue).text = symptom
+            Sheet(this).title(R.string.report_symptom_label).apply {
+                symptoms.forEach { option ->
+                    choice(option, current = option == symptom) {
+                        symptom = option
+                        findViewById<TextView>(R.id.symptomValue).text = symptom
+                    }
                 }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
+            }.show()
         }
         findViewById<TextView>(R.id.symptomValue).text = symptom
         findViewById<SwitchCompat>(R.id.includeLogSwitch).setOnCheckedChangeListener { _, checked ->

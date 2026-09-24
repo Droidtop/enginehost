@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One choice in a sheet: a settings row, so it focuses like every other row. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.Enginehost.Row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/eh_space_xs">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/choiceLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+        <TextView
+            android:id="@+id/choiceDetail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/choiceSelected"
+        android:layout_width="@dimen/eh_icon"
+        android:layout_height="@dimen/eh_icon"
+        android:layout_marginStart="@dimen/eh_space_s"
+        android:contentDescription="@string/sheet_current_choice"
+        android:src="@drawable/ic_check"
+        android:tint="@color/eh_accent"
+        android:visibility="gone" />
+
+</LinearLayout>

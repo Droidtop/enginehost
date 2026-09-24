@@ -11,7 +11,6 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -520,23 +519,23 @@ class ConfigEditorActivity : EnginehostActivity() {
     }
 
     private fun showItems(titleRes: Int, labels: List<String>, actions: List<() -> Unit>) {
-        AlertDialog.Builder(this)
-            .setTitle(titleRes)
-            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        Sheet(this).title(titleRes).apply {
+            labels.forEachIndexed { index, label -> choice(label, pick = actions[index]) }
+        }.show()
     }
 
     private fun promptText(titleRes: Int, initial: String?, title: String? = null, onDone: (String) -> Unit) {
         val input = EditText(this).apply {
             setText(initial ?: "")
+            setSelection(text.length)
+            isSingleLine = true
         }
-        AlertDialog.Builder(this)
-            .apply { if (title != null) setTitle(title) else setTitle(titleRes) }
-            .setView(input)
-            .setPositiveButton(R.string.ok) { _, _ -> onDone(input.text.toString().trim()) }
-            .setNegativeButton(R.string.cancel, null)
+        Sheet(this)
+            .title(title ?: getString(titleRes))
+            .content(input)
+            .choice(R.string.ok) { onDone(input.text.toString().trim()) }
             .show()
+        input.requestFocus()
     }
 
     private fun refreshEditors() {

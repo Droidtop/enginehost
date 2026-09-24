@@ -7,6 +7,7 @@
     <string name="remove">Remove</string>
     <string name="back">Back</string>
     <string name="hint_select">Select</string>
+    <string name="sheet_current_choice">Current choice</string>
     <string name="hint_game_actions">Game actions</string>
     <string name="details">Details</string>
     <string name="choose_shared_storage_folder">Choose a folder on internal or removable storage</string>
