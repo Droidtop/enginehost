@@ -72,8 +72,8 @@ class SaveLocationStore(context: Context) {
     }
 
     private fun ensureUsable(folder: File): File = folder.also {
-        require(it.isDirectory || it.mkdirs()) { "Could not create Enginehost's save folder" }
-        require(it.canWrite()) { "Enginehost's save folder is not writable" }
+        if (!it.isDirectory && !it.mkdirs()) throw UnusableSaveFolderException(it, "Could not create Enginehost's save folder")
+        if (!it.canWrite()) throw UnusableSaveFolderException(it, "Enginehost's save folder is not writable")
     }
 
     /** Legacy location used before the configurable shared save root existed. */
@@ -147,6 +147,13 @@ class SaveLocationStore(context: Context) {
         private const val KEY_ENGINE_PREFIX = "root."
     }
 }
+
+/**
+ * A save folder that cannot be created or written: a memory card that is not
+ * mounted, a root chosen on storage that has since gone, or no all-files
+ * grant. [folder] is the one that failed, for the sentence the person gets.
+ */
+class UnusableSaveFolderException(val folder: File, message: String) : IllegalArgumentException(message)
 
 /**
  * How a game's save folder is named when the runtime cannot name it.

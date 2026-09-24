@@ -358,5 +358,7 @@
         <item quantity="one">%1$s has %2$d plugin</item>
         <item quantity="other">%1$s has %2$d plugins</item>
     </plurals>
+    <string name="launch_needs_all_files">Enginehost is not allowed to use all files, which it needs to read games and keep their saves. Allow it in Android\'s settings (Apps, Enginehost, All files access), then try again.</string>
+    <string name="launch_save_folder_unusable">Enginehost cannot keep saves in %1$s: the folder cannot be created or written to. If it is on a memory card, check that the card is inserted and mounted, or choose another save folder in Enginehost\'s settings, then try again.</string>
     <string name="launch_folder_missing">The game folder is not there: %1$s. If it is on a memory card, check that the card is inserted and mounted, then try again.</string>
 </resources>
