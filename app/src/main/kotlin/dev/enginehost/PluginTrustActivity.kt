@@ -7,11 +7,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /** First-class approval UI for code that will execute with Enginehost's permissions. */
-class PluginTrustActivity : AppCompatActivity() {
+class PluginTrustActivity : EnginehostActivity() {
     private lateinit var list: ViewGroup
     private lateinit var emptyState: TextView
     private lateinit var openCatalogButton: Button

@@ -10,7 +10,6 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import kotlin.math.abs
 
 /**
@@ -23,7 +22,7 @@ import kotlin.math.abs
  * which is the one thing every EmulationStation-derived front end agrees
  * on (research/controller-profiles, recommendation 4).
  */
-class ControllerProfileActivity : AppCompatActivity(), InputManager.InputDeviceListener {
+class ControllerProfileActivity : EnginehostActivity(), InputManager.InputDeviceListener {
     private lateinit var profileDevice: TextView
     private lateinit var profileState: TextView
     private lateinit var profileHint: TextView

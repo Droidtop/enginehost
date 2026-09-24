@@ -12,7 +12,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -30,7 +29,7 @@ import java.io.File
  * fallback. Free-text escapes stay available for every value nothing
  * installed declares yet -- declared vocabularies suggest, they never gate.
  */
-class ConfigEditorActivity : AppCompatActivity() {
+class ConfigEditorActivity : EnginehostActivity() {
     private var folderUri: Uri? = null
     private var folderPath: File? = null
     private var loadedDocument = JSONObject()

@@ -9,7 +9,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.ProgressBar
-import androidx.appcompat.app.AppCompatActivity
 
 /**
  * The report form, opened inside Enginehost.
@@ -19,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
  * browser is sometimes refused, so the page can always be handed to the
  * device's own browser instead, with the same prefilled address.
  */
-class ProblemReportFormActivity : AppCompatActivity() {
+class ProblemReportFormActivity : EnginehostActivity() {
     private lateinit var webView: WebView
 
     override fun onCreate(savedInstanceState: Bundle?) {

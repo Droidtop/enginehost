@@ -11,11 +11,10 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import kotlin.math.abs
 
 /** Global controller remapping shared by every engine bundle. */
-class ControllerConfigActivity : AppCompatActivity(), InputManager.InputDeviceListener {
+class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceListener {
     private lateinit var connectedControllers: TextView
     private lateinit var scopeList: LinearLayout
     private lateinit var scopeHint: TextView

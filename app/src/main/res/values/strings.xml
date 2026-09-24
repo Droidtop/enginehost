@@ -6,6 +6,8 @@
     <string name="cancel">Cancel</string>
     <string name="remove">Remove</string>
     <string name="back">Back</string>
+    <string name="hint_select">Select</string>
+    <string name="hint_game_actions">Game actions</string>
     <string name="details">Details</string>
     <string name="choose_shared_storage_folder">Choose a folder on internal or removable storage</string>
     <string name="choose_shared_storage_file">Choose a file on internal or removable storage</string>

@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import java.io.File
 
@@ -18,7 +17,7 @@ import java.io.File
  * Exported as `dev.enginehost.SCAN` (optional "path" extra) so callers such
  * as droidtop can open a scan rooted at a folder they already know about.
  */
-class GameScanActivity : AppCompatActivity() {
+class GameScanActivity : EnginehostActivity() {
     private lateinit var library: GameLibraryStore
     private lateinit var chooseButton: Button
     private lateinit var rootLabel: TextView
