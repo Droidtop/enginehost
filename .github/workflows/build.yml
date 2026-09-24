@@ -2,10 +2,11 @@ name: Android build
 
 on:
   push:
-    # codex/engine-bundles is where the work actually happens; without it
-    # here, commits to the active line were never built and two landed
-    # unverified before this was noticed.
-    branches: [main, codex/engine-bundles]
+    # main is the mainline (user, 2026-09-24). Until then the work happened
+    # on codex/engine-bundles while GitHub's default branch sat stale, so
+    # the `latest` tag pointed at a commit the published APK was not built
+    # from, and cloud workers or PRs started from the wrong branch.
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -13,6 +14,12 @@ on:
 # default GITHUB_TOKEN is read-only unless granted this explicitly.
 permissions:
   contents: write
+
+# A push that supersedes a running build cancels it, so two builds of the
+# same branch never race to publish the rolling release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -61,16 +68,17 @@ jobs:
       - name: Publish rolling "latest" release
         # Same shape as droidtop's: a permanent, linkable "give this to
         # someone to install" release that always points at the newest
-        # build of the active line. codex/engine-bundles is that line;
-        # main is stale, and publishing from both would make "latest"
-        # flap between two histories.
+        # build of the mainline, main. The tag is created AT the commit that
+        # was built (--target): without it gh tags the default branch's
+        # head, which for weeks was a stale main, so `latest` named a commit
+        # the APK was never built from.
         #
         # release-info.json is the in-app update check's one probe: the
         # app downloads this small file unauthenticated, compares
         # versionCode with its own, and verifies any downloaded APK
         # against apkSha256 before handing it to the Android installer
         # (see AppUpdate.kt).
-        if: github.ref == 'refs/heads/codex/engine-bundles' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -92,6 +100,6 @@ jobs:
           )
           PY
           gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest enginehost-latest.apk release-info.json \
+          gh release create latest enginehost-latest.apk release-info.json             --target "${{ github.sha }}" \
             --title "Enginehost — latest build" \
             --notes "Automatically built from commit ${{ github.sha }} (build ${{ github.run_number }}). Signed with the persistent Enginehost CI key, so it installs over a previous \"latest\" without uninstalling. release-info.json is what the in-app update check reads."
