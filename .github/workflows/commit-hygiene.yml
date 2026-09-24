@@ -29,7 +29,7 @@ jobs:
           if [ -n "$BASE" ]; then range="$BASE..$HEAD"
           elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE" 2>/dev/null; then range="$BEFORE..$HEAD"
           else range="$HEAD~1..$HEAD"; fi
-          pattern='(Co-Authored-By|Co-authored-by):.*(Claude|Anthropic|Codex|OpenAI|Copilot|noreply@anthropic\.com)|Generated with \[?Claude|🤖 Generated|codex@openai\.com'
+          pattern='(Co-Authored-By|Co-authored-by):.*(Claude|Anthropic|Codex|OpenAI|Copilot)|noreply@anthropic\.com|codex@openai\.com|Generated with \[?Claude|🤖 Generated|Claude-Session:|claude\.ai/code/session'
           bad=$(git log --format='%H%x09%an <%ae>%x09%s' "$range" | while IFS=$'\t' read -r sha who subj; do
             if git log -1 --format='%an <%ae>%n%B' "$sha" | grep -Eiq "$pattern"; then echo "$sha $who: $subj"; fi
           done)
