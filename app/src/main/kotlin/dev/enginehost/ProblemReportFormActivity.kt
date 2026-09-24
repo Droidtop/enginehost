@@ -40,8 +40,12 @@ class ProblemReportFormActivity : EnginehostActivity() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 // The report form lives on GitHub; anything else a page offers
                 // belongs in the person's own browser, not in this window.
-                val host = request.url.host.orEmpty()
-                if (host.endsWith("github.com") || host.endsWith("githubusercontent.com")) return false
+                // Whole labels only: a bare suffix match let evilgithub.com stay
+                // in a window where the person is asked to sign in.
+                val host = request.url.host.orEmpty().lowercase()
+                val github = listOf("github.com", "githubusercontent.com")
+                    .any { host == it || host.endsWith(".$it") }
+                if (request.url.scheme == "https" && github) return false
                 runCatching { startActivity(Intent(Intent.ACTION_VIEW, request.url)) }
                 return true
             }
