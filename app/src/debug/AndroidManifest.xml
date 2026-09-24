@@ -1,11 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <!--
+             Both install activities are adb and CI only, and exist only in
+             the debug build. DUMP is held by the shell user and by no app a
+             person can install, so `adb shell am start` still reaches this
+             while another app on the rig cannot use it to install and
+             approve bundles behind the person's back.
+        -->
         <activity
             android:name=".DebugBundleInstallActivity"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="dev.enginehost.debug.INSTALL_BUNDLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Install a bundle file already on the device, through the trust screen. See BundleInstallActivity. -->
+        <activity
+            android:name=".BundleInstallActivity"
+            android:exported="true"
+            android:permission="android.permission.DUMP"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="dev.enginehost.INSTALL_BUNDLE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

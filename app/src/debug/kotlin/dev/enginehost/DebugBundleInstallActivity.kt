@@ -17,6 +17,11 @@ class DebugBundleInstallActivity : Activity() {
                 require(PluginTrustStore(this).isOfficial(installed)) {
                     "Debug harness only auto-approves an official built-in signer"
                 }
+                // A decision the person made on the trust screen stands; the
+                // harness only fills in one nobody has made yet.
+                require(PluginTrustStore(this).state(installed) != PluginTrustState.DENIED) {
+                    "This exact build was denied on the trust screen; approve it there"
+                }
                 PluginTrustStore(this).approve(installed)
                 Log.i(TAG, "Installed and approved ${installed.bundleId} from ${archive.absolutePath}")
             }.onSuccess {

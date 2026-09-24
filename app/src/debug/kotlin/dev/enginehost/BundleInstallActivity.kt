@@ -1,6 +1,5 @@
 package dev.enginehost
 
-import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -17,17 +16,17 @@ import java.io.File
  * authenticated, push it with adb, and fire
  * `am start -a dev.enginehost.INSTALL_BUNDLE --es path /sdcard/Download/x.enginehost.tar.xz`.
  *
- * Only a debuggable build answers. The file goes through exactly the same
+ * It exists only in the debug build, and only adb (which holds DUMP) can
+ * start it. The file goes through exactly the same
  * signature verification and the same trust prompt as a downloaded one, so
  * this path grants nothing the catalog does not.
  */
 class BundleInstallActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         val path = intent.getStringExtra(EXTRA_PATH)
-        if (!debuggable || path == null || !File(path).isFile) {
-            Log.w(TAG, "Bundle install request refused: debuggable=$debuggable path=$path")
+        if (path == null || !File(path).isFile) {
+            Log.w(TAG, "Bundle install request refused: path=$path")
             finish()
             return
         }
