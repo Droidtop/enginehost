@@ -42,6 +42,15 @@ object GameRunner {
         inlineJson: String? = null,
         autoInstallPlugin: Boolean = false,
     ): Plan {
+        // Before anything reads the folder or starts a runtime: a game folder
+        // that is not there (a card that is not mounted, a folder moved or
+        // deleted since it was added) is a sentence, not a crash. Checked
+        // nowhere else, the Ren'Py runtime found it itself on its engine
+        // thread and aborted the process through a JNI pending exception
+        // (rig, 2026-09-24), and every other engine had its own outcome.
+        if (!gameFolder.isDirectory) {
+            return Plan.Failure(context.getString(R.string.launch_folder_missing, gameFolder.absolutePath))
+        }
         val config = try {
             EngineConfigReader.resolve(gameFolder, inlineJson)
         } catch (e: InvalidEngineConfigException) {

@@ -356,4 +356,5 @@
         <item quantity="one">%1$s has %2$d plugin</item>
         <item quantity="other">%1$s has %2$d plugins</item>
     </plurals>
+    <string name="launch_folder_missing">The game folder is not there: %1$s. If it is on a memory card, check that the card is inserted and mounted, then try again.</string>
 </resources>
