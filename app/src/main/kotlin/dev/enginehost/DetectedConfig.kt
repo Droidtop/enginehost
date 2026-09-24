@@ -31,13 +31,21 @@ object DetectedConfig {
     }
 
     /**
-     * The document, or null when detection left a required field open. A
-     * caller's inline config supplies anything detection did not, the same
-     * way it does for a folder that already has a config.
+     * The document, or null when detection left a required field open.
+     *
+     * A caller's inline config supplies what identifies the game
+     * ([CALLER_FACTS]), which is what a launcher knows better than a scan.
+     * Nothing else of it is written: `dev.enginehost.LAUNCH` is open to
+     * every app, and a written file outlives the launch, so a caller's
+     * `options` (mkxp-z's `customScript` names a script to run) would
+     * otherwise stay in the game's config for every later launch, whoever
+     * starts it. The caller's full inline config still applies to the
+     * launch it came with, as it does for a folder that has a config.
      */
     internal fun documentFor(detection: EngineDetection, folderName: String, inlineJson: String?): JSONObject? {
         val inline = inlineJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: JSONObject()
-        val document = JSONObject(inline.toString())
+        val document = JSONObject()
+        CALLER_FACTS.forEach { key -> inline.opt(key)?.let { document.put(key, it) } }
         fun fill(key: String, value: String?) {
             if (!document.has(key) && value != null) document.put(key, value)
         }
@@ -54,4 +62,7 @@ object DetectedConfig {
         }
         return runCatching { EngineConfigReader.parseDocument(document.toString()); document }.getOrNull()
     }
+
+    /** What droidtop's library sends, and all of a caller's config that is ever written down. */
+    internal val CALLER_FACTS = listOf("engine", "engineContext", "engineVersion", "runtimeRequirements", "title")
 }
