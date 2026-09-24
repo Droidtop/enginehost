@@ -8,9 +8,9 @@ any flow in the UI has a programmatic equivalent, and vice versa. The bundle con
 
 ## Rules (the owner's, not suggestions)
 
-- **Mainline is `main`.** Work on a branch and open a pull request against `main`.
+- **Mainline is `main`.** Commit straight to `main` as ordinary commits (no pull requests): fetch, rebase onto the remote `main`, push. Keep each commit one coherent change.
   (`codex/engine-bundles` is retired.)
-- **Builds are CI** (`.github/workflows/build.yml`). A change is done when CI is green on the PR.
+- **Builds are CI** (`.github/workflows/build.yml`). A change is done when CI is green on its commit.
   Say what was and was not verified; a green build is not proof that a game runs.
 - **No AI attribution anywhere.** No `Co-Authored-By`, no "Generated with", in commits or PRs.
 - **Commit messages** are plain prose saying why, citing evidence.
@@ -30,6 +30,6 @@ any flow in the UI has a programmatic equivalent, and vice versa. The bundle con
 
 ## What you cannot do from a cloud session
 
-You cannot reach the test device. When a change needs checking on a device, say so in the PR
+You cannot reach the test device. When a change needs checking on a device, say so in the commit message
 description under a heading **Needs a rig check**, with exact steps. The coordinator runs it on
-the test rig and reports back on the PR.
+the test rig and reports back.
