@@ -123,6 +123,46 @@ fine-grained token scoped to that one repository.
 Per-repository status, with the commit that fixed each, is kept in the table
 below; a row without a commit is not fixed yet.
 
-| Repository | Branches | Findings | Fixed in |
+All plugin rows below adopt `sign-engine-bundle.yml` pinned at 74162ce0 (H1,
+H2), take write tokens and ref names out of build jobs (H3, M3), pin actions
+(M1) and state permissions (M2). "No run" means that branch's workflow only
+builds on `plugin/**` pushes, so the commit was checked with actionlint only.
+
+| Repository | Branch | Fixed in | CI on the fix |
 | --- | --- | --- | --- |
-| enginehost | main | H3, M1, M2; hosts the H1/H2 fix | this commit |
+| enginehost | main | 74162ce0 | build and publish green on fb46ba04 (run 36034856631) |
+| enginehost-html-plugin | plugin/stable | 1215a7a6, ce874f5 | green (36034232252, 36035541831); signed bundle verified offline against the pinned key |
+| enginehost-html-plugin | plugin-core | c9373df, a58fd2d | green (36035586893) |
+| enginehost-godot-plugin | plugin-core | 2a3d296, dc34c41 | green (36035549583) |
+| enginehost-godot-plugin | plugin/4.0 to 4.7.1, 4.5-embedded-pack | 0b45276, 27d1a51, 614eddd, c86c32f, 6566e0f, ca745ba, 85e204c, d7d29c7, 3d9b264 | all green; 4.3 bundle verified offline, file modes identical to the pre-change 4.2 bundle |
+| enginehost-renpy-plugin | plugin/7.3 to 8.5 | fd2b1b67 d4b05c36 ca0f1462 bf308ab8 a2fb5ec1 fc065ca7 b2f9b7a6 82f45be2 8d64236b 0fde7d6e b63e72ca 16ef3d42 | all green; 8.5 bundle verified offline |
+| enginehost-renpy-plugin | plugin-core; master (sync, pins only) | a591e68b; d1aee9e7 | no run |
+| enginehost-kirikiri-plugin | plugin/stable; plugin-core; yuri (legacy APK) | 7f70a2b; 69343b2; bfad18b | green (36035243488); no run; no run (tag-triggered) |
+| enginehost-nscripter-plugin | main | 72021b4, f790f09 | android-plugin green (36035469516); desktop and web builds are tag-triggered, not run |
+| enginehost-rpgmaker-mv-mz-plugin | main | 6245496 | green (36035513762) |
+| enginehost-buriko-plugin | plugin/0.0.1; plugin-core | c161e8e; 324bc70 | green (36035172895); no run |
+| enginehost-catsystem2-plugin | plugin/0.1; plugin-core; plugin/2.0; main | 5c14e8c; 0848d14; 135d899, 30054e2; 54ec425 | green (36035309047); no run; green (36036956404); green (36035338624) |
+| enginehost-cmvs-plugin | plugin/2.0-3.0; plugin-core | b5522f4; f68040b | green (36035428638); no run |
+| enginehost-flash-air-plugin | plugin/ruffle-0.4.1; plugin-core | c3e63979; 2d37aa29, bdef062f | green (36035221394); no run |
+| enginehost-rpgmaker-easyrpg-plugin | plugin/0.8.1.1; plugin-core | dfe5e911; c98eccfd | green (36035375653); no run |
+| enginehost-rpgmaker-mkxp-z-plugin | plugin/rgss-v1; plugin-core | 4ef23c37; c8679d7c | red (36035487567) at Build APK on 1633950's `Resources.getLoaders()`, which is not public SDK API; sign and publish not yet exercised on this line; no run |
+| droidtop | main | 84ad8ca | publish split not yet exercised: main's builds since fail in Gradle on app code (36036606334) |
+| droidtop-platforms | main | cbbbd10 | green (36035155818, 36035155815) |
+| windowcast | main | d87518b | green (36035128585) |
+| gamenative-tux | master | ae68e133 | green (36035181900) |
+| proton-wine-tux | proton_11.0-2 | dffedc86 | run 36035290764 past setup, still building at time of writing |
+| enginehost-kirikiri-wrapper-legacy | main | fc96eaf | green (36035225664) |
+| enginehost-reports | master | none needed | - |
+
+Not fixed, deliberately:
+
+- Engine SDK and dependency downloads without checksums (renpy.org SDK/RAPT,
+  Kirikiroid2 and OnscripterYuri dependency tarballs, proton-wine-tux's
+  ntsync-android at a branch head, NDK and llvm-mingw archives). They now run
+  in jobs holding no key and no write token, which is what H2 needed; pinning
+  checksums changes build inputs and is its own piece of work.
+- Upstream workflows on fork branches we do not build (Godot, Ruffle, EasyRPG,
+  mkxp-z `autobuild.yml`) and the actions inside Godot's composite actions:
+  they hold none of our secrets and use no privileged trigger.
+- Pinned `actions/*@v3/v4` still run on the deprecated Node 20 runtime; moving
+  them is a version bump, not a security fix.
