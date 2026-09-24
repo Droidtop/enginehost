@@ -28,6 +28,15 @@ certifies that subkey's public identity. The primary key never signs engine
 bundles directly. The Enginehost APK is likewise signed by its own
 application-scoped operational subkey from the same primary seed.
 
+One more key derives from that seed: the primary developer's own key, which
+the root certifies and every APK carries. It is not origin-scoped, so it can
+sign a locally rebuilt bundle for any repository, and the trust screen marks
+such a bundle as a developer build. It is accepted only for a bundle that
+arrives as a file someone put on the device (the file picker, the debug
+build's adb installers). A repository's releases, and so the catalog and
+every update, must carry the repository's own key (decided 2026-09-24): the
+one key good for every origin never reaches a device over the network.
+
 Every applicable release contains one or more `*.enginehost.tar.xz` engine
 bundles, one `enginehost-release.json` browsing envelope conforming to
 [`plugin-release.schema.json`](plugin-release.schema.json), and normal release

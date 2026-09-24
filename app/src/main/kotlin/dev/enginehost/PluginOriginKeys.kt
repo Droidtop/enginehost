@@ -38,14 +38,22 @@ class PluginOriginKeyStore(private val context: Context) {
         return key
     }
 
-    fun matches(origin: String, fingerprint: String): Boolean {
+    /**
+     * Whether [fingerprint] may sign bundles for [origin].
+     *
+     * The primary developer's key is not origin-scoped: it signs locally
+     * rebuilt bundles for any repository, and every surface that reports
+     * trust marks such a bundle as a developer build so it cannot pass for
+     * an official one. It is accepted only where a bundle arrives as a file
+     * a person put on the device ([allowDeveloper], the default): a
+     * repository's published releases must carry that repository's own key,
+     * so the one key that is good for every origin can never reach a device
+     * through the catalog or an update, whoever manages to publish there.
+     */
+    fun matches(origin: String, fingerprint: String, allowDeveloper: Boolean = true): Boolean {
         val normalized = fingerprint.uppercase()
         if (get(origin)?.fingerprint == normalized) return true
-        // The primary developer's key is not origin-scoped: it signs locally
-        // rebuilt bundles for any repository. Accepting it here is the whole
-        // point of having it, and every surface that reports trust marks such a
-        // bundle as a developer build so it cannot pass for an official one.
-        return isDeveloperDebug(normalized)
+        return allowDeveloper && isDeveloperDebug(normalized)
     }
 
     /** The primary developer's own signing key, certified by the official root. */

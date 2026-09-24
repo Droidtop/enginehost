@@ -77,7 +77,7 @@ object PluginReleaseReader {
             val manifest = EngineBundleManifestReader.parse(manifestBytes)
             EngineBundleManifestReader.verifySignature(manifest, signature)
             require(manifest.origin == normalizeGithubOrigin(expectedOrigin)) { "Release origin mismatch" }
-            require(keys.matches(manifest.origin, manifest.signingKeySha256)) {
+            require(keys.matches(manifest.origin, manifest.signingKeySha256, allowDeveloper = false)) {
                 "Release signer does not match the repository's pinned key"
             }
             val asset = requireNotNull(releaseAssets[manifest.assetName]) {
@@ -289,7 +289,9 @@ class PluginCatalogCache(context: Context) {
                 val array = JSONObject(file.readText()).getJSONArray("plugins")
                 (0 until array.length()).map { availablePluginFromJson(array.getJSONObject(it)) }
             }.getOrDefault(emptyList()).also { synchronized(decoded) { decoded[file.path] = version to it } }
-        return plugins.takeIf { all -> all.all { keys.matches(it.origin, it.manifest.signingKeySha256) } }.orEmpty()
+        return plugins.takeIf { all ->
+            all.all { keys.matches(it.origin, it.manifest.signingKeySha256, allowDeveloper = false) }
+        }.orEmpty()
     }
 
     fun loadAll(origins: Collection<String>): List<AvailablePlugin> = origins.flatMap(::load)

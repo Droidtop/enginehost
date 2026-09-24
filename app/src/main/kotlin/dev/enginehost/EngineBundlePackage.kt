@@ -171,7 +171,13 @@ object EngineBundleInstaller {
             require(expectedManifest == null || manifest.rawBytes.contentEquals(expectedManifest.rawBytes)) {
                 "Downloaded bundle does not match the selected catalog entry"
             }
-            require(PluginOriginKeyStore(context).matches(manifest.origin, manifest.signingKeySha256)) {
+            // A catalog download must carry its repository's own key; a file
+            // a person installed may carry the developer's (PluginOriginKeyStore.matches).
+            require(
+                PluginOriginKeyStore(context).matches(
+                    manifest.origin, manifest.signingKeySha256, allowDeveloper = expectedManifest == null,
+                ),
+            ) {
                 "Bundle signer does not match the key pinned for ${manifest.origin}"
             }
             // Every directory carrying this bundle ID, not just the first:
