@@ -1,6 +1,8 @@
 package dev.enginehost
 
 import android.content.Context
+import android.os.Build
+import android.system.Os
 import dev.enginehost.api.EnginePluginContract
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
@@ -209,6 +211,14 @@ object EngineBundleInstaller {
             existing.forEach { previous ->
                 previous.directory.walkBottomUp().forEach { it.setWritable(true, true) }
                 previous.directory.deleteRecursively()
+                BundleStamps(context).forget(previous.directory)
+            }
+            // Every payload byte was hashed against the signed manifest on its
+            // way in; from now on a launch checks that none of it has been
+            // touched since (see InstalledBundleVerifier). The stamps are only
+            // a record of that: without them the first launch hashes once more.
+            runCatching {
+                BundleStamps(context).write(destination, InstalledBundleVerifier.stampAll(destination, manifest.files))
             }
             return PluginRegistry.readRecord(destination)
         } catch (error: Throwable) {
@@ -327,7 +337,32 @@ object EngineBundleInstaller {
 
 data class ExtractedBundle(val manifest: EngineBundleManifest, val signatureBytes: ByteArray)
 
-/** Revalidates the signed metadata and every payload byte before runtime loading. */
+/**
+ * What every launch checks before a bundle's code is loaded.
+ *
+ * The signed metadata is re-checked in full each time: the manifest parses,
+ * its signature verifies, the signer is still pinned for its origin, and the
+ * install record agrees with it. That is one signature and costs nothing.
+ *
+ * The payload is not re-hashed each time. Every byte of it was hashed
+ * against the signed manifest when it was installed, and a bundle is
+ * hundreds of MB (Godot, KiriKiri, Ren'Py), so hashing it again was seconds
+ * of work on the runtime's main thread before every first frame. Instead the
+ * installer records each file's inode, size and change time ([FileStamp])
+ * once its bytes are proven, and a launch compares them. The kernel sets a
+ * file's change time on every write, truncate, chmod or rename-over and no
+ * unprivileged process can set it back, and a replaced file has a new inode,
+ * so a file whose stamp still matches holds the bytes that were hashed. A
+ * file whose stamp differs is hashed again against its signed digest, and
+ * the launch is refused if it no longer matches; if it does, its new stamp
+ * is kept. A payload file that is missing or has the wrong size, and any
+ * file in the bundle the manifest does not sign (a library dropped into
+ * `lib/<abi>` would be found by the loader), refuse the launch outright.
+ *
+ * What this does not stop is the thing the full re-hash did not stop
+ * either: code running as Enginehost's own user, which can rewrite the
+ * stamps as easily as it could have rewritten the trust store.
+ */
 object InstalledBundleVerifier {
     fun verify(context: Context, installed: InstalledPlugin): EngineBundleManifest {
         val directory = installed.directory.canonicalFile
@@ -347,14 +382,105 @@ object InstalledBundleVerifier {
         require(manifest.bundleId == installed.bundleId && manifest.entrypoint == installed.entrypointClass) {
             "Installed bundle record does not match its signed manifest"
         }
-        manifest.files.forEach { record ->
-            val file = safeChild(directory, record.path)
-            require(file.isFile && file.length() == record.size && sha256(file) == record.sha256) {
-                "Installed bundle payload changed: ${record.path}"
-            }
-        }
+        val stamps = BundleStamps(context)
+        val known = stamps.read(directory)
+        val current = checkPayload(directory, manifest.files, known, ::stampOf)
+        if (current != known) runCatching { stamps.write(directory, current) }
         return manifest
     }
+
+    /**
+     * Checks [directory] against the signed [files], hashing only the files
+     * whose stamp is not the one in [known], and returns every file's stamp
+     * as it is now. Split out, with [stamp] as a parameter, so the decision
+     * can be exercised in a plain JVM test.
+     */
+    internal fun checkPayload(
+        directory: File,
+        files: List<BundleFileRecord>,
+        known: Map<String, FileStamp>,
+        stamp: (File) -> FileStamp,
+    ): Map<String, FileStamp> {
+        val signed = files.mapTo(hashSetOf()) { it.path }
+        directory.walkTopDown().filter { it.isFile }.forEach { file ->
+            val path = file.relativeTo(directory).invariantSeparatorsPath
+            require(path in signed || path in HOST_RECORDS) { "Installed bundle has a file it does not sign: $path" }
+        }
+        return files.associate { record ->
+            val file = safeChild(directory, record.path)
+            require(file.isFile && file.length() == record.size) { "Installed bundle payload changed: ${record.path}" }
+            // Stamped before it is read: a write that lands while the file is
+            // being hashed changes the stamp, and the next launch hashes again.
+            val now = stamp(file)
+            if (known[record.path] != now) {
+                require(sha256(file) == record.sha256) { "Installed bundle payload changed: ${record.path}" }
+            }
+            record.path to now
+        }
+    }
+
+    /** The stamps of a bundle whose every byte has just been proven, as the installer has. */
+    internal fun stampAll(directory: File, files: List<BundleFileRecord>): Map<String, FileStamp> =
+        files.associate { it.path to stampOf(safeChild(directory, it.path)) }
+
+    private val HOST_RECORDS = setOf(
+        PluginRegistry.INSTALL_RECORD,
+        PluginRegistry.SIGNED_MANIFEST,
+        PluginRegistry.SIGNED_SIGNATURE,
+    )
+}
+
+/** A payload file's identity on disk: what changes when anything writes to it or replaces it. */
+internal data class FileStamp(val size: Long, val inode: Long, val changedNs: Long, val modifiedNs: Long)
+
+private fun stampOf(file: File): FileStamp {
+    val stat = Os.stat(file.path)
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+        FileStamp(
+            stat.st_size, stat.st_ino,
+            stat.st_ctim.tv_sec * 1_000_000_000 + stat.st_ctim.tv_nsec,
+            stat.st_mtim.tv_sec * 1_000_000_000 + stat.st_mtim.tv_nsec,
+        )
+    } else {
+        FileStamp(stat.st_size, stat.st_ino, stat.st_ctime * 1_000_000_000, stat.st_mtime * 1_000_000_000)
+    }
+}
+
+/**
+ * The stamps each installed bundle's payload had when its bytes were last
+ * proven, one file per bundle directory. Kept out of the bundle directory,
+ * which is read-only once installed, and out of backups: an inode means
+ * nothing on another device, and a missing record only costs one full hash.
+ * Written by the main process at install and by `:runtime` after a re-hash,
+ * so each write replaces the file whole.
+ */
+internal class BundleStamps(context: Context) {
+    private val directory = File(context.noBackupFilesDir, "engine-bundle-stamps-v1")
+
+    fun read(bundle: File): Map<String, FileStamp> = runCatching {
+        val json = JSONObject(file(bundle).readText())
+        json.keys().asSequence().associateWith { path ->
+            json.getJSONArray(path).let { FileStamp(it.getLong(0), it.getLong(1), it.getLong(2), it.getLong(3)) }
+        }
+    }.getOrDefault(emptyMap())
+
+    fun write(bundle: File, stamps: Map<String, FileStamp>) {
+        val json = JSONObject()
+        stamps.forEach { (path, stamp) ->
+            json.put(path, JSONArray().put(stamp.size).put(stamp.inode).put(stamp.changedNs).put(stamp.modifiedNs))
+        }
+        directory.mkdirs()
+        val target = file(bundle)
+        val temporary = File(directory, "${target.name}.${UUID.randomUUID()}.tmp")
+        temporary.writeText(json.toString())
+        if (!temporary.renameTo(target)) temporary.delete()
+    }
+
+    fun forget(bundle: File) {
+        file(bundle).delete()
+    }
+
+    private fun file(bundle: File) = File(directory, "${bundle.name}.json")
 }
 
 private fun readEntry(tar: TarArchiveInputStream, size: Long, maximum: Long): ByteArray {

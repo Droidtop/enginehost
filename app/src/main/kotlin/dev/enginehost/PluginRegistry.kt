@@ -149,7 +149,7 @@ object PluginRegistry {
         return installed
             .map { plugin ->
                 plugin.directory.walkBottomUp().forEach { it.setWritable(true, true) }
-                plugin.directory.deleteRecursively()
+                plugin.directory.deleteRecursively().also { BundleStamps(context).forget(plugin.directory) }
             }
             .all { it }
     }

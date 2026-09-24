@@ -65,9 +65,17 @@ failures diagnosable; the aggregate binds the complete ordered payload.
 Enginehost verifies the manifest signature before extracting payload, enforces
 size and memory limits, extracts only into a private staging directory, checks
 every signed property, writes a host-owned installation record, makes the tree
-read-only, and atomically renames it into the installed-bundle registry. It
-rechecks the signed manifest, pinned origin key, and all file hashes before
-loading dex or native libraries into the isolated `:runtime` process.
+read-only, and atomically renames it into the installed-bundle registry. Every
+payload byte is hashed once, on the way in; the installer then records each
+file's inode, size and change time. Before loading dex or native libraries into
+the isolated `:runtime` process, every launch rechecks the signed manifest, its
+signature, the pinned origin key and the installation record, refuses any file in
+the bundle the manifest does not sign, and compares each payload file with its
+recorded stamp. The kernel moves a file's change time on any write, truncate or
+chmod and a replaced file has a new inode, so a file whose stamp matches holds
+the bytes that were hashed; a file whose stamp differs is hashed again against
+its signed digest and the launch is refused if it no longer matches. A bundle
+installed before stamps existed is hashed in full on its first launch.
 
 `resourceApks` is an optional array of signed payload paths. Enginehost attaches
 each listed APK's compiled resources to the runtime before loading the plugin

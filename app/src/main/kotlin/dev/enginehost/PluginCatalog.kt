@@ -266,6 +266,7 @@ class PluginCatalogCache(context: Context) {
         )
         etag?.let { root.put("etag", it) }
         file(origin).writeText(root.toString())
+        synchronized(decoded) { decoded.remove(file(origin).path) }
     }
 
     /** The validator stored with this origin's catalog, if it has one. */
@@ -273,15 +274,31 @@ class PluginCatalogCache(context: Context) {
         JSONObject(file(origin).readText()).optString("etag").takeIf(String::isNotBlank)
     }.getOrNull()
 
-    fun load(origin: String): List<AvailablePlugin> = runCatching {
-        val array = JSONObject(file(origin).readText()).getJSONArray("plugins")
-        (0 until array.length()).map { availablePluginFromJson(array.getJSONObject(it), keys) }
-    }.getOrDefault(emptyList())
+    /**
+     * The stored catalog of [origin], every entry's signature verified and its
+     * signer still pinned. Parsing and verifying a catalog is the expensive
+     * part and depends only on the file, so it is done once per version of
+     * the file for the life of the process; the pin is asked every time,
+     * since a custom origin's key can be removed.
+     */
+    fun load(origin: String): List<AvailablePlugin> {
+        val file = file(origin)
+        val version = file.lastModified() to file.length()
+        val plugins = synchronized(decoded) { decoded[file.path]?.takeIf { it.first == version }?.second }
+            ?: runCatching {
+                val array = JSONObject(file.readText()).getJSONArray("plugins")
+                (0 until array.length()).map { availablePluginFromJson(array.getJSONObject(it)) }
+            }.getOrDefault(emptyList()).also { synchronized(decoded) { decoded[file.path] = version to it } }
+        return plugins.takeIf { all -> all.all { keys.matches(it.origin, it.manifest.signingKeySha256) } }.orEmpty()
+    }
 
     fun loadAll(origins: Collection<String>): List<AvailablePlugin> = origins.flatMap(::load)
 
     /** Forget every fetched catalog, so the next refresh starts from nothing. */
-    fun clear() { directory.listFiles()?.forEach { it.delete() } }
+    fun clear() {
+        directory.listFiles()?.forEach { it.delete() }
+        synchronized(decoded) { decoded.clear() }
+    }
 
     /** Whether a release refresh has ever stored a catalog for this origin, even an empty one. */
     fun hasFetched(origin: String): Boolean = file(origin).isFile
@@ -303,6 +320,11 @@ class PluginCatalogCache(context: Context) {
             .take(16).joinToString("") { "%02x".format(it) }
         return File(directory, "$name.json")
     }
+
+    private companion object {
+        /** Verified catalogs by file path, with the file's (modified, length) they were read at. */
+        val decoded = HashMap<String, Pair<Pair<Long, Long>, List<AvailablePlugin>>>()
+    }
 }
 
 private fun AvailablePlugin.toJson() = JSONObject()
@@ -313,12 +335,11 @@ private fun AvailablePlugin.toJson() = JSONObject()
     .put("archiveSha256", archiveSha256)
     .put("stream", stream.channel)
 
-private fun availablePluginFromJson(json: JSONObject, keys: PluginOriginKeyStore): AvailablePlugin {
+private fun availablePluginFromJson(json: JSONObject): AvailablePlugin {
     val manifestBytes = Base64.getDecoder().decode(json.requiredString("manifestBase64"))
     val signature = Base64.getDecoder().decode(json.requiredString("signatureBase64"))
     val manifest = EngineBundleManifestReader.parse(manifestBytes)
     EngineBundleManifestReader.verifySignature(manifest, signature)
-    require(keys.matches(manifest.origin, manifest.signingKeySha256)) { "Cached catalog key no longer matches" }
     return AvailablePlugin(
         manifest,
         signature,
