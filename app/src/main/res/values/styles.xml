@@ -93,6 +93,14 @@
         <item name="android:paddingBottom">@dimen/eh_space_s</item>
     </style>
 
+    <!-- A toggle row: the row's own ground, so it takes focus like every other row. -->
+    <style name="Widget.Enginehost.Switch" parent="Widget.AppCompat.CompoundButton.Switch">
+        <item name="android:background">@drawable/eh_row_bg</item>
+        <item name="android:minHeight">@dimen/eh_touch_target</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingRight">12dp</item>
+    </style>
+
     <style name="Widget.Enginehost.Card" parent="">
         <item name="android:background">@drawable/eh_card_bg</item>
         <item name="android:paddingLeft">@dimen/eh_card_padding_h</item>

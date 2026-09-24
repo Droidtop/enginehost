@@ -149,6 +149,17 @@ save/load, multiple connected controllers, hot-plug, and controller rumble.
 Engine bundles receive normalized actions while unconsumed raw Android input
 continues to their render view.
 
+### How the screens behave
+
+Every screen is usable from a pad alone: D-pad to move, A to act, B to go
+back, and a hint row under the screen naming the buttons it answers to,
+which is also the touch route to them.
+
+Focus has one look everywhere, the accent ring over a raised fill
+(`eh_focus_ring`, `eh_focus_fill`): rows, cards, buttons, switches and text
+fields alike. A filled button draws the ring outside its fill, with a gap, so
+it still shows. No focusable view gets a focus colour of its own.
+
 ## Plugins
 
 Plugins are separately installed, versioned `*.enginehost.tar.xz` bundles, not

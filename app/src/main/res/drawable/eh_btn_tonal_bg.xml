@@ -13,10 +13,11 @@
             <corners android:radius="@dimen/eh_corner_small" />
         </shape>
     </item>
+    <!-- The ring over the tonal ground's own raised shade. -->
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/eh_accent_container" />
-            <stroke android:width="@dimen/eh_focus_stroke" android:color="@color/eh_accent" />
+            <solid android:color="@color/eh_accent_container_pressed" />
+            <stroke android:width="@dimen/eh_focus_stroke" android:color="@color/eh_focus_ring" />
             <corners android:radius="@dimen/eh_corner_small" />
         </shape>
     </item>

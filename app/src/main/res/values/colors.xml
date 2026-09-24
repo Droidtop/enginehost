@@ -26,6 +26,13 @@
     <color name="eh_caution">#9A5B00</color>
     <color name="eh_caution_container">#FBEBD2</color>
     <color name="eh_on_caution_container">#5C3700</color>
+    <!--
+        The one focus idiom (design language: one selection idiom per shell):
+        whatever the pad is on wears the accent ring over a raised fill. Every
+        focusable's drawable reads these two, never a colour of its own.
+    -->
+    <color name="eh_focus_ring">@color/eh_accent</color>
+    <color name="eh_focus_fill">@color/eh_surface_variant</color>
     <color name="eh_community">#4C555F</color>
     <color name="eh_community_container">#E6E9ED</color>
     <color name="eh_on_community_container">#2E353D</color>

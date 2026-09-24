@@ -20,6 +20,7 @@
         <item name="android:buttonStyle">@style/Widget.Enginehost.Button.Secondary</item>
         <item name="editTextStyle">@style/Widget.Enginehost.EditText</item>
         <item name="android:editTextStyle">@style/Widget.Enginehost.EditText</item>
+        <item name="switchStyle">@style/Widget.Enginehost.Switch</item>
         <item name="alertDialogTheme">@style/Theme.Enginehost.Dialog</item>
     </style>
 
