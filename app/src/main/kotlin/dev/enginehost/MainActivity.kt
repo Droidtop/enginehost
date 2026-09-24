@@ -11,14 +11,13 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
  * Configuration-first home screen and direct-use game library manager.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : EnginehostActivity() {
     private lateinit var library: GameLibraryStore
     private lateinit var gameList: ViewGroup
     private lateinit var gameSearch: EditText
@@ -56,7 +55,16 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.pluginCatalogButton).setOnClickListener {
             startActivity(Intent(this, PluginCatalogActivity::class.java))
         }
+        // Y is "this game's actions" only while a game has focus, so the
+        // hint row follows focus.
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> refreshHints() }
         renderLibrary()
+    }
+
+    override fun hints(): List<Hint> {
+        val focusedGame = currentFocus?.tag as? File ?: return super.hints()
+        // Long press was the only way to these actions; a pad has none.
+        return super.hints() + Hint("Y", R.string.hint_game_actions) { showGameActions(focusedGame) }
     }
 
     override fun onResume() {
@@ -154,6 +162,7 @@ class MainActivity : AppCompatActivity() {
                 if (folder.isDirectory) title else getString(R.string.game_row_unavailable, title)
             row.findViewById<TextView>(R.id.gamePath).text = folder.absolutePath
             rows[folder.path] = row
+            row.tag = folder
             row.contentDescription = getString(R.string.launch_game_description, folder.absolutePath)
             row.setOnClickListener { launchGame(folder) }
             row.setOnLongClickListener {

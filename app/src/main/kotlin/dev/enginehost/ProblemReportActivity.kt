@@ -11,7 +11,6 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
 import java.io.File
@@ -26,7 +25,7 @@ import java.io.File
  * game cannot be acted on. Sending opens the project's form with these
  * values already in it.
  */
-class ProblemReportActivity : AppCompatActivity() {
+class ProblemReportActivity : EnginehostActivity() {
     private var log: String = ""
     private var symptom: String = ""
 

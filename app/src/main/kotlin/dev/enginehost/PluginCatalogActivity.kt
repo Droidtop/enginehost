@@ -10,12 +10,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 import java.util.Date
 
 /** Complete available-release list plus preloaded and custom GitHub origins. */
-class PluginCatalogActivity : AppCompatActivity() {
+class PluginCatalogActivity : EnginehostActivity() {
     private lateinit var origins: PluginOriginStore
     private lateinit var cache: PluginCatalogCache
     private lateinit var directory: OriginDirectory

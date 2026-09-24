@@ -10,7 +10,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import java.io.File
 
@@ -20,7 +19,7 @@ import java.io.File
  * arrive, and the app itself. Each row shows its current value; a tap offers
  * the choices in a dialog, so the screen reads as settings, not as a form.
  */
-class EnginehostSettingsActivity : AppCompatActivity() {
+class EnginehostSettingsActivity : EnginehostActivity() {
     private lateinit var store: SaveLocationStore
     private lateinit var location: TextView
     private lateinit var engineSaveRows: LinearLayout
