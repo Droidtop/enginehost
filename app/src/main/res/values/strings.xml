@@ -11,7 +11,7 @@
     <string name="choose_shared_storage_file">Choose a file on internal or removable storage</string>
 
     <!-- Home -->
-    <string name="games_empty">Add a game folder to start.</string>
+    <string name="games_empty">Games you add or play appear here.</string>
     <string name="add_game_folder">Add a game</string>
     <string name="game_row_unavailable">%1$s (unavailable)</string>
     <string name="launch_game_description">Launch %1$s</string>
