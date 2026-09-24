@@ -49,10 +49,16 @@ class PluginOriginKeyStore(private val context: Context) {
     }
 
     /** The primary developer's own signing key, certified by the official root. */
-    fun developerDebug(): PluginOriginKey? = runCatching {
-        context.resources.openRawResource(R.raw.developer_debug_key)
-            .bufferedReader().use { parseKeyDocument(it.readText(), requireOfficialIssuer = true) }
-    }.getOrNull()
+    fun developerDebug(): PluginOriginKey? = synchronized(Companion) {
+        if (!developerKeyRead) {
+            developerKey = runCatching {
+                context.resources.openRawResource(R.raw.developer_debug_key)
+                    .bufferedReader().use { parseKeyDocument(it.readText(), requireOfficialIssuer = true) }
+            }.getOrNull()
+            developerKeyRead = true
+        }
+        developerKey
+    }
 
     fun isDeveloperDebug(fingerprint: String): Boolean =
         developerDebug()?.fingerprint == fingerprint.uppercase()
@@ -65,7 +71,9 @@ class PluginOriginKeyStore(private val context: Context) {
         if (normalized !in builtIns()) preferences.edit().remove(normalized).apply()
     }
 
-    private fun builtIns(): Map<String, PluginOriginKey> = context.resources.openRawResource(R.raw.default_plugin_keys)
+    private fun builtIns(): Map<String, PluginOriginKey> = builtInKeys ?: readBuiltIns().also { builtInKeys = it }
+
+    private fun readBuiltIns(): Map<String, PluginOriginKey> = context.resources.openRawResource(R.raw.default_plugin_keys)
         .bufferedReader().use { reader ->
             val root = JSONObject(reader.readText())
             require(root.getInt("formatVersion") == 1)
@@ -123,6 +131,20 @@ class PluginOriginKeyStore(private val context: Context) {
         require(verifier.verify(Base64.getDecoder().decode(issuer.requiredString("signature")))) {
             "Repository key is not certified by the official Enginehost root"
         }
+    }
+
+    companion object {
+        /*
+         * The built-in keys and the developer key come from this APK's own
+         * raw resources and are certified by the official root, so nothing
+         * can change them while the process lives. They are read and their
+         * certificates verified once per process: every lookup used to do it
+         * again, a dozen root verifications for each cached catalog manifest
+         * on every redraw of the catalog.
+         */
+        @Volatile private var builtInKeys: Map<String, PluginOriginKey>? = null
+        private var developerKey: PluginOriginKey? = null
+        private var developerKeyRead = false
     }
 }
 
