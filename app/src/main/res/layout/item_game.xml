@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     One game in the library: its name, one line of state, the engine as a
-    coloured chip, and a play mark. The folder path is kept for the actions
-    sheet and accessibility but not shown; a person knows their games by name.
+    coloured chip, and a chevron: the card opens the game's own screen. The
+    folder path is kept but not shown; a person knows their games by name.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card.Focusable"
@@ -56,7 +56,7 @@
         android:layout_height="@dimen/eh_icon"
         android:layout_marginStart="@dimen/eh_space_s"
         android:contentDescription="@null"
-        android:src="@drawable/ic_play"
-        android:tint="@color/eh_accent" />
+        android:src="@drawable/ic_chevron"
+        android:tint="@color/eh_text_secondary" />
 
 </LinearLayout>

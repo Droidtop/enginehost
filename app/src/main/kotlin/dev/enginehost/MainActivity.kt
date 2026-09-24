@@ -14,7 +14,9 @@ import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
- * Configuration-first home screen and direct-use game library manager.
+ * Home: the library of every game played here, the one way to add more,
+ * and the app's destinations. A game's card opens that game's own screen
+ * ([GameActivity]); Y on a card plays it straight away.
  */
 class MainActivity : EnginehostActivity() {
     private lateinit var library: GameLibraryStore
@@ -36,15 +38,7 @@ class MainActivity : EnginehostActivity() {
             override fun afterTextChanged(s: Editable?) = renderLibrary()
         })
 
-        findViewById<Button>(R.id.createConfigButton).setOnClickListener {
-            startActivity(Intent(this, ConfigEditorActivity::class.java))
-        }
-        findViewById<Button>(R.id.pickAndLaunchButton).setOnClickListener {
-            openGamePickerWhenAllowed()
-        }
-        findViewById<Button>(R.id.scanFolderButton).setOnClickListener {
-            startActivity(Intent(this, GameScanActivity::class.java))
-        }
+        findViewById<Button>(R.id.addGamesButton).setOnClickListener { chooseHowToAdd() }
         findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
             startActivity(Intent(this, ControllerConfigActivity::class.java))
         }
@@ -54,16 +48,16 @@ class MainActivity : EnginehostActivity() {
         findViewById<Button>(R.id.pluginCatalogButton).setOnClickListener {
             startActivity(Intent(this, PluginCatalogActivity::class.java))
         }
-        // Y is "this game's actions" only while a game has focus, so the
-        // hint row follows focus.
+        // Y is "play this game" only while a game has focus, so the hint
+        // row follows focus.
         window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> refreshHints() }
         renderLibrary()
     }
 
     override fun hints(): List<Hint> {
         val focusedGame = currentFocus?.tag as? File ?: return super.hints()
-        // Long press was the only way to these actions; a pad has none.
-        return super.hints() + Hint("Y", R.string.hint_game_actions) { showGameActions(focusedGame) }
+        // A opens the game's own screen; Y skips it and plays.
+        return super.hints() + Hint("Y", R.string.hint_play) { launchGame(focusedGame) }
     }
 
     override fun onResume() {
@@ -127,6 +121,23 @@ class MainActivity : EnginehostActivity() {
         launchGame(folder)
     }
 
+    /**
+     * The one way to add games (UI assessment 2026-09-24, H9): one game by
+     * its folder, or every game found inside a folder. Both end on Home's
+     * list; a single game also starts, as it always has.
+     */
+    private fun chooseHowToAdd() {
+        Sheet(this)
+            .title(R.string.add_games)
+            .choice(getString(R.string.add_one_game), getString(R.string.add_one_game_detail)) {
+                openGamePickerWhenAllowed()
+            }
+            .choice(getString(R.string.add_folder_of_games), getString(R.string.add_folder_of_games_detail)) {
+                startActivity(Intent(this, GameScanActivity::class.java))
+            }
+            .show()
+    }
+
     private fun openGamePickerWhenAllowed() {
         if (StorageFolder.hasNativePathAccess()) {
             startActivityForResult(gamePickerIntent(), REQUEST_GAME_FOLDER)
@@ -162,12 +173,8 @@ class MainActivity : EnginehostActivity() {
             row.findViewById<TextView>(R.id.gamePath).text = folder.absolutePath
             rows[folder.path] = row
             row.tag = folder
-            row.contentDescription = getString(R.string.launch_game_description, folder.absolutePath)
-            row.setOnClickListener { launchGame(folder) }
-            row.setOnLongClickListener {
-                showGameActions(folder)
-                true
-            }
+            row.contentDescription = getString(R.string.open_game_description, title)
+            row.setOnClickListener { startActivity(GameActivity.intent(this, folder)) }
             gameList.addView(row)
         }
         resolveStatuses(generation, games, rows)
@@ -181,7 +188,7 @@ class MainActivity : EnginehostActivity() {
         Thread {
             games.forEach { folder ->
                 if (generation != renderGeneration) return@Thread
-                val status = computeStatus(folder)
+                val status = GameStatus.of(this, folder)
                 runOnUiThread {
                     if (generation != renderGeneration) return@runOnUiThread
                     val row = rows[folder.path] ?: return@runOnUiThread
@@ -210,64 +217,12 @@ class MainActivity : EnginehostActivity() {
         }.start()
     }
 
-    private data class GameStatus(val ok: Boolean, val text: String, val engine: String? = null, val chip: String = "")
-
-    private fun computeStatus(folder: File): GameStatus {
-        if (!folder.isDirectory) return GameStatus(false, getString(R.string.status_missing))
-        val config = try {
-            EngineConfigReader.resolve(folder, null)
-        } catch (e: InvalidEngineConfigException) {
-            return if (!File(folder, CONFIG_FILE_NAME).isFile) {
-                GameStatus(false, getString(R.string.status_no_config))
-            } else {
-                GameStatus(false, getString(R.string.status_bad_config, e.message))
-            }
-        }
-        val resolved = runCatching {
-            PluginRegistry.resolve(
-                this, config.engine, config.engineContext, config.engineVersion,
-                config.runtimeRequirements, config.pluginVersionConstraint,
-            )
-        }.getOrNull()
-        val chip = "${EngineNames.line(config.engine, config.engineContext)} ${config.engineVersion}"
-        if (resolved == null) {
-            return GameStatus(false, getString(R.string.status_no_plugin_short), config.engine, chip)
-        }
-        return GameStatus(true, getString(R.string.status_ready_short), config.engine, chip)
-    }
-
-    private fun showGameActions(folder: File) {
-        Sheet(this)
-            .title(folder.name.ifBlank { folder.absolutePath })
-            .choice(R.string.action_launch) { launchGame(folder) }
-            .choice(R.string.action_edit_config) {
-                startActivity(
-                    Intent(this, ConfigEditorActivity::class.java)
-                        .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
-                )
-            }
-            .choice(R.string.action_report) { startActivity(ProblemReportActivity.intent(this, folder)) }
-            .choice(R.string.action_remove, Sheet.Tone.DANGER) { confirmForget(folder) }
-            .show()
-    }
-
     private fun launchGame(folder: File) {
         if (!folder.isDirectory) {
             Toast.makeText(this, R.string.game_folder_unavailable, Toast.LENGTH_LONG).show()
             return
         }
         GameRunner.run(this, folder)
-    }
-
-    private fun confirmForget(folder: File) {
-        Sheet(this)
-            .title(R.string.remove_game_title)
-            .message(R.string.remove_game_message)
-            .choice(R.string.remove, Sheet.Tone.DANGER) {
-                library.forget(folder)
-                renderLibrary()
-            }
-            .show()
     }
 
     companion object {

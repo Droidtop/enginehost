@@ -38,6 +38,11 @@
             </intent-filter>
         </activity>
 
+        <!-- One game's own screen, opened from Home. -->
+        <activity
+            android:name=".GameActivity"
+            android:exported="false" />
+
         <activity
             android:name=".ControllerProfileActivity"
             android:exported="false" />

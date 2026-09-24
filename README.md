@@ -146,7 +146,13 @@ path. Because native interpreters traverse the live tree through filesystem
 paths, Android 11 and newer also require the per-app native-file-access grant.
 
 The home screen is the library: every game added there, found by a scan, or
-started through either front door, most recent first.
+started through either front door, most recent first. Home has one way to
+add games, **Add games**, which offers one game (by its folder; it starts
+once added) or a folder of games (a scan, adding the ones chosen). A game's
+card opens that game's own screen: Play, Game setup (the config creator for
+that folder), Report a problem, and Remove from list. Game setup is reached
+only from a game, because it is always about one; `dev.enginehost.CONFIGURE`
+remains its programmatic door. Y on a card plays it without opening it.
 
 Controller settings provide global remapping for D-pad, face and shoulder
 buttons, sticks, triggers, VN actions such as skip/auto/history and quick

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Landscape home. The library takes two thirds of the width as a two
-    column grid that scrolls on its own; the two library actions and the
-    four destinations sit in a sidebar beside it, each an icon and a name.
+    column grid that scrolls on its own; the one way to add games and the
+    three destinations sit in a sidebar beside it, each an icon and a name.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -96,21 +96,12 @@
                 android:orientation="vertical">
 
                 <Button
-                    android:id="@+id/pickAndLaunchButton"
+                    android:id="@+id/addGamesButton"
                     style="@style/Widget.Enginehost.Button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:drawableStart="@drawable/ic_add"
-                    android:text="@string/add_game_folder" />
-
-                <Button
-                    android:id="@+id/scanFolderButton"
-                    style="@style/Widget.Enginehost.Button.Tonal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:drawableStart="@drawable/ic_scan"
-                    android:text="@string/scan_folder" />
+                    android:text="@string/add_games" />
 
                 <Button
                     android:id="@+id/pluginCatalogButton"
@@ -138,15 +129,6 @@
                     android:layout_marginTop="@dimen/eh_space_s"
                     android:drawableStart="@drawable/ic_settings"
                     android:text="@string/enginehost_settings" />
-
-                <Button
-                    android:id="@+id/createConfigButton"
-                    style="@style/Widget.Enginehost.Button.Nav"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/eh_space_s"
-                    android:drawableStart="@drawable/ic_setup"
-                    android:text="@string/open_config_creator" />
 
             </LinearLayout>
 

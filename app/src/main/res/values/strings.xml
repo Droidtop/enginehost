@@ -8,17 +8,20 @@
     <string name="back">Back</string>
     <string name="hint_select">Select</string>
     <string name="sheet_current_choice">Current choice</string>
-    <string name="hint_game_actions">Game actions</string>
     <string name="details">Details</string>
     <string name="choose_shared_storage_folder">Choose a folder on internal or removable storage</string>
     <string name="choose_shared_storage_file">Choose a file on internal or removable storage</string>
 
     <!-- Home -->
+    <string name="add_games">Add games</string>
+    <string name="add_one_game">One game</string>
+    <string name="add_one_game_detail">Pick the game\'s folder. It starts once it is added.</string>
+    <string name="add_folder_of_games">A folder of games</string>
+    <string name="add_folder_of_games_detail">Look inside a folder and choose which of the games found there to add.</string>
+    <string name="hint_play">Play</string>
+    <string name="open_game_description">%1$s: open this game</string>
     <string name="games_empty">Games you add or play appear here.</string>
-    <string name="add_game_folder">Add a game</string>
     <string name="game_row_unavailable">%1$s (unavailable)</string>
-    <string name="launch_game_description">Launch %1$s</string>
-    <string name="open_config_creator">Game setup</string>
     <string name="controller_settings">Controller</string>
     <string name="enginehost_settings">Settings</string>
     <string name="manage_plugin_trust">Installed plugins</string>
@@ -28,14 +31,13 @@
     <string name="remove_game_title">Remove from Enginehost?</string>
     <string name="remove_game_message">Only the shortcut goes. The game and its saves stay where they are.</string>
 
-    <string name="scan_folder">Scan a folder</string>
     <string name="search_hint">Search</string>
     <string name="search_no_matches">No games match.</string>
     <string name="status_missing">Folder not available. Reconnect its storage or remove this entry.</string>
-    <string name="status_no_config">Not set up yet. Tap to detect the engine.</string>
+    <string name="status_no_config">Not set up yet. Play detects the engine.</string>
     <string name="status_bad_config">Configuration problem: %1$s</string>
-    <string name="action_launch">Launch</string>
-    <string name="action_edit_config">Edit setup</string>
+    <string name="action_launch">Play</string>
+    <string name="action_edit_config">Game setup</string>
     <string name="action_remove">Remove from list</string>
     <string name="launch_needs_config">A few details could not be read from the game. Check them, then save or test.</string>
 
@@ -134,7 +136,7 @@
     <string name="stream_testing_desc">Testing · runs games, still being lived with</string>
     <string name="stream_unstable_desc">Unstable · every green build</string>
     <string name="status_ready_short">Ready</string>
-    <string name="status_no_plugin_short">Needs a plugin. Tap to install one.</string>
+    <string name="status_no_plugin_short">Needs a plugin. Play offers one to install.</string>
     <string name="settings_title">Settings</string>
     <string name="save_location">Saves</string>
     <string name="choose_folder">Choose folder</string>

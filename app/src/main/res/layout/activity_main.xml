@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Home. The library is the screen; beneath it two library actions and
-    four destinations, each an icon and a name. No explanatory copy: the game
+    Home. The library is the screen; beneath it the one way to add games and
+    three destinations, each an icon and a name. No explanatory copy: the game
     cards say what state each game is in.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -52,32 +52,14 @@
             android:layout_marginTop="@dimen/eh_space_m"
             android:orientation="vertical" />
 
-        <LinearLayout
+        <Button
+            android:id="@+id/addGamesButton"
+            style="@style/Widget.Enginehost.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/pickAndLaunchButton"
-                style="@style/Widget.Enginehost.Button"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:drawableStart="@drawable/ic_add"
-                android:text="@string/add_game_folder" />
-
-            <Button
-                android:id="@+id/scanFolderButton"
-                style="@style/Widget.Enginehost.Button.Tonal"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/eh_space_s"
-                android:layout_weight="1"
-                android:drawableStart="@drawable/ic_scan"
-                android:text="@string/scan_folder" />
-
-        </LinearLayout>
+            android:drawableStart="@drawable/ic_add"
+            android:text="@string/add_games" />
 
         <Button
             android:id="@+id/pluginCatalogButton"
@@ -105,15 +87,6 @@
             android:layout_marginTop="@dimen/eh_space_s"
             android:drawableStart="@drawable/ic_settings"
             android:text="@string/enginehost_settings" />
-
-        <Button
-            android:id="@+id/createConfigButton"
-            style="@style/Widget.Enginehost.Button.Nav"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:drawableStart="@drawable/ic_setup"
-            android:text="@string/open_config_creator" />
 
     </LinearLayout>
 </ScrollView>
