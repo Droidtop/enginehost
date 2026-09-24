@@ -7,6 +7,7 @@ on:
     # the `latest` tag pointed at a commit the published APK was not built
     # from, and cloud workers or PRs started from the wrong branch.
     branches: [main]
+    paths-ignore: ["CLAUDE.md", ".claude/**"]
   pull_request:
   workflow_dispatch:
 

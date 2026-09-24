@@ -1,0 +1,37 @@
+name: Commit hygiene
+
+# The owner forbids AI attribution in this repository's history: no
+# Co-Authored-By trailers naming an AI, no "Generated with" lines, no commits
+# authored by an AI identity. This fails a push or PR that adds any, so it
+# cannot creep back in after the history was cleaned. Seconds, not minutes:
+# it reads commit messages and needs no build.
+on:
+  push:
+  pull_request:
+
+jobs:
+  no-ai-attribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject commits carrying AI attribution
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -n "$BASE" ]; then range="$BASE..$HEAD"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE" 2>/dev/null; then range="$BEFORE..$HEAD"
+          else range="$HEAD~1..$HEAD"; fi
+          pattern='(Co-Authored-By|Co-authored-by):.*(Claude|Anthropic|Codex|OpenAI|Copilot|noreply@anthropic\.com)|Generated with \[?Claude|🤖 Generated|codex@openai\.com'
+          bad=$(git log --format='%H%x09%an <%ae>%x09%s' "$range" | while IFS=$'\t' read -r sha who subj; do
+            if git log -1 --format='%an <%ae>%n%B' "$sha" | grep -Eiq "$pattern"; then echo "$sha $who: $subj"; fi
+          done)
+          if [ -n "$bad" ]; then
+            echo "These commits carry AI attribution, which this repository does not accept:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "No AI attribution in $range."
