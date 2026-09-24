@@ -19,6 +19,10 @@ class EnginehostApplication : Application() {
             runCatching { EngineBundleInstaller.sweepOrphanedStaging(this) }
             runCatching { removeSharedRenpyTree() }
         }
+        // The sandbox goes on before anything else in the runtime process,
+        // so no engine code ever runs there without it. Nothing of the
+        // host's own in that process uses the network.
+        if (isRuntimeProcess()) RuntimeSandbox.apply()
         // Games run here, and only here. Registering the tap this early is
         // what gives the host first look at the pad inside a bundled
         // plugin's own Activity, which nothing of ours is otherwise on the

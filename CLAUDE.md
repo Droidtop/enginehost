@@ -25,6 +25,7 @@ any flow in the UI has a programmatic equivalent, and vice versa. The bundle con
   not have arbitrary file access; Enginehost does the file reads a launch needs and hands them
   to the engine. Today engines run in the `:runtime` process under the app's own UID and so
   inherit both; do not widen that, and treat changes that narrow it as welcome.
+  What is built and what remains is docs/engine-sandbox.md.
 - **Enginehost and droidtop are separate apps.** Enginehost never assumes droidtop, a Linux
   container, or root exists.
 

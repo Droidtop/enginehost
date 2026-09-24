@@ -68,7 +68,8 @@ every signed property, writes a host-owned installation record, makes the tree
 read-only, and atomically renames it into the installed-bundle registry. Every
 payload byte is hashed once, on the way in; the installer then records each
 file's inode, size and change time. Before loading dex or native libraries into
-the isolated `:runtime` process, every launch rechecks the signed manifest, its
+the `:runtime` process (a separate process under the app's own UID, not an
+Android isolated process; docs/engine-sandbox.md says what it may do), every launch rechecks the signed manifest, its
 signature, the pinned origin key and the installation record, refuses any file in
 the bundle the manifest does not sign, and compares each payload file with its
 recorded stamp. The kernel moves a file's change time on any write, truncate or
