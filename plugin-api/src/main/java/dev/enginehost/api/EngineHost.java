@@ -7,6 +7,13 @@ import java.io.File;
 public interface EngineHost {
     /** Enginehost context. Modules must not retain it beyond the session. */
     Context context();
+    /**
+     * What the engine's SYSTEM save locations mean on this device (a user
+     * profile, AppData, a browser's storage), in a folder the person chose.
+     * Enginehost does not change where an engine saves: an engine that saves
+     * beside the game on its desktop original keeps saving in the game folder
+     * and has no use for this.
+     */
     File saveDirectory();
     File cacheDirectory();
     EngineFileSystem fileSystem();

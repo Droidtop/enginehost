@@ -67,12 +67,11 @@ data class EngineConfig(
     val pluginVersionConstraint: VersionConstraint?,
     val execFile: String?,
     /**
-     * The folder this game's saves live in, beneath the engine's save root,
-     * for engines whose runtime has no collision-safe external namespace of
-     * its own (a browser has none; RPG Maker games reuse generic save names).
-     * Derived from what the engine itself would use, so it is the same on
-     * every device that has the game. Ren'Py and Godot keep control of their
-     * own names: see [SaveFolders].
+     * The folder this game's system-location saves live in, beneath the
+     * engine's save root, for engines whose system location has no per-game
+     * name of its own (a browser's one localStorage). Derived from what the
+     * engine itself would use, so it is the same on every device that has
+     * the game. Engines that save beside the game get none: see [SaveFolders].
      */
     val saveFolder: String? = null,
     val options: JSONObject?,
@@ -109,7 +108,7 @@ object EngineConfigReader {
 
     /**
      * A config written before save folders existed, or by hand, names none.
-     * For an engine whose runtime cannot name its own saves, the game
+     * For an engine whose system location has no per-game name, the game
      * folder's name is the default the detector would have written, so it
      * is supplied here rather than left to fall into the engine's shared
      * folder. A folder-authoritative or inline saveFolder is never replaced.

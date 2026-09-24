@@ -86,13 +86,23 @@ specific file to run within the folder, for engines that need one.
 
 `title` is optional: the name the launch screen shows, when the game's
 files state one (a Twine story's name). `saveFolder` is optional and only
-meaningful for engines whose runtime has no safe external namespace of its
-own (HTML, Flash/AIR, KiriKiri, Buriko, CatSystem2, CMVS, and every RPG Maker
-generation): the single folder name their saves go under beneath the engine's
-save root. This is essential because different games reuse generic filenames
-such as `Save01.lsd`; placing those files directly in one family root would collide.
-Enginehost derives the namespace from what the engine itself would use, a
-story's title or the game's folder name, so it is stable across devices.
+meaningful for engines whose SYSTEM save location has no per-game name of its
+own (HTML, Flash/AIR and RPG Maker MV/MZ, whose browser runtime has one
+localStorage, and CatSystem2, which saves under the user profile): the single
+folder name their saves go under beneath the engine's save root, so that two
+games never share one store. Enginehost derives it from what the engine itself
+would use, a story's title or the game's folder name, so it is stable across
+devices.
+
+Enginehost does not change where an engine saves. Its save folder is only what
+an engine's system locations mean (a user profile, AppData, `~/.renpy`, Godot's
+`user://`, a browser's storage). An engine that saves beside the game on its
+desktop original keeps doing so here: KiriKiri, Buriko, CMVS, NScripter, and RPG
+Maker 2000/2003 and XP/VX/VX Ace save in the game folder, and a `saveFolder` an
+older config names for them is not used. Before this was settled (2026-09-17)
+some of them were given a host-named folder instead; when a launch finds save
+files there that the game folder does not have, it offers to copy them into the
+game folder, never deleting or overwriting anything, or to leave them.
 
 A folder with no `enginehost.json` is not a dead end. Detection reads the
 engine, version, entry file, title and save folder from the folder's own

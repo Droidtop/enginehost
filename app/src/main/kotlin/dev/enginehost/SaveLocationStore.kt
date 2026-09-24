@@ -35,14 +35,37 @@ class SaveLocationStore(context: Context) {
     fun saveRootFor(engine: String): File = ensureUsable(File(rootFor(engine), "saves"))
 
     /**
-     * The folder a game's runtime saves into: the engine's save root, or
-     * the game's own folder beneath it when the config names one.
+     * The folder handed to a game's runtime as what its system locations
+     * mean: the engine's save root, or the game's own folder beneath it for
+     * an engine whose system location has no per-game name ([SaveFolders]).
+     * A `saveFolder` an older config names for any other engine is not used.
      */
     fun saveFolderFor(config: EngineConfig): File {
         val root = saveRootFor(config.engine)
+        if (!SaveFolders.applies(config.engine, config.engineContext)) return root
         val name = config.saveFolder ?: return root
         require(SaveFolders.isPlainName(name)) { "A save folder must be a single folder name" }
         return ensureUsable(File(root, name))
+    }
+
+    /**
+     * Saves an earlier Enginehost kept for this game in a folder of its own
+     * that the game folder does not have: for an engine that saves beside
+     * the game and was given a host folder instead until the save policy
+     * of 2026-09-17 ([SaveFolders.formerlyNamed]). Null when there are none,
+     * or when the person said to leave them where they are.
+     */
+    fun earlierSavesFor(config: EngineConfig, gameFolder: File): EarlierSaves? {
+        if (!SaveFolders.formerlyNamed(config.engine, config.engineContext)) return null
+        val name = config.saveFolder ?: SaveFolders.sanitize(gameFolder.name)
+        val folder = File(File(rootFor(config.engine), "saves"), name)
+        if (!folder.isDirectory || preferences.getBoolean(KEY_EARLIER_LEFT_PREFIX + folder.absolutePath, false)) return null
+        return EarlierSaves.find(folder, gameFolder)
+    }
+
+    /** The person wants [saves] left where they are, and not to be asked again. */
+    fun leaveEarlierSaves(saves: EarlierSaves) {
+        preferences.edit().putBoolean(KEY_EARLIER_LEFT_PREFIX + saves.from.absolutePath, true).apply()
     }
 
     /** Every engine family that has its own root, by engine id. */
@@ -123,28 +146,75 @@ class SaveLocationStore(context: Context) {
         return MigrationResult(copied, conflicts, failures)
     }
 
-    private fun sameContents(left: File, right: File): Boolean {
-        if (left.length() != right.length()) return false
-        FileInputStream(left).use { a ->
-            FileInputStream(right).use { b ->
-                val ab = ByteArray(DEFAULT_BUFFER_SIZE)
-                val bb = ByteArray(DEFAULT_BUFFER_SIZE)
-                while (true) {
-                    val ac = a.read(ab)
-                    val bc = b.read(bb)
-                    if (ac != bc) return false
-                    if (ac < 0) return true
-                    if (!ab.copyOf(ac).contentEquals(bb.copyOf(bc))) return false
-                }
-            }
-        }
-    }
-
     data class MigrationResult(val copied: Int, val conflicts: Int, val failures: Int)
 
     companion object {
         private const val KEY_ROOT = "root"
         private const val KEY_ENGINE_PREFIX = "root."
+        private const val KEY_EARLIER_LEFT_PREFIX = "earlier-left."
+    }
+}
+
+private fun sameContents(left: File, right: File): Boolean {
+    if (left.length() != right.length()) return false
+    FileInputStream(left).use { a ->
+        FileInputStream(right).use { b ->
+            val ab = ByteArray(DEFAULT_BUFFER_SIZE)
+            val bb = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val ac = a.read(ab)
+                val bc = b.read(bb)
+                if (ac != bc) return false
+                if (ac < 0) return true
+                if (!ab.copyOf(ac).contentEquals(bb.copyOf(bc))) return false
+            }
+        }
+    }
+}
+
+/**
+ * Saves in a folder an earlier Enginehost gave a game ([from]) that are not
+ * in the game folder ([to]) the engine now saves in. Each engine that had
+ * such a folder used it exactly where the game folder is now (EasyRPG's
+ * `--save-path`, CMVS's root for the save subfolder its boot script names),
+ * so a file goes to the same relative path in the game folder.
+ *
+ * Nothing here deletes or overwrites anything: a file the game folder
+ * already has is the game's own and is left as it is, and every file stays
+ * in [from] as well after it is copied.
+ */
+class EarlierSaves(val from: File, val to: File, val missing: List<String>) {
+    data class Copied(val copied: Int, val failed: Int)
+
+    /** Copies each missing file through a temporary name, so a half-written copy never looks like a save. */
+    fun copy(): Copied {
+        var copied = 0
+        var failed = 0
+        missing.forEach { path ->
+            val source = File(from, path)
+            val target = File(to, path)
+            val partial = File(target.parentFile, ".${target.name}.enginehost-copy")
+            val done = runCatching {
+                if (target.exists()) return@runCatching false
+                target.parentFile?.mkdirs()
+                source.inputStream().use { input -> partial.outputStream().use { input.copyTo(it) } }
+                sameContents(source, partial) && !target.exists() && partial.renameTo(target)
+            }.getOrDefault(false)
+            partial.delete()
+            if (done) copied++ else if (!target.exists()) failed++
+        }
+        return Copied(copied, failed)
+    }
+
+    companion object {
+        fun find(from: File, to: File): EarlierSaves? {
+            val missing = from.walkTopDown().filter { it.isFile }
+                .map { it.relativeTo(from).invariantSeparatorsPath }
+                .filter { !File(to, it).exists() }
+                .sorted()
+                .toList()
+            return if (missing.isEmpty()) null else EarlierSaves(from, to, missing)
+        }
     }
 }
 
@@ -156,31 +226,45 @@ class SaveLocationStore(context: Context) {
 class UnusableSaveFolderException(val folder: File, message: String) : IllegalArgumentException(message)
 
 /**
- * How a game's save folder is named when the runtime cannot name it.
+ * Which games Enginehost names a save folder for.
  *
- * Engines that keep saves beside the game on a desktop, or in a browser's
- * storage, have no identity of their own to offer; two such games would
- * share generic names such as `Save01.lsd` or one localStorage. The name
- * comes from what the engine would have used: a Twine story is stored under
- * its story title, an RPG Maker game or AIR game under its install folder.
- * That name is stable across devices, so saves move between devices and
- * survive a reinstall. Engines that genuinely name their own external save
- * namespace (Ren'Py and Godot) get no folder here and keep doing what they do.
+ * Enginehost does not change where an engine saves; it only makes the
+ * engine's SYSTEM locations (a user profile, AppData, a browser's storage)
+ * mean a folder the person chose (DECISIONS 2026-09-17). An engine that
+ * saves beside the game on its desktop original keeps doing so, and gets
+ * nothing named here: KiriKiri, Buriko, CMVS, NScripter, and RPG Maker
+ * 2000/2003 and XP/VX/VX Ace.
+ *
+ * A system location that has no per-game name of its own does need one,
+ * or two games would share one store: a browser's localStorage (HTML,
+ * Flash/AIR, and RPG Maker MV/MZ as its web runtime runs here), and
+ * CatSystem2's shipped startup.xml, which saves under the user profile. The
+ * name comes from what the engine would have used: a Twine story's title,
+ * else the game's folder name, stable across devices, so saves move between
+ * devices and survive a reinstall. Engines that name their own namespace
+ * inside the system location (Ren'Py, Godot) get no folder here either.
  */
 object SaveFolders {
-    /** Families whose desktop convention is the game folder or generic filenames. */
-    private val NAMED_BY_THE_HOST = setOf(
-        "html",
-        "flash_air",
-        "kirikiri2",
-        "buriko",
-        "catsystem2",
-        "cmvs",
-    )
+    /** Families whose system location has no per-game name of its own. */
+    private val NAMED_BY_THE_HOST = setOf("html", "flash_air", "catsystem2")
+
+    /** RPG Maker lines whose runtime here is a browser, with its one localStorage. */
+    private val WEB_RPG_MAKER = setOf("mv", "mz")
+
+    /**
+     * Families that save beside the game but were given a host-named folder
+     * before 2026-09-17; what an engine among them saved there is offered
+     * back to the game folder ([EarlierSaves]).
+     */
+    private val FORMERLY_NAMED = setOf("kirikiri2", "buriko", "cmvs")
 
     /** Whether this engine and context need Enginehost to name the save folder. */
     fun applies(engine: String, engineContext: String?): Boolean =
-        engine in NAMED_BY_THE_HOST || engine == "rpgmaker"
+        engine in NAMED_BY_THE_HOST || (engine == "rpgmaker" && engineContext in WEB_RPG_MAKER)
+
+    /** Whether an earlier Enginehost named a save folder this engine no longer gets. */
+    fun formerlyNamed(engine: String, engineContext: String?): Boolean =
+        engine in FORMERLY_NAMED || (engine == "rpgmaker" && engineContext !in WEB_RPG_MAKER)
 
     /**
      * The default folder name: [detectedName] (a story's own title) when
