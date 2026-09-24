@@ -13,6 +13,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 
@@ -77,6 +78,9 @@ class LaunchActivity : AppCompatActivity() {
         outState.putString(STATE_PLUGIN, runtimePlugin)
     }
 
+    /** Earlier saves were offered on this screen and answered; a retry or restart does not ask again. */
+    private var earlierSavesAnswered = false
+
     /** What the run that just ended passed to EngineHost.restart, until the next run takes it. */
     private var restartArguments: Array<String>? = null
 
@@ -97,6 +101,10 @@ class LaunchActivity : AppCompatActivity() {
             is GameRunner.Plan.Runtime -> {
                 showTitle(plan)
                 showStarting()
+                plan.earlierSaves?.takeUnless { earlierSavesAnswered }?.let {
+                    offerEarlierSaves(it, waitedForRuntime)
+                    return
+                }
                 // One runtime process, one game. This screen is the root of
                 // a fresh game task (see [start]), so a game that was running
                 // has just been finished along with its task, and its process
@@ -132,6 +140,51 @@ class LaunchActivity : AppCompatActivity() {
                 GameLibraryStore(this).remember(gameFolder)
             }
         }
+    }
+
+    /**
+     * This game's engine saves beside the game, and an earlier Enginehost
+     * kept its saves in a folder of its own, where the game no longer looks.
+     * The person decides: copy them into the game folder (nothing is
+     * deleted or overwritten), leave them for now, or leave them for good.
+     */
+    private fun offerEarlierSaves(saves: EarlierSaves, waitedForRuntime: Boolean) {
+        fun answered() {
+            earlierSavesAnswered = true
+            launch(waitedForRuntime)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.earlier_saves_title)
+            .setMessage(
+                resources.getQuantityString(
+                    R.plurals.earlier_saves_message, saves.missing.size,
+                    saves.missing.size, saves.from.absolutePath,
+                ),
+            )
+            .setPositiveButton(R.string.earlier_saves_copy) { _, _ ->
+                Thread {
+                    val result = saves.copy()
+                    runOnUiThread {
+                        if (isDestroyed || isFinishing) return@runOnUiThread
+                        val message = if (result.failed == 0) {
+                            resources.getQuantityString(R.plurals.earlier_saves_copied, result.copied, result.copied)
+                        } else {
+                            resources.getQuantityString(
+                                R.plurals.earlier_saves_failed, result.failed, result.failed, saves.from.absolutePath,
+                            )
+                        }
+                        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                        answered()
+                    }
+                }.start()
+            }
+            .setNegativeButton(R.string.earlier_saves_not_now) { _, _ -> answered() }
+            .setNeutralButton(R.string.earlier_saves_leave) { _, _ ->
+                SaveLocationStore(this).leaveEarlierSaves(saves)
+                answered()
+            }
+            .setOnCancelListener { cancel() }
+            .show()
     }
 
     private fun showTitle(plan: GameRunner.Plan.Runtime?) {

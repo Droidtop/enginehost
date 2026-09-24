@@ -16,8 +16,17 @@ object GameRunner {
          */
         class Detour(val intent: Intent, val notice: Int? = null) : Plan()
 
-        /** The runtime can start now; [intent] enters the `:runtime` process. */
-        class Runtime(val intent: Intent, val config: EngineConfig, val resolved: ResolvedPlugin) : Plan()
+        /**
+         * The runtime can start now; [intent] enters the `:runtime` process.
+         * [earlierSaves] are this game's saves an earlier Enginehost kept
+         * elsewhere, for the person to bring over first or leave.
+         */
+        class Runtime(
+            val intent: Intent,
+            val config: EngineConfig,
+            val resolved: ResolvedPlugin,
+            val earlierSaves: EarlierSaves? = null,
+        ) : Plan()
 
         /** The game cannot start; [retry] when trying again can help once the person has fixed what [message] names. */
         class Failure(val message: String, val retry: Boolean = false) : Plan()
@@ -83,8 +92,9 @@ object GameRunner {
         // The save root can be on a card that is not mounted, or a folder
         // chosen once and gone since; that is a sentence too, not an
         // exception out of the launch screen.
+        val saves = SaveLocationStore(context)
         val saveFolder = try {
-            SaveLocationStore(context).saveFolderFor(config)
+            saves.saveFolderFor(config)
         } catch (e: UnusableSaveFolderException) {
             return Plan.Failure(context.getString(R.string.launch_save_folder_unusable, e.folder.absolutePath), retry = true)
         }
@@ -137,6 +147,6 @@ object GameRunner {
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
             inlineJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
         }
-        return Plan.Runtime(intent, config, resolved)
+        return Plan.Runtime(intent, config, resolved, saves.earlierSavesFor(config, gameFolder))
     }
 }
