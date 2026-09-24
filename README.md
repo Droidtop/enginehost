@@ -209,8 +209,9 @@ slots and explicit capabilities so builds can be installed side by side.
 
 Current plugin repositories:
 
-- [Ren'Py](https://github.com/Droidtop/enginehost-renpy-plugin): versioned
-  8.5.3, 8.3.2, and 8.2.1 Android branches.
+- [Ren'Py](https://github.com/Droidtop/enginehost-renpy-plugin): one
+  `plugin/<version>` branch per engine minor, 7.3 to 7.8 and 8.0 to 8.5,
+  because each line's runtime serves only its own series.
 - RPG Maker family:
   [mkxp-z (XP/VX/VX Ace)](https://github.com/Droidtop/enginehost-rpgmaker-mkxp-z-plugin),
   [EasyRPG (2000/2003)](https://github.com/Droidtop/enginehost-rpgmaker-easyrpg-plugin), and
@@ -223,8 +224,14 @@ Current plugin repositories:
 - [CatSystem2](https://github.com/Droidtop/enginehost-catsystem2-plugin)
 - [CMVS](https://github.com/Droidtop/enginehost-cmvs-plugin)
 - [Flash/AIR (Ruffle)](https://github.com/Droidtop/enginehost-flash-air-plugin)
-- [Twine](https://github.com/Droidtop/enginehost-twine-plugin)
-- [Godot](https://github.com/Droidtop/enginehost-godot-plugin)
+- [HTML](https://github.com/Droidtop/enginehost-html-plugin): web games, and
+  Twine stories as a capability of the same plugin (there is no separate Twine
+  repository).
+- [NScripter/ONScripter](https://github.com/Droidtop/enginehost-nscripter-plugin),
+  built on OnscripterYuri.
+- [Godot](https://github.com/Droidtop/enginehost-godot-plugin): one
+  `plugin/<version>` branch per engine minor, 4.0 to 4.7, because GDScript
+  exported as binary tokens is refused across minors.
 
 ## Status
 
