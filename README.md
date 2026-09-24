@@ -130,9 +130,8 @@ Testing additionally requires a provider that maps to a native primary-storage
 path. Because native interpreters traverse the live tree through filesystem
 paths, Android 11 and newer also require the per-app native-file-access grant.
 
-The home screen also has a deliberately minimal “pick folder and run” action
-for plugin testing. It is not a library or catalog; programmatic launch through
-`dev.enginehost.LAUNCH` remains the intended runtime interface.
+The home screen is the library: every game added there, found by a scan, or
+started through either front door, most recent first.
 
 Controller settings provide global remapping for D-pad, face and shoulder
 buttons, sticks, triggers, VN actions such as skip/auto/history and quick

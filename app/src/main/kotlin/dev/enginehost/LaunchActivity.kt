@@ -124,6 +124,12 @@ class LaunchActivity : AppCompatActivity() {
                     }
                 runtimeStarted = true
                 RunningGame.folder = gameFolder
+                // The home screen is the library of every game played here,
+                // whichever front door started it: a launch from droidtop
+                // is as much a game of this app's as one picked on its own
+                // home (README, "two front doors"). Only a run that really
+                // started counts; a detour or a refusal adds nothing.
+                GameLibraryStore(this).remember(gameFolder)
             }
         }
     }

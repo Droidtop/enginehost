@@ -257,7 +257,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.game_folder_unavailable, Toast.LENGTH_LONG).show()
             return
         }
-        library.remember(folder)
         GameRunner.run(this, folder)
     }
 
