@@ -109,7 +109,7 @@ class ControllerActionsTest {
 
     @Test
     fun `every bypassable scope has a set of its own`() {
-        val bypassable = listOf("renpy", "godot", "rpgmaker/2000", "rpgmaker/2003")
+        val bypassable = listOf("renpy", "godot", "love2d", "rpgmaker/2000", "rpgmaker/2003")
         for (scope in bypassable) {
             assertTrue("$scope offers no bypass", ControllerActions.offersBypass(scope))
             assertNotEquals("$scope has no set of its own", ControllerActions.common, ControllerActions.forEngine(scope))
