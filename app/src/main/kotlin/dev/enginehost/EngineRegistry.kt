@@ -159,9 +159,15 @@ class FileGameTree private constructor(
 ) : GameTree {
     override fun length(path: String): Long = File(root, path).length()
 
-    override fun readHead(path: String, limit: Int): ByteArray = runCatching {
-        File(root, path).inputStream().use { it.readNBytes(limit) }
-    }.getOrDefault(ByteArray(0))
+    /**
+     * The head is [read] from offset 0. It used to be `InputStream.readNBytes`,
+     * which Android has only from API 33: below that the call threw, the
+     * failure read as an empty file, and every file-head fact was lost on
+     * Android 9 to 12 -- RPG Maker 2000/2003 and Ren'Py stopped at Game
+     * setup with an empty engine version (rig, dq-coordinator-23 F15/F16)
+     * while the JVM unit tests, which have the method, passed.
+     */
+    override fun readHead(path: String, limit: Int): ByteArray = read(path, 0, limit)
 
     override fun read(path: String, offset: Long, limit: Int): ByteArray = runCatching {
         val file = File(root, path)
