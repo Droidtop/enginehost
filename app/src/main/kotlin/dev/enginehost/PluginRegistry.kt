@@ -30,6 +30,16 @@ data class InstalledPlugin(
     val dexFiles: List<String> = listOf("classes.dex"),
     val resourceApks: List<String> = emptyList(),
     val runtimeTransport: String = RUNTIME_TRANSPORT_PLUGIN,
+    /**
+     * Whether this bundle's own code may run under an isolated-UID runtime
+     * (docs/engine-sandbox.md "Layer 2"). Declared by the bundle itself, not
+     * decided by the host: a plugin only sets it once its native code has the
+     * broker seam and its Java entry point implements EngineStepDriven.
+     * runtimeTransport must still be RUNTIME_TRANSPORT_PLUGIN -- an
+     * activity-transport plugin cannot be isolated (see the audit in
+     * docs/engine-sandbox.md for why).
+     */
+    val isolatable: Boolean = false,
 ) {
     /** Compatibility alias while callers migrate from package terminology. */
     val packageName: String get() = bundleId
@@ -137,6 +147,7 @@ object PluginRegistry {
             json.optString("runtimeTransport", RUNTIME_TRANSPORT_PLUGIN).also {
                 require(it == RUNTIME_TRANSPORT_PLUGIN || it == RUNTIME_TRANSPORT_ACTIVITY)
             },
+            json.optBoolean("isolatable", false),
         )
     }
 

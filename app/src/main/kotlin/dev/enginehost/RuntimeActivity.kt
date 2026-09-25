@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.os.VibrationEffect
@@ -15,6 +14,7 @@ import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
+import dev.enginehost.api.EngineControllerEvent
 import dev.enginehost.api.EngineFileSystem
 import dev.enginehost.api.EngineHost
 import dev.enginehost.api.EnginePlugin
@@ -33,6 +33,11 @@ class RuntimeActivity : FragmentActivity() {
     private var runtimeStarted = false
     private var pendingRequiredFile: String? = null
     private val resourceHandles = mutableListOf<AutoCloseable>()
+    // Non-null only for an isolatable plugin (docs/engine-sandbox.md "Layer
+    // 2"); plugin above is then IsolatedControllerProxy, a stand-in so the
+    // existing controller/lifecycle dispatch below needs no branch of its
+    // own -- it already only ever calls EnginePlugin methods.
+    private var isolatedRuntime: IsolatedRuntimeHost? = null
     // Scoped to the engine this session is running, so the user's
     // per-engine mappings apply while playing rather than only in settings.
     private val controllers by lazy {
@@ -70,6 +75,9 @@ class RuntimeActivity : FragmentActivity() {
         if (!PluginTrustStore(this).isApproved(resolved.plugin)) {
             return failAndFinish("Plugin approval is missing")
         }
+        if (resolved.plugin.isolatable) {
+            return startIsolatedRuntime(resolved, config, gameFolder, saveFolder, display)
+        }
 
         CrashWatch.arm(this, gameFolder, resolved.plugin.bundleId)
         try {
@@ -106,28 +114,80 @@ class RuntimeActivity : FragmentActivity() {
     }
 
     private fun loadPlugin(installed: InstalledPlugin): EnginePlugin {
-        val root = installed.directory.canonicalFile
-        resourceHandles += PluginResources.attach(this, installed.resourceApks.map { safeRuntimeChild(root, it) })
-        val dexPaths = installed.dexFiles.map { safeRuntimeChild(root, it) }
-        require(dexPaths.all(File::isFile)) { "A signed dex file is missing" }
-        val nativeLibraryPaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
-        val loader = PluginDexLoader(
-            dexPaths.joinToString(File.pathSeparator) { it.absolutePath },
-            codeCacheDir.absolutePath,
-            nativeLibraryPaths.joinToString(File.pathSeparator) { it.absolutePath }.ifBlank { null },
-            classLoader,
+        val loaded = loadEnginePlugin(
+            this, installed.directory, installed.entrypointClass,
+            installed.dexFiles, installed.resourceApks, classLoader,
         )
-        RuntimeClassLoader.attach(classLoader, loader)
-        val entrypoint = Class.forName(installed.entrypointClass, true, loader)
-        require(EnginePlugin::class.java.isAssignableFrom(entrypoint)) {
-            "${installed.entrypointClass} does not implement EnginePlugin API v${installed.apiVersion}"
+        resourceHandles += loaded.resourceHandles
+        return loaded.plugin
+    }
+
+    /**
+     * Sandbox layer 2, first milestone (docs/engine-sandbox.md): this
+     * bundle's own :runtime runs isolated instead of here. [plugin] is set
+     * to a stand-in ([IsolatedControllerProxy]) purely so the controller
+     * and lifecycle dispatch above -- dispatchKeyEvent, onResume/onPause/
+     * onDestroy -- needs no branch of its own; [isolatedRuntime] is the
+     * real thing and carries the frame/file/callback wiring.
+     *
+     * A game whose plugin throws EnginePatchRequiredException from
+     * onCreate is not offered the patch dialog under isolation: the
+     * exception is raised inside the isolated service, across Binder,
+     * which does not preserve a custom exception's own type or its
+     * requiredFile() -- only its message survives, so this path ends in
+     * an ordinary failure instead. Recorded, not silently dropped: none
+     * of the milestone's own rig-checked games need a patch.
+     */
+    private fun startIsolatedRuntime(
+        resolved: ResolvedPlugin,
+        config: EngineConfig,
+        gameFolder: File,
+        saveFolder: File,
+        display: FrameLayout,
+    ) {
+        val verifiedManifest = try {
+            InstalledBundleVerifier.verify(this, resolved.plugin).also {
+                check(it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION)
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Plugin verification failed", e)
+            return failAndFinish(STARTUP_FAILED + (e.message ?: e.javaClass.simpleName))
         }
-        return entrypoint.getDeclaredConstructor().newInstance() as EnginePlugin
+        Log.i(TAG, "verified bundle ${resolved.plugin.bundleId} for isolated launch, apiVersion ${verifiedManifest.apiVersion}")
+        CrashWatch.arm(this, gameFolder, resolved.plugin.bundleId)
+        val runtime = IsolatedRuntimeHost(this)
+        isolatedRuntime = runtime
+        plugin = IsolatedControllerProxy()
+        runtimeStarted = true
+        runtime.start(
+            resolved.plugin,
+            config.engine,
+            config.engineContext ?: DEFAULT_ENGINE_CONTEXT,
+            config.engineVersion.toString(),
+            resolved.capability.runtimeVersion.toString(),
+            resolved.capability.id,
+            config.execFile,
+            config.options?.toString(),
+            config.runtimeRequirements.mapValues { it.value.toString() },
+            intent.getStringArrayExtra(EXTRA_RESTART_ARGUMENTS) ?: emptyArray(),
+            gameFolder,
+            saveFolder,
+            display,
+        ) { message -> failAndFinish(STARTUP_FAILED + message) }
+    }
+
+    /** Routes the pad through to the isolated runtime; see [startIsolatedRuntime]. */
+    private inner class IsolatedControllerProxy : EnginePlugin {
+        override fun onCreate(session: EnginePluginSession) {}
+        override fun onControllerEvent(event: EngineControllerEvent): Boolean = isolatedRuntime?.onControllerEvent(
+            event.action(), event.value(), event.deviceId(), event.deviceDescriptor(), event.eventTime(),
+        ) ?: false
     }
 
     override fun onResume() {
         super.onResume()
         if (runtimeStarted) callPlugin("resume") { onResume() }
+        isolatedRuntime?.resume()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
@@ -137,6 +197,7 @@ class RuntimeActivity : FragmentActivity() {
         controllers.motion(event) || super.dispatchGenericMotionEvent(event)
     override fun onPause() {
         if (runtimeStarted) callPlugin("pause") { onPause() }
+        isolatedRuntime?.pause()
         super.onPause()
     }
     override fun onStop() {
@@ -145,6 +206,8 @@ class RuntimeActivity : FragmentActivity() {
     }
     override fun onDestroy() {
         callPlugin("destroy") { onDestroy() }
+        isolatedRuntime?.destroy()
+        isolatedRuntime = null
         plugin = null
         resourceHandles.asReversed().forEach { runCatching { it.close() } }
         resourceHandles.clear()
@@ -278,6 +341,24 @@ internal fun safeRuntimeChild(root: File, relativePath: String): File {
     return child
 }
 
+/**
+ * A path under [root], with no ".." or symlink escape -- the same check
+ * RuntimeFileSystem applies for the in-process EngineFileSystem, and what
+ * IsolatedRuntimeHost's IEngineFileBroker implementations apply for a
+ * launch's isolated runtime (docs/engine-sandbox.md "Host file service
+ * design"). One mechanism, both callers.
+ */
+internal fun resolveWithinRoot(root: File, relativePath: String): File {
+    if (File(relativePath).isAbsolute) throw FileNotFoundException("Absolute paths are not accepted")
+    val canonicalRoot = root.canonicalFile
+    val resolved = File(canonicalRoot, relativePath).canonicalFile
+    val rootPath = canonicalRoot.path.trimEnd(File.separatorChar) + File.separator
+    if (resolved != canonicalRoot && !resolved.path.startsWith(rootPath)) {
+        throw FileNotFoundException("Path leaves its root")
+    }
+    return resolved
+}
+
 private class RuntimeHost(
     private val activity: Activity,
     private val gameFolder: File,
@@ -335,9 +416,7 @@ private class RuntimeHost(
     }
 }
 
-private class RuntimeFileSystem(root: File) : EngineFileSystem {
-    private val canonicalRoot = root.canonicalFile
-
+private class RuntimeFileSystem(private val root: File) : EngineFileSystem {
     override fun openRead(relativePath: String): InputStream = FileInputStream(resolve(relativePath))
     override fun openWrite(relativePath: String, append: Boolean): OutputStream {
         val file = resolve(relativePath)
@@ -347,13 +426,5 @@ private class RuntimeFileSystem(root: File) : EngineFileSystem {
     override fun exists(relativePath: String): Boolean = runCatching { resolve(relativePath).exists() }.getOrDefault(false)
     override fun list(relativePath: String): Array<String> = resolve(relativePath).list() ?: emptyArray()
 
-    private fun resolve(relativePath: String): File {
-        if (File(relativePath).isAbsolute) throw FileNotFoundException("Absolute paths are not accepted")
-        val resolved = File(canonicalRoot, relativePath).canonicalFile
-        val rootPath = canonicalRoot.path.trimEnd(File.separatorChar) + File.separator
-        if (resolved != canonicalRoot && !resolved.path.startsWith(rootPath)) {
-            throw FileNotFoundException("Path leaves the game folder")
-        }
-        return resolved
-    }
+    private fun resolve(relativePath: String): File = resolveWithinRoot(root, relativePath)
 }

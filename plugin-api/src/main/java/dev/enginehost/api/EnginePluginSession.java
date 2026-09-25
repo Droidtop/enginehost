@@ -36,7 +36,9 @@ public final class EnginePluginSession {
             String optionsJson,
             Map<String, String> runtimeRequirements) {
         this.bundleDirectory = Objects.requireNonNull(bundleDirectory);
-        this.display = Objects.requireNonNull(display);
+        // Null under an isolated runtime, which owns no window of its own
+        // (docs/engine-sandbox.md "Layer 2"); see EngineStepDriven.
+        this.display = display;
         this.host = Objects.requireNonNull(host);
         this.gamePath = Objects.requireNonNull(gamePath);
         this.engine = Objects.requireNonNull(engine);
@@ -51,7 +53,12 @@ public final class EnginePluginSession {
 
     /** Read-only root containing this engine bundle's dex, native libraries, assets and notices. */
     public File bundleDirectory() { return bundleDirectory; }
-    /** Host-owned root into which the plugin attaches its rendering view. */
+    /**
+     * Host-owned root into which the plugin attaches its rendering view, or
+     * null when this runtime is isolated and has no window of its own -- see
+     * {@link EngineStepDriven}, the alternative a plugin implements to run
+     * under an isolated runtime.
+     */
     public ViewGroup display() { return display; }
     public EngineHost host() { return host; }
     public String gamePath() { return gamePath; }

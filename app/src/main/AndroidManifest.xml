@@ -124,6 +124,20 @@
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <!--
+             Sandbox layer 2 (docs/engine-sandbox.md), first milestone: an
+             isolatable plugin's :runtime runs here instead of in-process,
+             under a fresh UID with no permissions of its own, not even
+             this app's own private storage. RuntimeActivity binds it and
+             brokers file access over IEngineRuntimeService; every other
+             plugin is unaffected and keeps running in ":runtime" above.
+        -->
+        <service
+            android:name=".IsolatedRuntimeService"
+            android:exported="false"
+            android:isolatedProcess="true"
+            android:process=":runtime_isolated" />
+
+        <!--
              The only real entry point, and deliberately the whole
              contract: exported, takes one extra ("path", an absolute
              folder), and figures out everything else, which engine,

@@ -35,6 +35,8 @@ data class EngineBundleManifest(
     val dexFiles: List<String>,
     val resourceApks: List<String>,
     val runtimeTransport: String,
+    /** See InstalledPlugin.isolatable (docs/engine-sandbox.md "Layer 2"). */
+    val isolatable: Boolean = false,
     val payloadSha256: String,
     val files: List<BundleFileRecord>,
     /**
@@ -58,6 +60,7 @@ data class EngineBundleManifest(
         .put("dexFiles", JSONArray(dexFiles))
         .put("resourceApks", JSONArray(resourceApks))
         .put("runtimeTransport", runtimeTransport)
+        .put("isolatable", isolatable)
         .put("capabilities", JSONArray().apply { info.capabilities.forEach { put(it.toJson()) } })
 }
 
@@ -111,6 +114,19 @@ object EngineBundleManifestReader {
         val engines = json.optJSONArray("engines")?.let { array ->
             (0 until array.length()).map { array.getString(it).trim() }.filter(String::isNotEmpty)
         }.orEmpty()
+        val runtimeTransport = json.optString("runtimeTransport", RUNTIME_TRANSPORT_PLUGIN).also {
+            require(it == RUNTIME_TRANSPORT_PLUGIN || it == RUNTIME_TRANSPORT_ACTIVITY) {
+                "Unsupported runtime transport"
+            }
+        }
+        val isolatable = json.optBoolean("isolatable", false).also {
+            // Layer 2 (docs/engine-sandbox.md) only fits the plugin-api
+            // transport: an activity-transport plugin's own Activity is
+            // what the OS starts, which an isolated service cannot be.
+            require(!it || runtimeTransport == RUNTIME_TRANSPORT_PLUGIN) {
+                "isolatable requires runtimeTransport: plugin"
+            }
+        }
         return EngineBundleManifest(
             rawBytes,
             json.requiredString("assetName").also {
@@ -130,11 +146,8 @@ object EngineBundleManifestReader {
             fingerprint,
             dexFiles,
             resourceApks,
-            json.optString("runtimeTransport", RUNTIME_TRANSPORT_PLUGIN).also {
-                require(it == RUNTIME_TRANSPORT_PLUGIN || it == RUNTIME_TRANSPORT_ACTIVITY) {
-                    "Unsupported runtime transport"
-                }
-            },
+            runtimeTransport,
+            isolatable,
             json.requiredSha256("payloadSha256"),
             files,
             engines = engines,
@@ -203,10 +216,30 @@ object EngineBundleInstaller {
                 Charsets.US_ASCII,
             )
             File(staging, PluginRegistry.INSTALL_RECORD).writeText(manifest.installedRecord(archiveSha).toString())
+            // An isolatable bundle's own code has to be readable by the
+            // isolated-UID :runtime_isolated process too, not only by this
+            // app's own UID: app-private storage is ordinary DAC/SELinux,
+            // not the FUSE-mediated shared storage a broker exists to keep
+            // an isolated UID away from, and Android's own isolated_app
+            // sepolicy already allows an isolated process to read (and, for
+            // a library, execute) its host app's app_data_file -- the same
+            // grant WebView's own sandboxed renderer relies on to load its
+            // provider's native libraries. Scoped to exactly the bundles
+            // that opted in (docs/engine-bundle-format.md "Sandboxing and
+            // the plugin contract"): every other installed bundle keeps the
+            // owner-only permissions it already had, unreadable outside
+            // this app's own UID.
+            val worldReadable = manifest.isolatable
             staging.walkBottomUp().forEach { file ->
-                file.setReadable(true, true)
+                file.setReadable(true, !worldReadable)
                 file.setWritable(false, false)
-                if (file.isDirectory) file.setExecutable(true, true)
+                if (file.isDirectory) {
+                    file.setExecutable(true, !worldReadable)
+                } else if (worldReadable && file.canExecute()) {
+                    // A payload .so keeps its executable bit for every UID
+                    // (dlopen), everything else (dex, data) stays non-executable.
+                    file.setExecutable(true, false)
+                }
             }
             val destination = File(root, "${manifest.bundleId}--${archiveSha.take(16).lowercase()}")
             require(staging.renameTo(destination)) { "Could not atomically install engine bundle" }

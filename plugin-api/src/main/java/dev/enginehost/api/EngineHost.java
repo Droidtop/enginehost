@@ -17,6 +17,19 @@ public interface EngineHost {
     File saveDirectory();
     File cacheDirectory();
     EngineFileSystem fileSystem();
+
+    /**
+     * Host-brokered, read-only access to the game folder, present only
+     * when this runtime is isolated (docs/engine-sandbox.md "Layer 2").
+     * Null on an ordinary in-process launch, and null on a host too old
+     * to know about isolation -- the default answers null so no existing
+     * EngineHost implementation has to change to keep compiling.
+     */
+    default EngineFileBroker gameBroker() { return null; }
+
+    /** The isolated runtime's save-folder counterpart to {@link #gameBroker()}; read-write. */
+    default EngineFileBroker saveBroker() { return null; }
+
     void log(int priority, String tag, String message, Throwable error);
     /** Requests haptic feedback from the controller that produced an event. */
     boolean rumbleController(int deviceId, long durationMs, int amplitude);

@@ -56,6 +56,13 @@ android {
         }
     }
 
+    // The isolated runtime's Binder contract (docs/engine-sandbox.md "Layer
+    // 2"): IEngineFileBroker, IEngineRuntimeCallback, IEngineRuntimeService
+    // under app/src/main/aidl. AGP 8 no longer compiles .aidl by default.
+    buildFeatures {
+        aidl = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
