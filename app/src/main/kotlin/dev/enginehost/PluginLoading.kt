@@ -30,11 +30,69 @@ internal fun loadEnginePlugin(
     val dexPaths = dexFiles.map { safeRuntimeChild(root, it) }
     require(dexPaths.all(File::isFile)) { "A signed dex file is missing" }
     val nativeLibraryPaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
-    val loader = PluginDexLoader(
+    return loadFromDexPathList(
+        context,
         dexPaths.joinToString(File.pathSeparator) { it.absolutePath },
-        context.codeCacheDir.absolutePath,
         nativeLibraryPaths.joinToString(File.pathSeparator) { it.absolutePath }.ifBlank { null },
+        emptyMap(),
+        entrypointClass,
         appClassLoader,
+        resourceHandles,
+    )
+}
+
+/**
+ * Sandbox layer 2 (docs/engine-sandbox.md): the same load, from
+ * descriptors this process already holds open rather than real paths it
+ * may not be able to reach by name at all. Android 10+ makes the app's
+ * own private data directory 0700 -- world-executable ancestor
+ * directories (PluginRegistry.root) close the gap on older releases but
+ * cannot on 10+, since the isolated UID cannot even traverse into
+ * `files/` in the first place there, regardless of what is readable at
+ * the far end. The host opens each descriptor itself, against the
+ * already hash-verified bundle (InstalledBundleVerifier, called before
+ * either loading path runs), and this process converts each into a
+ * `/proc/self/fd/N` path -- the same underlying open file, addressable
+ * by a path string ordinary path-based APIs accept, without this process
+ * ever resolving the real path itself. [nativeLibraryFdPaths] plugs into
+ * [PluginDexLoader.findLibrary], so a plugin's own unmodified
+ * `System.loadLibrary(name)` call (CatSystem2Plugin's static
+ * initialiser, untouched) resolves it exactly as it would a real
+ * directory search. No resource APKs: not part of this milestone's
+ * shape (CatSystem2 ships none), and nothing in EngineBundlePackage's
+ * own read of the manifest depends on this changing later.
+ */
+internal fun loadEnginePluginFromFds(
+    context: Context,
+    dexFdPaths: List<String>,
+    entrypointClass: String,
+    nativeLibraryFdPaths: Map<String, String>,
+    appClassLoader: ClassLoader,
+): LoadedPlugin = loadFromDexPathList(
+    context,
+    dexFdPaths.joinToString(File.pathSeparator),
+    null,
+    nativeLibraryFdPaths,
+    entrypointClass,
+    appClassLoader,
+    emptyList(),
+)
+
+private fun loadFromDexPathList(
+    context: Context,
+    dexPath: String,
+    librarySearchPath: String?,
+    nativeLibraryFdPaths: Map<String, String>,
+    entrypointClass: String,
+    appClassLoader: ClassLoader,
+    resourceHandles: List<AutoCloseable>,
+): LoadedPlugin {
+    val loader = PluginDexLoader(
+        dexPath,
+        context.codeCacheDir.absolutePath,
+        librarySearchPath,
+        appClassLoader,
+        nativeLibraryFdPaths,
     )
     RuntimeClassLoader.attach(appClassLoader, loader)
     val entrypoint = Class.forName(entrypointClass, true, loader)

@@ -414,34 +414,88 @@ which is the entire point.
   exists per-engine in embryonic form (a single files-abstraction module),
   it just currently opens real paths instead of asking a callback.
 
-**The bundle's own files (built, revised from this section's first draft).**
-Not part of the per-launch broker (bundle contents are install-time
-verified and launch-independent, unlike game files): `dlopen`/`DexClassLoader`
-must resolve real paths themselves, which a broker's fds do not
-substitute for without also building `android_dlopen_ext`/
-`InMemoryDexClassLoader` plumbing this milestone does not have yet. What
-is actually built instead: `EngineBundleInstaller` makes an isolatable
-bundle's own extracted files world-readable (`.so` also world-executable)
-at install time, and `PluginRegistry.root()` keeps the bundle registry
-directory and this app's own `files/` directory world-*executable*
-(traversable by name, never listable) every time either is touched. Both
-are needed: a directory missing the execute bit for "other" refuses
-traversal into it by any other UID even when the file at the far end of
-the path is itself world-readable, regardless of that file's own mode --
-found the hard way, when dq-sandbox-01's first rig run reached
-`IEngineRuntimeService.init()` and failed there with "A signed dex file
-is missing": the per-bundle chmod was real, but its two ancestor
-directories were not touched by it, so the isolated UID could not walk
-into either one to reach a file it did have read permission on.
-Narrower than the broker route (limited to files a bundle's own manifest
-already opted into exposing, and only two ancestor directories besides,
-neither of them listable), but it is what is built, not the broker-based
-design this section originally proposed without building. The ancestor-
-traversal fix above is queued for its own rig check now
-(dq-sandbox-01's steps 1-4, re-run); until that passes this remains
-"believed fixed", not confirmed. The broker route remains the
-longer-term target if a second isolatable plugin's needs outgrow this
-one; nothing here forecloses it.
+**The bundle's own files (built, twice-revised from this section's first
+draft -- read this as the current account, not the history).** Not part
+of the per-launch broker (bundle contents are install-time verified and
+launch-independent, unlike game files).
+
+The first thing built (`EngineBundleInstaller` making an isolatable
+bundle's files world-readable, `PluginRegistry.root()` keeping its two
+ancestor directories world-*executable*) was a real fix for a real bug
+(dq-sandbox-01's first rig run failed exactly there, "A signed dex file
+is missing," traced to the ancestor directories never being touched by
+the per-bundle chmod), but it is not a robust route in general: Android
+10+ sets an app's own private data directory (`/data/user/0/<pkg>`,
+above everything `PluginRegistry.root()` can reach) to `0700`, closing
+the traversal permission this chmod relies on regardless of what is
+readable beneath it. Confirmed only for BlueStacks' Android 9 so far
+(0751 there, traditionally); expected, not yet confirmed, to fail the
+same way on Android 10+ (dq-sandbox-02 covers both BlueStacks and
+emulator-5560's Android 14, to get real evidence either way rather than
+assume it).
+
+Built alongside it, and the one this doc now recommends: the host opens
+the bundle's own dex and native-library files itself (against the
+already hash-verified installed directory -- `InstalledBundleVerifier`
+runs before either loading path is reached, so this opens nothing that
+was not already checked file-by-file against the signed manifest) and
+hands the isolated service `ParcelFileDescriptor`s for them over
+`IEngineRuntimeService.init()`, the same Binder mechanism the game/save
+broker already uses. The isolated side never resolves a path of its own:
+each descriptor is addressed as `/proc/self/fd/N`, the same open file by
+a path string ordinary path-based loading APIs accept -- `DexClassLoader`
+for the dex (`PluginDexLoader`, unchanged mechanism, just fed a
+`/proc/self/fd` path instead of a real one) and, for each native
+library, `PluginDexLoader.findLibrary(name)` resolving straight to its
+`/proc/self/fd` path so the plugin's own unmodified
+`System.loadLibrary(name)` call finds it exactly as it would a real
+directory search. No `android_dlopen_ext`/`ANDROID_DLEXT_USE_LIBRARY_FD`
+native bootstrap needed: `ClassLoader.findLibrary` is a documented,
+ordinary extension point built for exactly this, and going through the
+normal `System.load`/`Runtime.nativeLoad` path (rather than a raw
+`dlopen`) is what keeps native-method resolution working for the plugin's
+own `native` declarations without touching the plugin at all -- a raw
+`dlopen_ext` call would load the bytes but not register the library
+against the plugin's classloader, leaving every `native` method
+unresolved unless each one were re-bound by hand with `RegisterNatives`,
+which does not scale across plugins. This route needs no minSdk above
+26 (Enginehost's own floor): `DexClassLoader`'s `librarySearchPath`
+constructor argument and `findLibrary` override have existed since
+before `isolatedProcess` did, and `/proc/self/fd` path resolution is
+ordinary Linux kernel behaviour, not an Android- or API-level-specific
+feature. (`InMemoryDexClassLoader`, the alternative for the dex half
+alone, would need API 29 for its own `librarySearchPath` constructor --
+moot here, since `DexClassLoader` fed a `/proc/self/fd` path already
+covers both halves down to API 26.)
+
+**Security reasoning for the chmod route, while it still runs alongside
+the fd route:** on Android releases where it takes effect (pre-10, so
+far only confirmed relevant to BlueStacks' Pie image), an isolatable
+bundle's dex and native libraries become reachable by *any* app on the
+device that already knows the exact path -- not listable (no directory
+gained a read bit, only execute), so nothing is discoverable, only
+openable by a path an attacker would have to already have. This is
+acceptable only because what it exposes is a bundle's own *code*,
+install-time signature-verified against the key pinned for its origin,
+already public in the sense that its origin repository ships it openly
+-- the same trust class as an installed APK's own files, which Android
+itself makes world-readable by long-standing convention. It must never
+be extended to saves or `enginehost.json`: those stay behind the broker
+exclusively, read-write and per-launch-scoped, never touched by any
+chmod this installer applies.
+
+**Status:** the fd route is built and this repo's own CI compiles it;
+neither route has a device confirmation yet for the failure the chmod
+route cannot fix (dq-sandbox-02 is what settles it, on both devices).
+The chmod-based ancestor-traversal fix is not removed while that is
+outstanding -- it costs nothing extra now that dex/native-library
+loading no longer depends on it, and removing it before the fd route is
+confirmed would leave nothing working if the fd route turns out to have
+its own bug. Once dq-sandbox-02 confirms the fd route on both devices,
+`EngineBundleInstaller`'s world-readable chmod and `PluginRegistry.root()`'s
+ancestor-traversal chmod should both come out, in their own commit: two
+mechanisms for the one job is exactly what this project does not keep
+once one of them is proven unnecessary.
 
 ### First milestone
 
@@ -515,11 +569,18 @@ the frame/input AIDL, and `enginehost-catsystem2-plugin`'s own seam
 (`plugin/0.1`, commit `69fa2d2`), plus `isolatable` in the bundle
 manifest schema. Both repos' CI is green, and the signed CatSystem2
 bundle is live on the unstable channel. Not yet confirmed on a device: a
-first isolated rig run (dq-sandbox-01) reached `IEngineRuntimeService.init()`
-and failed there ("A signed dex file is missing" -- an ancestor-directory
-traversal permission gap in `PluginRegistry.root()`, fixed above under
-"The bundle's own files"); a re-run of that check is what would make this
-section's "not yet confirmed" become "confirmed".
+first isolated rig run (dq-sandbox-01, BlueStacks/Android 9) reached
+`IEngineRuntimeService.init()` and failed there ("A signed dex file is
+missing"), traced to an ancestor-directory traversal permission gap in
+`PluginRegistry.root()`. Two fixes have since landed, not yet
+device-confirmed on either: an ancestor-chmod fix that closes the gap on
+Android releases where it can (pre-10), and a `ParcelFileDescriptor`-based
+loading route that does not depend on directory traversal at all and is
+this doc's recommendation regardless of Android version -- see "The
+bundle's own files" below for both, including why chmod alone cannot be
+the answer on Android 10+. dq-sandbox-02, on both BlueStacks and
+emulator-5560 (Android 14), is what turns either "believed fixed" into
+"confirmed".
 
 ### Roadmap: the remaining plugins, in order
 

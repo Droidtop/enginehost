@@ -68,13 +68,29 @@ class RuntimeClassLoader(parent: ClassLoader) : ClassLoader(parent) {
     }
 }
 
-/** A plugin's dex loader, able to answer for its own dex alone. */
+/**
+ * A plugin's dex loader, able to answer for its own dex alone.
+ *
+ * [nativeLibraryFdPaths] is the isolated runtime's own seam
+ * (docs/engine-sandbox.md "Layer 2"): a library name (as
+ * System.loadLibrary names it, e.g. "catsystem2") to a `/proc/self/fd/N`
+ * path this process already has an open, host-verified descriptor for,
+ * used in place of a real directory search when the isolated UID cannot
+ * reach the bundle's own files by path at all (Android 10+ makes the
+ * app's private data directory 0700, closing the traversal permission
+ * the in-process/chmod route relied on). Empty for every ordinary,
+ * in-process plugin load, where [librarySearchPath] already works and
+ * this never triggers.
+ */
 class PluginDexLoader(
     dexPath: String,
     optimizedDirectory: String,
     librarySearchPath: String?,
     parent: ClassLoader,
+    private val nativeLibraryFdPaths: Map<String, String> = emptyMap(),
 ) : DexClassLoader(dexPath, optimizedDirectory, librarySearchPath, parent) {
     /** This loader's own dex files only, without asking the parent. */
     fun findOwn(name: String): Class<*> = findClass(name)
+
+    override fun findLibrary(name: String): String? = nativeLibraryFdPaths[name] ?: super.findLibrary(name)
 }

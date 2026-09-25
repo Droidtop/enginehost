@@ -36,6 +36,8 @@ class IsolatedRuntimeService : Service() {
     private var callback: IEngineRuntimeCallback? = null
     private var restartArguments: Array<String> = emptyArray()
     private val resourceHandles = mutableListOf<AutoCloseable>()
+    /** The dex and native-library descriptors init() was handed, kept open for the session's life. */
+    private val heldFds = mutableListOf<ParcelFileDescriptor>()
 
     override fun onBind(intent: Intent?): IBinder = binder
 
@@ -43,6 +45,8 @@ class IsolatedRuntimeService : Service() {
         runCatching { plugin?.onDestroy() }
         resourceHandles.asReversed().forEach { runCatching { it.close() } }
         resourceHandles.clear()
+        heldFds.forEach { runCatching { it.close() } }
+        heldFds.clear()
         plugin = null
         stepDriven = null
         super.onDestroy()
@@ -50,9 +54,10 @@ class IsolatedRuntimeService : Service() {
 
     private val binder = object : IEngineRuntimeService.Stub() {
         override fun init(
-            bundleDirectory: String,
+            dexFds: Array<ParcelFileDescriptor>,
             entrypointClass: String,
-            dexFiles: Array<String>,
+            nativeLibraryNames: Array<String>,
+            nativeLibraryFds: Array<ParcelFileDescriptor>,
             engine: String,
             engineContext: String,
             engineVersion: String,
@@ -69,6 +74,8 @@ class IsolatedRuntimeService : Service() {
         ) {
             this@IsolatedRuntimeService.callback = callback
             this@IsolatedRuntimeService.restartArguments = restartArguments
+            heldFds += dexFds
+            heldFds += nativeLibraryFds
             val runtimeRequirements = runtimeRequirementKeys.indices.associate {
                 runtimeRequirementKeys[it] to runtimeRequirementValues[it]
             }
@@ -76,13 +83,22 @@ class IsolatedRuntimeService : Service() {
                 this@IsolatedRuntimeService, callback, this@IsolatedRuntimeService.restartArguments,
                 gameBroker?.let(::AidlFileBrokerAdapter), saveBroker?.let(::AidlFileBrokerAdapter),
             )
-            val loaded = loadEnginePlugin(
-                this@IsolatedRuntimeService, File(bundleDirectory), entrypointClass,
-                dexFiles.toList(), emptyList(), classLoader,
+            val nativeLibraryFdPaths = nativeLibraryNames.indices.associate {
+                nativeLibraryNames[it] to procFdPath(nativeLibraryFds[it])
+            }
+            val loaded = loadEnginePluginFromFds(
+                this@IsolatedRuntimeService, dexFds.map(::procFdPath), entrypointClass,
+                nativeLibraryFdPaths, classLoader,
             )
             resourceHandles += loaded.resourceHandles
             val session = EnginePluginSession(
-                File(bundleDirectory), /* display = */ null, host, /* gamePath = */ "", engine,
+                // No real bundle directory in an isolated process: dex and
+                // native libraries arrive as descriptors (above), not a
+                // path this session could read further into. A plugin
+                // that needs to read its OWN other bundled assets at
+                // runtime -- none does yet -- is out of this milestone's
+                // scope, same as resourceApks below.
+                NO_BUNDLE_DIRECTORY, /* display = */ null, host, /* gamePath = */ "", engine,
                 engineContext, engineVersion, runtimeVersion, capabilityId, execFile, optionsJson,
                 runtimeRequirements,
             )
@@ -133,8 +149,17 @@ class IsolatedRuntimeService : Service() {
 
     companion object {
         private const val TAG = "enginehost-isolated-runtime"
+        /**
+         * Not a real bundle directory: this process never has one (see
+         * init()). Its only use is EnginePluginSession's own non-null
+         * requirement; nothing reads it.
+         */
+        private val NO_BUNDLE_DIRECTORY = File("/proc/self/fd")
     }
 }
+
+/** The path a ParcelFileDescriptor is reachable at from this process's own side of it: the same open file, by fd number. */
+private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd.fd}"
 
 /** [EngineHost] for an isolated launch: file access is broker-only, and every Activity-owned call crosses back to the host. */
 private class IsolatedEngineHost(

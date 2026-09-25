@@ -11,6 +11,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
@@ -68,17 +69,25 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                 service = svc
                 val initRunnable = Runnable {
                     try {
-                        svc.init(
-                            installed.directory.absolutePath, installed.entrypointClass,
-                            installed.dexFiles.toTypedArray(),
-                            engine, engineContext, engineVersion, runtimeVersion, capabilityId,
-                            execFile, optionsJson,
-                            runtimeRequirements.keys.toTypedArray(), runtimeRequirements.values.toTypedArray(),
-                            restartArguments,
-                            HostFileBroker(gameFolder, readOnly = true),
-                            HostFileBroker(saveFolder, readOnly = false),
-                            HostRuntimeCallback(activity),
-                        )
+                        val dexFds = openDexFds(installed)
+                        val (nativeLibraryNames, nativeLibraryFds) = openNativeLibraryFds(installed)
+                        try {
+                            svc.init(
+                                dexFds, installed.entrypointClass,
+                                nativeLibraryNames, nativeLibraryFds,
+                                engine, engineContext, engineVersion, runtimeVersion, capabilityId,
+                                execFile, optionsJson,
+                                runtimeRequirements.keys.toTypedArray(), runtimeRequirements.values.toTypedArray(),
+                                restartArguments,
+                                HostFileBroker(gameFolder, readOnly = true),
+                                HostFileBroker(saveFolder, readOnly = false),
+                                HostRuntimeCallback(activity),
+                            )
+                        } finally {
+                            // AIDL duplicates each descriptor across the binder call; this
+                            // process's own copies are spent once init() returns (or throws).
+                            (dexFds.asList() + nativeLibraryFds.asList()).forEach { runCatching { it.close() } }
+                        }
                         val width = svc.pixelWidth()
                         val height = svc.pixelHeight()
                         activity.runOnUiThread {
@@ -114,6 +123,41 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
             connection = null
             onFailure("Could not start the isolated runtime")
         }
+    }
+
+    /**
+     * Opens this process's own read-only descriptor for each of the
+     * bundle's dex files, against the already hash-verified installed
+     * directory (InstalledBundleVerifier ran before this launch reached
+     * here) -- the isolated process gets these fds instead of the
+     * directory path itself, which it may not be able to reach by name
+     * at all on Android 10+ (docs/engine-sandbox.md "The bundle's own
+     * files"). Same path-safety check every other bundle-file read here
+     * already uses.
+     */
+    private fun openDexFds(installed: InstalledPlugin): Array<ParcelFileDescriptor> {
+        val root = installed.directory.canonicalFile
+        return installed.dexFiles.map { dexFile ->
+            ParcelFileDescriptor.open(safeRuntimeChild(root, dexFile), ParcelFileDescriptor.MODE_READ_ONLY)
+        }.toTypedArray()
+    }
+
+    /**
+     * The same, for the one ABI directory this device actually uses --
+     * every ".so" in it, named as System.loadLibrary(name) would ask for
+     * it (PluginDexLoader.findLibrary is the other end of this).
+     */
+    private fun openNativeLibraryFds(installed: InstalledPlugin): Pair<Array<String>, Array<ParcelFileDescriptor>> {
+        val root = installed.directory.canonicalFile
+        val abiDir = Build.SUPPORTED_ABIS.asSequence()
+            .map { File(root, "lib/$it") }
+            .firstOrNull(File::isDirectory)
+            ?: return emptyArray<String>() to emptyArray()
+        val libraries = abiDir.listFiles { file -> file.isFile && file.name.startsWith("lib") && file.name.endsWith(".so") }
+            .orEmpty()
+        val names = libraries.map { it.name.removePrefix("lib").removeSuffix(".so") }.toTypedArray()
+        val fds = libraries.map { ParcelFileDescriptor.open(it, ParcelFileDescriptor.MODE_READ_ONLY) }.toTypedArray()
+        return names to fds
     }
 
     /** Forwards to [RuntimeActivity]'s controller router: the pad, not the pointer, which the view already carries. */

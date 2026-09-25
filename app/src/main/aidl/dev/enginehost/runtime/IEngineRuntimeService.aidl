@@ -1,5 +1,6 @@
 package dev.enginehost.runtime;
 
+import android.os.ParcelFileDescriptor;
 import dev.enginehost.runtime.IEngineFileBroker;
 import dev.enginehost.runtime.IEngineRuntimeCallback;
 
@@ -18,15 +19,24 @@ import dev.enginehost.runtime.IEngineRuntimeCallback;
  */
 interface IEngineRuntimeService {
     /**
-     * bundleDirectory is the installed bundle's own root -- readable by
-     * this process because EngineBundleInstaller made an isolatable
-     * bundle's files so at install time, not through a broker: bundle
-     * bytes are install-time verified and launch-independent, unlike game
-     * and save files (docs/engine-bundle-format.md "Sandboxing and the
-     * plugin contract"). runtimeRequirement keys/values are parallel
-     * arrays (AIDL has no Map).
+     * dexFds and nativeLibraryFds are already-open, host-verified
+     * descriptors for the installed bundle's own dex file(s) and native
+     * library file(s) -- not a directory path, because this process
+     * cannot always reach the bundle's own files by path at all: Android
+     * 10+ makes the app's private data directory 0700, closing the
+     * traversal permission EngineBundleInstaller's world-readable chmod
+     * relied on for older releases (docs/engine-sandbox.md "The bundle's
+     * own files"). The host opens each against the already hash-verified
+     * bundle (InstalledBundleVerifier, called before this launch ever
+     * reaches here) using the exact same path-safety check every other
+     * bundle-file read in this app uses. nativeLibraryNames/nativeLibraryFds
+     * and runtimeRequirementKeys/runtimeRequirementValues are parallel
+     * arrays (AIDL has no Map); a library's name is what
+     * System.loadLibrary(name) would be asked for at the far end
+     * (PluginDexLoader.findLibrary).
      */
-    void init(String bundleDirectory, String entrypointClass, in String[] dexFiles,
+    void init(in ParcelFileDescriptor[] dexFds, String entrypointClass,
+              in String[] nativeLibraryNames, in ParcelFileDescriptor[] nativeLibraryFds,
               String engine, String engineContext, String engineVersion, String runtimeVersion,
               String capabilityId, String execFile, String optionsJson,
               in String[] runtimeRequirementKeys, in String[] runtimeRequirementValues,
