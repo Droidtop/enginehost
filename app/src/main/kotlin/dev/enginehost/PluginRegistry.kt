@@ -86,7 +86,30 @@ object PluginRegistry {
     const val SIGNED_MANIFEST = ".enginehost-bundle.json"
     const val SIGNED_SIGNATURE = ".enginehost-bundle.sig"
 
-    fun root(context: Context): File = File(context.filesDir, "engine-bundles-v1").apply { mkdirs() }
+    /**
+     * The bundle registry, and every directory above it down to this
+     * process's own private storage, kept traversable (execute, never
+     * read) by any UID -- not just this app's own. An isolated runtime
+     * (docs/engine-sandbox.md "Layer 2") is a different UID entirely, and
+     * a directory with no execute bit for "other" cannot be walked INTO
+     * by name even to reach a file that is itself world-readable; the
+     * isolated launch of dq-sandbox-01's CatSystem2 run failed exactly
+     * this way ("A signed dex file is missing" from loadEnginePlugin's
+     * isFile() check, not from any file's own permissions -- the traversal
+     * itself was refused first). Execute-only, not read: nothing here can
+     * be listed by another UID, only opened by a path it is already told,
+     * which is exactly what IEngineRuntimeService.init() hands the
+     * isolated service. A bundle's own contents stay owner-only unless
+     * its manifest declared isolatable (EngineBundleInstaller); this is
+     * only the shared hallway to them.
+     */
+    fun root(context: Context): File {
+        context.filesDir.setExecutable(true, false)
+        val root = File(context.filesDir, "engine-bundles-v1")
+        root.mkdirs()
+        root.setExecutable(true, false)
+        return root
+    }
 
     fun discover(context: Context): List<InstalledPlugin> = discoverIn(root(context))
 

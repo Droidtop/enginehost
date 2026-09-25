@@ -414,28 +414,42 @@ which is the entire point.
   exists per-engine in embryonic form (a single files-abstraction module),
   it just currently opens real paths instead of asking a callback.
 
-**The bundle's own files.** Not part of the per-launch broker (bundle
-contents are install-time verified and launch-independent, unlike game
-files): resolved as described in the JNI/`dlopen` audit above -- either
-the same broker exposes the bundle directory read-only too (simplest,
-reuses one mechanism, costs one more scoped root per launch), or the
-installed bundle directory is made group-readable to the isolated UID's
-group once at install/verify time. The broker route is one mechanism for
-every kind of file access an isolated `:runtime` needs and is the
-default recommendation; the group-readable route is a possible
-optimization for `dlopen`, which must resolve library paths itself before
-any Binder call could substitute, but `dlopen` can be pointed at fds too
-(`android_dlopen_ext` with `ANDROID_DLEXT_USE_LIBRARY_FD`, needed anyway
-under scoped storage restrictions elsewhere in Android), so the broker
-route covers this case without a second mechanism. This doc records the
-broker as the one mechanism for all three roots (game, save, bundle); the
-group-readable optimization is not adopted.
+**The bundle's own files (built, revised from this section's first draft).**
+Not part of the per-launch broker (bundle contents are install-time
+verified and launch-independent, unlike game files): `dlopen`/`DexClassLoader`
+must resolve real paths themselves, which a broker's fds do not
+substitute for without also building `android_dlopen_ext`/
+`InMemoryDexClassLoader` plumbing this milestone does not have yet. What
+is actually built instead: `EngineBundleInstaller` makes an isolatable
+bundle's own extracted files world-readable (`.so` also world-executable)
+at install time, and `PluginRegistry.root()` keeps the bundle registry
+directory and this app's own `files/` directory world-*executable*
+(traversable by name, never listable) every time either is touched. Both
+are needed: a directory missing the execute bit for "other" refuses
+traversal into it by any other UID even when the file at the far end of
+the path is itself world-readable, regardless of that file's own mode --
+found the hard way, when dq-sandbox-01's first rig run reached
+`IEngineRuntimeService.init()` and failed there with "A signed dex file
+is missing": the per-bundle chmod was real, but its two ancestor
+directories were not touched by it, so the isolated UID could not walk
+into either one to reach a file it did have read permission on.
+Narrower than the broker route (limited to files a bundle's own manifest
+already opted into exposing, and only two ancestor directories besides,
+neither of them listable), but it is what is built, not the broker-based
+design this section originally proposed without building. The ancestor-
+traversal fix above is queued for its own rig check now
+(dq-sandbox-01's steps 1-4, re-run); until that passes this remains
+"believed fixed", not confirmed. The broker route remains the
+longer-term target if a second isolatable plugin's needs outgrow this
+one; nothing here forecloses it.
 
 ### First milestone
 
 Target: **CatSystem2** (`enginehost-catsystem2-plugin`, branch
-`plugin/2.0`), chosen over CMVS after reading both. Reasons, not a coin
-flip:
+`plugin/0.1` -- its real, current, native-engine line; `plugin/2.0` is an
+abandoned Activity-based CST prototype with no engine in it, wrongly
+named here in this section's first draft), chosen over CMVS after
+reading both. Reasons, not a coin flip:
 
 - Both are `runtimeTransport: plugin`, no native-Activity transport, and
   similar in size (CatSystem2: 30 native files under `src/`, one JNI
@@ -480,7 +494,7 @@ Work still to land, in order, none of it done yet:
    audit above.
 4. `cs2_files`'s callback seam in `enginehost-catsystem2-plugin`
    (`src/files.c`, `src/save.c`, wired from a new JNI entry point), on its
-   `plugin/2.0` branch, built for both `arm64-v8a` and `x86_64` as every
+   `plugin/0.1` branch, built for both `arm64-v8a` and `x86_64` as every
    plugin ships.
 5. The manifest/plugin-contract addition this step's instructions ask
    for: a new optional bundle-manifest field (`docs/engine-bundle-format.md`)
@@ -495,11 +509,17 @@ Work still to land, in order, none of it done yet:
    isolated service. This doc is where the shape is decided so that
    change, when it lands, matches this design rather than improvising one.
 
-None of steps 1-4 have landed as of this pass; this doc is the design and
-audit the instructions asked for first. Building them is real,
-multi-file engineering across this repo and `enginehost-catsystem2-plugin`
-and belongs in its own commit(s), watched through this repo's and the
-plugin repo's own CI, not folded into a docs-only change.
+**Status (updated, later pass): steps 1-4 and the manifest field in step
+5 are all built and merged** -- the isolated service, the broker AIDL,
+the frame/input AIDL, and `enginehost-catsystem2-plugin`'s own seam
+(`plugin/0.1`, commit `69fa2d2`), plus `isolatable` in the bundle
+manifest schema. Both repos' CI is green, and the signed CatSystem2
+bundle is live on the unstable channel. Not yet confirmed on a device: a
+first isolated rig run (dq-sandbox-01) reached `IEngineRuntimeService.init()`
+and failed there ("A signed dex file is missing" -- an ancestor-directory
+traversal permission gap in `PluginRegistry.root()`, fixed above under
+"The bundle's own files"); a re-run of that check is what would make this
+section's "not yet confirmed" become "confirmed".
 
 ### Roadmap: the remaining plugins, in order
 
