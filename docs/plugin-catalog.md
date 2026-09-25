@@ -57,10 +57,14 @@ one mechanism (`CatalogRefresh`) chooses between them for every origin, for
 the Refresh button and the scheduled update pass alike:
 
 1. **The plugins index.** `plugins/index.json` in droidtop-platforms names
-   every default origin's releases -- tag, stream, publication time, and each
-   asset's name, URL, size and sha256 -- and is regenerated there by a
-   workflow with a token, on a schedule and on a `plugin-published` dispatch
-   from a plugin repository. Enginehost fetches that one file from
+   every registered repository's releases -- tag, stream, publication time,
+   and each asset's name, URL, size and sha256 -- and is regenerated there by
+   a workflow with a token, on a schedule and on a `plugin-published` dispatch
+   that every Droidtop plugin repository sends when it publishes. The
+   generator verifies what it lists (each manifest's signature against the
+   origin's key, the key against the root or the third-party list, both
+   ABIs); how repositories register is droidtop-platforms
+   `plugins/README.md`. Enginehost fetches that one file from
    `raw.githubusercontent.com`, which has no API allowance. Only a release
    envelope it does not already hold is downloaded afterwards, from the
    release asset host, which is not the API either; the envelope is checked
@@ -81,6 +85,45 @@ GitHub's `X-RateLimit-Reset` names ("GitHub rate limit, try again after
 14:35."), any other HTTP status as itself, and an unreachable network as
 itself. A 403 with allowance left is not a rate limit and does not claim to
 be.
+
+## Official repositories Enginehost was not built with
+
+The index also carries each official repository's key document, including
+the certificate the offline root key made for that exact origin. On every
+fetch of the index, Enginehost verifies each certificate against the root
+compiled into the APK and adds the origin as official when it verifies
+(`PluginOriginStore.learnOfficial`): a repository Droidtop registers after
+this build shipped appears on the Plugins screen at the next refresh, with
+the Official badge, and cannot be removed by the person, exactly like a
+compiled-in one. The index's own `trust` field is not consulted; only the
+root's signature makes an origin official, so nothing the index says (or
+whoever can write it) can. A compiled-in key is never replaced this way, and
+a person's own entry for the same repository is folded into the official one.
+There is no revocation of a learned key short of an app release, the same as
+for compiled-in keys.
+
+## Third-party repositories
+
+droidtop-platforms keeps a list of third-party maintainers
+(`plugins/third-party.json`: who they are, their GitHub account, their keys,
+their repositories), and their registered repositories are in the index
+marked `third-party` with the maintainer and the listed key. The Plugins
+screen offers them under **Quick add third-party repositories**, in the
+Sources fold (whose toggle says how many are waiting to be added). Adding one
+shows a trust prompt naming the maintainer and the key's fingerprint and
+saying that Droidtop has not reviewed the plugins; accepting fetches the key
+document the repository itself publishes and pins it only when it is the key
+the list names (`ThirdPartyListing`). The origin is then an ordinary custom
+origin with a record of where it came from, removable from the same place,
+and a repository dropped from the list stays until the person removes it,
+marked "No longer listed".
+
+Its bundles are **Third party** wherever trust is shown: the badge on the
+Installed plugins screen with the maintainer's name, and the release card's
+meta line in the store. They are never Official, and like every other bundle
+each one waits for the person's approval before it runs. Why the design looks
+like this, and what it does not protect against:
+`docs/security/2026-09-25-third-party-catalog.md`.
 
 ## Publishing: how a bundle becomes a release
 
@@ -178,7 +221,11 @@ replace another bundle.
 - **Verified provenance** means the internal bundle signature matches the key
   pinned for the bundle's declared GitHub origin and every payload byte matches
   the signed manifest.
-- **Official** means that origin/key pair is built into Enginehost.
+- **Official** means the official root certified that origin/key pair, and
+  Enginehost verified the certificate: built in, or learned from the plugins
+  index as above.
+- **Third party** means the person added the origin from droidtop-platforms'
+  third-party list, and the bundle is signed by the key that listing names.
 - **Approved** means the user has allowed that exact bundle ID and signing-key
   identity to execute inside Enginehost's runtime process.
 

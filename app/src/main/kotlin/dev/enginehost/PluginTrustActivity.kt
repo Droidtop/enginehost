@@ -55,6 +55,7 @@ class PluginTrustActivity : EnginehostActivity() {
     private fun addPlugin(plugin: InstalledPlugin) {
         val ultimateBuild = trust.isDeveloperDebug(plugin)
         val official = !ultimateBuild && trust.isOfficial(plugin)
+        val thirdParty = if (ultimateBuild || official) null else trust.thirdParty(plugin)
         val state = trust.state(plugin)
         val card = layoutInflater.inflate(R.layout.item_plugin_trust, list, false)
 
@@ -78,14 +79,18 @@ class PluginTrustActivity : EnginehostActivity() {
         val (label, container, onContainer) = when {
             ultimateBuild -> Triple(R.string.badge_ultimate, R.color.eh_caution_container, R.color.eh_on_caution_container)
             official -> Triple(R.string.badge_official, R.color.eh_official_container, R.color.eh_on_official_container)
+            thirdParty != null -> Triple(R.string.badge_third_party, R.color.eh_community_container, R.color.eh_on_community_container)
             else -> Triple(R.string.badge_community, R.color.eh_community_container, R.color.eh_on_community_container)
         }
         badge.setText(label)
         badge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, container))
         badge.setTextColor(ContextCompat.getColor(this, onContainer))
 
-        card.findViewById<TextView>(R.id.originValue).text =
-            "${getString(R.string.origin_label)}: ${getString(R.string.origin_verified, plugin.origin)}"
+        card.findViewById<TextView>(R.id.originValue).text = "${getString(R.string.origin_label)}: " + if (thirdParty != null) {
+            getString(R.string.origin_verified_third_party, plugin.origin, thirdParty.maintainerName)
+        } else {
+            getString(R.string.origin_verified, plugin.origin)
+        }
         card.findViewById<TextView>(R.id.signerValue).text =
             "${getString(R.string.signer_label)}: ${plugin.signerIdentity}"
         card.findViewById<TextView>(R.id.trustState).text =

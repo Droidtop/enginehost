@@ -97,7 +97,28 @@ data class IndexedRelease(
     val assets: List<IndexedAsset>,
 )
 
-data class IndexedOrigin(val origin: String, val repo: String, val releases: List<IndexedRelease>)
+/** Who an index entry says publishes it. Display only: trust is decided by keys, never by this. */
+enum class IndexedTrust { OFFICIAL, THIRD_PARTY }
+
+/** A third-party repository's maintainer, as droidtop-platforms' third-party list names them. */
+data class IndexedMaintainer(val id: String, val name: String)
+
+/**
+ * One repository in the plugins index. [keyDocument] is its
+ * `enginehost-public-key.json` as the index generator verified it: for an
+ * official repository with the root's certificate, which this app checks
+ * again itself before it believes it ([PluginOriginStore.learnOfficial]); for
+ * a third party, the key the list names, which must agree with the key the
+ * repository publishes before anything is pinned ([ThirdPartyListing]).
+ */
+data class IndexedOrigin(
+    val origin: String,
+    val repo: String,
+    val releases: List<IndexedRelease>,
+    val trust: IndexedTrust? = null,
+    val keyDocument: String? = null,
+    val maintainer: IndexedMaintainer? = null,
+)
 
 data class PluginsIndex(
     val schemaVersion: Int,
@@ -107,8 +128,10 @@ data class PluginsIndex(
 
 /**
  * The plugins index: droidtop-platforms' `plugins/index.json`, one document
- * describing every default origin's releases, generated there by a workflow
- * that has a token and regenerated whenever a plugin repository publishes.
+ * describing every registered repository's releases, generated there by a
+ * workflow that has a token and regenerated whenever a plugin repository
+ * publishes. The generator verifies every manifest it lists; this app
+ * verifies them all again regardless.
  *
  * Enginehost fetches it from raw.githubusercontent.com, which has no API
  * allowance, so the common refresh costs one request that cannot be rate
@@ -139,7 +162,20 @@ object PluginCatalogIndex {
             val origin = normalizeGithubOrigin(
                 entry.optString("origin").takeIf(String::isNotBlank) ?: "https://github.com/$repo",
             )
-            parsed[origin] = IndexedOrigin(origin, repo, releases(entry.optJSONArray("releases")))
+            parsed[origin] = IndexedOrigin(
+                origin,
+                repo,
+                releases(entry.optJSONArray("releases")),
+                trust = when (entry.optString("trust")) {
+                    "official" -> IndexedTrust.OFFICIAL
+                    "third-party" -> IndexedTrust.THIRD_PARTY
+                    else -> null
+                },
+                keyDocument = entry.optJSONObject("key")?.toString(),
+                maintainer = entry.optJSONObject("maintainer")?.let { maintainer ->
+                    runCatching { IndexedMaintainer(maintainer.getString("id"), maintainer.getString("name")) }.getOrNull()
+                },
+            )
         }
         return PluginsIndex(schemaVersion, generatedAt, parsed)
     }
@@ -173,15 +209,29 @@ object PluginCatalogIndex {
             )
         }
 
-    /** The index at [url], or null when there is none or it is older than [maxAgeMs]. */
-    fun fetch(url: String, maxAgeMs: Long, now: Long = System.currentTimeMillis()): PluginsIndex? {
-        val text = Transport.getOrNull(url) ?: return null
-        val index = parse(text)
-        // No timestamp, or one too old to trust, is the same answer as no
-        // index: ask GitHub directly rather than serve a stale catalog.
-        val generatedAt = index.generatedAt ?: return null
-        return index.takeIf { now - generatedAt.toEpochMilli() <= maxAgeMs }
+    /**
+     * Whether [index] may answer for releases. No timestamp, or one too old
+     * to trust, is the same answer as no index: ask GitHub directly rather
+     * than serve a stale catalog.
+     */
+    fun isFresh(index: PluginsIndex, maxAgeMs: Long, now: Long = System.currentTimeMillis()): Boolean {
+        val generatedAt = index.generatedAt ?: return false
+        return now - generatedAt.toEpochMilli() <= maxAgeMs
     }
+
+    /**
+     * The last index this device fetched, whatever its age. The Plugins
+     * screen reads the third-party list from it, so the list is there offline
+     * and before the first refresh of a visit; release data is never read
+     * from it, only from a fresh fetch.
+     */
+    fun cached(context: Context): PluginsIndex? = runCatching {
+        parse(File(context.filesDir, CACHED_INDEX).readText())
+    }.getOrNull()
+
+    internal fun keep(context: Context, text: String) = Transport.write(File(context.filesDir, CACHED_INDEX), text)
+
+    private const val CACHED_INDEX = "plugins-index.json"
 }
 
 /**
@@ -198,12 +248,37 @@ object PluginCatalogIndex {
  * screen is a local choice, never a reason to refetch.
  */
 class CatalogRefresh(private val context: Context) {
+    /** Refreshes [origins]. */
     fun run(
         origins: List<String>,
         indexUrl: String = DEFAULT_INDEX_URL,
-    ): Map<String, OriginOutcome> {
+    ): Map<String, OriginOutcome> = refresh(origins, fetchIndex(indexUrl))
+
+    /**
+     * Refreshes every origin this device knows, including official ones the
+     * index has just introduced: the Plugins screen's refresh, where a newly
+     * registered official repository should appear without an app release.
+     */
+    fun runAll(indexUrl: String = DEFAULT_INDEX_URL): Map<String, OriginOutcome> {
+        val index = fetchIndex(indexUrl)
+        return refresh(PluginOriginStore(context).all(), index)
+    }
+
+    /**
+     * The index, kept for the Plugins screen and used to learn root-certified
+     * official origins whatever its age (a certificate does not go stale);
+     * answered for releases only while it is fresh.
+     */
+    private fun fetchIndex(indexUrl: String): PluginsIndex? {
+        val text = runCatching { Transport.getOrNull(indexUrl) }.getOrNull() ?: return null
+        val index = runCatching { PluginCatalogIndex.parse(text) }.getOrNull() ?: return null
+        runCatching { PluginCatalogIndex.keep(context, text) }
+        runCatching { PluginOriginStore(context).learnOfficial(index) }
+        return index.takeIf { PluginCatalogIndex.isFresh(it, INDEX_MAX_AGE_MS) }
+    }
+
+    private fun refresh(origins: List<String>, index: PluginsIndex?): Map<String, OriginOutcome> {
         val cache = PluginCatalogCache(context)
-        val index = runCatching { PluginCatalogIndex.fetch(indexUrl, INDEX_MAX_AGE_MS) }.getOrNull()
         return origins.associateWith { origin ->
             runCatching {
                 val indexed = index?.origins?.get(normalizeGithubOrigin(origin))

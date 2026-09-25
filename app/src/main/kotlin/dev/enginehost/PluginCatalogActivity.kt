@@ -33,12 +33,20 @@ class PluginCatalogActivity : EnginehostActivity() {
     private lateinit var originList: LinearLayout
     private lateinit var originInput: EditText
     private lateinit var addOriginButton: Button
+    private lateinit var sourcesToggle: TextView
+    private lateinit var sourcesPanel: View
+    private lateinit var quickAddList: LinearLayout
+    private lateinit var quickAddEmpty: TextView
 
     private var refreshing = false
     private var autoAttempted = false
     /** One automatic refresh per visit when the stored catalogs are old, so an install never picks a build that is no longer current. */
     private var staleRefreshAttempted = false
     private var requestedConfig: EngineConfig? = null
+
+    /** The last fetched plugins index, read once per refresh rather than on every redraw. */
+    private var listedIndex: PluginsIndex? = null
+    private var listedIndexRead = false
 
     /** What the last refresh did, per origin, so the screen can say why it shows what it shows. */
     private var lastOutcomes: Map<String, OriginOutcome> = emptyMap()
@@ -67,20 +75,19 @@ class PluginCatalogActivity : EnginehostActivity() {
         originList = findViewById(R.id.originList)
         originInput = findViewById(R.id.originInput)
         addOriginButton = findViewById(R.id.addOriginButton)
+        quickAddList = findViewById(R.id.quickAddList)
+        quickAddEmpty = findViewById(R.id.quickAddEmpty)
 
         findViewById<View>(R.id.catalogStreamRow).setOnClickListener { pickStream() }
         refreshButton.setOnClickListener { refresh() }
         findViewById<Button>(R.id.installedPluginsButton).setOnClickListener {
             startActivity(Intent(this, PluginTrustActivity::class.java))
         }
-        val sourcesPanel = findViewById<View>(R.id.sourcesPanel)
-        findViewById<TextView>(R.id.sourcesToggle).apply {
-            text = getString(R.string.sources_toggle, origins.all().size)
-            setOnClickListener {
-                val open = sourcesPanel.visibility != View.VISIBLE
-                sourcesPanel.visibility = if (open) View.VISIBLE else View.GONE
-                text = if (open) getString(R.string.sources_hide) else getString(R.string.sources_toggle, origins.all().size)
-            }
+        sourcesPanel = findViewById(R.id.sourcesPanel)
+        sourcesToggle = findViewById(R.id.sourcesToggle)
+        sourcesToggle.setOnClickListener {
+            sourcesPanel.visibility = if (sourcesPanel.visibility != View.VISIBLE) View.VISIBLE else View.GONE
+            renderSourcesToggle()
         }
         findViewById<Button>(R.id.installFromFileButton).setOnClickListener {
             startActivityForResult(
@@ -122,8 +129,147 @@ class PluginCatalogActivity : EnginehostActivity() {
         refreshButton.isEnabled = !refreshing
         catalogStreamValue.text = streamName(updateCheck.stream)
         renderOrigins()
+        renderQuickAdd()
+        renderSourcesToggle()
         renderReleases()
     }
+
+    /**
+     * "Sources (12)", and how many listed third-party repositories are not
+     * added yet: the quick-add list sits folded away with the other sources,
+     * and a person should not have to open the fold to learn it has something.
+     */
+    private fun renderSourcesToggle() {
+        sourcesToggle.text = when {
+            sourcesPanel.visibility == View.VISIBLE -> getString(R.string.sources_hide)
+            else -> {
+                val addable = quickAddListings().count { origins.thirdParty(it.origin) == null }
+                if (addable == 0) {
+                    getString(R.string.sources_toggle, origins.all().size)
+                } else {
+                    getString(R.string.sources_toggle_third_party, origins.all().size, addable)
+                }
+            }
+        }
+    }
+
+    /**
+     * The third-party repositories the last fetched plugins index lists. A
+     * listing is where a repository can be found, never a reason to trust it:
+     * adding one checks its key against the repository itself and asks the
+     * person first ([confirmThirdParty]).
+     */
+    private fun quickAddListings(): List<IndexedOrigin> =
+        cachedIndex()?.origins?.values.orEmpty()
+            .filter { it.trust == IndexedTrust.THIRD_PARTY && it.maintainer != null && it.keyDocument != null }
+            .filterNot { origins.isOfficial(it.origin) }
+            .sortedWith(compareBy({ it.maintainer!!.name.lowercase() }, { it.repo.lowercase() }))
+
+    private fun renderQuickAdd() {
+        quickAddList.removeAllViews()
+        val cached = cachedIndex()
+        val listed = quickAddListings()
+        // Added from the list and since dropped from it: still here, still
+        // removable, and saying so, rather than silently becoming an
+        // ordinary custom source.
+        val delisted = origins.thirdParties().filter { added -> listed.none { it.origin == added.origin } }
+        quickAddEmpty.visibility = if (listed.isEmpty() && delisted.isEmpty()) View.VISIBLE else View.GONE
+        quickAddEmpty.setText(if (cached == null) R.string.quick_add_not_loaded else R.string.quick_add_empty)
+        listed.forEach { listing ->
+            val added = origins.thirdParty(listing.origin)
+            val key = runCatching { OriginKeyDocuments.parse(listing.keyDocument!!).fingerprint }.getOrNull() ?: return@forEach
+            addQuickAddCard(listing.repo, listing.maintainer!!.name, key, if (added != null) getString(R.string.quick_add_added) else null) { button ->
+                if (added != null) {
+                    removeThirdParty(listing.origin)
+                } else {
+                    button.isEnabled = false
+                    confirmThirdParty(listing, key) { button.isEnabled = true }
+                }
+            }.setText(if (added != null) R.string.remove else R.string.quick_add_add)
+        }
+        delisted.forEach { added ->
+            addQuickAddCard(
+                added.origin.removePrefix("https://github.com/"),
+                added.maintainerName,
+                added.keySha256,
+                getString(R.string.quick_add_delisted),
+            ) { removeThirdParty(added.origin) }.setText(R.string.remove)
+        }
+    }
+
+    private fun addQuickAddCard(
+        repo: String,
+        maintainer: String,
+        fingerprint: String,
+        state: String?,
+        act: (Button) -> Unit,
+    ): Button {
+        val card = layoutInflater.inflate(R.layout.item_third_party_origin, quickAddList, false)
+        card.findViewById<TextView>(R.id.thirdPartyRepo).text = repo
+        card.findViewById<TextView>(R.id.thirdPartyMaintainer).text = getString(R.string.quick_add_maintainer, maintainer)
+        card.findViewById<TextView>(R.id.thirdPartyKey).text = groupedFingerprint(fingerprint)
+        card.findViewById<TextView>(R.id.thirdPartyState).apply {
+            visibility = if (state == null) View.GONE else View.VISIBLE
+            text = state
+        }
+        val button = card.findViewById<Button>(R.id.thirdPartyAction)
+        button.setOnClickListener { act(button) }
+        quickAddList.addView(card)
+        return button
+    }
+
+    /**
+     * The trust prompt: who maintains the repository, the key being pinned,
+     * and what being listed does not mean. Accepting fetches the key the
+     * repository itself publishes; only when it is the key the list names is
+     * anything pinned. Its plugins then still ask for approval one by one.
+     */
+    private fun confirmThirdParty(listing: IndexedOrigin, fingerprint: String, whenDone: () -> Unit) {
+        val maintainer = listing.maintainer!!.name
+        Sheet(this)
+            .title(getString(R.string.quick_add_prompt_title, listing.repo))
+            .message(getString(R.string.quick_add_prompt_message, maintainer, groupedFingerprint(fingerprint)))
+            .choice(R.string.quick_add_trust) {
+                statusText.text = getString(R.string.quick_add_adding)
+                Thread {
+                    runCatching {
+                        origins.addThirdParty(listing, PluginOriginKeyClient.fetch(listing.origin))
+                    }.onSuccess {
+                        runOnUiThread {
+                            whenDone()
+                            render(getString(R.string.quick_add_done, listing.repo))
+                            // Its releases are in the same index; fetching
+                            // them now costs no API allowance.
+                            refresh()
+                        }
+                    }.onFailure { error ->
+                        runOnUiThread {
+                            whenDone()
+                            render()
+                            toast(error.message ?: getString(R.string.origin_key_import_failed))
+                        }
+                    }
+                }.start()
+            }
+            .onCancel(whenDone)
+            .show()
+    }
+
+    private fun removeThirdParty(origin: String) {
+        origins.remove(origin)
+        render(getString(R.string.custom_origin_removed))
+    }
+
+    private fun cachedIndex(): PluginsIndex? {
+        if (!listedIndexRead) {
+            listedIndex = PluginCatalogIndex.cached(this)
+            listedIndexRead = true
+        }
+        return listedIndex
+    }
+
+    /** "550B FFFA E00F ..." -- a fingerprint a person can compare by eye. */
+    private fun groupedFingerprint(fingerprint: String): String = fingerprint.chunked(4).joinToString(" ")
 
     /**
      * The stream picker, reachable from the catalog itself and not only
@@ -162,7 +308,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
             card.findViewById<TextView>(R.id.originUrl).text = origin
             val removeButton = card.findViewById<Button>(R.id.removeOriginButton)
-            if (!origins.isDefault(origin)) {
+            if (!origins.isOfficial(origin)) {
                 removeButton.visibility = View.VISIBLE
                 removeButton.setOnClickListener {
                     origins.remove(origin)
@@ -337,11 +483,19 @@ class PluginCatalogActivity : EnginehostActivity() {
             // Stable is the expectation; only the other two need pointing out.
             visibility = if (plugin.stream == PluginStream.STABLE) View.GONE else View.VISIBLE
         }
-        card.findViewById<TextView>(R.id.releaseMeta).text = getString(
-            R.string.release_meta,
-            PluginVersions.display(plugin.info.pluginVersion),
-            streamName(plugin.stream),
-        )
+        // A third-party build says so, and whose, on the card itself: the
+        // store mixes every source, and Official is never assumed.
+        val thirdParty = origins.thirdParty(plugin.origin)
+        card.findViewById<TextView>(R.id.releaseMeta).text = if (thirdParty == null) {
+            getString(R.string.release_meta, PluginVersions.display(plugin.info.pluginVersion), streamName(plugin.stream))
+        } else {
+            getString(
+                R.string.release_meta_third_party,
+                PluginVersions.display(plugin.info.pluginVersion),
+                streamName(plugin.stream),
+                thirdParty.maintainerName,
+            )
+        }
         val progress = card.findViewById<View>(R.id.releaseProgress)
         val olderList = card.findViewById<LinearLayout>(R.id.releaseOlderList)
         card.findViewById<TextView>(R.id.releaseOlderToggle).apply {
@@ -436,7 +590,10 @@ class PluginCatalogActivity : EnginehostActivity() {
         refreshing = true
         render(getString(R.string.refreshing_message))
         Thread {
-            val outcomes = CatalogRefresh(this).run(origins.all())
+            // runAll, not run(origins.all()): an official repository the index
+            // has just introduced is part of this refresh, and the third-party
+            // list Quick add shows comes from the same fetch.
+            val outcomes = CatalogRefresh(this).runAll()
             outcomes.forEach { (origin, outcome) ->
                 // A repository's self-description is another API request per
                 // origin, and it changes about never. Ask only when this
@@ -449,6 +606,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             val pending = runCatching { updateCheck.pending().size }.getOrDefault(0)
             runOnUiThread {
                 refreshing = false
+                listedIndexRead = false
                 lastOutcomes = outcomes
                 render(refreshSummary(outcomes, pending))
             }

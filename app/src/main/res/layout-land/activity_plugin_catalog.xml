@@ -116,6 +116,48 @@
         android:orientation="vertical"
         android:visibility="gone">
 
+        <!--
+            Quick add: the third-party repositories droidtop-platforms lists, each
+            one tap (and one trust prompt) away. Filled by PluginCatalogActivity.
+        -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/quick_add_heading"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/quick_add_intro"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <LinearLayout
+            android:id="@+id/quickAddList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/quickAddEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:layout_marginBottom="@dimen/eh_space_s"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body"
+            android:visibility="gone" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:layout_marginBottom="@dimen/eh_space_s"
+            android:text="@string/origins_all_heading"
+            android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
         <LinearLayout
             android:id="@+id/originList"
             android:layout_width="match_parent"

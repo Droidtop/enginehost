@@ -352,25 +352,125 @@ private fun availablePluginFromJson(json: JSONObject): AvailablePlugin {
     )
 }
 
+/**
+ * A repository a person added from the third-party list (Quick add), with
+ * who the list says maintains it and the key both the list and the repository
+ * named. Never official: its key is a custom pin like any repository added by
+ * URL, and this record only says where the person found it.
+ */
+data class ThirdPartyOrigin(
+    val origin: String,
+    val maintainerId: String,
+    val maintainerName: String,
+    val keySha256: String,
+)
+
+/**
+ * The one check between "the list offers this repository" and "pin its key":
+ * the key document the plugins index lists for it and the one the repository
+ * itself publishes must be the same key for the same origin. Either source
+ * alone could be rewritten by whoever controls it; both at once is what a
+ * person is shown and accepts (docs/security/2026-09-25-third-party-catalog.md,
+ * T2).
+ */
+object ThirdPartyListing {
+    fun accept(listed: IndexedOrigin, publishedKeyDocument: String): ThirdPartyOrigin {
+        require(listed.trust == IndexedTrust.THIRD_PARTY) { "Not a third-party repository" }
+        val maintainer = requireNotNull(listed.maintainer) { "The list names no maintainer for this repository" }
+        val listedKey = OriginKeyDocuments.parse(requireNotNull(listed.keyDocument) { "The list names no key for this repository" })
+        val publishedKey = OriginKeyDocuments.parse(publishedKeyDocument)
+        require(listedKey.origin == listed.origin && publishedKey.origin == listed.origin) {
+            "The repository's key names a different repository"
+        }
+        require(listedKey.fingerprint == publishedKey.fingerprint) {
+            "The repository publishes a different key than the list names for it"
+        }
+        return ThirdPartyOrigin(listed.origin, maintainer.id, maintainer.name, listedKey.fingerprint)
+    }
+}
+
 class PluginOriginStore(private val context: Context) {
     private val preferences = context.getSharedPreferences("plugin-origins-v2", Context.MODE_PRIVATE)
+    private val thirdPartyPreferences = context.getSharedPreferences("plugin-origins-third-party-v1", Context.MODE_PRIVATE)
+    private val keys get() = PluginOriginKeyStore(context)
 
-    fun all(): List<String> = (DEFAULT_ORIGINS + custom()).distinct().sorted()
+    /** Compiled-in origins, official ones learned from the plugins index, and the person's own. */
+    fun all(): List<String> = (DEFAULT_ORIGINS + keys.certifiedOrigins() + custom()).distinct().sorted()
 
     fun add(origin: String, rawKeyDocument: String) {
         val normalized = normalizeGithubOrigin(origin)
         require(GITHUB_ORIGIN.matches(normalized)) { "Use a GitHub repository URL" }
-        PluginOriginKeyStore(context).importCustom(rawKeyDocument, normalized)
+        keys.importCustom(rawKeyDocument, normalized)
         preferences.edit().putStringSet(CUSTOM, custom() + normalized).apply()
     }
 
     fun remove(origin: String) {
         val normalized = normalizeGithubOrigin(origin)
         preferences.edit().putStringSet(CUSTOM, custom() - normalized).apply()
-        PluginOriginKeyStore(context).removeCustom(normalized)
+        thirdPartyPreferences.edit().remove(normalized).apply()
+        keys.removeCustom(normalized)
     }
 
-    fun isDefault(origin: String): Boolean = normalizeGithubOrigin(origin) in DEFAULT_ORIGINS
+    /** Part of Enginehost's own catalog (compiled in, or root-certified): not the person's to remove. */
+    fun isOfficial(origin: String): Boolean {
+        val normalized = normalizeGithubOrigin(origin)
+        return normalized in DEFAULT_ORIGINS || normalized in keys.certifiedOrigins()
+    }
+
+    /**
+     * Adds every origin the index carries a root-certified key for. The
+     * certificate is verified here against the root compiled into this APK;
+     * what the index says about trust is not consulted, so nothing but the
+     * offline root key can make an origin official. A person's own entry for
+     * the same repository is folded into the official one. Answers the
+     * origins that were not known before.
+     */
+    fun learnOfficial(index: PluginsIndex): List<String> {
+        val before = all().toSet()
+        val store = keys
+        index.origins.values.forEach { indexed ->
+            val document = indexed.keyDocument ?: return@forEach
+            val key = store.importCertified(document) ?: return@forEach
+            if (key.origin in custom()) preferences.edit().putStringSet(CUSTOM, custom() - key.origin).apply()
+            thirdPartyPreferences.edit().remove(key.origin).apply()
+        }
+        return all() - before
+    }
+
+    /** Adds a listed third-party repository, once its own key agrees with the list's; see [ThirdPartyListing]. */
+    fun addThirdParty(listed: IndexedOrigin, publishedKeyDocument: String): ThirdPartyOrigin {
+        val accepted = ThirdPartyListing.accept(listed, publishedKeyDocument)
+        add(accepted.origin, publishedKeyDocument)
+        thirdPartyPreferences.edit().putString(
+            accepted.origin,
+            JSONObject()
+                .put("maintainerId", accepted.maintainerId)
+                .put("maintainerName", accepted.maintainerName)
+                .put("keySha256", accepted.keySha256)
+                .toString(),
+        ).apply()
+        return accepted
+    }
+
+    /** How [origin] was added from the third-party list, or null when it was not. */
+    fun thirdParty(origin: String): ThirdPartyOrigin? {
+        val normalized = normalizeGithubOrigin(origin)
+        if (normalized !in custom()) return null
+        return thirdPartyPreferences.getString(normalized, null)?.let { raw ->
+            runCatching {
+                val json = JSONObject(raw)
+                ThirdPartyOrigin(
+                    normalized,
+                    json.getString("maintainerId"),
+                    json.getString("maintainerName"),
+                    json.getString("keySha256"),
+                )
+            }.getOrNull()
+        }
+    }
+
+    fun thirdParties(): List<ThirdPartyOrigin> = custom().mapNotNull(::thirdParty)
+
     private fun custom(): Set<String> = preferences.getStringSet(CUSTOM, emptySet())?.toSet().orEmpty()
 
     companion object {

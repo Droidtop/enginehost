@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One listed third-party repository in Quick add: which repository, who
+    the list says maintains it, the key it is signed with, and one action
+    (Add behind a trust prompt, or Remove once added).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.Enginehost.Card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/eh_space_s">
+
+    <TextView
+        android:id="@+id/thirdPartyRepo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+    <TextView
+        android:id="@+id/thirdPartyMaintainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+    <TextView
+        android:id="@+id/thirdPartyKey"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
+
+    <TextView
+        android:id="@+id/thirdPartyState"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/thirdPartyAction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s" />
+
+</LinearLayout>

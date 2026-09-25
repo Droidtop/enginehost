@@ -2,6 +2,7 @@ package dev.enginehost
 
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -103,8 +104,18 @@ class PluginCatalogIndexTest {
 
     @Test
     fun `an index with no timestamp cannot be shown to be current`() {
-        // fetch() treats that as no index at all and the origins fall back to
-        // the API; parse() still reads it, because the two are separate jobs.
-        assertNull(PluginCatalogIndex.parse("""{"schemaVersion": 1, "origins": []}""").generatedAt)
+        // isFresh() treats that as no index at all and the origins fall back
+        // to the API; parse() still reads it, because the two are separate jobs.
+        val undated = PluginCatalogIndex.parse("""{"schemaVersion": 1, "origins": []}""")
+        assertNull(undated.generatedAt)
+        assertFalse(PluginCatalogIndex.isFresh(undated, CatalogRefresh.INDEX_MAX_AGE_MS))
+    }
+
+    @Test
+    fun `an index is fresh for three days and then answers for nothing`() {
+        val parsed = PluginCatalogIndex.parse(index)
+        val made = Instant.parse("2026-09-11T04:00:00Z").toEpochMilli()
+        assertTrue(PluginCatalogIndex.isFresh(parsed, CatalogRefresh.INDEX_MAX_AGE_MS, made + CatalogRefresh.INDEX_MAX_AGE_MS))
+        assertFalse(PluginCatalogIndex.isFresh(parsed, CatalogRefresh.INDEX_MAX_AGE_MS, made + CatalogRefresh.INDEX_MAX_AGE_MS + 1))
     }
 }

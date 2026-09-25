@@ -69,6 +69,7 @@
     <string name="badge_official">Official</string>
     <string name="badge_ultimate">Ultimate</string>
     <string name="badge_community">Community</string>
+    <string name="badge_third_party">Third party</string>
     <string name="trust_build_line">%1$s · %2$s</string>
     <string name="trust_state_label">Trust</string>
     <string name="trust_state_pending">Waiting for your approval</string>
@@ -76,6 +77,7 @@
     <string name="trust_state_denied">Denied</string>
     <string name="origin_label">Origin</string>
     <string name="origin_verified">%1$s (verified)</string>
+    <string name="origin_verified_third_party">%1$s (verified; third party, maintained by %2$s)</string>
     <string name="signer_label">Signer</string>
     <string name="ultimate_warning">Signed with the primary developer\'s own key. Not a production release; if that is not you, do not use this build.</string>
     <string name="approve">Approve</string>
@@ -118,6 +120,7 @@
     <string name="install">Install</string>
     <string name="release_runs">%1$s</string>
     <string name="release_meta">%1$s · %2$s</string>
+    <string name="release_meta_third_party">%1$s · %2$s · Third party: %3$s</string>
     <string name="release_includes">Includes %1$s</string>
     <string name="release_other_versions">Other versions (%1$d)</string>
     <string name="release_hide_other_versions">Hide other versions</string>
@@ -127,6 +130,21 @@
     <string name="stream_unstable">Unstable</string>
     <string name="use_capability">Use %1$s %2$s</string>
     <string name="custom_origin_removed">Source removed</string>
+    <string name="origins_all_heading">All sources</string>
+    <string name="sources_toggle_third_party">Sources (%1$d) · %2$d to quick add</string>
+    <string name="quick_add_heading">Quick add third-party repositories</string>
+    <string name="quick_add_intro">Repositories Droidtop lists with their maintainer and signing key. Listed is not reviewed: each plugin still asks for your approval before it runs, and none is marked Official.</string>
+    <string name="quick_add_empty">No third-party repositories are listed yet.</string>
+    <string name="quick_add_not_loaded">Refresh to load the list.</string>
+    <string name="quick_add_maintainer">Maintained by %1$s</string>
+    <string name="quick_add_added">Added</string>
+    <string name="quick_add_delisted">No longer listed. Its plugins keep working until you remove it.</string>
+    <string name="quick_add_add">Add</string>
+    <string name="quick_add_prompt_title">Add %1$s?</string>
+    <string name="quick_add_prompt_message">Maintained by %1$s, not by Droidtop.\n\nSigning key\n%2$s\n\nDroidtop lists who maintains this repository and which key signs it; it has not reviewed the plugins. Each one still asks for your approval before it runs, and none of them is marked Official.</string>
+    <string name="quick_add_trust">Trust this key and add</string>
+    <string name="quick_add_adding">Checking the repository\'s key…</string>
+    <string name="quick_add_done">%1$s added.</string>
     <string name="verifying_bundle">Verifying…</string>
 
     <!-- Settings -->

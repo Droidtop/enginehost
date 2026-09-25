@@ -28,9 +28,22 @@ class PluginTrustStore(private val context: Context) {
     fun deny(plugin: InstalledPlugin) = decide(plugin, "denied")
     fun isApproved(plugin: InstalledPlugin): Boolean = state(plugin) == PluginTrustState.APPROVED
 
+    /** Signed by its origin's root-certified key, compiled in or learned from the plugins index. */
     fun isOfficial(plugin: InstalledPlugin): Boolean {
         val keys = PluginOriginKeyStore(context)
-        return plugin.signerFingerprints.any { keys.isBuiltIn(plugin.origin, it) }
+        return plugin.signerFingerprints.any { keys.isOfficial(plugin.origin, it) }
+    }
+
+    /**
+     * The listing a plugin's origin was added from, when it came from the
+     * third-party list and is signed by the key that listing named. Shown as
+     * Third party with the maintainer's name; never official, and never
+     * approved by being listed.
+     */
+    fun thirdParty(plugin: InstalledPlugin): ThirdPartyOrigin? {
+        if (isOfficial(plugin)) return null
+        return PluginOriginStore(context).thirdParty(plugin.origin)
+            ?.takeIf { listing -> plugin.signerFingerprints.any { it.equals(listing.keySha256, ignoreCase = true) } }
     }
 
     /**
