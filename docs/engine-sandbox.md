@@ -97,6 +97,31 @@ game's frame has to be a Service the host binds to, not a screen the
 engine owns. That is the whole rule, enforced by the kernel (a fresh UID
 with an empty permission set) and by the manifest schema (Services only).
 
+### The sandbox is on by default; what cannot be isolated asks every time (owner, 2026-09-25)
+
+"Keep the sandbox on, actually. If a plugin doesn't support the sandbox,
+it should prompt on EVERY run if the user is willing to run it
+unsandboxed." A bundle that declares `isolatable` (docs/engine-bundle-format.md
+"Sandboxing and the plugin contract") always runs isolated -- there is no
+setting that turns this off, so there was nothing to remove or default
+differently; `RuntimeActivity`'s dispatch has always been the one
+unconditional check, `if (resolved.plugin.isolatable)`.
+
+A bundle that does not declare it -- everything except the CatSystem2
+milestone below, today -- runs the way every plugin ran before layer 2
+existed: in `:runtime`, with this app's own all-files and network access
+for as long as it plays. `LaunchActivity`, the one screen every entry
+point passes through (droidtop's `LAUNCH` intent, Enginehost's own
+library, Game setup's Test), asks about this before any plugin code
+runs, on every single launch: a sheet naming what unsandboxed access
+means in plain terms (shared storage and the network, the same as the
+app itself), "Run unsandboxed" and Cancel, Cancel first and so the pad's
+first focus, B/Back/a tap outside all cancelling too. Nothing is
+remembered -- no per-plugin flag, no "don't ask again" -- so leaving and
+relaunching the same game asks again, and a launch that finds nowhere to
+show the sheet (the screen already finishing) refuses rather than ever
+reading silence as consent. Enginehost only; droidtop is unaffected.
+
 ### Audit: what breaks per plugin shape
 
 Today every v1 plugin, of both transports, runs inside one process,

@@ -44,14 +44,26 @@ under an isolated-process UID with Enginehost serving the game's files,
 designed in `docs/engine-sandbox.md` (layer 2) and due with the v2 host
 interface. Until then this is the largest open exposure.
 
-Still open. `docs/engine-sandbox.md` now carries the per-plugin-shape audit
-(what breaks under `isolatedProcess` for activity-transport plugins,
-plugin-api-transport plugins, native `open`/`fopen` engines, WebView, and
-saves) and the host file-broker design (`ParcelFileDescriptor`s over a
-per-launch AIDL service, plus a native callback seam in each engine's own
-file-access layer rather than an `LD_PRELOAD`/PLT hook), with a first
-milestone scoped to CatSystem2. None of it is implemented yet -- this pass
-is the design, not the fix.
+Still open, for every plugin that is not the CatSystem2 milestone below.
+`docs/engine-sandbox.md` carries the per-plugin-shape audit (what breaks
+under `isolatedProcess` for activity-transport plugins, plugin-api-transport
+plugins, native `open`/`fopen` engines, WebView, and saves) and the host
+file-broker design (`ParcelFileDescriptor`s over a per-launch AIDL service,
+plus a native callback seam in each engine's own file-access layer rather
+than an `LD_PRELOAD`/PLT hook). The isolated runtime service, broker and
+frame/input AIDL are now built (`IsolatedRuntimeService`, `IsolatedRuntimeHost`),
+gated behind a bundle manifest flag no shipped bundle sets yet.
+
+The owner's follow-up decision (2026-09-25): the sandbox is on by default
+for any bundle that does declare it, and a bundle that does not gets no
+silent exposure either -- `LaunchActivity` asks on every single launch,
+plainly, with Cancel focused and nothing remembered, before any plugin
+code runs (docs/engine-sandbox.md, "The sandbox is on by default"). H2
+itself is not closed by this: the exposure a game's own code has while
+running unsandboxed is unchanged, and the consent screen does not narrow
+it, only makes it opt-in per run instead of silent. It closes once a
+plugin's own isolation lands (CatSystem2's, next) and, eventually, once
+every plugin shape in the audit does.
 
 ### H3: a caller's inline config was written into the game folder (High, fixed)
 

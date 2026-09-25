@@ -129,30 +129,69 @@ class LaunchActivity : EnginehostActivity() {
                     launchWhenRuntimeGone()
                     return
                 }
-                runtimeCovered = false
-                lastCrash = null
-                runtimePlugin = plan.resolved.plugin.bundleId
-                // Only the run that follows a restart request carries its
-                // arguments; a retry or a later launch starts clean.
-                restartArguments?.let { plan.intent.putExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS, it) }
-                restartArguments = null
-                runCatching { startActivityForResult(plan.intent, REQUEST_RUNTIME) }
-                    .onFailure {
-                        val message = "Failed to enter the Enginehost runtime: ${it.message}"
-                        Log.e(TAG, message)
-                        showFailure(message, retry = true)
-                        return
-                    }
-                runtimeStarted = true
-                RunningGame.folder = gameFolder
-                // The home screen is the library of every game played here,
-                // whichever front door started it: a launch from droidtop
-                // is as much a game of this app's as one picked on its own
-                // home (README, "two front doors"). Only a run that really
-                // started counts; a detour or a refusal adds nothing.
-                GameLibraryStore(this).remember(gameFolder)
+                // Sandbox layer 2 is the default (owner, 2026-09-25): a
+                // plugin that cannot run isolated gets no silent pass. See
+                // offerSandboxConsent for why this asks again on every run.
+                if (!plan.resolved.plugin.isolatable) {
+                    offerSandboxConsent(plan)
+                    return
+                }
+                enterRuntime(plan)
             }
         }
+    }
+
+    /**
+     * This plugin has no isolated runtime (docs/engine-sandbox.md "Layer
+     * 2"): its code runs with this app's own all-files and network access
+     * while it plays, exactly as every plugin did before layer 2 existed.
+     * The owner's rule (2026-09-25) is that this is asked, in plain terms,
+     * on every single run -- not once per plugin, not once per game, and
+     * never silently: no stored approval, no "don't ask again". Cancel is
+     * the sheet's first choice, which is also the pad's first focus, and B,
+     * Back or a tap outside the sheet all cancel too, same as Cancel itself.
+     * A launch with nowhere to show this -- this screen already finishing
+     * or destroyed, which is the shape a headless or automation launch
+     * takes here, since there is no other entry point that skips this
+     * screen -- refuses rather than ever treating silence as consent.
+     */
+    private fun offerSandboxConsent(plan: GameRunner.Plan.Runtime) {
+        val engineLine = EngineNames.line(plan.config.engine, plan.config.engineContext)
+        val shown = runCatching {
+            Sheet(this)
+                .title(R.string.sandbox_consent_title)
+                .message(getString(R.string.sandbox_consent_message, engineLine))
+                .choice(R.string.cancel) { cancel() }
+                .choice(R.string.sandbox_consent_run) { enterRuntime(plan) }
+                .onCancel { cancel() }
+                .show()
+        }.isSuccess
+        if (!shown) cancel()
+    }
+
+    private fun enterRuntime(plan: GameRunner.Plan.Runtime) {
+        runtimeCovered = false
+        lastCrash = null
+        runtimePlugin = plan.resolved.plugin.bundleId
+        // Only the run that follows a restart request carries its
+        // arguments; a retry or a later launch starts clean.
+        restartArguments?.let { plan.intent.putExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS, it) }
+        restartArguments = null
+        runCatching { startActivityForResult(plan.intent, REQUEST_RUNTIME) }
+            .onFailure {
+                val message = "Failed to enter the Enginehost runtime: ${it.message}"
+                Log.e(TAG, message)
+                showFailure(message, retry = true)
+                return
+            }
+        runtimeStarted = true
+        RunningGame.folder = gameFolder
+        // The home screen is the library of every game played here,
+        // whichever front door started it: a launch from droidtop
+        // is as much a game of this app's as one picked on its own
+        // home (README, "two front doors"). Only a run that really
+        // started counts; a detour or a refusal adds nothing.
+        GameLibraryStore(this).remember(gameFolder)
     }
 
     /**
