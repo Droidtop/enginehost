@@ -94,7 +94,7 @@ class RuntimeActivity : FragmentActivity() {
             offerPatch(e.requiredFile())
         } catch (e: Throwable) {
             Log.e(TAG, "Plugin startup failed", e)
-            failAndFinish("Plugin startup failed: ${e.message ?: e.javaClass.simpleName}")
+            failAndFinish(STARTUP_FAILED + (e.message ?: e.javaClass.simpleName))
         }
     }
 
@@ -225,7 +225,7 @@ class RuntimeActivity : FragmentActivity() {
      * beneath this one shows the sentence; nothing is toasted over a screen
      * that is about to disappear.
      */
-    private fun failAndFinish(message: String) {
+    internal fun failAndFinish(message: String) {
         Log.e(TAG, message)
         setResult(RESULT_FIRST_USER, Intent().putExtra(EXTRA_ERROR, message))
         finish()
@@ -233,6 +233,7 @@ class RuntimeActivity : FragmentActivity() {
 
     companion object {
         private const val TAG = "enginehost-runtime"
+        const val STARTUP_FAILED = "Plugin startup failed: "
         private const val REQUEST_PATCH = 0x9a71
         const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
         /** On a failed startup's result: the sentence the runtime has for the launch screen. */
@@ -323,6 +324,11 @@ private class RuntimeHost(
 
     override fun restartArguments(): Array<String> =
         activity.intent.getStringArrayExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS) ?: emptyArray()
+
+    /** The same end as a plugin whose onCreate threw: the launch screen shows [message]. */
+    override fun fail(message: String) {
+        (activity as? RuntimeActivity)?.failAndFinish(RuntimeActivity.STARTUP_FAILED + message) ?: activity.finish()
+    }
 }
 
 private class RuntimeFileSystem(root: File) : EngineFileSystem {

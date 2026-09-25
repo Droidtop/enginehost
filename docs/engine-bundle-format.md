@@ -343,6 +343,13 @@ to "components are payload", not a second mechanism.
 
 ### Host services added after apiVersion 1 shipped
 
+`EngineHost.fail(message)` (2026-09-25): ends the runtime because the engine
+could not start, and the launch screen shows `message` with Report a problem,
+the same end as a plugin whose `onCreate` throws. For an engine that learns of
+the failure only after `onCreate` returned (Godot 4.0 and 4.1 start inside the
+fragment's view) and would otherwise show its own alert over a black screen.
+Same compatibility rule as `restart`: fall back to `finish()` on an older host.
+
 `EngineHost.restart(arguments)` and `EngineHost.restartArguments()`
 (2026-09-18): ends the runtime and starts the same game again in a fresh
 process, for an engine whose game asks to be restarted and which cannot be

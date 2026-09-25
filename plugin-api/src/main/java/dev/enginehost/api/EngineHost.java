@@ -57,4 +57,17 @@ public interface EngineHost {
      * call fails to link, and there are no arguments.
      */
     String[] restartArguments();
+
+    /**
+     * Ends this runtime because the engine could not start, with
+     * {@code message} as the reason the launch screen shows (with Report a
+     * problem), exactly as when {@link EnginePlugin#onCreate} throws.
+     *
+     * For an engine that finds out only after onCreate has returned (Godot
+     * 4.0 and 4.1 start in the fragment's view, which Android creates later)
+     * and would otherwise answer with its own alert over a black screen. Same
+     * compatibility rule as {@link #restart}: on an older Enginehost fall back
+     * to {@link #finish()}.
+     */
+    void fail(String message);
 }
