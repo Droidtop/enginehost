@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import org.json.JSONObject
 import java.io.File
 
 /**
@@ -194,36 +193,17 @@ class GameScanActivity : EnginehostActivity() {
         if (candidate.folder.path in addedPaths) return
         library.remember(candidate.folder)
         addedPaths += candidate.folder.path
-        runCatching { writeDetectedConfig(candidate) }
     }
 
     /**
-     * A scanned game only becomes launchable once its folder carries an
-     * enginehost.json, so write one from the detector's own evidence when
-     * that evidence covers the required fields. An existing config is
-     * authoritative and is never touched; incomplete evidence writes
-     * nothing and the row says setup still ends in the config creator.
+     * Whether Play can start this game as it is: the folder has its own
+     * config, or detection answered every required field (the launch then
+     * runs on the detected config in memory; see DetectedConfig). Adding a
+     * game writes nothing into its folder.
      */
-    private fun writeDetectedConfig(candidate: GameCandidate): Boolean {
-        val detection = candidate.detection
-        val configFile = File(candidate.folder, CONFIG_FILE_NAME)
-        if (configFile.exists()) return true
-        val version = detection.engineVersion ?: return false
-        val document = JSONObject()
-            .put("engine", detection.engine)
-            .put("engineVersion", version)
-        detection.engineContext?.let { document.put("engineContext", it) }
-        detection.execFile?.let { document.put("execFile", it) }
-        if (detection.runtimeRequirements.isNotEmpty()) {
-            document.put("runtimeRequirements", JSONObject(detection.runtimeRequirements))
-        }
-        EngineConfigReader.parseDocument(document.toString())
-        configFile.writeText(document.toString(2) + "\n")
-        return true
-    }
-
     private fun configComplete(candidate: GameCandidate): Boolean =
-        File(candidate.folder, CONFIG_FILE_NAME).isFile
+        File(candidate.folder, CONFIG_FILE_NAME).isFile ||
+            DetectedConfig.documentFor(candidate.detection, candidate.folder.name, null) != null
 
     companion object {
         const val ACTION_SCAN = "dev.enginehost.SCAN"

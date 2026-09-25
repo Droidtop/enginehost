@@ -6,28 +6,41 @@ import java.io.File
 import org.json.JSONObject
 
 /**
- * The config a game folder writes for itself.
+ * The config a game folder's own files imply, for a folder that has no
+ * `enginehost.json`.
  *
  * Detection reads the engine, its version, the entry file and the game's
  * title and save name from the folder's own files. When all of that is
- * there, nothing remains for a person to type, so the config is written
- * and the launch continues; the editor is for the folders that leave a
- * question open. What is written is exactly what the editor would have
- * saved from the same detection, so the two paths cannot disagree.
+ * there, nothing remains for a person to type, and the launch runs on that
+ * document in memory, as it would on a caller's inline config. It is never
+ * written into the game folder: `enginehost.json` is the person's own
+ * authoritative config, and only Game setup (ConfigEditorActivity) writes
+ * it, when the person saves there (the user, 2026-09-25). The editor
+ * prefills from [documentFor] too, so what a launch runs on and what the
+ * editor would save cannot disagree. Detection runs again on each launch.
  */
 object DetectedConfig {
     private const val TAG = "enginehost"
 
-    /** True when a complete `enginehost.json` was written into [gameFolder]. */
-    fun write(context: Context, gameFolder: File, inlineJson: String?): Boolean {
+    /**
+     * The config a launch of [gameFolder] runs on when the folder has no
+     * config of its own: the detected document, with the caller's
+     * [inlineJson] filling what it leaves open (the same precedence a folder
+     * config has over an inline one). Null when detection leaves a required
+     * field open; the launch then goes to Game setup.
+     */
+    fun forLaunch(context: Context, gameFolder: File, inlineJson: String?): String? {
         val detection = runCatching { EngineDetector.detect(EngineRegistryStore.rows(context), gameFolder) }
             .onFailure { Log.w(TAG, "Detection failed for ${gameFolder.name}", it) }
-            .getOrNull() ?: return false
-        val document = documentFor(detection, gameFolder.name, inlineJson) ?: return false
-        return runCatching {
-            File(gameFolder, CONFIG_FILE_NAME).writeText(document.toString(2) + "\n")
-            true
-        }.onFailure { Log.w(TAG, "Could not write $CONFIG_FILE_NAME into ${gameFolder.name}", it) }.getOrDefault(false)
+            .getOrNull() ?: return null
+        return launchDocument(detection, gameFolder.name, inlineJson)
+    }
+
+    /** [forLaunch] after detection; split out so it is testable without a Context. */
+    internal fun launchDocument(detection: EngineDetection, folderName: String, inlineJson: String?): String? {
+        val document = documentFor(detection, folderName, inlineJson) ?: return null
+        val inline = inlineJson?.let { runCatching { JSONObject(it) }.getOrNull() }
+        return EngineConfigReader.mergeAuthoritative(document, inline).toString()
     }
 
     /**
@@ -40,7 +53,8 @@ object DetectedConfig {
      * `options` (mkxp-z's `customScript` names a script to run) would
      * otherwise stay in the game's config for every later launch, whoever
      * starts it. The caller's full inline config still applies to the
-     * launch it came with, as it does for a folder that has a config.
+     * launch it came with ([launchDocument]), as it does for a folder that
+     * has a config.
      */
     internal fun documentFor(detection: EngineDetection, folderName: String, inlineJson: String?): JSONObject? {
         val inline = inlineJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: JSONObject()

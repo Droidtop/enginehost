@@ -15,7 +15,7 @@ class DetectedConfigTest {
     )
 
     @Test
-    fun `a caller's identifying facts are written over detection`() {
+    fun `a caller's identifying facts win over detection`() {
         val inline = JSONObject()
             .put("engine", "rpgmaker").put("engineContext", "vx").put("engineVersion", "1.2")
             .put("title", "Named by the launcher")
@@ -28,7 +28,7 @@ class DetectedConfigTest {
     }
 
     @Test
-    fun `a caller's options and file choices are never written into the folder`() {
+    fun `the detected document keeps a caller's options and file choices out`() {
         val inline = JSONObject()
             .put("options", JSONObject().put("customScript", "/storage/emulated/0/Download/x.rb"))
             .put("execFile", "Other.exe")
@@ -39,5 +39,24 @@ class DetectedConfigTest {
         assertFalse(document.has("pluginVersion"))
         assertEquals("Game.exe", document.getString("execFile"))
         assertFalse(document.optString("saveFolder") == "Elsewhere")
+    }
+
+    @Test
+    fun `a launch runs on the detected document with the caller's options for that launch only`() {
+        val inline = JSONObject()
+            .put("options", JSONObject().put("customScript", "/storage/emulated/0/Download/x.rb"))
+            .put("execFile", "Other.exe")
+        val launch = JSONObject(DetectedConfig.launchDocument(detection, "Folder", inline.toString())!!)
+        assertEquals("rpgmaker", launch.getString("engine"))
+        assertEquals("1.0", launch.getString("engineVersion"))
+        // Detection answers what it read; the caller fills what it left open.
+        assertEquals("Game.exe", launch.getString("execFile"))
+        assertEquals("/storage/emulated/0/Download/x.rb", launch.getJSONObject("options").getString("customScript"))
+    }
+
+    @Test
+    fun `a folder that leaves a required field open has no launch document`() {
+        val unversioned = detection.copy(engineVersion = null)
+        assertEquals(null, DetectedConfig.launchDocument(unversioned, "Folder", null))
     }
 }

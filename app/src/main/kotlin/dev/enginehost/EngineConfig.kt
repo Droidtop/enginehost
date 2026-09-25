@@ -153,7 +153,8 @@ object EngineConfigReader {
     }
 
     /** Deep non-overriding merge: [authoritative] wins at every key. */
-    private fun mergeAuthoritative(authoritative: JSONObject, fallback: JSONObject?): JSONObject {
+    /** [authoritative]'s values over [fallback]'s, nested objects merged key by key. */
+    internal fun mergeAuthoritative(authoritative: JSONObject, fallback: JSONObject?): JSONObject {
         if (fallback == null) return authoritative
         val merged = JSONObject(fallback.toString())
         for (key in authoritative.keys()) {

@@ -17,7 +17,8 @@ front doors, and neither is a second-class citizen:
 - **Driven programmatically.** Every one of those capabilities is also
   reachable over the Intent contract below, so a launcher such as
   droidtop can do the whole job without a hand-off: name the game, supply
-  or write its config, resolve a runtime, and install a bundle.
+  its config inline or open the config creator for it, resolve a runtime,
+  and install a bundle.
 
 The design rule that follows: **any flow that exists in the UI must have
 a programmatic equivalent, and vice versa.** A caller that already knows
@@ -109,11 +110,16 @@ game's own folder for an engine that saves beside the game, the per-game
 folder for one Enginehost names, and the save root for an engine that names
 its own folder inside it (Ren'Py, Godot).
 
-A folder with no `enginehost.json` is not a dead end. Detection reads the
-engine, version, entry file, title and save folder from the folder's own
-files; when all of that is evident the config is written and the launch
-continues, and only a folder that leaves a question open is shown in the
-config editor with detection prefilled.
+A folder's `enginehost.json` is the person's own config, and only the config
+creator (Game setup) writes it, when the person presses Save there (or Test,
+which saves what is on screen before it starts the game). Nothing else in
+Enginehost writes or edits it: not Play, not adding games, not a caller's
+launch (the user, 2026-09-25). A folder with no `enginehost.json` is still not
+a dead end. Detection reads the engine, version, entry file, title and save
+folder from the folder's own files; when all of that is evident the launch runs
+on that detected config in memory, with a caller's inline config filling what
+detection left open, and only a folder that leaves a question open is shown in
+the config editor with detection prefilled.
 
 `options` is a generic, opaque-to-enginehost bag of post-resolution
 engine-specific settings, passed straight through to the resolved plugin

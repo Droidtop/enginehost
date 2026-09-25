@@ -68,25 +68,28 @@ object GameRunner {
         if (!gameFolder.isDirectory) {
             return Plan.Failure(context.getString(R.string.launch_folder_missing, gameFolder.absolutePath), retry = true)
         }
-        val config = try {
-            EngineConfigReader.resolve(gameFolder, inlineJson)
-        } catch (e: InvalidEngineConfigException) {
-            // A folder with no config at all is a setup gap, not a dead end.
-            // When the folder says everything a config needs, the config is
-            // written and the launch carries on; only a folder that leaves a
-            // question open goes to the editor, with detection prefilled.
-            if (gameFolder.isDirectory && !File(gameFolder, CONFIG_FILE_NAME).isFile) {
-                if (DetectedConfig.write(context, gameFolder, inlineJson)) {
-                    return plan(context, gameFolder, inlineJson, autoInstallPlugin)
-                }
-                return Plan.Detour(
+        // A folder with no config of its own runs on what its files imply,
+        // in memory: detection fills the config, the caller's inline config
+        // fills what detection leaves, and the result travels to the runtime
+        // as this launch's inline config. Nothing is written into the game
+        // folder; only Game setup does that, when the person saves. Only a
+        // folder that leaves a question open goes to the editor.
+        val hasFolderConfig = File(gameFolder, CONFIG_FILE_NAME).isFile
+        val launchJson = if (hasFolderConfig) {
+            inlineJson
+        } else {
+            DetectedConfig.forLaunch(context, gameFolder, inlineJson)
+                ?: return Plan.Detour(
                     Intent(context, ConfigEditorActivity::class.java).apply {
                         putExtra(ConfigEditorActivity.EXTRA_PATH, gameFolder.absolutePath)
                         inlineJson?.let { putExtra(ConfigEditorActivity.EXTRA_CONFIG, it) }
                     },
                     notice = R.string.launch_needs_config,
                 )
-            }
+        }
+        val config = try {
+            EngineConfigReader.resolve(gameFolder, launchJson)
+        } catch (e: InvalidEngineConfigException) {
             return Plan.Failure(e.message ?: "Invalid $CONFIG_FILE_NAME")
         }
         // The save root can be on a card that is not mounted, or a folder
@@ -107,7 +110,7 @@ object GameRunner {
             return Plan.Detour(
                 Intent(context, PluginCatalogActivity::class.java).apply {
                     putExtra(PluginCatalogActivity.EXTRA_GAME_PATH, gameFolder.absolutePath)
-                    inlineJson?.let { putExtra(PluginCatalogActivity.EXTRA_CALLER_CONFIG, it) }
+                    launchJson?.let { putExtra(PluginCatalogActivity.EXTRA_CALLER_CONFIG, it) }
                     putExtra(PluginCatalogActivity.EXTRA_AUTOINSTALL, autoInstallPlugin)
                 },
             )
@@ -145,7 +148,7 @@ object GameRunner {
                 ?.let { putExtra(RuntimeActivity.EXTRA_CONTROLLER_BINDINGS, it.exportJson().toString()) }
             config.execFile?.let { putExtra(RuntimeActivity.EXTRA_EXEC_FILE, it) }
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
-            inlineJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
+            launchJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
         }
         return Plan.Runtime(intent, config, resolved, saves.earlierSavesFor(config, gameFolder))
     }
