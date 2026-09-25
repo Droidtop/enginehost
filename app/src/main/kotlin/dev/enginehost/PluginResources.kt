@@ -94,9 +94,8 @@ object PluginResources {
         val application = context.applicationContext as Application
         val callbacks = object : Application.ActivityLifecycleCallbacks {
             override fun onActivityPreCreated(activity: Activity, savedInstanceState: Bundle?) {
-                val resources = activity.resources
-                val missing = loaders.filterNot { it in resources.loaders }
-                if (missing.isNotEmpty()) resources.addLoaders(*missing.toTypedArray())
+                // A loader already on this Resources is left as it is.
+                activity.resources.addLoaders(*loaders.toTypedArray())
             }
 
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
@@ -120,8 +119,8 @@ object PluginResources {
     private fun joinSharedLibraries(context: Context, apk: File) {
         val info = context.applicationInfo
         val path = apk.absolutePath
-        val libraries = info.sharedLibraryFiles.orEmpty()
-        if (path !in libraries) info.sharedLibraryFiles = libraries + path
+        val libraries: Array<String> = info.sharedLibraryFiles ?: emptyArray()
+        if (path !in libraries) info.sharedLibraryFiles = arrayOf(*libraries, path)
     }
 
     /** Every distinct Resources object a plugin can reasonably resolve from. */
