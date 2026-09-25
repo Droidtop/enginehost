@@ -444,10 +444,13 @@ class PluginCatalogActivity : EnginehostActivity() {
                 // nothing to show for it yet.
                 if (outcome is OriginOutcome.Updated || directory.describe(origin) == null) directory.refresh(origin)
             }
+            // Counted the way Home counts them (PluginUpdateCheck.pending), so
+            // the two screens cannot disagree about whether updates exist.
+            val pending = runCatching { updateCheck.pending().size }.getOrDefault(0)
             runOnUiThread {
                 refreshing = false
                 lastOutcomes = outcomes
-                render(refreshSummary(outcomes))
+                render(refreshSummary(outcomes, pending))
             }
         }.start()
     }
@@ -458,9 +461,18 @@ class PluginCatalogActivity : EnginehostActivity() {
      * one reason IS the message; otherwise it names who could not be reached
      * and why.
      */
-    private fun refreshSummary(outcomes: Map<String, OriginOutcome>): String {
+    private fun refreshSummary(outcomes: Map<String, OriginOutcome>, pendingUpdates: Int): String {
         val failed = outcomes.filterValues { it is OriginOutcome.Failed }
-        if (failed.isEmpty()) return getString(R.string.refreshed_ok)
+        // "Up to date." here used to mean only that the refresh worked, and
+        // read as "nothing to update" beside Home's "16 plugin updates are
+        // available" (rig, dq-ehfix-01). It now says which.
+        if (failed.isEmpty()) {
+            return if (pendingUpdates == 0) {
+                getString(R.string.refreshed_ok)
+            } else {
+                resources.getQuantityString(R.plurals.plugin_updates_available, pendingUpdates, pendingUpdates) + "."
+            }
+        }
         val reasons = failed.values.map { failureText((it as OriginOutcome.Failed).reason) }.distinct()
         if (failed.size == outcomes.size && reasons.size == 1) return reasons.first()
         return getString(

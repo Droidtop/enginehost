@@ -93,7 +93,7 @@
     <string name="refresh_all">Refresh</string>
     <string name="refreshing">Refreshing…</string>
     <string name="refreshing_message">Checking for releases…</string>
-    <string name="refreshed_ok">Up to date.</string>
+    <string name="refreshed_ok">Every installed plugin is up to date.</string>
     <string name="refreshed_partial">Refreshed; %1$s unavailable — %2$s</string>
     <string name="catalog_rate_limited_until">GitHub rate limit, try again after %1$s.</string>
     <string name="catalog_rate_limited">GitHub rate limit reached; try again later.</string>
