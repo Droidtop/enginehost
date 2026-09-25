@@ -11,6 +11,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.StringRes
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -683,7 +684,12 @@ class ConfigEditorActivity : EnginehostActivity() {
                 ?.let { loadedDocument.put("saveFolder", it) }
         }
         refreshEditors()
-        detectionLabel.text = getString(R.string.detected_engine, detection.engine, detection.evidence)
+        val found = getString(R.string.detected_engine, detection.engine, detection.evidence)
+        detectionLabel.text = if (versionField.text.isBlank()) {
+            "$found\n${getString(R.string.engine_version_not_found)}"
+        } else {
+            found
+        }
     }
 
     /** The chosen folder's own name, whichever way it was chosen. */
@@ -702,9 +708,7 @@ class ConfigEditorActivity : EnginehostActivity() {
                 ),
         )
         val version = versionField.text.toString().trim()
-        if (version.isEmpty()) {
-            throw IllegalArgumentException(getString(R.string.field_required, getString(R.string.engine_version)))
-        }
+        if (version.isEmpty()) throw IllegalArgumentException(getString(R.string.engine_version_missing))
         result.put("engineVersion", version)
         putOptional(result, "engineContext", engineContext)
         putOptional(result, "pluginVersion", pluginVersionConstraint)
@@ -722,30 +726,37 @@ class ConfigEditorActivity : EnginehostActivity() {
         try {
             val path = folderPath
             if (path != null) writeDocument(path)
-            else writeDocument(folderUri ?: return toast(getString(R.string.choose_folder_first)))
+            else writeDocument(folderUri ?: return report(R.string.could_not_save, getString(R.string.choose_folder_first)))
             toast(getString(R.string.saved_config, CONFIG_FILE_NAME))
         } catch (error: Exception) {
-            toast(error.message ?: getString(R.string.could_not_save))
+            report(R.string.could_not_save, error.message ?: getString(R.string.config_needs_attention))
         }
     }
 
+    /**
+     * Test always ends somewhere the person can see: the launch screen,
+     * which says how the start went, or a sheet saying why it did not
+     * begin. It used to answer a setup gap with a toast, which the rig
+     * missed entirely ("Test does nothing, no message", dq-coordinator-23
+     * F15); a sheet stays until it is dismissed.
+     */
     private fun testRun() {
         folderPath?.let { folder ->
             try {
                 writeDocument(folder)
                 GameRunner.run(this, folder)
             } catch (error: Exception) {
-                toast(error.message ?: getString(R.string.config_not_ready))
+                report(R.string.test_not_started, error.message ?: getString(R.string.config_not_ready))
             }
             return
         }
-        val uri = folderUri ?: return toast(getString(R.string.choose_folder_first))
+        val uri = folderUri ?: return report(R.string.test_not_started, getString(R.string.choose_folder_first))
         if (!StorageFolder.hasNativePathAccess()) {
             StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
             return toast(getString(R.string.grant_native_then_test))
         }
         val folder = StorageFolder.absolutePath(uri)
-            ?: return toast(getString(R.string.provider_needs_primary))
+            ?: return report(R.string.test_not_started, getString(R.string.provider_needs_primary))
         try {
             // The folder file is the highest-priority configuration source.
             // Persist the visible editor state first so the test cannot launch
@@ -753,8 +764,13 @@ class ConfigEditorActivity : EnginehostActivity() {
             writeDocument(uri)
             GameRunner.run(this, folder)
         } catch (error: Exception) {
-            toast(error.message ?: getString(R.string.config_not_ready))
+            report(R.string.test_not_started, error.message ?: getString(R.string.config_not_ready))
         }
+    }
+
+    /** A result that must be read: a sheet, which stays until it is dismissed. */
+    private fun report(@StringRes title: Int, message: String) {
+        Sheet(this).title(title).message(message).show()
     }
 
     private fun writeDocument(treeUri: Uri): JSONObject {

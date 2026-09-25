@@ -283,9 +283,11 @@
     <string name="grant_native_then_test">Grant folder access, then tap Test again</string>
     <string name="provider_needs_primary">Testing needs a folder on primary storage</string>
     <string name="config_not_ready">Setup is not ready to test</string>
+    <string name="test_not_started">Test did not start</string>
+    <string name="engine_version_missing">Engine version is empty. The game\'s files did not say which version of the engine made it; type that version in Engine version.</string>
+    <string name="engine_version_not_found">The game\'s files did not say which engine version made it; type it in Engine version.</string>
     <string name="field_required">%1$s is required</string>
     <string name="engine_family">Engine</string>
-    <string name="engine_version">Engine version</string>
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
     <string name="update_to_build">Update to build %1$s</string>
     <string name="updates_section">Updates</string>
