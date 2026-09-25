@@ -421,18 +421,25 @@ launch-independent, unlike game files).
 
 The first thing built (`EngineBundleInstaller` making an isolatable
 bundle's files world-readable, `PluginRegistry.root()` keeping its two
-ancestor directories world-*executable*) was a real fix for a real bug
-(dq-sandbox-01's first rig run failed exactly there, "A signed dex file
-is missing," traced to the ancestor directories never being touched by
-the per-bundle chmod), but it is not a robust route in general: Android
-10+ sets an app's own private data directory (`/data/user/0/<pkg>`,
-above everything `PluginRegistry.root()` can reach) to `0700`, closing
-the traversal permission this chmod relies on regardless of what is
-readable beneath it. Confirmed only for BlueStacks' Android 9 so far
-(0751 there, traditionally); expected, not yet confirmed, to fail the
-same way on Android 10+ (dq-sandbox-02 covers both BlueStacks and
-emulator-5560's Android 14, to get real evidence either way rather than
-assume it).
+ancestor directories world-*executable*) addressed a real gap -- the
+ancestor directories genuinely were never touched by the per-bundle
+chmod -- but dq-sandbox-02 shows it was not the (or not the whole)
+answer: the identical `IllegalArgumentException: A signed dex file is
+missing`, same call site, reproduced on *both* BlueStacks' Android 9
+*and* emulator-5560's Android 14 after this fix was in place, where the
+Android-10-and-later theory predicted Android 9 specifically should have
+started working. Recorded plainly rather than explained away: either
+Android 9 on this rig image does not have the traditionally-assumed
+0751 on `/data/user/0/<pkg>` (BlueStacks is not a stock AOSP device),
+or something beyond ancestor-directory DAC bits is also in play (an
+`isolated_app` SELinux denial independent of the Unix permission bits,
+or a genuine platform restriction on what an isolated process may
+`DexClassLoader`, is exactly what a raw error message and no root access
+on the rig cannot distinguish between). This is exactly why the fd-based
+route below does not lean on that theory being right: it sidesteps
+directory permissions, DAC and any hypothesised SELinux category
+question alike, since the isolated process never resolves a path of its
+own at all.
 
 Built alongside it, and the one this doc now recommends: the host opens
 the bundle's own dex and native-library files itself (against the
@@ -484,18 +491,20 @@ be extended to saves or `enginehost.json`: those stay behind the broker
 exclusively, read-write and per-launch-scoped, never touched by any
 chmod this installer applies.
 
-**Status:** the fd route is built and this repo's own CI compiles it;
-neither route has a device confirmation yet for the failure the chmod
-route cannot fix (dq-sandbox-02 is what settles it, on both devices).
-The chmod-based ancestor-traversal fix is not removed while that is
-outstanding -- it costs nothing extra now that dex/native-library
-loading no longer depends on it, and removing it before the fd route is
-confirmed would leave nothing working if the fd route turns out to have
-its own bug. Once dq-sandbox-02 confirms the fd route on both devices,
-`EngineBundleInstaller`'s world-readable chmod and `PluginRegistry.root()`'s
-ancestor-traversal chmod should both come out, in their own commit: two
-mechanisms for the one job is exactly what this project does not keep
-once one of them is proven unnecessary.
+**Status:** dq-sandbox-02 (commit e37db5e, the chmod-only fix) failed
+identically on both BlueStacks and emulator-5560 -- the chmod route is
+not what fixes this, on either device tested so far. The fd route
+(commit 84cc5ee) is built, this repo's own CI compiles it, and it does
+not depend on the ancestor-directory theory being correct at all, which
+is exactly why it is queued next (dq-sandbox-03) rather than treated as
+already explained. The chmod-based ancestor-traversal fix is left in
+place for now regardless -- it costs nothing extra since dex/native-library
+loading no longer depends on it either way, and it may still matter for
+some other read the isolated process does that this doc has not audited
+for path-traversal exposure yet. Once dq-sandbox-03 confirms the fd
+route, revisit whether the chmod fix is still pulling its weight for
+anything, and remove it if not: two mechanisms for the one job is not
+something this project keeps once one of them is proven unnecessary.
 
 ### First milestone
 
@@ -563,24 +572,27 @@ Work still to land, in order, none of it done yet:
    isolated service. This doc is where the shape is decided so that
    change, when it lands, matches this design rather than improvising one.
 
-**Status (updated, later pass): steps 1-4 and the manifest field in step
-5 are all built and merged** -- the isolated service, the broker AIDL,
-the frame/input AIDL, and `enginehost-catsystem2-plugin`'s own seam
+**Status (updated, second later pass): steps 1-4 and the manifest field
+in step 5 are all built and merged** -- the isolated service, the broker
+AIDL, the frame/input AIDL, and `enginehost-catsystem2-plugin`'s own seam
 (`plugin/0.1`, commit `69fa2d2`), plus `isolatable` in the bundle
 manifest schema. Both repos' CI is green, and the signed CatSystem2
-bundle is live on the unstable channel. Not yet confirmed on a device: a
-first isolated rig run (dq-sandbox-01, BlueStacks/Android 9) reached
-`IEngineRuntimeService.init()` and failed there ("A signed dex file is
-missing"), traced to an ancestor-directory traversal permission gap in
-`PluginRegistry.root()`. Two fixes have since landed, not yet
-device-confirmed on either: an ancestor-chmod fix that closes the gap on
-Android releases where it can (pre-10), and a `ParcelFileDescriptor`-based
-loading route that does not depend on directory traversal at all and is
-this doc's recommendation regardless of Android version -- see "The
-bundle's own files" below for both, including why chmod alone cannot be
-the answer on Android 10+. dq-sandbox-02, on both BlueStacks and
-emulator-5560 (Android 14), is what turns either "believed fixed" into
-"confirmed".
+bundle is live on the unstable channel.
+
+Still not confirmed on a device, and the story is not as simple as first
+thought: dq-sandbox-01 (BlueStacks/Android 9) hit "A signed dex file is
+missing" at `IEngineRuntimeService.init()`, traced to an ancestor-directory
+traversal gap in `PluginRegistry.root()`; a chmod fix for that (commit
+`e37db5e`) landed and dq-sandbox-02 re-ran it on *both* BlueStacks and
+emulator-5560 (Android 14) -- and got the identical failure on *both*,
+where the working theory expected Android 9 specifically to start
+passing. So the ancestor-directory theory is not the (or not the whole)
+explanation; see "The bundle's own files" below for what that does and
+does not tell us. A second route -- `ParcelFileDescriptor`-based dex and
+native-library loading that never has the isolated process resolve a
+path of its own, so it does not depend on that theory being right either
+way -- is built and CI-green as commit `84cc5ee`, queued for its own rig
+check as dq-sandbox-03.
 
 ### Roadmap: the remaining plugins, in order
 
