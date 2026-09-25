@@ -212,6 +212,69 @@ object ControllerActions {
     )
 
     /**
+     * LÖVE's `GamepadButton` and `GamepadAxis` names (`love.gamepad`,
+     * `src/modules/joystick/Joystick.h`), which are SDL's game-controller
+     * names. LÖVE reads the pad through SDL itself, so the defaults are
+     * the identity mapping SDL already performs and bypass is on out of
+     * the box; with bypass off, each control is reported to the game as
+     * the LÖVE button or axis it is bound to.
+     */
+    private val love: List<ControllerAction> = listOf(
+        key("love_dpup", "dpup", KeyEvent.KEYCODE_DPAD_UP),
+        key("love_dpdown", "dpdown", KeyEvent.KEYCODE_DPAD_DOWN),
+        key("love_dpleft", "dpleft", KeyEvent.KEYCODE_DPAD_LEFT),
+        key("love_dpright", "dpright", KeyEvent.KEYCODE_DPAD_RIGHT),
+        key("love_a", "a", KeyEvent.KEYCODE_BUTTON_A),
+        key("love_b", "b", KeyEvent.KEYCODE_BUTTON_B),
+        key("love_x", "x", KeyEvent.KEYCODE_BUTTON_X),
+        key("love_y", "y", KeyEvent.KEYCODE_BUTTON_Y),
+        key("love_start", "start", KeyEvent.KEYCODE_BUTTON_START),
+        key("love_back", "back", KeyEvent.KEYCODE_BUTTON_SELECT),
+        key("love_guide", "guide", KeyEvent.KEYCODE_BUTTON_MODE),
+        key("love_leftshoulder", "leftshoulder", KeyEvent.KEYCODE_BUTTON_L1),
+        key("love_rightshoulder", "rightshoulder", KeyEvent.KEYCODE_BUTTON_R1),
+        key("love_leftstick", "leftstick", KeyEvent.KEYCODE_BUTTON_THUMBL),
+        key("love_rightstick", "rightstick", KeyEvent.KEYCODE_BUTTON_THUMBR),
+        axis("love_leftx", "leftx", MotionEvent.AXIS_X),
+        axis("love_lefty", "lefty", MotionEvent.AXIS_Y),
+        axis("love_rightx", "rightx", MotionEvent.AXIS_Z),
+        axis("love_righty", "righty", MotionEvent.AXIS_RZ),
+        axis("love_triggerleft", "triggerleft", MotionEvent.AXIS_LTRIGGER, 1),
+        axis("love_triggerright", "triggerright", MotionEvent.AXIS_RTRIGGER, 1),
+    )
+
+    /**
+     * Adventure Game Studio has no pad model: games read the mouse and the
+     * keyboard, as `eMouseLeft`/`eMouseRight`/`eMouseMiddle`, the wheel
+     * (`eMouseWheelNorth`/`South`) and `eKey*` codes (`Common/ac/keycode.h`).
+     * So the actions are those inputs under the engine's names, and the
+     * plugin turns each bound control into that click, wheel step, key, or
+     * for the pointer axes, cursor movement. The keys are the ones AGS games
+     * share: Escape (menus and skipping), Return and Space, Tab (the stock
+     * templates' inventory), the arrows (keyboard walking), and F5 and F7,
+     * which the stock templates save and restore with.
+     */
+    private val ags: List<ControllerAction> = listOf(
+        key("ags_mouse_left", "Left click (eMouseLeft)", KeyEvent.KEYCODE_BUTTON_A),
+        key("ags_mouse_right", "Right click (eMouseRight)", KeyEvent.KEYCODE_BUTTON_B),
+        key("ags_mouse_middle", "Middle click (eMouseMiddle)", KeyEvent.KEYCODE_BUTTON_THUMBR),
+        key("ags_wheel_north", "Wheel up (eMouseWheelNorth)", KeyEvent.KEYCODE_BUTTON_L1),
+        key("ags_wheel_south", "Wheel down (eMouseWheelSouth)", KeyEvent.KEYCODE_BUTTON_R1),
+        key("ags_key_escape", "Escape (eKeyEscape)", KeyEvent.KEYCODE_BUTTON_START),
+        key("ags_key_return", "Return (eKeyReturn)", KeyEvent.KEYCODE_BUTTON_X),
+        key("ags_key_space", "Space (eKeySpace)", KeyEvent.KEYCODE_BUTTON_Y),
+        key("ags_key_tab", "Tab (eKeyTab)", KeyEvent.KEYCODE_BUTTON_SELECT),
+        key("ags_key_up", "Up arrow (eKeyUpArrow)", KeyEvent.KEYCODE_DPAD_UP),
+        key("ags_key_down", "Down arrow (eKeyDownArrow)", KeyEvent.KEYCODE_DPAD_DOWN),
+        key("ags_key_left", "Left arrow (eKeyLeftArrow)", KeyEvent.KEYCODE_DPAD_LEFT),
+        key("ags_key_right", "Right arrow (eKeyRightArrow)", KeyEvent.KEYCODE_DPAD_RIGHT),
+        axis("ags_key_f5", "F5 (eKeyF5, save in the stock templates)", MotionEvent.AXIS_LTRIGGER, 1),
+        axis("ags_key_f7", "F7 (eKeyF7, restore in the stock templates)", MotionEvent.AXIS_RTRIGGER, 1),
+        axis("ags_pointer_x", "Pointer horizontal", MotionEvent.AXIS_X),
+        axis("ags_pointer_y", "Pointer vertical", MotionEvent.AXIS_Y),
+    )
+
+    /**
      * RGSS's `Input` symbols (mkxp-z, `src/input/input.h`). Every button
      * that does something today keeps its place: A is C (confirm), B is B
      * (cancel), Y is A (dash), Start is the menu.
@@ -480,6 +543,8 @@ object ControllerActions {
         "kirikiri2" to kirikiri,
         "catsystem2" to catsystem2,
         "cmvs" to cmvs,
+        "love2d" to love,
+        "ags" to ags,
         "rpgmaker/xp" to rgss,
         "rpgmaker/vx" to rgss,
         "rpgmaker/vxace" to rgss,
@@ -491,11 +556,11 @@ object ControllerActions {
 
     /**
      * Engines whose own controller support is good enough to use instead
-     * of ours: Ren'Py and Godot take the pad through SDL and Godot's own
-     * handler, and EasyRPG ships the fullest joystick default table of any
-     * engine here. Their bypass is on out of the box.
+     * of ours: Ren'Py, Godot and LÖVE take the pad through SDL and Godot's
+     * own handler, and EasyRPG ships the fullest joystick default table of
+     * any engine here. Their bypass is on out of the box.
      */
-    private val bypassable: Set<String> = setOf("renpy", "godot", "rpgmaker/2000", "rpgmaker/2003")
+    private val bypassable: Set<String> = setOf("renpy", "godot", "love2d", "rpgmaker/2000", "rpgmaker/2003")
 
     /** The action set for a [ControllerScope]; [common] for anything else. */
     fun forEngine(engine: String?): List<ControllerAction> =

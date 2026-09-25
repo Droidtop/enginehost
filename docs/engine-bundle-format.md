@@ -382,7 +382,11 @@ that is what a plugin has to translate and what a person has to recognise:
 `easyrpg_shift` for 2000/2003, `mvmz_ok` and `mvmz_pageup` for MV/MZ, Ren'Py's
 `pad_a` and `pad_leftx`, Godot's `joy_a` and `joy_axis_left_x`, CatSystem2's
 `cs2_skip_mode` and `cs2_message_log`, CMVS's `cmvs_confirm` and
-`cmvs_history_mode`. An engine with no input model of its own (KiriKiri,
+`cmvs_history_mode`, LÖVE's `love_a` and `love_leftx` (its `love.gamepad`
+names). Adventure Game Studio has no pad model, but its inputs have names:
+`ags_mouse_left` (`eMouseLeft`), `ags_wheel_north`, `ags_key_escape`
+(`eKeyEscape`), with `ags_pointer_x`/`ags_pointer_y` steering the cursor, and
+the plugin turns each into that click, key or movement. An engine with no input model of its own (KiriKiri,
 Buriko, Flash, HTML) takes the shared fallback set: `up`, `down`, `left`,
 `right`, `confirm`, `cancel`, `menu`, `skip`, `auto`, `history`, `quick_save`,
 `quick_load`, `page_previous`, `page_next`, the stick axes and the triggers.
@@ -457,7 +461,7 @@ finds that pressing both together belongs to the host.
 
 ### Engines that handle the controller themselves
 
-Ren'Py, Godot and EasyRPG have controller support of their own worth using, so
+Ren'Py, Godot, LÖVE and EasyRPG have controller support of their own worth using, so
 their scopes carry a **Bypass controller mappings** toggle, on by default.
 While it is on the runtime intent carries **no** `CONTROLLER_BINDINGS` extra at
 all: the absence of the extra is the contract, and a plugin that finds no map

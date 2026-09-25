@@ -15,7 +15,7 @@ import org.junit.Test
  */
 class ControllerActionsTest {
     private val scopes = listOf(
-        "renpy", "godot", "kirikiri", "kirikiri2", "catsystem2", "cmvs",
+        "renpy", "godot", "kirikiri", "kirikiri2", "catsystem2", "cmvs", "love2d", "ags",
         "rpgmaker/xp", "rpgmaker/vx", "rpgmaker/vxace",
         "rpgmaker/2000", "rpgmaker/2003",
         "rpgmaker/mv", "rpgmaker/mz",
