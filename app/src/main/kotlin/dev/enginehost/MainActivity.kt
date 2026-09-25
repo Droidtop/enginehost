@@ -19,6 +19,10 @@ import java.io.File
  * ([GameActivity]); Y on a card plays it straight away.
  */
 class MainActivity : EnginehostActivity() {
+    /** The first game in the library; adding games while there is none. */
+    override fun primaryAction(): View? =
+        firstSelectable(findViewById(R.id.gameLibraryList)) ?: findViewById(R.id.addGamesButton)
+
     private lateinit var library: GameLibraryStore
     private lateinit var gameList: ViewGroup
     private lateinit var gameSearch: EditText
@@ -152,6 +156,9 @@ class MainActivity : EnginehostActivity() {
 
     private fun renderLibrary() {
         val generation = ++renderGeneration
+        // Rendering again (on every return to Home) replaces the rows, so the
+        // game the pad was on is found again among the new ones.
+        val selectedGame = (currentFocus?.tag as? File)?.path
         gameList.removeAllViews()
         val allGames = library.games()
         gameSearch.visibility = if (allGames.size > SEARCH_THRESHOLD) View.VISIBLE else View.GONE
@@ -177,6 +184,7 @@ class MainActivity : EnginehostActivity() {
             row.setOnClickListener { startActivity(GameActivity.intent(this, folder)) }
             gameList.addView(row)
         }
+        selectedGame?.let { rows[it] ?: primaryAction() }?.requestFocus()
         resolveStatuses(generation, games, rows)
     }
 

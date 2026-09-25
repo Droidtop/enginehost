@@ -18,6 +18,10 @@ import java.io.File
  * as droidtop can open a scan rooted at a folder they already know about.
  */
 class GameScanActivity : EnginehostActivity() {
+    /** Adding what the scan found, once it found something; choosing a folder before that. */
+    override fun primaryAction(): View? =
+        findViewById<View>(R.id.addAllButton)?.takeIf { it.isShown } ?: findViewById(R.id.chooseScanFolderButton)
+
     private lateinit var library: GameLibraryStore
     private lateinit var chooseButton: Button
     private lateinit var rootLabel: TextView

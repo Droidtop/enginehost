@@ -11,6 +11,10 @@ import androidx.core.content.ContextCompat
 
 /** First-class approval UI for code that will execute with Enginehost's permissions. */
 class PluginTrustActivity : EnginehostActivity() {
+    /** The first plugin to decide on; the catalog when there is none. */
+    override fun primaryAction(): View? =
+        firstSelectable(findViewById(R.id.pluginList)) ?: findViewById<View>(R.id.openCatalogButton)?.takeIf { it.isShown }
+
     private lateinit var list: ViewGroup
     private lateinit var emptyState: TextView
     private lateinit var openCatalogButton: Button

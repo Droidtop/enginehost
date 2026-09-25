@@ -19,6 +19,10 @@ import java.io.File
  * the choices in a [Sheet], so the screen reads as settings, not as a form.
  */
 class EnginehostSettingsActivity : EnginehostActivity() {
+    /** The first setting. */
+    override fun primaryAction(): View? =
+        findViewById(R.id.saveRootRow)
+
     private lateinit var store: SaveLocationStore
     private lateinit var location: TextView
     private lateinit var engineSaveRows: LinearLayout

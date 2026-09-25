@@ -19,6 +19,10 @@ import android.widget.ProgressBar
  * device's own browser instead, with the same prefilled address.
  */
 class ProblemReportFormActivity : EnginehostActivity() {
+    /** The form itself. */
+    override fun primaryAction(): View? =
+        findViewById(R.id.formWebView)
+
     private lateinit var webView: WebView
 
     override fun onCreate(savedInstanceState: Bundle?) {

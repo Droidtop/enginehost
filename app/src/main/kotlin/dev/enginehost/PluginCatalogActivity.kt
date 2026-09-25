@@ -14,6 +14,10 @@ import java.util.Date
 
 /** Complete available-release list plus preloaded and custom GitHub origins. */
 class PluginCatalogActivity : EnginehostActivity() {
+    /** The first release on offer; refreshing the catalog while there is none. */
+    override fun primaryAction(): View? =
+        firstSelectable(findViewById(R.id.releaseList)) ?: findViewById(R.id.refreshButton)
+
     private lateinit var origins: PluginOriginStore
     private lateinit var cache: PluginCatalogCache
     private lateinit var directory: OriginDirectory

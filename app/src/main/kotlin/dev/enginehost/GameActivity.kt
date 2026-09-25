@@ -19,6 +19,10 @@ import java.io.File
  * H9): it is always about one game, so it is reached from that game.
  */
 class GameActivity : EnginehostActivity() {
+    /** Play. */
+    override fun primaryAction(): View? =
+        findViewById(R.id.playButton)
+
     private lateinit var folder: File
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +47,6 @@ class GameActivity : EnginehostActivity() {
             startActivity(ProblemReportActivity.intent(this, folder))
         }
         findViewById<Button>(R.id.removeButton).setOnClickListener { confirmRemove() }
-        findViewById<Button>(R.id.playButton).requestFocus()
     }
 
     /** Setup may have changed while this screen was covered, so the state is read again. */

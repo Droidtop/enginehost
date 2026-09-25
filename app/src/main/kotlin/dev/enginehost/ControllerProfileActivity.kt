@@ -23,6 +23,10 @@ import kotlin.math.abs
  * on (research/controller-profiles, recommendation 4).
  */
 class ControllerProfileActivity : EnginehostActivity(), InputManager.InputDeviceListener {
+    /** Capture: reading the pad's buttons is what this screen is for. */
+    override fun primaryAction(): View? =
+        findViewById(R.id.captureButton)
+
     private lateinit var profileDevice: TextView
     private lateinit var profileState: TextView
     private lateinit var profileHint: TextView

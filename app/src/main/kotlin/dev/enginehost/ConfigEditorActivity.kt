@@ -29,6 +29,11 @@ import java.io.File
  * installed declares yet -- declared vocabularies suggest, they never gate.
  */
 class ConfigEditorActivity : EnginehostActivity() {
+    /** Save once the folder is open; choosing the folder before that. */
+    override fun primaryAction(): View? =
+        findViewById<View>(R.id.editorFields)?.takeIf { it.isShown }?.let { findViewById<View>(R.id.saveConfigButton) }
+            ?: findViewById(R.id.chooseConfigFolderButton)
+
     private var folderUri: Uri? = null
     private var folderPath: File? = null
     private var loadedDocument = JSONObject()

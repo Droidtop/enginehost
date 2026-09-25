@@ -15,6 +15,10 @@ import kotlin.math.abs
 
 /** Global controller remapping shared by every engine bundle. */
 class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceListener {
+    /** The first action's binding: rebinding is what this screen is for. */
+    override fun primaryAction(): View? =
+        firstSelectable(findViewById(R.id.bindingList)) ?: findViewById(R.id.hotkeyButton)
+
     private lateinit var connectedControllers: TextView
     private lateinit var scopeList: LinearLayout
     private lateinit var scopeHint: TextView

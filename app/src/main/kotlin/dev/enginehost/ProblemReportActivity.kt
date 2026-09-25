@@ -25,6 +25,11 @@ import java.io.File
  * values already in it.
  */
 class ProblemReportActivity : EnginehostActivity() {
+    /** The game field while it is empty (a report cannot go without it); sending after that. */
+    override fun primaryAction(): View? =
+        findViewById<android.widget.EditText>(R.id.reportGame)?.takeIf { it.text.isBlank() }
+            ?: findViewById(R.id.sendReportButton)
+
     private var log: String = ""
     private var symptom: String = ""
 

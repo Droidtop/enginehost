@@ -13,7 +13,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.OnBackPressedCallback
 import java.io.File
 
 /**
@@ -43,7 +43,11 @@ import java.io.File
  * approval) also comes through here via [GameRunner.run], so there is one
  * launch path and one launch look.
  */
-class LaunchActivity : AppCompatActivity() {
+class LaunchActivity : EnginehostActivity() {
+    /** Trying again after a failure that can be retried; otherwise the way out. */
+    override fun primaryAction(): View? =
+        findViewById<View>(R.id.retryButton)?.takeIf { it.isShown } ?: findViewById(R.id.cancelButton)
+
     private lateinit var gameFolder: File
     private var runtimeStarted = false
     /** Set once the runtime has covered this screen: the engine drew, and a later exit is the game ending or dying. */
@@ -67,6 +71,14 @@ class LaunchActivity : AppCompatActivity() {
         findViewById<Button>(R.id.cancelButton).setOnClickListener { cancel() }
         findViewById<Button>(R.id.retryButton).setOnClickListener { launch() }
         findViewById<Button>(R.id.reportButton).setOnClickListener { report() }
+        // Back (B) here is Cancel: leaving while the engine starts ends that
+        // start rather than leaving a runtime loading with nowhere to draw.
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = cancel()
+            },
+        )
         if (savedInstanceState == null) launch() else showTitle(null)
     }
 
@@ -234,6 +246,8 @@ class LaunchActivity : AppCompatActivity() {
         findViewById<View>(R.id.retryButton).visibility = if (retry) View.VISIBLE else View.GONE
         findViewById<View>(R.id.reportButton).visibility = View.VISIBLE
         findViewById<Button>(R.id.cancelButton).setText(R.string.back)
+        // The primary action is now Try again (or Back); the pad moves to it.
+        primaryAction()?.requestFocus()
     }
 
     private fun report() {
