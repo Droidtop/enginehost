@@ -117,6 +117,10 @@ bundle is still verified against the key pinned for its origin, so the worst
 case is hiding or delaying releases, not running code. The token is only in
 publish jobs, which run after the build and run no build code. Keep it a
 fine-grained token scoped to that one repository.
+The index generator also treats a dispatch as a hint only and registers new
+repositories itself; what a holder of the token could do with that, and with
+the third-party list beside the index, is
+`2026-09-25-third-party-catalog.md` (T1, T2).
 
 ## Where things stand
 
