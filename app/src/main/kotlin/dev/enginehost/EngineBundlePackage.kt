@@ -382,7 +382,12 @@ object InstalledBundleVerifier {
             File(directory, PluginRegistry.SIGNED_SIGNATURE).readText(Charsets.US_ASCII).trim(),
         )
         EngineBundleManifestReader.verifySignature(manifest, signature)
-        require(PluginOriginKeyStore(context).matches(manifest.origin, manifest.signingKeySha256)) {
+        // A bundle installed under an official key the root has since
+        // replaced keeps running: the rotation is the root's own statement,
+        // and the approval was for these exact bytes.
+        require(
+            PluginOriginKeyStore(context).matches(manifest.origin, manifest.signingKeySha256, allowSuperseded = true),
+        ) {
             "Installed bundle signer is no longer pinned for ${manifest.origin}"
         }
         require(manifest.bundleId == installed.bundleId && manifest.entrypoint == installed.entrypointClass) {

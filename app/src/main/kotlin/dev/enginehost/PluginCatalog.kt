@@ -77,8 +77,8 @@ object PluginReleaseReader {
             val manifest = EngineBundleManifestReader.parse(manifestBytes)
             EngineBundleManifestReader.verifySignature(manifest, signature)
             require(manifest.origin == normalizeGithubOrigin(expectedOrigin)) { "Release origin mismatch" }
-            require(keys.matches(manifest.origin, manifest.signingKeySha256, allowDeveloper = false)) {
-                "Release signer does not match the repository's pinned key"
+            if (!keys.matches(manifest.origin, manifest.signingKeySha256, allowDeveloper = false)) {
+                throw SignerChangedException(manifest.origin, manifest.signingKeySha256)
             }
             val asset = requireNotNull(releaseAssets[manifest.assetName]) {
                 "Release is missing ${manifest.assetName}"
@@ -435,6 +435,34 @@ class PluginOriginStore(private val context: Context) {
             thirdPartyPreferences.edit().remove(key.origin).apply()
         }
         return all() - before
+    }
+
+    /**
+     * Pins the key a person-added repository now publishes, after they
+     * accepted it: the same as removing the repository and adding it anew.
+     * Plugins installed under the old key no longer verify and must be
+     * installed again under the new one and approved. A third-party
+     * repository moves only to a key the third-party list names ([listed]);
+     * an official origin never moves this way (its keys change only by the
+     * root's certificate, [PluginOriginKeyStore.importCertified]).
+     */
+    fun replaceKey(origin: String, publishedKeyDocument: String, listed: IndexedOrigin?) {
+        val normalized = normalizeGithubOrigin(origin)
+        require(!isOfficial(normalized)) { "An official repository's key changes only by the root's certificate" }
+        val wasThirdParty = thirdParty(normalized) != null
+        if (wasThirdParty) {
+            // Checked before anything is removed, so a refusal changes nothing.
+            ThirdPartyListing.accept(
+                requireNotNull(listed) { "The third-party list does not name this repository any more" },
+                publishedKeyDocument,
+            )
+        } else {
+            OriginKeyDocuments.parse(publishedKeyDocument).also {
+                require(it.origin == normalized) { "Repository key declares a different origin" }
+            }
+        }
+        remove(normalized)
+        if (wasThirdParty) addThirdParty(listed!!, publishedKeyDocument) else add(normalized, publishedKeyDocument)
     }
 
     /** Adds a listed third-party repository, once its own key agrees with the list's; see [ThirdPartyListing]. */

@@ -33,6 +33,23 @@
         android:layout_marginTop="@dimen/eh_space_xs"
         android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
 
+    <TextView
+        android:id="@+id/originKeyState"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:textColor="@color/eh_caution"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/reviewKeyButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:text="@string/origin_key_review"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/removeOriginButton"
         android:layout_width="wrap_content"

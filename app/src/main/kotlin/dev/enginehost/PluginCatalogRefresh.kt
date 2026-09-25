@@ -27,6 +27,15 @@ class GithubHttpException(
 ) : IOException(message)
 
 /**
+ * A repository's releases are signed by another key than the one pinned for
+ * it. For an official origin that means a key the root has not certified (or
+ * not yet delivered); for one the person added, that the repository changed
+ * its key, which the person may review and accept as a new source.
+ */
+class SignerChangedException(val origin: String, val fingerprint: String) :
+    IllegalArgumentException("Release signer does not match the repository's pinned key")
+
+/**
  * Why one origin's refresh produced no catalog.
  *
  * This exists because "Nothing published yet" was the only thing the catalog
@@ -46,6 +55,9 @@ sealed interface CatalogFailure {
     /** Nothing was reachable: no network, no route, or the connection timed out. */
     object Offline : CatalogFailure
 
+    /** Its releases are signed by [fingerprint], not the key pinned for it. */
+    data class KeyChanged(val fingerprint: String) : CatalogFailure
+
     /** Everything else, in the words the failure itself used. */
     data class Other(val message: String) : CatalogFailure
 }
@@ -55,6 +67,7 @@ object CatalogFailures {
     fun of(error: Throwable): CatalogFailure {
         val known = generateSequence(error) { it.cause }.take(MAX_CAUSE_DEPTH).firstOrNull(::speaks)
         return when (known) {
+            is SignerChangedException -> CatalogFailure.KeyChanged(known.fingerprint.uppercase())
             is GithubHttpException -> when {
                 known.status in RATE_LIMIT_STATUSES && (known.rateLimitRemaining ?: 0) <= 0 ->
                     CatalogFailure.RateLimited(known.rateLimitResetEpochSeconds)
@@ -65,7 +78,7 @@ object CatalogFailures {
         }
     }
 
-    private fun speaks(error: Throwable): Boolean = error is GithubHttpException ||
+    private fun speaks(error: Throwable): Boolean = error is GithubHttpException || error is SignerChangedException ||
         error is UnknownHostException || error is ConnectException ||
         error is NoRouteToHostException || error is InterruptedIOException || error is SocketException
 

@@ -21,8 +21,15 @@ def main() -> None:
     group.add_argument("--repository-origin")
     group.add_argument("--application-id")
     group.add_argument("--developer-debug", action="store_true")
+    parser.add_argument(
+        "--generation", type=int, default=0,
+        help="repository keys only: 0 for an origin's first key, N for its Nth replacement "
+             "(rotation); certify it with --serial N",
+    )
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
+    if args.generation < 0 or (args.generation and not args.repository_origin):
+        raise SystemExit("--generation applies to --repository-origin keys and is never negative")
     seed = args.master_seed.read_bytes()
     if len(seed) != 32:
         raise SystemExit("Official master seed must contain exactly 32 bytes")
@@ -33,6 +40,11 @@ def main() -> None:
         if not origin.startswith("https://github.com/"):
             raise SystemExit("Repository origin must be a canonical GitHub URL")
         info = b"enginehost/repository-bundle-signing/v1\0" + origin.encode()
+        if args.generation:
+            # A replacement key for the same origin. Generation 0 keeps the
+            # original derivation, so every key issued before rotations
+            # existed is still reproducible from the seed.
+            info += b"\0generation=" + str(args.generation).encode()
     elif args.developer_debug:
         # The primary developer's own key. It is deliberately NOT origin-scoped:
         # it exists to sign locally rebuilt bundles for any repository during

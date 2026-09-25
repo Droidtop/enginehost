@@ -145,6 +145,14 @@
     <string name="quick_add_trust">Trust this key and add</string>
     <string name="quick_add_adding">Checking the repository\'s key…</string>
     <string name="quick_add_done">%1$s added.</string>
+    <string name="catalog_key_changed">Its releases are signed with a key this device has not pinned.</string>
+    <string name="origin_key_changed_state">This repository now signs with a different key.</string>
+    <string name="origin_key_review">Review the new key</string>
+    <string name="origin_key_changed_unlisted">The third-party list does not name this key. It can be accepted once Droidtop lists it.</string>
+    <string name="origin_key_changed_title">New key for %1$s</string>
+    <string name="origin_key_changed_message">Pinned key\n%1$s\n\nNow published\n%2$s\n\nEnginehost cannot tell a planned key change from someone else taking the repository over. Accepting treats it as a new source: plugins installed from it under the old key stop running until you install them again and approve them.</string>
+    <string name="origin_key_changed_accept">Trust the new key</string>
+    <string name="origin_key_replaced">New key pinned. Install this source\'s plugins again to keep using them.</string>
     <string name="verifying_bundle">Verifying…</string>
 
     <!-- Settings -->

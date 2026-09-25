@@ -97,10 +97,64 @@ this build shipped appears on the Plugins screen at the next refresh, with
 the Official badge, and cannot be removed by the person, exactly like a
 compiled-in one. The index's own `trust` field is not consulted; only the
 root's signature makes an origin official, so nothing the index says (or
-whoever can write it) can. A compiled-in key is never replaced this way, and
-a person's own entry for the same repository is folded into the official one.
-There is no revocation of a learned key short of an app release, the same as
-for compiled-in keys.
+whoever can write it) can. A compiled-in or learned key is replaced only by a
+rotation (below), and a person's own entry for the same repository is folded
+into the official one. There is no revocation list: a rotation stops a
+superseded key from signing anything new, but what was installed under it
+keeps running.
+
+## Keys for new official repositories, and new keys for old ones
+
+Every official repository's key is derived from the offline master seed for
+its origin and certified by the root (`scripts/derive-official-key.py`,
+`scripts/certify-repository-key.py`; both run only where the seed is, on
+droidtop-dev under `/root/.gnupg/enginehost-signing`). A new repository gets
+its key like this:
+
+```sh
+seed=/root/.gnupg/enginehost-signing/master-seed.bin
+origin=https://github.com/droidtop/enginehost-example-plugin
+python3 scripts/derive-official-key.py --master-seed "$seed" \
+  --repository-origin "$origin" --output /root/.gnupg/enginehost-signing/example/private.pem
+python3 scripts/certify-repository-key.py \
+  --official-private-key /root/.gnupg/enginehost-signing/root-private.pem \
+  --repository-private-key /root/.gnupg/enginehost-signing/example/private.pem \
+  --origin "$origin" --repository-key-document enginehost-public-key.json
+gh secret set ENGINEHOST_SIGNING_KEY_PEM -R Droidtop/enginehost-example-plugin \
+  < /root/.gnupg/enginehost-signing/example/private.pem
+```
+
+Commit that `enginehost-public-key.json` to the repository's `plugin-core`
+and building branches (the signing workflow attaches it to every release)
+and publish. The `plugin-published` dispatch then registers the repository
+in the plugins index, and devices add it as official at their next refresh
+(above). Nothing needs a new Enginehost build.
+
+**Rotation.** A key is replaced by deriving the same origin's next
+*generation* and certifying it with that generation as its serial
+(`--generation N` and `--serial N`, N one higher than the last), then
+replacing the secret and the committed key document and publishing. The
+serial is part of what the root signs. The index accepts the new key only
+with a higher serial than the one it pinned and records every accepted key
+in droidtop-platforms `plugins/key-history.json`; Enginehost does the same
+check itself and never goes back to a lower serial. The key it replaces
+stays with the origin as superseded: plugins installed and approved under
+it keep running, keep their Official badge and their approval, and are not
+prompted for again, while updates signed by the new key are offered as
+ordinary updates (each approved as always) and anything new must carry the
+new key. A lost repository secret needs no rotation: the same generation
+derives the same key again. Enginehost builds from before serials existed
+cannot read a serial certificate, so they keep the old key and stop seeing
+new releases of that origin until they are updated.
+
+**Keys that are not official.** A repository the person added (Community or
+Third party) that starts signing with another key shows "This repository now
+signs with a different key" on its source card after a refresh. "Review the
+new key" shows the pinned and the published fingerprints; accepting pins the
+new key as if the repository were added anew, so plugins installed under the
+old key stop running until they are installed again and approved. A
+third-party repository can move only to a key the third-party list names,
+and the list changes only by a reviewed edit to `third-party.json`.
 
 ## Third-party repositories
 

@@ -255,6 +255,60 @@ class PluginCatalogActivity : EnginehostActivity() {
             .show()
     }
 
+    /**
+     * A repository the person added now publishes another key. Enginehost
+     * cannot tell a planned change from someone else taking the repository
+     * over, so it shows both fingerprints and treats accepting as adding the
+     * repository anew: what was installed under the old key stops running
+     * until it is installed again and approved. A third-party repository may
+     * move only to a key the third-party list names.
+     */
+    private fun reviewChangedKey(origin: String, whenDone: () -> Unit) {
+        Thread {
+            runCatching {
+                val published = PluginOriginKeyClient.fetch(origin)
+                val newKey = OriginKeyDocuments.parse(published)
+                val listed = PluginCatalogIndex.cached(this)?.origins?.get(normalizeGithubOrigin(origin))
+                if (origins.thirdParty(origin) != null) ThirdPartyListing.accept(requireNotNull(listed) {
+                    getString(R.string.origin_key_changed_unlisted)
+                }, published)
+                Triple(published, newKey, listed)
+            }.onSuccess { (published, newKey, listed) ->
+                runOnUiThread {
+                    val pinned = PluginOriginKeyStore(this).custom(origin)?.fingerprint.orEmpty()
+                    Sheet(this)
+                        .title(getString(R.string.origin_key_changed_title, origin.removePrefix("https://github.com/")))
+                        .message(
+                            getString(
+                                R.string.origin_key_changed_message,
+                                groupedFingerprint(pinned),
+                                groupedFingerprint(newKey.fingerprint),
+                            ),
+                        )
+                        .choice(R.string.origin_key_changed_accept) {
+                            runCatching { origins.replaceKey(origin, published, listed) }
+                                .onSuccess {
+                                    whenDone()
+                                    render(getString(R.string.origin_key_replaced))
+                                    refresh()
+                                }
+                                .onFailure { error ->
+                                    whenDone()
+                                    toast(error.message ?: getString(R.string.origin_key_import_failed))
+                                }
+                        }
+                        .onCancel(whenDone)
+                        .show()
+                }
+            }.onFailure { error ->
+                runOnUiThread {
+                    whenDone()
+                    toast(error.message ?: getString(R.string.origin_key_import_failed))
+                }
+            }
+        }.start()
+    }
+
     private fun removeThirdParty(origin: String) {
         origins.remove(origin)
         render(getString(R.string.custom_origin_removed))
@@ -307,6 +361,19 @@ class PluginCatalogActivity : EnginehostActivity() {
                 description.visibility = View.VISIBLE
             }
             card.findViewById<TextView>(R.id.originUrl).text = origin
+            // A repository the person added that now signs with another key:
+            // say so where the source is, and let them look at the new key.
+            val keyChanged = (lastOutcomes[origin] as? OriginOutcome.Failed)?.reason as? CatalogFailure.KeyChanged
+            if (keyChanged != null && !origins.isOfficial(origin)) {
+                card.findViewById<TextView>(R.id.originKeyState).apply {
+                    visibility = View.VISIBLE
+                    text = getString(R.string.origin_key_changed_state)
+                }
+                card.findViewById<Button>(R.id.reviewKeyButton).apply {
+                    visibility = View.VISIBLE
+                    setOnClickListener { view -> view.isEnabled = false; reviewChangedKey(origin) { view.isEnabled = true } }
+                }
+            }
             val removeButton = card.findViewById<Button>(R.id.removeOriginButton)
             if (!origins.isOfficial(origin)) {
                 removeButton.visibility = View.VISIBLE
@@ -651,6 +718,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
             ?: getString(R.string.catalog_rate_limited)
         is CatalogFailure.Http -> getString(R.string.catalog_http_error, failure.status)
+        is CatalogFailure.KeyChanged -> getString(R.string.catalog_key_changed)
         CatalogFailure.Offline -> getString(R.string.catalog_offline)
         is CatalogFailure.Other -> failure.message
     }
