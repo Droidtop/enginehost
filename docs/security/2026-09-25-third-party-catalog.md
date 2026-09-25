@@ -36,7 +36,8 @@ repository and the token it needs did not exist.
    third-party repositories" on the Plugins screen), behind a trust prompt
    that shows the maintainer and the key fingerprint, and marks their bundles
    **Third party** everywhere trust is shown. They are never Official.
-5. **New official repositories reach devices without an app release.** The
+5. **New official repositories, and new keys for existing ones, reach devices
+   without an app release** (key changes: T7). The
    index carries each official origin's key document, including the
    certificate the offline Enginehost root key made for it. Enginehost adds an
    origin whose certificate verifies against the root compiled into the APK,
@@ -98,9 +99,9 @@ the index, the registration list and the third-party list. What that buys:
   stale but never make it offer bytes the origin's key did not sign
   (unchanged from `2026-09-24-ci-supply-chain.md` L3).
 - Make an origin Official: **no.** That needs the offline root key.
-- Replace an official origin's key: **no.** Compiled-in keys win over the
-  index, and a delivered key must carry the root's certificate for that
-  origin.
+- Replace an official origin's key: **no.** A new official key needs the
+  root's certificate for that origin with a higher serial than the one devices
+  hold (T7, T10).
 - Add a third-party maintainer of their own choosing to the list. Devices
   would then offer that repository in Quick add under the name the attacker
   wrote. The person must still accept the prompt (which says the repository
@@ -160,12 +161,45 @@ issue gets a comment and is closed. The cost of abuse is API allowance.
 
 ### T7 — A repository changes its key
 
-For an official repository the registration pins the fingerprint the root
-certified; a release signed by another key is left out of the index and
-logged. For a third party, a new key is a reviewed change to their list
-entry, and devices that pinned the old key refuse the new releases until the
-person removes and re-adds the repository (there is no in-band rotation,
-exactly as for community repositories). **Accepted; rotation is manual.**
+Added 2026-09-25, after the first implementation: keys change, and a new
+official repository has to get a key in the first place. The rules:
+
+- **Official keys carry a serial.** An origin's first key is serial 0 (the
+  certificates made before serials existed are read as 0); a replacement is
+  derived from the same seed at the next *generation* and certified with that
+  generation as its serial. The serial is inside what the root signs
+  (`enginehost-origin-key-v2` certificates), so nobody without the root can
+  raise it.
+- **The index takes a new official key only when it is root-certified for the
+  origin and its serial is higher than the pinned one.** The dispatch or the
+  repository's own releases only say "look"; the certificate decides. Every
+  accepted key, the first registration included, is appended to
+  `plugins/key-history.json` with its full certified document, the key it
+  replaced and when; the generator's `--check` re-verifies every certificate
+  in that file offline and that serials only rise, so the trail cannot be
+  rewritten quietly into something the root did not sign.
+- **Enginehost moves an official origin to a new key only on the same
+  proof**: a root certificate for that origin with a higher serial than the
+  key it holds (compiled in or learned). The key it replaces is kept as a
+  superseded official key of that origin: plugins already installed and
+  approved under it keep running, keep their Official badge and their
+  approval, and are not prompted for again; updates signed by the new key are
+  offered as updates in the usual way, each one approved as always. New
+  installs and catalog entries must carry the current key.
+- **Anything else is a different origin.** A key for an official origin that
+  is not certified, or certified with a serial that is not higher, is refused
+  in the index and on the device. For a Community or Third party origin, a
+  repository that now publishes another key than the one pinned is shown as
+  "key changed"; the person may review it, and accepting pins the new key as
+  if the repository were added anew: plugins installed under the old key stop
+  running until they are installed again under the new key and approved.
+- **Third-party keys change only by an edit to `third-party.json`**, made by
+  the user in a reviewed pull request. A third party's registration can only
+  name a key their list entry already carries; a key change is recorded in
+  the key history like any other. Devices re-pin a third-party origin only
+  through the prompt above, and only to a key the list names.
+
+**Mitigated**, with the residual below (T10).
 
 ### T8 — Single-ABI or unverifiable builds reaching devices
 
@@ -178,16 +212,38 @@ already on do not vanish. **Mitigated going forward.**
 
 ### T9 — A delivered official key for an origin the device knows otherwise
 
-A certified key never replaces a compiled-in one. A person who had added an
+A certified key replaces a compiled-in or learned one only as a rotation
+(T7: a higher serial). A person who had added an
 official repository by URL (a Community pin) before it was registered has
 that pin replaced by the certified key, since the root's certificate is a
 stronger statement than first use; a Community pin that disagrees with the
 certified key is dropped for the same reason. **Mitigated.**
 
+### T10 — Rolling an official origin back to an old key
+
+Someone who can write droidtop-platforms could put an older certified key
+document back into the index, perhaps one whose private half has leaked.
+The index generator refuses a serial that is not higher than the pinned one,
+and Enginehost does too, independently of what the index says; a device that
+has seen serial 2 never goes back to serial 1. A device that never saw the
+newer key (a fresh install, or one that was offline through the rotation)
+starts from its compiled-in key and accepts only higher serials from there.
+**Mitigated**; a leaked key with the highest serial is T11.
+
+### T11 — A leaked current key
+
+The holder can sign bundles that verify as Official until the origin rotates.
+Rotating (next generation, higher serial) moves every device that refreshes to
+the new key, and releases signed by the old key stop being offered as new
+installs; bundles already installed under the old key keep running, because
+Enginehost cannot tell a leaked key's signature from a legitimate one.
+**Accepted**; there is no revocation list (below).
+
 ### Not covered
 
-- Revocation of a certified official key. Same as today for compiled-in
-  keys: a new Enginehost build is the only way.
+- Revocation of a certified official key. A rotation stops a superseded key
+  from signing anything new that devices accept, but bundles installed under
+  it keep running; revoking those needs a new Enginehost build.
 - Review of third-party code. Out of scope by design; listing is identity.
 - GitHub itself (account takeover of a listed maintainer, raw.githubusercontent
   serving other bytes): the signatures still have to verify against keys the
