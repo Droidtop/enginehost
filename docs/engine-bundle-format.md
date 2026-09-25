@@ -86,11 +86,12 @@ without being installed as a separate Android package. Native libraries remain
 under `lib/<abi>/` in the bundle so the runtime class loader can resolve them.
 The resources and assets are reachable from the application's `Resources`, the
 runtime activity's, and every Activity the runtime process creates afterwards,
-including a bundle's own Activity (`runtimeTransport: activity`): from API 30
-through a `ResourcesLoader` added before each Activity's `onCreate`, below 30
-by listing the APK among the application's shared-library paths, which Android
-reads whenever it builds a `Resources`. A resource APK's name must therefore end
-in `.apk`, which is the only kind of shared-library path Android opens there.
+including a bundle's own Activity (`runtimeTransport: activity`), whose Context
+Android builds before Enginehost can see it: an activity lifecycle callback adds
+them (a `ResourcesLoader` from API 30, the APK's asset path below) before the
+Activity's `onCreate` from API 29, and at the end of `Activity.onCreate` below
+that, so a bundled Activity reads its own resources only after calling
+`super.onCreate`.
 
 A bundle carries **every ABI it supports, in one archive**: `lib/arm64-v8a/` and
 `lib/x86_64/` at minimum, plus `lib/armeabi-v7a/` or `lib/x86/` where the engine's
