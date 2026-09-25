@@ -66,7 +66,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
             override fun onServiceConnected(name: ComponentName, binder: IBinder) {
                 val svc = IEngineRuntimeService.Stub.asInterface(binder)
                 service = svc
-                Thread({
+                val initRunnable = Runnable {
                     try {
                         svc.init(
                             installed.directory.absolutePath, installed.entrypointClass,
@@ -100,7 +100,8 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                         Log.e(TAG, "isolated runtime init failed", e)
                         activity.runOnUiThread { onFailure(e.message ?: e.javaClass.simpleName) }
                     }
-                }, "enginehost-isolated-init").start()
+                }
+                Thread(initRunnable, "enginehost-isolated-init").start()
             }
 
             override fun onServiceDisconnected(name: ComponentName) {

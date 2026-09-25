@@ -141,8 +141,8 @@ private class IsolatedEngineHost(
     private val ctx: android.content.Context,
     private val callback: IEngineRuntimeCallback,
     private val restartArgs: Array<String>,
-    private val gameBroker: EngineFileBroker?,
-    private val saveBroker: EngineFileBroker?,
+    private val gameBrokerImpl: EngineFileBroker?,
+    private val saveBrokerImpl: EngineFileBroker?,
 ) : EngineHost {
     override fun context(): android.content.Context = ctx
 
@@ -162,8 +162,8 @@ private class IsolatedEngineHost(
     /** This process's own private cache -- its own UID's storage, not shared storage; no broker needed. */
     override fun cacheDirectory(): File = ctx.cacheDir
 
-    override fun gameBroker(): EngineFileBroker? = gameBroker
-    override fun saveBroker(): EngineFileBroker? = saveBroker
+    override fun gameBroker(): EngineFileBroker? = gameBrokerImpl
+    override fun saveBroker(): EngineFileBroker? = saveBrokerImpl
 
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {
         val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()
