@@ -80,8 +80,6 @@ abstract class EnginehostActivity : AppCompatActivity() {
 
     override fun onPostCreate(savedInstanceState: Bundle?) {
         super.onPostCreate(savedInstanceState)
-        // Leaving touch mode is announced before Android picks a view to
-        // focus, so the primary action is in place first and Android keeps it.
         window.decorView.viewTreeObserver.addOnTouchModeChangeListener(touchModeListener)
     }
 
@@ -90,8 +88,27 @@ abstract class EnginehostActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    /** The view currently marked as the window's default focus. */
+    private var defaultFocus: View? = null
+
+    /**
+     * Leaving touch mode is announced before Android picks the view to
+     * focus, so the primary action is made the window's default focus here
+     * and Android's own choice lands on it. Focusing it directly instead
+     * (as this did first) left Android nothing to choose, so it did not
+     * consume the D-pad press that left touch mode, and that press then
+     * moved on from the primary action: the ring landed on the SECOND item
+     * of Home, Settings and Controller, and on Test in Game setup (rig,
+     * dq-ehfix-01).
+     */
     private val touchModeListener = ViewTreeObserver.OnTouchModeChangeListener { inTouchMode ->
-        if (!inTouchMode) selectPrimaryAction()
+        if (inTouchMode || currentFocus?.isShown == true) return@OnTouchModeChangeListener
+        val primary = primaryAction() ?: return@OnTouchModeChangeListener
+        if (defaultFocus !== primary) {
+            defaultFocus?.isFocusedByDefault = false
+            primary.isFocusedByDefault = true
+            defaultFocus = primary
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
