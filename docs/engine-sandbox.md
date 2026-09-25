@@ -491,13 +491,39 @@ be extended to saves or `enginehost.json`: those stay behind the broker
 exclusively, read-write and per-launch-scoped, never touched by any
 chmod this installer applies.
 
+**A gap in the fd route itself, found before any device confirmed it
+either way:** opening `/proc/self/fd/N` BY PATH -- what `DexClassLoader`
+and `findLibrary`'s resolved path both do -- is a fresh `open()` of the
+*original* file, so SELinux re-checks it against that file's own
+security context (`app_data_file`) exactly as it would a direct path
+open. If `isolated_app`'s SELinux policy, not a DAC permission bit, is
+what has actually been refusing this all along (dq-sandbox-02's
+identical failure across two Android versions fits that better than a
+DAC-only story), the fd route as first built would hit the same wall.
+Binder's own fd transfer needs no such recheck -- reading directly from
+a descriptor already handed to this process is not a fresh open -- so
+`IsolatedRuntimeService` now copies each received descriptor's bytes
+(no reopen, one read from the fd already held) into a `memfd_create(2)`-backed
+file this process created itself (`android.system.Os.memfd_create`,
+API 30+; below that, or on any failure, the original descriptor is used
+unchanged, today's behaviour). A memfd carries no `app_data_file`
+label, so reopening *its* `/proc/self/fd` entry checks this process's
+access to its own anonymous memory-backed file, not the bundle's. The
+owner's own device (Retroid Pocket 5, Android 13) is comfortably above
+the API 30 floor this needs; BlueStacks (Android 9) is not, and stays on
+the plain fd-reopen behaviour there, unresolved either way until
+dq-sandbox-03 (now updated to also grep logcat/dmesg for `avc: denied`,
+which is what actually distinguishes a SELinux denial from anything
+else) comes back.
+
 **Status:** dq-sandbox-02 (commit e37db5e, the chmod-only fix) failed
 identically on both BlueStacks and emulator-5560 -- the chmod route is
-not what fixes this, on either device tested so far. The fd route
-(commit 84cc5ee) is built, this repo's own CI compiles it, and it does
-not depend on the ancestor-directory theory being correct at all, which
-is exactly why it is queued next (dq-sandbox-03) rather than treated as
-already explained. The chmod-based ancestor-traversal fix is left in
+not what fixes this, on either device tested so far. The fd route,
+now including the memfd copy above (commit to follow this doc update),
+is built, this repo's own CI compiles it, and it does not depend on the
+ancestor-directory theory being correct at all, which is exactly why it
+is queued next (dq-sandbox-03) rather than treated as already explained.
+The chmod-based ancestor-traversal fix is left in
 place for now regardless -- it costs nothing extra since dex/native-library
 loading no longer depends on it either way, and it may still matter for
 some other read the isolated process does that this doc has not audited

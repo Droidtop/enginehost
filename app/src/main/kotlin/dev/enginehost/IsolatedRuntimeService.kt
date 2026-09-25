@@ -2,8 +2,11 @@ package dev.enginehost
 
 import android.app.Service
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import android.system.Os
+import android.system.OsConstants
 import android.util.Log
 import dev.enginehost.api.EngineControllerEvent
 import dev.enginehost.api.EngineFileBroker
@@ -16,7 +19,9 @@ import dev.enginehost.runtime.IEngineFileBroker
 import dev.enginehost.runtime.IEngineRuntimeCallback
 import dev.enginehost.runtime.IEngineRuntimeService
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
 import java.io.IOException
 
 /**
@@ -83,11 +88,25 @@ class IsolatedRuntimeService : Service() {
                 this@IsolatedRuntimeService, callback, this@IsolatedRuntimeService.restartArguments,
                 gameBroker?.let(::AidlFileBrokerAdapter), saveBroker?.let(::AidlFileBrokerAdapter),
             )
+            // Prefer a descriptor this process owns outright over the
+            // received one: opening /proc/self/fd/<received fd> BY PATH is
+            // a fresh open() of the ORIGINAL file, which SELinux re-checks
+            // against that file's own security context (app_data_file) --
+            // the same check that may be refusing this launch in the first
+            // place, if that turns out to be what dq-sandbox-03 shows
+            // (docs/engine-sandbox.md "The bundle's own files"). A copy
+            // into a memfd this process created itself carries no such
+            // label; reopening ITS /proc/self/fd entry checks this
+            // process's access to its own memory-backed file instead.
+            val dexSources = dexFds.map { received -> ownedCopy(received)?.also { heldFds += it } ?: received }
+            val nativeLibrarySources = nativeLibraryFds.map { received ->
+                ownedCopy(received)?.also { heldFds += it } ?: received
+            }
             val nativeLibraryFdPaths = nativeLibraryNames.indices.associate {
-                nativeLibraryNames[it] to procFdPath(nativeLibraryFds[it])
+                nativeLibraryNames[it] to procFdPath(nativeLibrarySources[it])
             }
             val loaded = loadEnginePluginFromFds(
-                this@IsolatedRuntimeService, dexFds.map(::procFdPath), entrypointClass,
+                this@IsolatedRuntimeService, dexSources.map(::procFdPath), entrypointClass,
                 nativeLibraryFdPaths, classLoader,
             )
             resourceHandles += loaded.resourceHandles
@@ -160,6 +179,33 @@ class IsolatedRuntimeService : Service() {
 
 /** The path a ParcelFileDescriptor is reachable at from this process's own side of it: the same open file, by fd number. */
 private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd.fd}"
+
+/**
+ * A copy of pfd's bytes into an anonymous, memory-backed file this
+ * process created itself (memfd_create(2)), or null when that is not
+ * available (below API 30, where android.system.Os has no Java binding
+ * for it yet) or fails for any reason -- the caller falls back to the
+ * received descriptor unchanged either way, exactly today's behaviour.
+ * Reads pfd directly (no reopen: this is the one operation Binder's own
+ * fd transfer already cleared), so this needs no permission this process
+ * does not already have from receiving pfd in the first place.
+ */
+private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor? {
+    if (Build.VERSION.SDK_INT < 30) return null
+    return try {
+        val memFd = Os.memfd_create("enginehost-bundle", 0)
+        try {
+            FileOutputStream(memFd).use { output -> FileInputStream(pfd.fileDescriptor).copyTo(output) }
+            Os.lseek(memFd, 0, OsConstants.SEEK_SET)
+            ParcelFileDescriptor.dup(memFd)
+        } finally {
+            Os.close(memFd)
+        }
+    } catch (e: Exception) {
+        Log.w("enginehost-isolated-runtime", "could not copy into an owned memfd; using the received descriptor as-is", e)
+        null
+    }
+}
 
 /** [EngineHost] for an isolated launch: file access is broker-only, and every Activity-owned call crosses back to the host. */
 private class IsolatedEngineHost(
