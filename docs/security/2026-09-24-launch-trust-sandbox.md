@@ -44,6 +44,15 @@ under an isolated-process UID with Enginehost serving the game's files,
 designed in `docs/engine-sandbox.md` (layer 2) and due with the v2 host
 interface. Until then this is the largest open exposure.
 
+Still open. `docs/engine-sandbox.md` now carries the per-plugin-shape audit
+(what breaks under `isolatedProcess` for activity-transport plugins,
+plugin-api-transport plugins, native `open`/`fopen` engines, WebView, and
+saves) and the host file-broker design (`ParcelFileDescriptor`s over a
+per-launch AIDL service, plus a native callback seam in each engine's own
+file-access layer rather than an `LD_PRELOAD`/PLT hook), with a first
+milestone scoped to CatSystem2. None of it is implemented yet -- this pass
+is the design, not the fix.
+
 ### H3: a caller's inline config was written into the game folder (High, fixed)
 
 A `LAUNCH` for a folder without `enginehost.json` writes one when detection

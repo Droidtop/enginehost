@@ -563,3 +563,21 @@ day run under a mobile-Linux host.
   candidate), and then the v2 manifest and loader beside the v1 ones. The
   catalog lists both types; the host picks the v2 payload for its platform
   and architecture the way it picks `lib/<abi>` today.
+
+## Sandboxing and the plugin contract (2026-09-25, later work)
+
+Engine sandbox layer 2 (`docs/engine-sandbox.md`) runs a v1 plugin's
+`:runtime` under `android:isolatedProcess="true"` with the host brokering
+all file access. That needs a bundle-manifest signal, since not every
+plugin's native code has been audited or given the file-broker callback
+seam layer 2 requires (`docs/engine-sandbox.md`'s per-plugin-shape audit):
+a v1 bundle will gain an optional per-capability or per-bundle field
+naming that the plugin's `:runtime` may be started isolated (the exact
+name and shape, e.g. `"isolatable": true`, is decided when the first
+plugin lands it — see `docs/engine-sandbox.md`'s "first milestone").
+Additive and versioned the same way `hostType` is above: an older host
+that does not understand the field ignores it and keeps using the
+unisolated path, and a plugin that omits it is never asked to run
+isolated. Not present in any shipped bundle yet; recorded here so the
+field, when it lands, matches the shape decided in `docs/engine-sandbox.md`
+rather than being improvised in the same change that adds it.
