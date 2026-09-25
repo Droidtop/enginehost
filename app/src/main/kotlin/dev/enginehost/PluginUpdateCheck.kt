@@ -72,12 +72,23 @@ class PluginUpdateCheck(private val context: Context) {
         val frequency = frequency
         if (frequency == Frequency.OFF) return
         val now = System.currentTimeMillis()
-        val due = now - preferences.getLong(LAST_ATTEMPT, 0L) >= frequency.intervalMs
-        if (!due || (unmeteredOnly && isMetered())) {
-            Thread { onPending(pending()) }.start()
-            return
-        }
-        run(onPending)
+        // Due on the schedule, or because the catalogs this count comes from
+        // are older than the Plugins screen accepts: then both screens answer
+        // from the same fresh catalogs. Home used to keep a count from the
+        // last daily pass ("16 plugin updates") until the Plugins screen ran
+        // its own refresh ("22"; rig, dq-ehfix-02).
+        val scheduled = now - preferences.getLong(LAST_ATTEMPT, 0L) >= frequency.intervalMs
+        Thread {
+            val due = scheduled || catalogsStale()
+            if (!due || (unmeteredOnly && isMetered())) onPending(pending()) else run(onPending)
+        }.start()
+    }
+
+    /** Whether any installed plugin's catalog is older than [CATALOG_MAX_AGE_MS]. */
+    private fun catalogsStale(): Boolean {
+        val cache = PluginCatalogCache(context)
+        return PluginRegistry.discover(context).map { it.origin }.filter(String::isNotBlank).distinct()
+            .any { cache.isStale(it, CATALOG_MAX_AGE_MS) }
     }
 
     /** Runs the pass now, regardless of schedule or network. */
@@ -136,6 +147,8 @@ class PluginUpdateCheck(private val context: Context) {
         context.getSystemService(ConnectivityManager::class.java)?.isActiveNetworkMetered ?: false
 
     companion object {
+        /** How old a cached catalog may be before Home or the Plugins screen fetches it again. */
+        const val CATALOG_MAX_AGE_MS = 10L * 60 * 1000
         private const val LEGACY_CHECK = "checkAutomatically"
         private const val FREQUENCY = "frequency"
         private const val STREAM = "stream"
