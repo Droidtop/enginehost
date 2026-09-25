@@ -87,11 +87,15 @@ under `lib/<abi>/` in the bundle so the runtime class loader can resolve them.
 The resources and assets are reachable from the application's `Resources`, the
 runtime activity's, and every Activity the runtime process creates afterwards,
 including a bundle's own Activity (`runtimeTransport: activity`), whose Context
-Android builds before Enginehost can see it: an activity lifecycle callback adds
-them (a `ResourcesLoader` from API 30, the APK's asset path below) before the
-Activity's `onCreate` from API 29, and at the end of `Activity.onCreate` below
-that, so a bundled Activity reads its own resources only after calling
-`super.onCreate`.
+Android builds before Enginehost can see it. From API 30 a `ResourcesLoader` is
+added to each Activity before its `onCreate`. Below 30 the APK joins the
+application's shared-library paths, which Android reads when it builds each
+Activity's `Resources`, and a bundled Activity built before that is started once
+more so its own `Resources` hold the APK from the start (its theme is resolved
+before `onCreate`). A resource APK's name must therefore end in `.apk`. Below
+API 29 the application class loader, through which layouts name their view
+classes, is also given the bundle's classes (the platform's own hook for that,
+`AppComponentFactory.instantiateClassLoader`, exists from 29).
 
 A bundle carries **every ABI it supports, in one archive**: `lib/arm64-v8a/` and
 `lib/x86_64/` at minimum, plus `lib/armeabi-v7a/` or `lib/x86/` where the engine's

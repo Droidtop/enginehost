@@ -31,18 +31,22 @@ import java.util.zip.ZipFile
  * to both is what makes the bundle's resources reachable from anywhere a
  * plugin can reasonably ask.
  *
- * Neither of those is the Resources of an Activity created afterwards. A
- * bundle that carries its own Activity is instantiated by
- * EnginehostComponentFactory after Android has already built that
- * Activity's Context and Resources, and those, with the AssetManager behind
- * the Activity's getAssets() (KiriKiri's locale/en_us.xml, EasyRPG's
- * layouts), hold only the host's own paths. So the APKs are also attached
- * to every Activity this process creates from now on, from an activity
- * lifecycle callback: before its onCreate from API 29, and at the end of
- * Activity.onCreate below that (the first moment Android offers; a plugin
- * Activity calls super.onCreate before it inflates or reads anything).
- * Without it, Android 9 found none of a bundled Activity's resources (rig,
- * dq-ehfix-01: "No package ID 80 found", "locale/en_us.xml not found").
+ * Neither of those is the Resources of an Activity created afterwards, and
+ * a bundle that carries its own Activity needs exactly that: Android builds
+ * the Activity's Context and Resources BEFORE EnginehostComponentFactory is
+ * asked for the instance, so they held only the host's paths and the
+ * plugin's theme, layouts and assets were missing (rig, Android 9: EasyRPG
+ * "No package ID 80 found", KiriKiri "locale/en_us.xml not found").
+ *
+ * - From API 30 a lifecycle callback adds the loaders to every Activity
+ *   created afterwards, before its onCreate (onActivityPreCreated).
+ * - Below 30 the APK joins the application's shared-library paths, which
+ *   Android reads each time it builds an Activity's Resources (WebView
+ *   attaches its own APK the same way). A bundled Activity whose Resources
+ *   were built before that is started once more ([needsFreshActivity],
+ *   BundleRelaunchActivity), so its own Resources include the APK from the
+ *   start: its theme is looked up before onCreate, where no callback below
+ *   API 29 reaches.
  */
 object PluginResources {
     /**
@@ -54,7 +58,6 @@ object PluginResources {
         val targets = attachTargets(context)
         val handles = mutableListOf<AutoCloseable>()
         val loaders = mutableListOf<ResourcesLoader>()
-        val paths = mutableListOf<String>()
         apks.forEach { apk ->
             require(apk.isFile) { "A signed plugin resource APK is missing" }
             ResourceTable.requireDistinctPackageId(apk)
@@ -72,17 +75,37 @@ object PluginResources {
                 handles += descriptor
             } else {
                 targets.forEach { addAssetPath(it, apk.absolutePath) }
-                paths += apk.absolutePath
+                joinSharedLibraries(context, apk)
             }
         }
-        handles += attachToLaterActivities(context) { resources ->
-            if (loaders.isNotEmpty()) resources.addLoaders(*loaders.toTypedArray())
-            paths.forEach { addAssetPath(resources, it) }
-        }
+        if (loaders.isNotEmpty()) handles += attachToLaterActivities(context, loaders)
         return handles
     }
 
-    /** Below API 30: adds [path] to [resources]' AssetManager (a path already there keeps its cookie). */
+    /**
+     * Below API 30: whether an Activity whose Context already exists (a
+     * bundled one, see the class comment) was built without one of [apks],
+     * so it has to be started again once [attach] has run.
+     */
+    fun needsFreshActivity(context: Context, apks: List<File>): Boolean {
+        if (Build.VERSION.SDK_INT >= 30) return false
+        val libraries = context.applicationInfo.sharedLibraryFiles.orEmpty()
+        return apks.any { it.absolutePath !in libraries }
+    }
+
+    /**
+     * The application's shared-library paths are read from this very
+     * ApplicationInfo (the process's LoadedApk does not copy it) whenever
+     * Android builds an Activity's Resources, so an APK listed here is in
+     * every Activity made from now on. Android opens only `.apk` paths here.
+     */
+    private fun joinSharedLibraries(context: Context, apk: File) {
+        val info = context.applicationInfo
+        val libraries: Array<String> = info.sharedLibraryFiles ?: emptyArray()
+        if (apk.absolutePath !in libraries) info.sharedLibraryFiles = arrayOf(*libraries, apk.absolutePath)
+    }
+
+    /** Below API 30: adds [path] to [resources]' AssetManager. */
     private fun addAssetPath(resources: Resources, path: String) {
         val method = resources.assets.javaClass.getMethod("addAssetPath", String::class.java)
         require((method.invoke(resources.assets, path) as Int) != 0) { "Could not attach plugin resources" }
@@ -91,21 +114,18 @@ object PluginResources {
     }
 
     /**
-     * Every Activity created in this process from now on gets [attachTo] run
-     * on its own Resources: before its onCreate from API 29
-     * (onActivityPreCreated), at the end of Activity.onCreate below that. A
-     * loader or path already there is left as it is, so the two callbacks
-     * both firing on API 29 and up is harmless. The handle stops it when the
-     * resources are released.
+     * API 30 and up: every Activity created in this process from now on gets
+     * the loaders on its own Resources before its onCreate (a loader already
+     * there is left as it is). The handle stops it when the resources are
+     * released.
      */
-    private fun attachToLaterActivities(context: Context, attachTo: (Resources) -> Unit): AutoCloseable {
+    private fun attachToLaterActivities(context: Context, loaders: List<ResourcesLoader>): AutoCloseable {
         val application = context.applicationContext as Application
         val callbacks = object : Application.ActivityLifecycleCallbacks {
-            override fun onActivityPreCreated(activity: Activity, savedInstanceState: Bundle?) = attachTo(activity.resources)
-            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-                if (Build.VERSION.SDK_INT < 29) attachTo(activity.resources)
-            }
+            override fun onActivityPreCreated(activity: Activity, savedInstanceState: Bundle?) =
+                activity.resources.addLoaders(*loaders.toTypedArray())
 
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
             override fun onActivityStarted(activity: Activity) = Unit
             override fun onActivityResumed(activity: Activity) = Unit
             override fun onActivityPaused(activity: Activity) = Unit

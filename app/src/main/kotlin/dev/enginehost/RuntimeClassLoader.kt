@@ -39,6 +39,28 @@ class RuntimeClassLoader(parent: ClassLoader) : ClassLoader(parent) {
     }
 
     companion object {
+        /**
+         * AppComponentFactory.instantiateClassLoader, which puts this loader
+         * in place, exists from API 29. Below that the application class
+         * loader stayed the plain PathClassLoader, and a bundled Activity's
+         * layout could not name a class of its own plugin: EasyRPG died
+         * inflating its Material NavigationView on Android 9 (rig,
+         * dq-ehfix-02). There the process's LoadedApk is given this loader
+         * directly, before any Activity's Context takes it from there. Its
+         * field has no public setter; this is the one reflective write, and
+         * only below API 29, where the platform's hook does not exist.
+         */
+        fun installBelowApi29(application: android.app.Application) {
+            if (android.os.Build.VERSION.SDK_INT >= 29) return
+            runCatching {
+                val loadedApk = android.app.Application::class.java.getDeclaredField("mLoadedApk")
+                    .apply { isAccessible = true }.get(application) ?: return
+                val field = loadedApk.javaClass.getDeclaredField("mClassLoader").apply { isAccessible = true }
+                val current = field.get(loadedApk) as ClassLoader
+                if (current !is RuntimeClassLoader) field.set(loadedApk, RuntimeClassLoader(current))
+            }.onFailure { android.util.Log.w("EnginehostRuntime", "Could not install the runtime class loader", it) }
+        }
+
         /** Makes [loader]'s classes visible through the process's application class loader. */
         fun attach(appClassLoader: ClassLoader, loader: PluginDexLoader) {
             (appClassLoader as? RuntimeClassLoader)?.attach(loader)

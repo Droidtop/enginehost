@@ -28,6 +28,7 @@ class EnginehostApplication : Application() {
         // plugin's own Activity, which nothing of ours is otherwise on the
         // path of; see RuntimeInputTap.
         if (isRuntimeProcess()) registerActivityLifecycleCallbacks(RuntimeInputInstaller)
+        if (isRuntimeProcess()) RuntimeClassLoader.installBelowApi29(this)
     }
 
     /**

@@ -39,10 +39,15 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val resourceApks = installed.resourceApks.map {
             safeRuntimeChild(installed.directory.canonicalFile, it)
         }
+        val relaunch = PluginResources.needsFreshActivity(context, resourceApks)
         // Retained for the life of this short-lived :runtime process. The
         // descriptors must outlive the call: a collected ParcelFileDescriptor
         // closes the file the loaded resources are still reading from.
         retainedResources += PluginResources.attach(context, resourceApks)
+        if (relaunch) {
+            Log.i(TAG, "Starting the bundle's activity again so its Resources include the bundle")
+            return BundleRelaunchActivity()
+        }
         intent.putStringArrayListExtra(EXTRA_RESOURCE_APKS, ArrayList(resourceApks.map(File::getPath)))
         Log.i(TAG, "Runtime resource APKs=${resourceApks.joinToString { it.path }}")
         resourceApks.firstOrNull()?.let { apk ->
