@@ -91,10 +91,16 @@ object EngineConfigReader {
      * missing nested `options` keys, but can never replace a value the
      * folder already contains. If there is no folder config, the inline
      * config is used by itself.
+     *
+     * [testingJson], when given, stands in for the folder's file: a launch
+     * Game setup's Test started runs on the testing configuration with the
+     * same authority, while the working enginehost.json stays untouched
+     * (see [TestingConfigStore]).
      */
-    fun resolve(gameFolder: File, inlineJson: String?): EngineConfig {
+    fun resolve(gameFolder: File, inlineJson: String?, testingJson: String? = null): EngineConfig {
         val configFile = File(gameFolder, CONFIG_FILE_NAME)
-        val folderJson = configFile.takeIf { it.isFile }?.let { parseObject(it.readText(), CONFIG_FILE_NAME) }
+        val folderJson = testingJson?.let { parseObject(it, "testing configuration") }
+            ?: configFile.takeIf { it.isFile }?.let { parseObject(it.readText(), CONFIG_FILE_NAME) }
         val callerJson = inlineJson?.let { parseObject(it, "inline config") }
         val config = when {
             folderJson != null -> parse(mergeAuthoritative(folderJson, callerJson))

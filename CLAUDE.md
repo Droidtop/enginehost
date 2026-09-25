@@ -22,8 +22,9 @@ any flow in the UI has a programmatic equivalent, and vice versa. The bundle con
   the game keep doing so.
 - **`dev.enginehost.LAUNCH` is open to any app, by design.**
 - **A game folder's `enginehost.json` is the person's own config (decided 2026-09-25).** Only the config
-  creator writes it, on Save (or Test, which saves first). Play, adding games and callers never write or edit
-  it; a folder without one launches on its detected config in memory.
+  creator writes it, on Save (or Keep for a tested configuration). Test stores a separate testing configuration
+  in Enginehost's own storage and only Test runs it. Play, adding games and callers never write or edit it; a
+  folder without one launches on its detected config in memory.
 - **Engine sandbox (decided 2026-09-24):** engine code must not have internet access, and must
   not have arbitrary file access; Enginehost does the file reads a launch needs and hands them
   to the engine. Today engines run in the `:runtime` process under the app's own UID and so

@@ -111,8 +111,7 @@ folder for one Enginehost names, and the save root for an engine that names
 its own folder inside it (Ren'Py, Godot).
 
 A folder's `enginehost.json` is the person's own config, and only the config
-creator (Game setup) writes it, when the person presses Save there (or Test,
-which saves what is on screen before it starts the game). Nothing else in
+creator (Game setup) writes it, when the person presses Save there. Nothing else in
 Enginehost writes or edits it: not Play, not adding games, not a caller's
 launch (the user, 2026-09-25). A folder with no `enginehost.json` is still not
 a dead end. Detection reads the engine, version, entry file, title and save
@@ -120,6 +119,15 @@ folder from the folder's own files; when all of that is evident the launch runs
 on that detected config in memory, with a caller's inline config filling what
 detection left open, and only a folder that leaves a question open is shown in
 the config editor with detection prefilled.
+
+Game setup's Test never touches that file. It stores what is on screen as the
+game's testing configuration, in Enginehost's own storage keyed by the game
+folder, and runs the game with it (the user, 2026-09-25: a test that does not
+work must not replace a working config). Game setup and the game's own screen
+then say a testing configuration is pending, one press from Keep (it becomes
+the folder's `enginehost.json`) or Discard (the working config, never touched,
+runs again). A new Test replaces the pending one. Every other launch, Play or
+another app's `dev.enginehost.LAUNCH`, runs the working config.
 
 `options` is a generic, opaque-to-enginehost bag of post-resolution
 engine-specific settings, passed straight through to the resolved plugin

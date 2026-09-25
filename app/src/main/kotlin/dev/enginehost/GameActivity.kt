@@ -53,6 +53,7 @@ class GameActivity : EnginehostActivity() {
     override fun onResume() {
         super.onResume()
         if (!::folder.isInitialized) return
+        showTestingRow()
         showTitle(null)
         Thread {
             val status = GameStatus.of(this, folder)
@@ -76,6 +77,11 @@ class GameActivity : EnginehostActivity() {
                 }
             }
         }.start()
+    }
+
+    /** A pending testing configuration from Game setup, with Keep and Discard one press away. */
+    private fun showTestingRow() {
+        TestingConfigRow.show(this, findViewById(R.id.playButton), folder) { showTestingRow() }
     }
 
     private fun showTitle(configTitle: String?) {

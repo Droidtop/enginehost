@@ -54,7 +54,9 @@ class RuntimeActivity : FragmentActivity() {
         val saveFolder = intent.getStringExtra(EXTRA_SAVE_PATH)?.let(::File)
             ?: return failAndFinish("Runtime launch omitted the save folder")
         val config = try {
-            EngineConfigReader.resolve(gameFolder, intent.getStringExtra(EXTRA_CALLER_CONFIG))
+            EngineConfigReader.resolve(
+                gameFolder, intent.getStringExtra(EXTRA_CALLER_CONFIG), intent.getStringExtra(EXTRA_TESTING_CONFIG),
+            )
         } catch (e: InvalidEngineConfigException) {
             return failAndFinish(e.message ?: "Invalid $CONFIG_FILE_NAME")
         }
@@ -247,6 +249,8 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_RESTART_ARGUMENTS = "dev.enginehost.runtime.RESTART_ARGUMENTS"
         const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
+        /** Game setup's Test: the testing configuration standing in for the folder's (see TestingConfigStore). */
+        const val EXTRA_TESTING_CONFIG = "dev.enginehost.runtime.TESTING_CONFIG"
         const val EXTRA_SAVE_PATH = "dev.enginehost.runtime.SAVE_PATH"
         const val EXTRA_ENGINE = "dev.enginehost.runtime.ENGINE"
         const val EXTRA_ENGINE_CONTEXT = "dev.enginehost.runtime.ENGINE_CONTEXT"

@@ -42,15 +42,22 @@ object GameRunner {
         gameFolder: File,
         inlineJson: String? = null,
         autoInstallPlugin: Boolean = false,
+        testing: Boolean = false,
     ) {
-        LaunchActivity.start(context, gameFolder, inlineJson, autoInstallPlugin)
+        LaunchActivity.start(context, gameFolder, inlineJson, autoInstallPlugin, testing)
     }
 
+    /**
+     * [testing]: this launch is Game setup's Test, and runs on the game's
+     * pending testing configuration in place of its enginehost.json (see
+     * [TestingConfigStore]); every other launch runs the working config.
+     */
     fun plan(
         context: Context,
         gameFolder: File,
         inlineJson: String? = null,
         autoInstallPlugin: Boolean = false,
+        testing: Boolean = false,
     ): Plan {
         // Before anything reads the folder or starts a runtime: a game folder
         // that is not there (a card that is not mounted, a folder moved or
@@ -74,7 +81,13 @@ object GameRunner {
         // as this launch's inline config. Nothing is written into the game
         // folder; only Game setup does that, when the person saves. Only a
         // folder that leaves a question open goes to the editor.
-        val hasFolderConfig = File(gameFolder, CONFIG_FILE_NAME).isFile
+        val testingJson = if (testing) {
+            TestingConfigStore.of(context).get(gameFolder)?.config?.toString()
+                ?: return Plan.Failure(context.getString(R.string.testing_config_gone))
+        } else {
+            null
+        }
+        val hasFolderConfig = testingJson != null || File(gameFolder, CONFIG_FILE_NAME).isFile
         val launchJson = if (hasFolderConfig) {
             inlineJson
         } else {
@@ -88,7 +101,7 @@ object GameRunner {
                 )
         }
         val config = try {
-            EngineConfigReader.resolve(gameFolder, launchJson)
+            EngineConfigReader.resolve(gameFolder, launchJson, testingJson)
         } catch (e: InvalidEngineConfigException) {
             return Plan.Failure(e.message ?: "Invalid $CONFIG_FILE_NAME")
         }
@@ -106,7 +119,7 @@ object GameRunner {
             config.runtimeRequirements, config.pluginVersionConstraint,
         )
         if (resolved == null) {
-            PendingPluginLaunchStore(context).save(gameFolder, inlineJson)
+            PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing = testing)
             return Plan.Detour(
                 Intent(context, PluginCatalogActivity::class.java).apply {
                     putExtra(PluginCatalogActivity.EXTRA_GAME_PATH, gameFolder.absolutePath)
@@ -116,7 +129,7 @@ object GameRunner {
             )
         }
         if (!PluginTrustStore(context).isApproved(resolved.plugin)) {
-            PendingPluginLaunchStore(context).save(gameFolder, inlineJson, resolved.plugin.bundleId)
+            PendingPluginLaunchStore(context).save(gameFolder, inlineJson, resolved.plugin.bundleId, testing)
             return Plan.Detour(
                 Intent(context, PluginTrustActivity::class.java)
                     .putExtra(PluginTrustActivity.EXTRA_BUNDLE, resolved.plugin.bundleId),
@@ -149,6 +162,7 @@ object GameRunner {
             config.execFile?.let { putExtra(RuntimeActivity.EXTRA_EXEC_FILE, it) }
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
             launchJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
+            testingJson?.let { putExtra(RuntimeActivity.EXTRA_TESTING_CONFIG, it) }
         }
         return Plan.Runtime(intent, config, resolved, saves.earlierSavesFor(config, gameFolder))
     }

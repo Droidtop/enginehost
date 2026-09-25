@@ -96,7 +96,11 @@ class LaunchActivity : EnginehostActivity() {
     /** Plan the launch and enter the runtime, or go where the plan says first. */
     private fun launch(waitedForRuntime: Boolean = false) {
         val inlineJson = intent.getStringExtra(EXTRA_CONFIG)
-        when (val plan = GameRunner.plan(this, gameFolder, inlineJson, intent.getBooleanExtra(EXTRA_AUTOINSTALL, false))) {
+        val plan = GameRunner.plan(
+            this, gameFolder, inlineJson, intent.getBooleanExtra(EXTRA_AUTOINSTALL, false),
+            intent.getBooleanExtra(EXTRA_TESTING, false),
+        )
+        when (plan) {
             is GameRunner.Plan.Detour -> {
                 plan.notice?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
                 startActivity(plan.intent)
@@ -368,6 +372,8 @@ class LaunchActivity : EnginehostActivity() {
         const val EXTRA_PATH = "path"
         const val EXTRA_CONFIG = "config"
         const val EXTRA_AUTOINSTALL = "autoinstallPlugin"
+        /** Game setup's Test: run the pending testing configuration. Not part of the LAUNCH contract. */
+        const val EXTRA_TESTING = "dev.enginehost.launch.TESTING"
 
         /**
          * The one way a game is started, from inside this app or from
@@ -385,13 +391,14 @@ class LaunchActivity : EnginehostActivity() {
          * does, as launching content from a frontend replaces what an
          * emulator was running.
          */
-        fun start(context: Context, gameFolder: File, inlineJson: String?, autoInstallPlugin: Boolean) {
+        fun start(context: Context, gameFolder: File, inlineJson: String?, autoInstallPlugin: Boolean, testing: Boolean = false) {
             val intent = Intent(context, LaunchActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             if (!RunningGame.isRunning(gameFolder)) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 intent.putExtra(EXTRA_PATH, gameFolder.absolutePath)
                 inlineJson?.let { intent.putExtra(EXTRA_CONFIG, it) }
                 if (autoInstallPlugin) intent.putExtra(EXTRA_AUTOINSTALL, true)
+                if (testing) intent.putExtra(EXTRA_TESTING, true)
             }
             context.startActivity(intent)
         }

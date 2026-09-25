@@ -104,7 +104,7 @@ class PluginTrustActivity : EnginehostActivity() {
                 trust.approve(plugin)
                 val pending = PendingPluginLaunchStore(this@PluginTrustActivity).consumeFor(plugin.bundleId)
                 if (pending != null) {
-                    GameRunner.run(this@PluginTrustActivity, java.io.File(pending.gamePath), pending.callerConfig)
+                    GameRunner.run(this@PluginTrustActivity, java.io.File(pending.gamePath), pending.callerConfig, testing = pending.testing)
                     finish()
                 } else {
                     render()

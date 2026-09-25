@@ -604,6 +604,9 @@ class ConfigEditorActivity : EnginehostActivity() {
             runCatching { mergeMissing(loadedDocument, JSONObject(callerConfig)) }
                 .onFailure { toast(getString(R.string.ignored_invalid_caller, it.message)) }
         }
+        // A pending testing configuration is what the person last ran, so
+        // the fields show it (the row above says so); Save keeps it.
+        TestingConfigStore.of(this).get(folder)?.let { loadedDocument = JSONObject(it.config.toString()) }
         populate(loadedDocument)
         detect(folder)
     }
@@ -727,6 +730,9 @@ class ConfigEditorActivity : EnginehostActivity() {
             val path = folderPath
             if (path != null) writeDocument(path)
             else writeDocument(folderUri ?: return report(R.string.could_not_save, getString(R.string.choose_folder_first)))
+            // Saved is the working config now; a pending test is settled by it.
+            currentFolder()?.let { TestingConfigStore.of(this).discard(it) }
+            showTestingRow()
             toast(getString(R.string.saved_config, CONFIG_FILE_NAME))
         } catch (error: Exception) {
             report(R.string.could_not_save, error.message ?: getString(R.string.config_needs_attention))
@@ -734,38 +740,50 @@ class ConfigEditorActivity : EnginehostActivity() {
     }
 
     /**
+     * Test runs the game with what is on screen as a TESTING configuration
+     * (see [TestingConfigStore]): stored in Enginehost's own storage, never
+     * in the game folder, so a test that does not work cannot replace a
+     * working enginehost.json (the user, 2026-09-25). Afterwards Keep makes
+     * it the folder's config and Discard rolls back; a new Test replaces it.
+     *
      * Test always ends somewhere the person can see: the launch screen,
      * which says how the start went, or a sheet saying why it did not
-     * begin. It used to answer a setup gap with a toast, which the rig
-     * missed entirely ("Test does nothing, no message", dq-coordinator-23
-     * F15); a sheet stays until it is dismissed.
+     * begin (a toast was missed entirely on the rig, dq-coordinator-23 F15).
      */
     private fun testRun() {
-        folderPath?.let { folder ->
-            try {
-                writeDocument(folder)
-                GameRunner.run(this, folder)
-            } catch (error: Exception) {
-                report(R.string.test_not_started, error.message ?: getString(R.string.config_not_ready))
+        val folder = folderPath ?: run {
+            val uri = folderUri ?: return report(R.string.test_not_started, getString(R.string.choose_folder_first))
+            if (!StorageFolder.hasNativePathAccess()) {
+                StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
+                return toast(getString(R.string.grant_native_then_test))
             }
-            return
+            StorageFolder.absolutePath(uri)
+                ?: return report(R.string.test_not_started, getString(R.string.provider_needs_primary))
         }
-        val uri = folderUri ?: return report(R.string.test_not_started, getString(R.string.choose_folder_first))
-        if (!StorageFolder.hasNativePathAccess()) {
-            StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
-            return toast(getString(R.string.grant_native_then_test))
-        }
-        val folder = StorageFolder.absolutePath(uri)
-            ?: return report(R.string.test_not_started, getString(R.string.provider_needs_primary))
         try {
-            // The folder file is the highest-priority configuration source.
-            // Persist the visible editor state first so the test cannot launch
-            // with a stale on-disk document overriding it.
-            writeDocument(uri)
-            GameRunner.run(this, folder)
+            TestingConfigStore.of(this).set(folder, buildDocument())
+            GameRunner.run(this, folder, testing = true)
         } catch (error: Exception) {
             report(R.string.test_not_started, error.message ?: getString(R.string.config_not_ready))
         }
+    }
+
+    /** The game folder as a path, however it was chosen, or null when the provider has none. */
+    private fun currentFolder(): File? = folderPath ?: folderUri?.let { StorageFolder.absolutePath(it) }
+
+    /** Game setup's own answer to a pending testing configuration: the row, and the fields show it. */
+    private fun showTestingRow() {
+        val folder = currentFolder() ?: return
+        TestingConfigRow.show(this, detectionLabel, folder) {
+            // Kept or discarded: the folder's config is the working one again.
+            folderPath?.let { openCallerPath(it.absolutePath) } ?: folderUri?.let { load(it) }
+            showTestingRow()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::detectionLabel.isInitialized) showTestingRow()
     }
 
     /** A result that must be read: a sheet, which stays until it is dismissed. */
@@ -793,9 +811,7 @@ class ConfigEditorActivity : EnginehostActivity() {
 
     private fun writeDocument(folder: File): JSONObject {
         val document = buildDocument()
-        val configFile = File(folder, CONFIG_FILE_NAME)
-        require(!configFile.exists() || configFile.isFile) { "$CONFIG_FILE_NAME is not a file" }
-        configFile.writeText(document.toString(2) + "\n")
+        FolderConfigFile.write(folder, document)
         loadedDocument = document
         return document
     }
