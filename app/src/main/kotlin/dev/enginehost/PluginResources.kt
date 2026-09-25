@@ -1,10 +1,13 @@
 package dev.enginehost
 
+import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.content.res.Resources
 import android.content.res.loader.ResourcesLoader
 import android.content.res.loader.ResourcesProvider
 import android.os.Build
+import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -27,6 +30,19 @@ import java.util.zip.ZipFile
  * rediscover the same hole and patch around it on its own side. Attaching
  * to both is what makes the bundle's resources reachable from anywhere a
  * plugin can reasonably ask.
+ *
+ * Neither of those is the Resources of an Activity created afterwards, and
+ * a bundle that carries its own Activity is instantiated before that
+ * Activity has a Context: its Resources, and the AssetManager an engine
+ * reads its bundled assets through (KiriKiri's locale/en_us.xml, through
+ * the Activity's getAssets()), are built later, from the package's own
+ * paths. So the APKs are also made part of every Resources this process
+ * creates from now on: from API 30 a lifecycle callback adds the loader to
+ * each Activity before its onCreate runs; below 30 the APK joins the
+ * application's shared-library paths, which Android reads each time it
+ * builds a Resources (WebView attaches its own APK the same way). Without
+ * that, API 26-29 found none of a bundled Activity's assets (rig, Android
+ * 9: "locale/en_us.xml not found").
  */
 object PluginResources {
     /**
@@ -37,6 +53,7 @@ object PluginResources {
     fun attach(context: Context, apks: List<File>): List<AutoCloseable> {
         val targets = attachTargets(context)
         val handles = mutableListOf<AutoCloseable>()
+        val loaders = mutableListOf<ResourcesLoader>()
         apks.forEach { apk ->
             require(apk.isFile) { "A signed plugin resource APK is missing" }
             ResourceTable.requireDistinctPackageId(apk)
@@ -49,9 +66,11 @@ object PluginResources {
                 // of it.
                 val loader = ResourcesLoader().apply { addProvider(provider) }
                 targets.forEach { it.addLoaders(loader) }
+                loaders += loader
                 handles += provider
                 handles += descriptor
             } else {
+                joinSharedLibraries(context, apk)
                 targets.forEach { resources ->
                     val method = resources.assets.javaClass.getMethod("addAssetPath", String::class.java)
                     require((method.invoke(resources.assets, apk.absolutePath) as Int) != 0) {
@@ -62,7 +81,47 @@ object PluginResources {
                 }
             }
         }
+        if (loaders.isNotEmpty()) handles += attachToLaterActivities(context, loaders)
         return handles
+    }
+
+    /**
+     * API 30 and up: every Activity created in this process from now on gets
+     * the loaders on its own Resources before its onCreate runs. The handle
+     * stops that when the resources are released.
+     */
+    private fun attachToLaterActivities(context: Context, loaders: List<ResourcesLoader>): AutoCloseable {
+        val application = context.applicationContext as Application
+        val callbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityPreCreated(activity: Activity, savedInstanceState: Bundle?) {
+                val resources = activity.resources
+                val missing = loaders.filterNot { it in resources.loaders }
+                if (missing.isNotEmpty()) resources.addLoaders(*missing.toTypedArray())
+            }
+
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityResumed(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        }
+        application.registerActivityLifecycleCallbacks(callbacks)
+        return AutoCloseable { application.unregisterActivityLifecycleCallbacks(callbacks) }
+    }
+
+    /**
+     * Below API 30: the application's shared-library paths are read from
+     * this very ApplicationInfo (the process's LoadedApk does not copy it)
+     * whenever Android builds a Resources, an Activity's included, so an APK
+     * listed there is in every AssetManager made from now on.
+     */
+    private fun joinSharedLibraries(context: Context, apk: File) {
+        val info = context.applicationInfo
+        val path = apk.absolutePath
+        val libraries = info.sharedLibraryFiles.orEmpty()
+        if (path !in libraries) info.sharedLibraryFiles = libraries + path
     }
 
     /** Every distinct Resources object a plugin can reasonably resolve from. */
