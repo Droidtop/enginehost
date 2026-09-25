@@ -82,6 +82,9 @@ object CrashWatch {
     fun pending(context: Context): Boolean {
         val note = runCatching { JSONObject(file(context).readText()) }.getOrNull() ?: return false
         if (note.optBoolean("ended")) return false
+        // Our handler has written the trace: the crash is known, whatever
+        // Android does with the process afterwards.
+        if (note.optString("trace").isNotBlank()) return false
         val pid = note.optInt("pid")
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         if (manager.runningAppProcesses?.any { it.pid == pid } == true) return true
@@ -101,7 +104,15 @@ object CrashWatch {
             return null
         }
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        if (manager.runningAppProcesses?.any { it.pid == pid } == true) return null
+        if (manager.runningAppProcesses?.any { it.pid == pid } == true) {
+            // Alive after a Java crash is Android holding it for a crash
+            // dialog (see RuntimeProcess); the crash is on record, so the
+            // process is ended and the crash reported now.
+            if (trace.isBlank()) return null
+            Process.killProcess(pid)
+            f.delete()
+            return Crash(gameFolder, plugin, "Uncaught exception", trace)
+        }
         f.delete()
 
         val fromHandler = trace.takeIf { it.isNotBlank() }?.let { Crash(gameFolder, plugin, "Uncaught exception", it) }

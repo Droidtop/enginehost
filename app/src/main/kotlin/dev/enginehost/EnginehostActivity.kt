@@ -111,6 +111,28 @@ abstract class EnginehostActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Whether this screen tells the person about a game that crashed while it
+     * was away. The launch screen normally does that itself, but Android
+     * finishes the launch screen too when the game crashes before it draws
+     * (it finishes every not-yet-stopped activity under a crashed one), and
+     * the person then lands here with nothing said (rig, dq-ehfix-02).
+     */
+    protected open val reportsRuntimeCrashes = true
+
+    override fun onResume() {
+        super.onResume()
+        if (!reportsRuntimeCrashes) return
+        val crash = CrashWatch.consume(this) ?: return
+        Sheet(this)
+            .title(getString(R.string.game_stopped_title, crash.gameFolder.name))
+            .message(getString(R.string.launch_crashed, crash.reason))
+            .choice(R.string.action_report) {
+                startActivity(ProblemReportActivity.intent(this, crash.gameFolder, crash))
+            }
+            .show()
+    }
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (!hasFocus) return

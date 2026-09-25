@@ -323,6 +323,7 @@
     <string name="launch_runtime_line">%1$s · runtime %2$s</string>
     <string name="launch_runtime_died">The %1$s runtime stopped before it drew anything.</string>
     <string name="launch_crashed">Stopped unexpectedly: %1$s.</string>
+    <string name="game_stopped_title">%1$s stopped</string>
     <string name="launch_retry">Try again</string>
 
     <!-- Reporting a game that will not behave -->

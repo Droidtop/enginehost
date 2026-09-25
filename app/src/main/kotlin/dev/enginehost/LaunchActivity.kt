@@ -1,12 +1,10 @@
 package dev.enginehost
 
-import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.Process
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -123,7 +121,7 @@ class LaunchActivity : EnginehostActivity() {
                 // would land inside it, and the plugin's engine cannot be
                 // loaded twice in one process: the person got the linker's
                 // refusal as a "plugin startup failed" (rig, 2026-09-18).
-                if (!waitedForRuntime && runtimeAlive()) {
+                if (!waitedForRuntime && RuntimeProcess.alive(this)) {
                     launchWhenRuntimeGone()
                     return
                 }
@@ -263,10 +261,7 @@ class LaunchActivity : EnginehostActivity() {
     private fun cancel() {
         if (runtimeStarted) {
             finishActivity(REQUEST_RUNTIME)
-            val runtimeProcess = "$packageName:runtime"
-            getSystemService(ActivityManager::class.java)?.runningAppProcesses
-                ?.filter { it.processName == runtimeProcess }
-                ?.forEach { Process.killProcess(it.pid) }
+            RuntimeProcess.kill(this)
         }
         finish()
     }
@@ -339,7 +334,10 @@ class LaunchActivity : EnginehostActivity() {
      * exactly as a first launch does.
      */
     private fun launchWhenRuntimeGone(attempt: Int = 0) {
-        val alive = runtimeAlive()
+        // The game it ran is over either way (see RuntimeProcess): ended at
+        // once, so a runtime held by a crash cannot swallow this launch.
+        if (attempt == 0) RuntimeProcess.kill(this)
+        val alive = RuntimeProcess.alive(this)
         if (alive && attempt < EXIT_RECORD_MAX_ATTEMPTS) {
             handler.postDelayed({ if (!isDestroyed && !isFinishing) launchWhenRuntimeGone(attempt + 1) }, EXIT_RECORD_DELAY_MS)
             return
@@ -348,10 +346,8 @@ class LaunchActivity : EnginehostActivity() {
         launch(waitedForRuntime = true)
     }
 
-    private fun runtimeAlive(): Boolean {
-        val manager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
-        return manager.runningAppProcesses.orEmpty().any { it.processName == "$packageName:runtime" }
-    }
+    /** This screen classifies its own runtime's exit (see onActivityResult). */
+    override val reportsRuntimeCrashes = false
 
     override fun onDestroy() {
         // Not set when onCreate found no path and finished at once.
