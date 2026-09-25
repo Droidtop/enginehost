@@ -671,6 +671,13 @@ class ConfigEditorActivity : EnginehostActivity() {
             findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
             return
         }
+        if (!detection.hosted) {
+            // Nothing to prefill: no engine here runs it, and the editor says
+            // why instead of offering fields that could not make it start.
+            detectionLabel.text = UnhostedEngine.explain(this, detection)
+            findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.GONE
+            return
+        }
         findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.GONE
         if (engine == null) engine = detection.engine
         if (engineContext == null) detection.engineContext?.let { engineContext = it }

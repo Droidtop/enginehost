@@ -88,17 +88,24 @@ object GameRunner {
             null
         }
         val hasFolderConfig = testingJson != null || File(gameFolder, CONFIG_FILE_NAME).isFile
+        // An engine nothing here runs (Unity above all) is said plainly,
+        // with why, rather than sent to Game setup to be asked questions
+        // no answer to which could make it start.
         val launchJson = if (hasFolderConfig) {
             inlineJson
         } else {
-            DetectedConfig.forLaunch(context, gameFolder, inlineJson)
-                ?: return Plan.Detour(
+            when (val detected = DetectedConfig.forLaunch(context, gameFolder, inlineJson)) {
+                is DetectedConfig.Launch.Document -> detected.json
+                is DetectedConfig.Launch.Unhosted ->
+                    return Plan.Failure(UnhostedEngine.explain(context, detected.detection))
+                DetectedConfig.Launch.Open -> return Plan.Detour(
                     Intent(context, ConfigEditorActivity::class.java).apply {
                         putExtra(ConfigEditorActivity.EXTRA_PATH, gameFolder.absolutePath)
                         inlineJson?.let { putExtra(ConfigEditorActivity.EXTRA_CONFIG, it) }
                     },
                     notice = R.string.launch_needs_config,
                 )
+            }
         }
         val config = try {
             EngineConfigReader.resolve(gameFolder, launchJson, testingJson)

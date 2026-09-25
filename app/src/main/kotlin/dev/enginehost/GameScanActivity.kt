@@ -165,11 +165,15 @@ class GameScanActivity : EnginehostActivity() {
     private fun bindResultRow(card: View, candidate: GameCandidate) {
         val detection = candidate.detection
         card.findViewById<TextView>(R.id.scanResultTitle).text = candidate.folder.name
-        card.findViewById<TextView>(R.id.scanResultDetection).text = buildString {
-            append(detection.engine)
-            detection.engineContext?.let { append(' ').append(it) }
-            detection.engineVersion?.let { append(' ').append(it) }
-            append(" · ").append(detection.evidence)
+        card.findViewById<TextView>(R.id.scanResultDetection).text = if (detection.hosted) {
+            buildString {
+                append(detection.engine)
+                detection.engineContext?.let { append(' ').append(it) }
+                detection.engineVersion?.let { append(' ').append(it) }
+                append(" · ").append(detection.evidence)
+            }
+        } else {
+            UnhostedEngine.explain(this, detection)
         }
         card.findViewById<TextView>(R.id.scanResultPath).text = candidate.folder.absolutePath
         val note = card.findViewById<TextView>(R.id.scanResultNote)

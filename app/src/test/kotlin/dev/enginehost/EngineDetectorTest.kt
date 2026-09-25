@@ -1,9 +1,12 @@
 package dev.enginehost
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Classification comes from the SHIPPED engines-database seed — the
@@ -265,16 +268,165 @@ class EngineDetectorTest {
         assertEquals("4.4.1", detection.engineVersion)
     }
 
+    /** The smallest PE image [PeImage] accepts: DOS header, COFF header with [machine], a PE32+ magic, one section. */
+    private fun pe(machine: Int, tail: ByteArray = ByteArray(0)): ByteArray {
+        val image = ByteBuffer.allocate(0x58 + 2 + 40).order(ByteOrder.LITTLE_ENDIAN)
+        image.put(0, 'M'.code.toByte()).put(1, 'Z'.code.toByte())
+        image.putInt(0x3C, 0x40)
+        image.putInt(0x40, 0x4550)
+        image.putShort(0x44, machine.toShort())
+        image.putShort(0x46, 1)
+        image.putShort(0x54, 2)
+        image.putShort(0x58, 0x20b)
+        return image.array() + tail
+    }
+
+    private fun unityGame(root: File, backend: String, machine: Int) {
+        File(root, "MyGame_Data").mkdirs()
+        if (backend == "il2cpp") {
+            File(root, "MyGame_Data/il2cpp_data/Metadata").mkdirs()
+            File(root, "MyGame_Data/il2cpp_data/Metadata/global-metadata.dat").writeBytes(byteArrayOf(1))
+            File(root, "GameAssembly.dll").writeBytes(pe(machine))
+        } else {
+            File(root, "MyGame_Data/Managed").mkdirs()
+            File(root, "MyGame_Data/Managed/Assembly-CSharp.dll").writeBytes(byteArrayOf(1))
+        }
+        // A serialized file's header: sizes and offsets, then the Unity version as a C string.
+        File(root, "MyGame_Data/globalgamemanagers").writeBytes(ByteArray(20) + "2021.3.16f1".toByteArray() + ByteArray(1))
+        File(root, "UnityPlayer.dll").writeBytes(pe(machine))
+    }
+
     @Test
-    fun `unity is recognized but flagged as unhosted, with its scripting backend`() {
+    fun `an IL2CPP unity game is recognised as unhosted with its version and machine`() {
         val root = tempRoot()
-        File(root, "MyGame_Data/il2cpp_data").mkdirs()
-        File(root, "MyGame_Data/il2cpp_data/meta.dat").writeBytes(byteArrayOf(1))
-        File(root, "UnityPlayer.dll").writeBytes(byteArrayOf(0x4d, 0x5a))
+        unityGame(root, "il2cpp", 0x8664)
 
         val detection = detect(root)!!
         assertEquals("unity", detection.engine)
         assertEquals("il2cpp", detection.engineContext)
+        assertEquals("2021.3.16f1", detection.engineVersion)
+        assertEquals("x86_64", detection.architecture)
+        assertFalse(detection.hosted)
+    }
+
+    @Test
+    fun `a mono unity game on a 32-bit player says so`() {
+        val root = tempRoot()
+        unityGame(root, "mono", 0x014c)
+
+        val detection = detect(root)!!
+        assertEquals("mono", detection.engineContext)
+        assertEquals("x86", detection.architecture)
+    }
+
+    /** An AGS main game data file: its signature, data format 60 (3.6), and the compiling editor's version. */
+    private fun agsGameData(version: String): ByteArray {
+        val fields = ByteBuffer.allocate(8 + version.length).order(ByteOrder.LITTLE_ENDIAN)
+        fields.putInt(60).putInt(version.length).put(version.toByteArray(Charsets.US_ASCII))
+        return "Adventure Creator Game File v2".toByteArray(Charsets.US_ASCII) + fields.array()
+    }
+
+    @Test
+    fun `an ags data file names the editor that compiled it`() {
+        val root = tempRoot()
+        File(root, "acsetup.cfg").writeText("[misc]\n")
+        File(root, "game.ags").writeBytes("CLIB\u001a".toByteArray(Charsets.US_ASCII) + ByteArray(64) + agsGameData("3.6.1.14"))
+
+        val detection = detect(root)!!
+        assertEquals("ags", detection.engine)
+        assertEquals("3.6.1.14", detection.engineVersion)
+        assertEquals("game.ags", detection.execFile)
+    }
+
+    @Test
+    fun `an older ags game carries its data inside the exe, found from the tail`() {
+        val root = tempRoot()
+        File(root, "acsetup.cfg").writeText("[misc]\n")
+        File(root, "winsetup.exe").writeBytes(pe(0x014c))
+        val engine = pe(0x014c, ByteArray(200))
+        val library = "CLIB\u001a".toByteArray(Charsets.US_ASCII) + ByteArray(32) + agsGameData("3.2.1")
+        val offset = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(engine.size.toLong()).array()
+        File(root, "Adventure.exe").writeBytes(
+            engine + library + offset + "CLIB\u0001\u0002\u0003\u0004SIGE".toByteArray(Charsets.US_ASCII),
+        )
+
+        val detection = detect(root)!!
+        assertEquals("ags", detection.engine)
+        assertEquals("3.2.1", detection.engineVersion)
+        assertEquals("Adventure.exe", detection.execFile)
+    }
+
+    @Test
+    fun `an unpacked love game states its version in conf lua`() {
+        val root = tempRoot()
+        File(root, "main.lua").writeText("function love.draw() end\n")
+        File(root, "conf.lua").writeText("function love.conf(t)\n    t.identity = \"mygame\"\n    t.version = \"11.4\"\nend\n")
+
+        val detection = detect(root)!!
+        assertEquals("love2d", detection.engine)
+        assertEquals("11.4", detection.engineVersion)
+        assertNull(detection.execFile)
+    }
+
+    @Test
+    fun `a fused love game is read from the zip appended to its exe`() {
+        val root = tempRoot()
+        val zip = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(zip).use { out ->
+            out.putNextEntry(java.util.zip.ZipEntry("main.lua"))
+            out.write("function love.draw() end\n".toByteArray())
+            out.closeEntry()
+            out.putNextEntry(java.util.zip.ZipEntry("conf.lua"))
+            out.write("function love.conf(c)\n  c.window.title = \"x\"\n  c.version = \"11.5\"\nend\n".toByteArray())
+            out.closeEntry()
+        }
+        File(root, "love.dll").writeBytes(pe(0x8664))
+        File(root, "lua51.dll").writeBytes(pe(0x8664))
+        File(root, "MyGame.exe").writeBytes(pe(0x8664, ByteArray(300)) + zip.toByteArray())
+
+        val detection = detect(root)!!
+        assertEquals("love2d", detection.engine)
+        assertEquals("11.5", detection.engineVersion)
+        assertEquals("MyGame.exe", detection.execFile)
+    }
+
+    @Test
+    fun `a gamemaker data file carries its bytecode version`() {
+        val root = tempRoot()
+        val data = ByteBuffer.allocate(96).order(ByteOrder.LITTLE_ENDIAN)
+        data.put("FORM".toByteArray(Charsets.US_ASCII)).putInt(88)
+        data.put("GEN8".toByteArray(Charsets.US_ASCII)).putInt(80)
+        data.put(16 + 1, 17)
+        data.putInt(16 + 44, 2)
+        File(root, "data.win").writeBytes(data.array())
+
+        val detection = detect(root)!!
+        assertEquals("gamemaker", detection.engine)
+        assertEquals("2.0.0.0", detection.engineVersion)
+        assertEquals("data.win: GameMaker bytecode 17, IDE 2.0.0.0", detection.evidence)
+        assertFalse(detection.hosted)
+    }
+
+    @Test
+    fun `a compiled-only renpy build states its version in script_version`() {
+        val root = tempRoot()
+        File(root, "game").mkdirs()
+        File(root, "game/archive.rpa").writeBytes(byteArrayOf(1))
+        File(root, "game/script_version.txt").writeText("(7, 4, 11)")
+
+        val detection = detect(root)!!
+        assertEquals("renpy", detection.engine)
+        assertEquals("7.4.11", detection.engineVersion)
+    }
+
+    @Test
+    fun `a godot 3 project file names its major line`() {
+        val root = tempRoot()
+        File(root, "project.godot").writeText("config_version=4\n\n[application]\nconfig/name=\"x\"\n")
+
+        val detection = detect(root)!!
+        assertEquals("godot", detection.engine)
+        assertEquals("3", detection.engineVersion)
     }
 
     @Test

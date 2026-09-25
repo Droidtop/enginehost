@@ -22,21 +22,41 @@ import org.json.JSONObject
 object DetectedConfig {
     private const val TAG = "enginehost"
 
+    /** What a folder with no config of its own amounts to at launch. */
+    sealed class Launch {
+        /** The config the launch runs on, as an inline document. */
+        class Document(val json: String) : Launch()
+
+        /** An engine Enginehost recognised and has nothing to run with; Play says so ([UnhostedEngine]). */
+        class Unhosted(val detection: EngineDetection) : Launch()
+
+        /** Detection left a required field open; the launch goes to Game setup. */
+        object Open : Launch()
+    }
+
     /**
      * The config a launch of [gameFolder] runs on when the folder has no
      * config of its own: the detected document, with the caller's
      * [inlineJson] filling what it leaves open (the same precedence a folder
-     * config has over an inline one). Null when detection leaves a required
-     * field open; the launch then goes to Game setup.
+     * config has over an inline one). A caller that names the engine itself
+     * is believed over an unhosted detection, as it is over any other.
      */
-    fun forLaunch(context: Context, gameFolder: File, inlineJson: String?): String? {
+    fun forLaunch(context: Context, gameFolder: File, inlineJson: String?): Launch {
         val detection = runCatching { EngineDetector.detect(EngineRegistryStore.rows(context), gameFolder) }
             .onFailure { Log.w(TAG, "Detection failed for ${gameFolder.name}", it) }
-            .getOrNull() ?: return null
-        return launchDocument(detection, gameFolder.name, inlineJson)
+            .getOrNull() ?: return Launch.Open
+        return launchFor(detection, gameFolder.name, inlineJson)
     }
 
     /** [forLaunch] after detection; split out so it is testable without a Context. */
+    internal fun launchFor(detection: EngineDetection, folderName: String, inlineJson: String?): Launch {
+        val callerNamesEngine = inlineJson?.let { runCatching { JSONObject(it) }.getOrNull() }
+            ?.optString("engine")?.isNotBlank() == true
+        if (!detection.hosted && !callerNamesEngine) return Launch.Unhosted(detection)
+        return launchDocument(detection, folderName, inlineJson)?.let(Launch::Document) ?: Launch.Open
+    }
+
+    /** The launch document for [detection], or null when a required field is still open. */
     internal fun launchDocument(detection: EngineDetection, folderName: String, inlineJson: String?): String? {
         val document = documentFor(detection, folderName, inlineJson) ?: return null
         val inline = inlineJson?.let { runCatching { JSONObject(it) }.getOrNull() }

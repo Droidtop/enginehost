@@ -15,6 +15,14 @@ data class EngineDetection(
     val title: String? = null,
     /** The name the engine itself would store this game's saves under, when it has one. */
     val saveFolder: String? = null,
+    /** The machine the game's native player is built for (x86_64, x86, arm64), when that is what decides whether it can run. */
+    val architecture: String? = null,
+    /**
+     * False when the registry recognised the engine but maps it to no
+     * Enginehost family: nothing here runs it, and Play says why
+     * ([UnhostedEngine]) instead of asking for setup.
+     */
+    val hosted: Boolean = true,
 )
 
 /**
@@ -35,8 +43,14 @@ data class EngineDetection(
  * requirement prefills — stays code here, keyed on the row the registry
  * classified (the per-format parsing below: the `Game.ini` RGSS line,
  * `RPGMAKER_VERSION`, Ren'Py's `vc_version.py`/`version_tuple`, GDPC
- * pack headers, Twine's creator-version, SWF headers). Enrichment runs
- * strictly after classification and can never change it.
+ * pack headers, Twine's creator-version, SWF headers, and the binary
+ * formats in EngineFormats.kt: Unity's player and data, AGS game data,
+ * LOVE's conf.lua, GameMaker's GEN8). Enrichment runs strictly after
+ * classification and can never change it.
+ *
+ * The version read is the engine RUNTIME's, never the game's own release
+ * number: it is what decides which plugin line runs a game, and what
+ * measures whether the shipped lines cover a library.
  */
 object EngineDetector {
     private const val TEXT_READ_WINDOW = 256 * 1024
@@ -71,8 +85,10 @@ object EngineDetector {
     // ---- Enrichment ------------------------------------------------------
 
     private fun enrich(row: EngineRow, tree: GameTree): EngineDetection {
-        val family = row.family ?: return unmapped(row, tree)
+        val family = row.family ?: return unhosted(row, tree)
         return when {
+            family == "ags" -> ags(family, row, tree)
+            family == "love2d" -> love(family, row, tree)
             family == "rpgmaker" && (row.context == "xp" || row.context == "vx" || row.context == "vxace") -> rgss(row, tree)
             family == "rpgmaker" && (row.context == "mv" || row.context == "mz") -> mvmz(row, tree)
             family == "rpgmaker" && row.id == "rpgmaker-2000-2003" -> rpg2000Or2003(tree)
@@ -103,18 +119,76 @@ object EngineDetector {
         }
     }
 
-    /** A row with no enginehost mapping (unity/unreal): informational only, so the scanner and editor can still say what they saw. */
-    private fun unmapped(row: EngineRow, tree: GameTree): EngineDetection {
-        if (row.id == "unity") {
-            val paths = tree.filePaths.map { it.lowercase() }
-            val context = when {
-                paths.any { it.substringAfterLast('/') == "gameassembly.dll" } || paths.any { it.contains("il2cpp_data/") } -> "il2cpp"
-                paths.any { it.contains("_data/managed/") } -> "mono"
-                else -> null
-            }
-            return EngineDetection("unity", context, evidence = "Found a Unity player; no Enginehost plugin runs Unity yet")
-        }
-        return EngineDetection(row.id, evidence = "Recognized ${row.id}; no Enginehost plugin runs it")
+    /**
+     * A row with no enginehost mapping (unity, unreal, the detection-only
+     * rows): nothing here runs it, but the scanner, the editor and Play can
+     * still say what it is, which runtime version made it, and for Unity
+     * why it cannot run ([UnhostedEngine]). A family that has a reader here
+     * but no published plugin yet (AGS, LOVE) is read the same way either side.
+     */
+    private fun unhosted(row: EngineRow, tree: GameTree): EngineDetection = when (row.id) {
+        "unity" -> unity(tree)
+        "ags" -> ags(row.id, row, tree)
+        "love2d" -> love(row.id, row, tree)
+        "gamemaker" -> gameMaker(tree)
+        else -> EngineDetection(row.id, evidence = "Recognized ${row.id}; no Enginehost plugin runs it")
+    }.copy(hosted = false)
+
+    /** Scripting backend as the context, the player's architecture, and the Unity version from its data. */
+    private fun unity(tree: GameTree): EngineDetection {
+        val build = UnityBuild.read(tree)
+        return EngineDetection(
+            "unity",
+            build.scripting,
+            build.version,
+            evidence = listOfNotNull(
+                "Found a Unity player",
+                build.scripting?.let { if (it == "il2cpp") "IL2CPP" else "Mono" },
+                build.architecture,
+            ).joinToString(", "),
+            architecture = build.architecture,
+        )
+    }
+
+    /** The main game data (a .ags, or the .exe carrying it) and the editor version that compiled it. */
+    private fun ags(engine: String, row: EngineRow, tree: GameTree): EngineDetection {
+        val data = AgsGameData.find(tree)
+        return EngineDetection(
+            engine,
+            row.context,
+            data?.compiledWith,
+            data?.let { tree.pathPrefix + it.path },
+            when {
+                data?.compiledWith != null -> "Game data compiled with AGS ${data.compiledWith}"
+                data != null -> "Found AGS game data"
+                else -> "Found AGS game files"
+            },
+            row.extras,
+        )
+    }
+
+    /** The game's .love or fused executable (none for an unpacked folder) and the LOVE version its conf.lua names. */
+    private fun love(engine: String, row: EngineRow, tree: GameTree): EngineDetection {
+        val game = LoveGame.find(tree)
+        return EngineDetection(
+            engine,
+            row.context,
+            game.version,
+            game.execFile?.let { tree.pathPrefix + it },
+            if (game.version != null) "conf.lua asks for LOVE ${game.version}" else "Found a LOVE game",
+            row.extras,
+        )
+    }
+
+    private fun gameMaker(tree: GameTree): EngineDetection {
+        val data = GameMakerData.read(tree)
+            ?: return EngineDetection("gamemaker", evidence = "Found a GameMaker runner's data file")
+        return EngineDetection(
+            "gamemaker",
+            engineVersion = data.ideVersion,
+            execFile = tree.pathPrefix + data.path,
+            evidence = "${data.path}: GameMaker bytecode ${data.bytecode}, IDE ${data.ideVersion}",
+        )
     }
 
     private fun text(tree: GameTree, path: String): String =
@@ -236,13 +310,27 @@ object EngineDetector {
                 Regex("version_tuple\\s*=\\s*\\((\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)")
                     .find(text(tree, it))?.groupValues?.drop(1)?.joinToString(".")
             }
+            // A build without the runtime (compiled scripts only) still has
+            // game/script_version.txt, which the launcher writes at build
+            // time as the version tuple, "(7, 4, 11)". It is only a fallback:
+            // a project first built on an older SDK can keep an older stamp
+            // than the runtime it ships, so the runtime's own files win.
+            ?: findSuffix(tree, "game/script_version.txt")?.let {
+                Regex("^\\s*\\(?\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)")
+                    .find(text(tree, it))?.groupValues?.drop(1)?.joinToString(".")
+            }
         val evidence = if ("renpy" in tree.dirPaths) "Found the bundled Ren'Py runtime" else "Found compiled Ren'Py game files"
         return EngineDetection("renpy", row.context, version, evidence = evidence, runtimeRequirements = row.extras)
     }
 
     private fun godot(row: EngineRow, tree: GameTree): EngineDetection {
         rootFile(tree, "project.godot")?.let { project ->
-            val version = Regex("(?m)^config/features=.*?[\"'](\\d+(?:\\.\\d+)+)").find(text(tree, project))?.groupValues?.get(1)
+            val settings = text(tree, project)
+            // Godot 4 names its minor line in config/features; Godot 3 has
+            // no such entry, and its project file format (config_version=4,
+            // 5 from Godot 4 on) is what says the major line.
+            val version = Regex("(?m)^config/features=.*?[\"'](\\d+(?:\\.\\d+)+)").find(settings)?.groupValues?.get(1)
+                ?: Regex("(?m)^config_version=(\\d+)").find(settings)?.groupValues?.get(1)?.let { if (it == "4") "3" else null }
             return EngineDetection("godot", row.context, version, tree.pathPrefix + project, "Found a Godot project")
         }
         // A .pck sits beside the export; a self-contained export carries

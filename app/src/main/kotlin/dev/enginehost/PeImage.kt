@@ -13,6 +13,8 @@ package dev.enginehost
 class PeImage private constructor(
     /** File offset of the four-byte PE signature. */
     val signatureOffset: Long,
+    /** The COFF header's Machine field: 0x8664 x86_64, 0x14c x86, 0xAA64 arm64. */
+    val machine: Int,
     /** The optional header, PE32 (magic 0x10b) or PE32+ (0x20b), in full. */
     val optionalHeader: ByteArray,
     val sections: List<Section>,
@@ -74,7 +76,7 @@ class PeImage private constructor(
                     rawPointer = table.u32(at + 20),
                 )
             }
-            return PeImage(peOffset, optional, sections)
+            return PeImage(peOffset, coff.u16(4), optional, sections)
         }
     }
 }

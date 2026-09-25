@@ -3,6 +3,7 @@ package dev.enginehost
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DetectedConfigTest {
@@ -58,5 +59,19 @@ class DetectedConfigTest {
     fun `a folder that leaves a required field open has no launch document`() {
         val unversioned = detection.copy(engineVersion = null)
         assertEquals(null, DetectedConfig.launchDocument(unversioned, "Folder", null))
+    }
+
+    @Test
+    fun `an engine nothing here runs is said, not sent to setup`() {
+        val unity = EngineDetection("unity", "il2cpp", "2021.3.16f1", evidence = "test", architecture = "x86_64", hosted = false)
+        val launch = DetectedConfig.launchFor(unity, "Folder", null)
+        assertTrue(launch is DetectedConfig.Launch.Unhosted)
+    }
+
+    @Test
+    fun `a caller that names the engine is believed over an unhosted detection`() {
+        val unity = EngineDetection("unity", evidence = "test", hosted = false)
+        val inline = JSONObject().put("engine", "rpgmaker").put("engineContext", "vxace").put("engineVersion", "1.0")
+        assertFalse(DetectedConfig.launchFor(unity, "Folder", inline.toString()) is DetectedConfig.Launch.Unhosted)
     }
 }

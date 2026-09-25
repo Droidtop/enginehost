@@ -40,6 +40,15 @@
     <string name="action_edit_config">Game setup</string>
     <string name="action_remove">Remove from list</string>
     <string name="launch_needs_config">A few details could not be read from the game. Check them, then save or test.</string>
+    <string name="unhosted_engine">This is a %1$s game. No Enginehost plugin runs %1$s games, so it cannot be started here.</string>
+    <string name="unhosted_unity">This is a Unity game%1$s. Enginehost cannot run it: Unity\'s engine is closed source, and no Unity runtime exists for Android to run the game with.</string>
+    <string name="unhosted_unity_il2cpp">This is a Unity game%1$s, built with IL2CPP for %2$s. Enginehost cannot run it: IL2CPP turned the game\'s scripts into machine code for that processor, and Unity\'s engine is closed source, so there is nothing an Android runtime could load in its place.</string>
+    <string name="unhosted_unity_mono">This is a Unity game%1$s with Mono scripts, built for %2$s. Enginehost cannot run it: the scripts themselves are portable .NET, but they need Unity\'s own engine, which is closed source and comes with the game only as that PC player. No Unity runtime exists for Android to run them with.</string>
+    <string name="unhosted_unity_version">" (Unity %1$s)"</string>
+    <string name="unhosted_machine_x86_64">64-bit PCs (x86_64)</string>
+    <string name="unhosted_machine_x86">32-bit PCs (x86)</string>
+    <string name="unhosted_machine_arm64">ARM64 PCs</string>
+    <string name="unhosted_machine_pc">PCs</string>
 
     <!-- Game scanning -->
     <string name="scan_title">Scan for games</string>

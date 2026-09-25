@@ -16,6 +16,25 @@ object EngineNames {
         "catsystem2" -> "CatSystem2"
         "html" -> "HTML game"
         "flash_air" -> "Flash / AIR"
+        "nscripter" -> "NScripter"
+        "ags" -> "Adventure Game Studio"
+        "love2d" -> "LÖVE"
+        // Engines the registry recognises that nothing here runs, named for
+        // the sentence that says so.
+        "unity" -> "Unity"
+        "unreal" -> "Unreal Engine"
+        "gamemaker" -> "GameMaker"
+        "xna-fna-monogame" -> "XNA / FNA / MonoGame"
+        "goldsrc" -> "GoldSrc"
+        "source" -> "Source"
+        "hashlink" -> "Heaps / HashLink"
+        "torque" -> "Torque"
+        "tomb-raider-classic" -> "Tomb Raider I-III"
+        "xcom-ufo" -> "X-COM"
+        "nwjs-electron" -> "NW.js / Electron"
+        "wolfrpg" -> "WOLF RPG Editor"
+        "siglus" -> "SiglusEngine"
+        "tyranoscript" -> "TyranoScript"
         else -> engine
     }
 
