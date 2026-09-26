@@ -1522,15 +1522,46 @@ to the unstable channel as `dev.enginehost.cmvs.ps2-ps3.v1` build 75
 a real game, 60s+ isolated with a save round-trip if the save UI is
 reachable; emulator-5560: a synthetic fixture past loading) rather than
 run directly, per this repository's own rig-agent-only rule
-(`coordination/device/README.md`) -- **rig results are not yet in as of
-this writing; the mechanism is CI-verified only.**
+(`coordination/device/README.md`).
+
+**Rig result, build 75: FAIL.** ChronoClock's isolated launch started the
+`dev.enginehost:runtime_isolated` process correctly (own uid, no consent
+prompt, matching `isolatable: true`) but threw `UnsatisfiedLinkError` on
+`CmvsPlugin.nativeOpenIsolated` immediately after. Cause, found by
+`cmvsfix`: `jni.c`'s `enginehost_register_natives` table still had
+`nativeOpen`'s pre-save-folder, 2-string JNI signature
+(`"(Ljava/lang/String;Ljava/lang/String;)J"`) while `CmvsPlugin.java`
+already declared the three-arg version (folder, script, saveFolder) this
+same pass added. `RegisterNatives` on ART validates every table entry by
+name+signature before binding any of them and aborts the whole call on
+the first one that does not match a real declared native method --
+`nativeOpen` is the table's first entry, so nothing after it
+(`nativeOpenIsolated`'s own entry was already correct) ever got bound.
+Fixed on `plugin-core` (`db8a841`): corrected the table string to three
+strings, and gave `Java_..._nativeOpen` the missing third `jstring`
+parameter, wired through to `cmvs_session_open`'s `saves` argument
+(previously hardcoded `NULL` -- the in-process save-folder wiring this
+section already claimed was incomplete until this fix). Merged into
+`plugin/2.0-3.0` as `f583eb2`; CI green; published build 76 to unstable.
+
+**Rig result, build 76: PASS.** Same BlueStacks/ChronoClock steps: the
+isolated process reached and stayed at a distinct uid (`u0_i28`) for
+60+ seconds, `RuntimeActivity` composited real frames (the title screen,
+redrawing on a tap -- `nativePointer`/`nativeTouch` also bind correctly
+now), and logcat showed `cmvs: session open, 1280x720, in start.ps3`
+from the isolated pid with no `UnsatisfiedLinkError` and nothing FATAL.
+A non-CMVS launch (Noble Works, KiriKiri -- a different plugin
+repository) was run immediately after as a regression check and reached
+a real composited frame the same way, unaffected by this fix. Full
+account: `coordination/agents/cmvssandbox/LOG.md`.
 
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback
    seam end to end on the simplest surface shape.
 2. **CMVS** (above) -- wrapper and engine-side broker work done, CI
-   green, rig confirmation queued as `dq-cmvssandbox-01`.
+   green, rig-confirmed working on BlueStacks (build 76, after fixing a
+   `RegisterNatives` table gap build 75 shipped with).
 3. **KiriKiri (`enginehost-kirikiri-plugin`/`enginehost-plugin-kirikiri`),
    NScripter, mkxp-z, Ren'Py, EasyRPG** -- other `plugin`-transport,
    non-Activity engines. Each needs its own file-access audit (some may
