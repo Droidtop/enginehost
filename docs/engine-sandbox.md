@@ -1472,10 +1472,15 @@ specific evidence for it rather than the on-screen outcome alone.
 5. **Flash/AIR (`enginehost-flash-air-plugin`)** -- same web-hosted shape
    as above if it also runs inside a WebView-equivalent runtime; audit
    before assuming.
-6. **`runtimeTransport: activity` plugins (SDL/Godot's Activity path)**
-   last, deliberately: these need the second host-side rewrite the audit
-   above describes (an Activity's responsibilities moved into a
-   host-owned Activity plus an isolated service, not a broker swap alone)
-   and are the largest remaining piece of work, not a small follow-on.
-   They stay on layer 1 only until that rewrite is scoped and designed in
-   its own pass of this document.
+6. **`runtimeTransport: activity` plugins (SDL/Godot's Activity path,
+   now including `enginehost-love2d-plugin`)** last, deliberately: these
+   need the second host-side rewrite the audit above describes (an
+   Activity's responsibilities moved into a host-owned Activity plus an
+   isolated service, not a broker swap alone) and are the largest
+   remaining piece of work, not a small follow-on. LÖVE for Android is a
+   concrete instance, not a hypothetical one: its `EngineHostGameActivity`
+   is SDL's `GameActivity`/`SDLActivity`, the same Activity-owns-the-window
+   shape as Godot, and it ships and runs unisolated today (recorded in its
+   own `ENGINEHOST.md`, "Transport and sandboxing"), asking the standard
+   unsandboxed prompt on every launch. They stay on layer 1 only until
+   that rewrite is scoped and designed in its own pass of this document.
