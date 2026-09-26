@@ -869,18 +869,57 @@ suspect, but this needs a real rig run to know whether the death is
 actually gone, not just less likely.
 
 One candidate is ruled out by inspection, not guesswork: Layer 1's own
-seccomp filter (`RuntimeSandbox.apply()`, `runtime_sandbox.c`) is only
+seccomp filter (`RuntimeSandbox.apply()`, `runtime_sandbox.c`) was only
 ever installed from `EnginehostApplication.onCreate()`'s
 `isRuntimeProcess()` check, which compares the process name for exact
 equality against `"$packageName:runtime"` -- `":runtime_isolated"` never
-matches that, so the isolated process never calls `RuntimeSandbox.apply()`
-at all and carries no seccomp filter of this app's own making. A memory
+matched that, so the isolated process never called `RuntimeSandbox.apply()`
+at all and carried no seccomp filter of this app's own making. A memory
 limit remains the other open candidate and cannot be confirmed or ruled
 out from source alone; dq-sandbox-06 should watch for it directly (a
 low-memory kill would typically show as `lmkd` activity in `dmesg`
 around the time of death, and -- now that BlueStacks reaches this app's
 own `Build.VERSION.SDK_INT < 30` branch of `logIsolatedDeath()` -- confirms
 that path ran even though it cannot say more there).
+
+**That rule-out surfaced a real gap, fixed separately (its own commit,
+landed after dq-sandbox-06 reports so the two rig runs are not
+confused): Layer 2 was narrowing Layer 1's coverage, not adding to it.**
+`android:isolatedProcess` gives `:runtime_isolated` a fresh UID and no
+permissions of its own, but that is a *Binder/permission* boundary, not
+a syscall one -- the process still starts as an ordinary Linux process
+that can open an IP socket unless something stops it, exactly like
+`:runtime` could before this filter ever existed. Since the filter was
+never installed there, the isolated runtime had *less* syscall
+filtering than the plain shared-uid runtime it exists to improve on.
+`EnginehostApplication.onCreate()` now calls `RuntimeSandbox.apply()`
+for both `isRuntimeProcess()` and the new `isIsolatedRuntimeProcess()`
+(`":runtime_isolated"`, exact match, mirroring the existing check) --
+the other two `isRuntimeProcess()`-gated calls in that method
+(`RuntimeInputInstaller`, `RuntimeClassLoader.installBelowApi29`) stay
+scoped to `:runtime` only, since both are meaningless in a process that
+never hosts an Activity.
+
+No rule in the filter itself needed to change for the isolated side's
+own fd-based I/O. `runtime_sandbox.c`'s BPF program is a plain
+deny-list -- `socket(AF_INET/AF_INET6)`, `io_uring_setup`, and any
+syscall issued from a mismatched architecture are the only paths that
+reach `SECCOMP_RET_ERRNO`; every other syscall number falls straight
+through to `SECCOMP_RET_ALLOW` at the first check that doesn't match
+`__NR_socket` (traced instruction by instruction, not assumed) -- so
+`pread`, `pwrite`, `memfd_create`, `fcntl` (the seal calls), and `mmap`
+were already unaffected before this change, the same as they already
+are, unexamined, on the host side of every one of this milestone's own
+mechanisms (`IsolatedAudioBridge`'s `Os.memfd_create`, the frame
+buffer's `ParcelFileDescriptor.open`, both sides' `pread`/`pwrite`) that
+run under `:runtime`'s copy of this exact filter today without issue.
+The filter also returns `EACCES`, never `SIGSYS`/`SECCOMP_RET_KILL`, so
+it cannot itself be the source of a process death; a `SIGSYS` on either
+process would have to come from the *platform's* own filter underneath
+this one (installed by zygote before either of these processes' own
+code runs), which this filter does not touch or suppress the kernel's
+own audit trail for -- worth remembering if a future rig run needs to
+tell the two apart.
 
 ### Roadmap: the remaining plugins, in order
 

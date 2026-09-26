@@ -19,14 +19,21 @@ class EnginehostApplication : Application() {
             runCatching { EngineBundleInstaller.sweepOrphanedStaging(this) }
             runCatching { removeSharedRenpyTree() }
         }
-        // The sandbox goes on before anything else in the runtime process,
-        // so no engine code ever runs there without it. Nothing of the
-        // host's own in that process uses the network.
-        if (isRuntimeProcess()) RuntimeSandbox.apply()
+        // The sandbox goes on before anything else in either runtime
+        // process, so no engine code ever runs without it. Layer 2
+        // (android:isolatedProcess) adds a fresh UID and no permissions of
+        // its own on top of this, it does not replace it: an isolated
+        // process is still a normal Linux process that can open an IP
+        // socket unless something stops it, exactly like the shared-uid
+        // ":runtime" process could before this filter existed. Missing
+        // this on ":runtime_isolated" was a real gap -- caught reviewing
+        // dq-sandbox-05/06's own findings, not by design.
+        if (isRuntimeProcess() || isIsolatedRuntimeProcess()) RuntimeSandbox.apply()
         // Games run here, and only here. Registering the tap this early is
         // what gives the host first look at the pad inside a bundled
         // plugin's own Activity, which nothing of ours is otherwise on the
-        // path of; see RuntimeInputTap.
+        // path of; see RuntimeInputTap. Meaningless in ":runtime_isolated",
+        // which never hosts an Activity (docs/engine-sandbox.md "Layer 2").
         if (isRuntimeProcess()) registerActivityLifecycleCallbacks(RuntimeInputInstaller)
         if (isRuntimeProcess()) RuntimeClassLoader.installBelowApi29(this)
     }
@@ -48,6 +55,9 @@ class EnginehostApplication : Application() {
 
     /** The process RuntimeActivity and BundledActivityProxy are declared in. */
     private fun isRuntimeProcess(): Boolean = processName() == "$packageName:runtime"
+
+    /** IsolatedRuntimeService's own android:isolatedProcess process (docs/engine-sandbox.md "Layer 2"). */
+    private fun isIsolatedRuntimeProcess(): Boolean = processName() == "$packageName:runtime_isolated"
 
     private fun processName(): String? = runCatching {
         File("/proc/self/cmdline").readBytes().toString(Charsets.UTF_8).substringBefore(Char(0))

@@ -1,7 +1,11 @@
 /*
- * The engine sandbox's network half: a seccomp filter the :runtime process
- * installs on itself before any engine code is loaded. See
- * docs/engine-sandbox.md for what it covers and what it cannot.
+ * The engine sandbox's network half: a seccomp filter both :runtime and
+ * :runtime_isolated install on themselves before any engine code is
+ * loaded (EnginehostApplication.onCreate; Layer 2's isolatedProcess UID
+ * is additional to this, not a replacement for it -- an isolated process
+ * still starts as an ordinary Linux process that can open a socket
+ * unless something stops it). See docs/engine-sandbox.md for what it
+ * covers and what it cannot.
  *
  * The filter stacks on the platform's own app filter and can only narrow it.
  * It refuses, with EACCES (what a missing INTERNET permission looks like):
@@ -11,8 +15,13 @@
  *     (x86_64's int 0x80 i386 entry, and x32), which would otherwise go
  *     around the checks above.
  * Everything else is allowed: Unix sockets (logd, netd, binder helpers),
- * netlink, files. It cannot be removed once installed, and every thread and
- * child process inherits it.
+ * netlink, files -- including pread/pwrite/memfd_create/fcntl, which the
+ * isolated launch milestone's own fd-passing and shared-memory mechanisms
+ * use on both sides of the isolation boundary and which this filter was
+ * reviewed against and does not touch. It cannot be removed once
+ * installed, and every thread and child process inherits it. It returns
+ * EACCES, never SIGSYS, so it cannot itself be why a sandboxed process
+ * dies.
  */
 #include <errno.h>
 #include <stddef.h>
