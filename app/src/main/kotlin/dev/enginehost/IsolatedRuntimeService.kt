@@ -75,18 +75,22 @@ class IsolatedRuntimeService : Service() {
             restartArguments: Array<String>,
             gameBroker: IEngineFileBroker?,
             saveBroker: IEngineFileBroker?,
+            audioBuffer: ParcelFileDescriptor?,
+            audioSampleRate: Int,
             callback: IEngineRuntimeCallback,
         ) {
             this@IsolatedRuntimeService.callback = callback
             this@IsolatedRuntimeService.restartArguments = restartArguments
             heldFds += dexFds
             heldFds += nativeLibraryFds
+            audioBuffer?.let { heldFds += it }
             val runtimeRequirements = runtimeRequirementKeys.indices.associate {
                 runtimeRequirementKeys[it] to runtimeRequirementValues[it]
             }
             val host = IsolatedEngineHost(
                 this@IsolatedRuntimeService, callback, this@IsolatedRuntimeService.restartArguments,
                 gameBroker?.let(::AidlFileBrokerAdapter), saveBroker?.let(::AidlFileBrokerAdapter),
+                audioBuffer, audioSampleRate,
             )
             // Prefer a descriptor this process owns outright over the
             // received one: opening /proc/self/fd/<received fd> BY PATH is
@@ -214,6 +218,8 @@ private class IsolatedEngineHost(
     private val restartArgs: Array<String>,
     private val gameBrokerImpl: EngineFileBroker?,
     private val saveBrokerImpl: EngineFileBroker?,
+    private val audioBufferImpl: ParcelFileDescriptor?,
+    private val audioSampleRateImpl: Int,
 ) : EngineHost {
     override fun context(): android.content.Context = ctx
 
@@ -235,6 +241,8 @@ private class IsolatedEngineHost(
 
     override fun gameBroker(): EngineFileBroker? = gameBrokerImpl
     override fun saveBroker(): EngineFileBroker? = saveBrokerImpl
+    override fun isolatedAudioBuffer(): ParcelFileDescriptor? = audioBufferImpl
+    override fun isolatedAudioSampleRate(): Int = audioSampleRateImpl
 
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {
         val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()

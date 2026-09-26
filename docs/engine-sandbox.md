@@ -620,6 +620,116 @@ path of its own, so it does not depend on that theory being right either
 way -- is built and CI-green as commit `84cc5ee`, queued for its own rig
 check as dq-sandbox-03.
 
+**dq-sandbox-03 (both rigs): dex/native-library loading is fixed.**
+CatSystem2 decrypts its archives and starts executing in the isolated
+process on both BlueStacks and emulator-5560; the isolated UID is
+`99013`, the app's own is `10064` -- the boundary itself is real, not
+just configured. The new, different blocker: the isolated process hangs
+forever rather than failing, inside CatSystem2's own `open_sound()`,
+waiting on AAudio to open a stream. An isolated process cannot look up
+`AudioFlinger` through `ServiceManager` at all (see "What Android allows
+inside one app" above), so the wait never ends on its own -- nothing
+timed out anywhere in this milestone's own code before this pass, so
+this single missing service could hang every future isolated launch
+silently, however it happens to be caused next time. Two changes follow
+from that, both landed together: the actual fix (below, "Audio"), and a
+launch-level watchdog that is not specific to audio at all --
+`IsolatedRuntimeHost.start()` now bounds the whole
+`bindService`-through-`init()` sequence to `INIT_TIMEOUT_MS` (15s) via a
+single `settle {}` gate that every success and failure path (including
+the AIDL call itself throwing) must pass through exactly once; a timeout
+unbinds the service and fails the launch with a reported reason instead
+of leaving the screen waiting. This is the backstop for whatever the
+*next* unreachable system service turns out to be, not just this one.
+
+### Audio
+
+An isolated process cannot reach `AudioFlinger` (dq-sandbox-03, above),
+so a plugin's own audio path can never simply keep working the way its
+in-process one does -- unlike file access, where a broker can make a
+real read/write happen on the plugin's behalf, there is no "ask the host
+to open my AAudio stream for me" primitive; AAudio session negotiation
+is bound to the process that opens it. So audio crosses the isolation
+boundary the same way frames do in this milestone (see "First
+milestone" above): the isolated side never touches a real audio device
+at all, and the host owns the one real output.
+
+**The mechanism.** `IsolatedRuntimeHost` (`:runtime`, before it even
+binds the isolated service) creates an `android.os.SharedMemory` region
+-- a 16-byte header (write position, read position, capacity, reserved,
+each a little-endian `uint32`) followed by a 32KiB ring of raw 16-bit
+stereo PCM -- and hands a `dup()` of its fd across `IEngineRuntimeService.init()`
+as `audioBuffer`, alongside `audioSampleRate` (picked from
+`AudioTrack.getNativeOutputSampleRate`, the host's own real output
+rate). `EngineHost.isolatedAudioBuffer()`/`isolatedAudioSampleRate()`
+(plugin-api, default `null`/`0` so no existing `EngineHost` has to
+change to keep compiling) hand that descriptor and rate to the plugin
+exactly like `gameBroker()`/`saveBroker()` do for files. The isolated
+side (`IsolatedRuntimeService.init()`) never opens AAudio: it passes the
+fd straight through to native code.
+
+In CatSystem2 (`enginehost-catsystem2-plugin`, `jni.c`), `nativeOpenIsolated`
+now takes the `ParcelFileDescriptor` and rate as two extra arguments and,
+when both are present, calls `open_sound_bridged()` instead of the
+existing AAudio-based `open_sound()` -- `finish_open()` branches on an
+`isolated` flag so an ordinary in-process launch is completely
+unaffected and still opens AAudio directly, unchanged. `open_sound_bridged()`
+`mmap()`s the fd (`MAP_SHARED`), constructs `cs2_audio` exactly as
+before (`cs2_audio_new(files, sample_rate)` -- the engine-agnostic mixer
+itself, `cs2_audio_mix`, is pure computation over a `cs2_files*` and
+neither knows nor cares whether its caller is isolated), and starts one
+`pthread` (`audio_produce`) that loops calling `cs2_audio_mix` into a
+1024-frame (4096-byte) chunk and copying it into the ring, using C11
+`_Atomic`/`stdatomic.h` on the two position words with
+acquire/release ordering across the shared page. The producer only ever
+advances the write position and only ever reads the read position; a
+full ring backs the thread off with a short sleep rather than blocking,
+so a host that stops reading (a paused launch) cannot wedge this thread
+either. On the host side, `IsolatedAudioBridge` (`IsolatedRuntimeHost.kt`)
+is the consumer: a plain Kotlin thread reading from the mapped
+`ByteBuffer` (no atomics needed there -- plain `getInt`/`putInt` is an
+accepted, pragmatic simplification for soft-real-time audio, not a
+correctness-critical structure) and writing what it reads straight into
+a real `AudioTrack` in streaming mode, so the reader hears the game's
+own mix with no engine code duplicated on the host side of the
+boundary. `IsolatedRuntimeHost.destroy()` and `IsolatedRuntimeService`/`close_session`
+on both sides tear the bridge down (stop/join the thread, unmap, close
+the fd) whenever the launch itself ends, not only on success.
+
+A host that cannot make a `SharedMemory` region at all (or a plugin
+built before this addition, or a game that reaches a broken audio path
+for its own reasons) still plays: `EngineHost.isolatedAudioBuffer()`
+answers `null`, `open_sound_bridged()` logs and returns without ever
+touching AAudio, and the game is silent exactly as when no audio device
+is available today -- never a hang, because nothing in this path waits
+on anything the isolated process cannot reach.
+
+**What else the engine touches, audited against the same question
+(does it need this same host-bridging, or does it already avoid
+touching a system service the isolated process cannot reach):**
+
+- **Input** (pad, pointer): already fully host-normalized before it
+  reaches the plugin. `IsolatedRuntimeHost` reads real input in
+  `:runtime` and forwards it over `IEngineRuntimeService.onControllerEvent`/
+  `onPointerMove`/`onPointerUp` -- the isolated side never touches
+  `InputManager` or a `View`'s own input dispatch at all. No change
+  needed.
+- **Vibrator**: already bridged. `EngineHost.rumbleController()` crosses
+  back over `IEngineRuntimeCallback.rumbleController`, so the isolated
+  side asks the host to vibrate rather than holding a `Vibrator` of its
+  own. No change needed.
+- **Sensors**: not used by CatSystem2 at all (no accelerometer/gyro call
+  anywhere in `src/` or `jni.c`). Nothing to bridge for this plugin;
+  revisit for a future plugin that does read a sensor.
+- **Fonts**: already file-broker-only. `cs2_font_open_beside_via_broker`
+  (`src/font.c`) reads a loose font file the same way `cs2_files`/`cs2_save`
+  do -- a broker round-trip, no system service (no `FontManager`, no
+  `/system/fonts` access) involved either way.
+
+Audio was the one gap: it is the only thing CatSystem2 touches that both
+(a) is not already file- or callback-shaped and (b) resolves to a system
+service `isolated_app` cannot reach.
+
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback

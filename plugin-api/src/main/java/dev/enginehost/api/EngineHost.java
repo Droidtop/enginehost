@@ -1,6 +1,7 @@
 package dev.enginehost.api;
 
 import android.content.Context;
+import android.os.ParcelFileDescriptor;
 import java.io.File;
 
 /** Services whose ownership stays with Enginehost rather than a module. */
@@ -29,6 +30,29 @@ public interface EngineHost {
 
     /** The isolated runtime's save-folder counterpart to {@link #gameBroker()}; read-write. */
     default EngineFileBroker saveBroker() { return null; }
+
+    /**
+     * A shared-memory ring buffer to render 16-bit stereo PCM into at
+     * {@link #isolatedAudioSampleRate()}, present only when this runtime
+     * is isolated -- an isolated process cannot reach AudioFlinger to
+     * open its own audio stream at all (docs/engine-sandbox.md "Audio"),
+     * so the host owns the real output and reads what this buffer fills.
+     * Null on an ordinary in-process launch, where a plugin opens its own
+     * output device directly, and null if the host could not set audio
+     * up (a game still plays; it is simply silent, exactly as when no
+     * audio device is available today).
+     *
+     * <p>Layout: a 16-byte header -- write position, read position,
+     * capacity, reserved, each a little-endian uint32 -- followed by
+     * {@code capacity} bytes of ring data. The plugin owns the write
+     * position and only ever advances it; the host owns the read
+     * position the same way. Positions are byte offsets that only ever
+     * increase, wrapped by {@code % capacity} to address the ring.
+     */
+    default ParcelFileDescriptor isolatedAudioBuffer() { return null; }
+
+    /** The sample rate (Hz) {@link #isolatedAudioBuffer()} is rendered at; meaningless when that is null. */
+    default int isolatedAudioSampleRate() { return 0; }
 
     void log(int priority, String tag, String message, Throwable error);
     /** Requests haptic feedback from the controller that produced an event. */

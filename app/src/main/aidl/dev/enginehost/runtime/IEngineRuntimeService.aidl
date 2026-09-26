@@ -33,7 +33,12 @@ interface IEngineRuntimeService {
      * and runtimeRequirementKeys/runtimeRequirementValues are parallel
      * arrays (AIDL has no Map); a library's name is what
      * System.loadLibrary(name) would be asked for at the far end
-     * (PluginDexLoader.findLibrary).
+     * (PluginDexLoader.findLibrary). audioBuffer is the shared PCM ring
+     * (EngineHost.isolatedAudioBuffer(); null when the host could not set
+     * audio up, exactly like a device with no audio at all), rendered at
+     * audioSampleRate -- an isolated process cannot reach AudioFlinger to
+     * open its own output (docs/engine-sandbox.md "Audio"), which is why
+     * this is a buffer the host itself reads rather than a real device.
      */
     void init(in ParcelFileDescriptor[] dexFds, String entrypointClass,
               in String[] nativeLibraryNames, in ParcelFileDescriptor[] nativeLibraryFds,
@@ -42,6 +47,7 @@ interface IEngineRuntimeService {
               in String[] runtimeRequirementKeys, in String[] runtimeRequirementValues,
               in String[] restartArguments,
               IEngineFileBroker gameBroker, IEngineFileBroker saveBroker,
+              in ParcelFileDescriptor audioBuffer, int audioSampleRate,
               IEngineRuntimeCallback callback);
 
     int pixelWidth();
