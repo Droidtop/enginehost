@@ -793,6 +793,95 @@ generic fcntl binding is `Os.fcntlInt(FileDescriptor, int, int)`) --
 caught by CI, confirmed against developer.android.com's own reference
 pages before the fix, not guessed a second time.
 
+**dq-sandbox-06 pass: the seal itself failed, a real error was getting
+lost, and the frame-transfer path most likely explains BlueStacks'
+still-open death.**
+
+- **`F_ADD_SEALS` itself returned EPERM** on emulator-5560, SELinux
+  enforcing. `memfd_create(2)`'s own man page: without `MFD_ALLOW_SEALING`
+  at creation, the kernel starts the file with `F_SEAL_SEAL` already
+  set, which blocks every later seal addition -- exactly the coordinator's
+  own suspicion, confirmed against the man page rather than assumed.
+  `Os.memfd_create` now passes `MFD_ALLOW_SEALING` (`0x0002`; not exposed
+  as a named constant on `OsConstants` -- confirmed against
+  developer.android.com's own reference, only `MFD_CLOEXEC` is there).
+- **Fail closed.** `ownedCopy()`'s old fallback -- silently reusing the
+  plain received descriptor when the memfd copy/seal failed -- is
+  proven broken on any device that reaches it at all: the same SELinux
+  policy that motivates sealing in the first place also denies opening
+  the bundle's own `classes.dex` by its real `app_data_file`-labelled
+  path, the exact avc line dq-sandbox-05 captured. `ownedCopy()` now
+  throws instead of returning null, and is called at all only on API
+  30+; below that (BlueStacks, API 28, where the writable-dex check does
+  not exist and dq-sandbox-03 already proved the plain descriptor works
+  fine) the plain descriptor is still used directly, unchanged.
+- **Surfaced the swallowed error.** That avc denial's own
+  `ClassNotFoundException` reached `JavaBinder:` in logcat -- proof it
+  was thrown -- yet `svc.init()` returned normally on the host side, and
+  the launch limped on to an unrelated "no picture size" failure
+  instead. Root cause: `android.os.Binder` only auto-marshals
+  `RemoteException`/`RuntimeException`/`OutOfMemoryError` back across a
+  transaction; `ClassNotFoundException` is none of those (it extends
+  `ReflectiveOperationException`), so it propagated past that machinery
+  uncaught and was simply lost rather than reaching the caller. `init()`'s
+  real body moved to a private `initInternal()`; `init()` itself now
+  wraps every call in a try/catch that rethrows anything not already a
+  `RuntimeException` wrapped in one, so a real cause now actually
+  crosses the boundary.
+- **The frame-transfer path**, investigated per the coordinator's own
+  candidate list for BlueStacks' still-unexplained ~11s isolated death:
+  `step()` carried the *entire* frame every call as an AIDL
+  `out int[] pixels` array -- CatSystem2's default 1024x576 is ~2.25MB,
+  marshalled through Binder's own flat transaction buffer 60 times a
+  second. The failure dq-sandbox-04 captured was a *tiny*, unrelated
+  104-byte parcel failing right after -- the classic symptom of a
+  process's Binder transaction buffer already exhausted by prior large
+  ones, not a fresh large transaction itself failing. This is the
+  leading candidate for the death, ahead of a memory limit or the
+  Layer-1 seccomp filter (audit counters for that are still unchecked;
+  this pass fixes the mechanism most directly implicated by the actual
+  evidence rather than guessing between all three blind). Frame data
+  now crosses through `setFrameBuffer()`, a new AIDL method handing the
+  isolated side a plain host-owned file (not memfd: this must work down
+  to this app's real minSdk 26, since BlueStacks -- API 28 -- is exactly
+  the rig this needs to fix on, unlike the audio ring which can afford
+  its API 30+ gate). `step()` itself no longer takes or returns pixel
+  data at all; only the changed rows `band` already names are
+  `pwrite`/`pread` on either side, at their real byte offset, so this
+  moves exactly the same amount of data the row-diff optimization
+  already limited it to -- just off Binder and onto a plain file.
+
+Host and isolated sides both touched (`IEngineRuntimeService.aidl`,
+`IsolatedRuntimeHost.kt`, `IsolatedRuntimeService.kt`, commit `054b9f4`
+on `main`); nothing changed in `enginehost-catsystem2-plugin`, since
+`EngineStepDriven.step(int[])`'s own contract for a plugin is unchanged
+-- only the isolated glue's own transport for it changed. Every
+`android.system.Os`/`OsConstants` surface this pass relies on
+(`memfd_create`'s flags parameter, `MFD_ALLOW_SEALING`'s absence from
+`OsConstants`, `pread`/`pwrite`) was confirmed against
+developer.android.com before writing the code, not guessed -- this
+file's own two wrong guesses in the previous two passes
+(`SharedMemory.getFileDescriptor`, `Os.fcntlLong`) are the reason.
+
+Still open: BlueStacks' isolated process dying at all remains
+unconfirmed as fixed -- moving frames off Binder removes the leading
+suspect, but this needs a real rig run to know whether the death is
+actually gone, not just less likely.
+
+One candidate is ruled out by inspection, not guesswork: Layer 1's own
+seccomp filter (`RuntimeSandbox.apply()`, `runtime_sandbox.c`) is only
+ever installed from `EnginehostApplication.onCreate()`'s
+`isRuntimeProcess()` check, which compares the process name for exact
+equality against `"$packageName:runtime"` -- `":runtime_isolated"` never
+matches that, so the isolated process never calls `RuntimeSandbox.apply()`
+at all and carries no seccomp filter of this app's own making. A memory
+limit remains the other open candidate and cannot be confirmed or ruled
+out from source alone; dq-sandbox-06 should watch for it directly (a
+low-memory kill would typically show as `lmkd` activity in `dmesg`
+around the time of death, and -- now that BlueStacks reaches this app's
+own `Build.VERSION.SDK_INT < 30` branch of `logIsolatedDeath()` -- confirms
+that path ran even though it cannot say more there).
+
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback
