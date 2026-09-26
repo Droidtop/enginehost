@@ -196,6 +196,19 @@ class IsolatedRuntimeService : Service() {
             val nativeLibraryFdPaths = nativeLibraryNames.indices.associate {
                 nativeLibraryNames[it] to procFdPath(nativeLibrarySources[it])
             }
+            // dq-sandbox-08 (emulator-5560): ownedCopy() sealed exactly the
+            // two descriptors it was given (dex, native library) and both
+            // read back F_SEAL_WRITE set -- yet ART still rejected a THIRD,
+            // never-sealed fd as writable. Whatever that third fd turns out
+            // to be, this is the true list of what THIS process handed the
+            // loader and each one's seal state at the moment of handing it
+            // over, so a future rig capture can compare it directly against
+            // whatever fd number ART's own exception names, rather than
+            // this process only ever knowing about the two it created.
+            dexSources.forEachIndexed { i, pfd -> logLoaderInput("dex[$i]", pfd) }
+            nativeLibrarySources.forEachIndexed { i, pfd ->
+                logLoaderInput("nativeLib[$i]=${nativeLibraryNames.getOrNull(i)}", pfd)
+            }
             val loaded = loadEnginePluginFromFds(
                 this@IsolatedRuntimeService, dexSources.map(::procFdPath), entrypointClass,
                 nativeLibraryFdPaths, classLoader,
@@ -311,6 +324,25 @@ class IsolatedRuntimeService : Service() {
 
 /** The path a ParcelFileDescriptor is reachable at from this process's own side of it: the same open file, by fd number. */
 private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd.fd}"
+
+/**
+ * What this process is about to hand the dex loader for one input,
+ * and whether the kernel itself agrees it is sealed non-writable right
+ * now -- not whether [ownedCopy] believes it sealed something earlier.
+ * Added after dq-sandbox-08 found a fd ART rejected as writable that
+ * neither of this run's two ownedCopy() calls (both confirmed sealed by
+ * their own readback) accounted for, so the mismatch itself needs a
+ * direct, per-input trail rather than trusting ownedCopy()'s own
+ * bookkeeping alone.
+ */
+private fun logLoaderInput(label: String, pfd: ParcelFileDescriptor) {
+    val seals = runCatching { Os.fcntlInt(pfd.fileDescriptor, F_GET_SEALS, 0) }.getOrElse { -2 }
+    Log.i(
+        "enginehost-isolated-runtime",
+        "loader input: $label -> ${procFdPath(pfd)} " +
+            "(F_GET_SEALS=$seals, F_SEAL_WRITE ${if (seals >= 0 && seals and F_SEAL_WRITE != 0) "set" else "NOT set"})",
+    )
+}
 
 /**
  * A copy of pfd's bytes into an anonymous, memory-backed file this

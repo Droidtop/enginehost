@@ -87,9 +87,25 @@ private fun loadFromDexPathList(
     appClassLoader: ClassLoader,
     resourceHandles: List<AutoCloseable>,
 ): LoadedPlugin {
+    // Not context.codeCacheDir: that resolves under
+    // /data/user/0/<pkg>/code_cache, the APP UID's own private directory,
+    // which an isolated launch's UID cannot create or reach at all -- the
+    // exact same class of problem PluginRegistry.root() exists to solve
+    // for files/ -- dq-sandbox-08 found a "ContextImpl: Failed to ensure
+    // .../code_cache: mkdir failed: ENOENT" warning immediately before
+    // ART's writable-dex rejection of a THIRD, never-sealed fd, and this
+    // is the most likely source of it: this parameter is documented as
+    // deprecated and inert since API 26, but a device where ART still
+    // consults it at all, and falls back to an internal scratch file of
+    // its own when the given directory cannot even be created, would
+    // explain a THIRD fd that ownedCopy() never had a chance to seal --
+    // it was never one of the descriptors this process opened.
+    // context.cacheDir IS scoped per-UID even under isolation
+    // (IsolatedEngineHost.cacheDirectory() already relies on exactly
+    // this), so it exists and is writable for both launch shapes.
     val loader = PluginDexLoader(
         dexPath,
-        context.codeCacheDir.absolutePath,
+        context.cacheDir.absolutePath,
         librarySearchPath,
         appClassLoader,
         nativeLibraryFdPaths,

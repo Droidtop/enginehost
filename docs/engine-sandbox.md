@@ -86,7 +86,7 @@ something to find out on the owner's device by shipping it. What *can*
 stop a game reading the whole of shared storage is running the engine
 under a UID that does not have it.
 
-## Layer 2: the engine under its own UID (built, CatSystem2 confirmed working)
+## Layer 2: the engine under its own UID (built, confirmed on BlueStacks)
 
 An `android:isolatedProcess="true"` service runs under a fresh UID with no
 permissions at all: no `inet` group, no shared storage, not even this
@@ -969,17 +969,23 @@ dq-sandbox-07 alongside re-confirming BlueStacks and the seccomp
 install) before it can be called fixed rather than merely
 better-reasoned.
 
-**dq-sandbox-07 results: the writable-dex rejection is gone for good,
-seccomp confirmed installed in both processes, BlueStacks still
-stable -- and one more bug found and fixed.** Seccomp: confirmed
+**dq-sandbox-07 results (CORRECTED by dq-sandbox-08, see below --
+the "gone for good" claim here was wrong): seccomp confirmed installed
+in both processes, BlueStacks still stable, and what looked at the time
+like the writable-dex rejection clearing for good.** Seccomp: confirmed
 installed in both `:runtime` and `:runtime_isolated` on BlueStacks
 (distinct pids, isolated uid 99021). BlueStacks: still stable at 62
 seconds, no regression from adding the seccomp install there.
-emulator-5560: the writable-dex `SecurityException` is gone -- the
-isolated launch now reaches the fixture's own ordinary "no picture
-size" failure, the expected outcome for a synthetic stub with no real
-image data. The seal alone (`F_ADD_SEALS`/`F_SEAL_WRITE`) is what
-satisfies ART's check, confirmed rather than assumed.
+emulator-5560: at the time, the writable-dex `SecurityException`
+appeared gone -- the isolated launch reached the fixture's own ordinary
+"no picture size" failure, the expected outcome for a genuinely
+successful load. **dq-sandbox-08 later found this reading was wrong**:
+the "no picture size" outcome was itself produced by a different,
+unrelated bug (a swallowed exception, below) rather than a real
+successful dex load; the seal mechanism's own correctness was never
+actually exercised by this specific result. See the dq-sandbox-08
+section and the milestone summary's dedicated emulator-5560 note for
+the corrected status.
 
 But the previous pass's *second* hardening layer inside `ownedCopy()`
 -- `Os.fchmod(memFd, 0444)`, added so the sealed memfd would also be
@@ -1021,57 +1027,132 @@ BlueStacks -- flagged as a possible CatSystem2 plugin input-mapping gap
 for that plugin's own controls work, not a sandbox issue, and still
 open.
 
+**dq-sandbox-08: the previous pass's "apparent pass" was the bug, not a
+fix.** Making `ownedCopy()`'s own failures visible (the point of
+`ff92614`) is confirmed working -- no `fchmod`, no `avc` denial. That
+visibility is exactly what surfaced this: dq-sandbox-07's "the writable-dex
+rejection is GONE, reaches the fixture's no-picture-size failure" result
+was itself the earlier swallowed-exception bug producing a false pass,
+not a real one. `ownedCopy()` sealed exactly the two descriptors it was
+given -- dex fd 74, native library fd 75, both confirmed sealed by their
+own `F_GET_SEALS` readback -- but ART still rejected a *third* fd (78),
+one this process never opened or sealed, as writable.
+
+Checked every candidate the coordinator named for a file reaching the
+loader outside `ownedCopy()`'s reach: CatSystem2's own
+`bundle-metadata.json` declares exactly one dex file
+(`"dexFiles": ["classes.dex"]`) and no separate plugin-api jar, ruling
+out a second dex or an extra jar for this plugin specifically; every
+path handed to the loader is built from `dexSources`/`nativeLibrarySources`
+(the sealed copies), never the raw received descriptors, so nothing in
+this app's own Kotlin builds a path from the wrong source. The one real
+candidate found: `loadFromDexPathList()` (shared by both the in-process
+and isolated launch paths) passes `context.codeCacheDir.absolutePath`
+as `DexClassLoader`'s `optimizedDirectory` parameter --
+`codeCacheDir` resolves under `/data/user/0/<pkg>/code_cache`, the APP
+UID's own private directory, exactly the kind of path an isolated
+launch's UID cannot create or reach at all (the same class of problem
+`PluginRegistry.root()` exists to solve for `files/`). dq-sandbox-08's
+own logcat shows `"ContextImpl: Failed to ensure .../code_cache: mkdir
+failed: ENOENT"` immediately before the writable-dex rejection --
+suggestive, not proven (this parameter is documented as deprecated and
+inert since API 26), but the most likely source of a fd this process
+itself never created: a device where ART still falls back to an
+internal scratch file of its own when the given directory cannot even
+be made. Switched to `context.cacheDir`, already relied on elsewhere in
+this same milestone as scoped per-UID even under isolation
+(`IsolatedEngineHost.cacheDirectory()`).
+
+Whether or not that turns out to be the whole story, also added --
+regardless of outcome, as asked -- an explicit per-input assertion log:
+every descriptor this process hands the loader (each dex and native
+library source) is now logged by label, path, and a live `F_GET_SEALS`
+readback taken right before `loadEnginePluginFromFds` runs, not merely
+`ownedCopy()`'s own bookkeeping, which this exact pass showed can be
+complete and correct while a third, unaccounted-for fd still reaches
+ART. **This fix is unconfirmed on a rig as of this writing** -- the
+codeCacheDir/cacheDir switch is reasoned from the evidence available,
+not proven the same way the seal mechanism itself eventually was;
+dq-sandbox-09 is what will say whether fd 78 is gone or whether the new
+per-input log now names it by a different label.
+
 ### Milestone summary: CatSystem2 isolated, confirmed on both rigs
 
-Sandbox layer 2's first milestone is done and confirmed on a device, not
-merely built and CI-green: CatSystem2 runs its own game logic inside
-`android:isolatedProcess="true"`, under a fresh UID with none of the
-host's permissions, and plays for minutes at a time through real menus,
-a cutscene and a CG scene with no crash. This section is the map of
-what that took, dq by dq, for whoever picks up the next plugin.
+Sandbox layer 2's first milestone is confirmed on a device for one
+platform generation, and still in progress for the other -- this
+section says exactly which, after this same section overstated it once
+already (dq-sandbox-08 found that dq-sandbox-07's apparent emulator-5560
+pass was itself a swallowed-exception false pass, not a real one; see
+below). On BlueStacks (API 28), CatSystem2 runs its own game logic
+inside `android:isolatedProcess="true"`, under a fresh UID with none of
+the host's permissions, and plays for minutes at a time through real
+menus, a cutscene and a CG scene with no crash. This section is the map
+of what that took, dq by dq, for whoever picks up the next plugin.
 
-**What's confirmed working, on real rigs (BlueStacks/API 28 and
-emulator-5560/API 34), not just CI:**
+**What's confirmed working on a real device, not just CI:**
 
-- The isolated service boots, loads the plugin's own dex and native
-  library entirely by descriptor (never a path the isolated process
-  resolves itself), and starts the engine -- on *both* API levels, via
-  two different mechanisms the code picks between: below API 30, the
-  plain host-opened descriptor, reopened by `/proc/self/fd` path
-  (proven since dq-sandbox-03); API 30 and up, a sealed memfd copy this
-  process makes of its own (`ownedCopy()`), which is what actually
-  satisfies ART's newer writable-dex check that the plain path alone
-  does not (dq-sandbox-04 through dq-sandbox-07's own escalating fixes).
-- The isolated UID is real and distinct from the app's own on every rig
-  (99013, 99017, 99019, 99021, 99005 across different runs -- the
-  number moves, the boundary doesn't).
+- **BlueStacks (API 28), fully confirmed end to end:** the isolated
+  service boots, loads the plugin's own dex and native library entirely
+  by descriptor (never a path the isolated process resolves itself, via
+  the plain host-opened descriptor reopened by `/proc/self/fd` path,
+  proven since dq-sandbox-03), starts the engine, and plays
+  interactively for 67+ seconds at ~55fps through Scenario Select, a
+  cutscene and a CG scene with an overlay, reproduced twice
+  (dq-sandbox-06), still stable at 62s with Layer 1's seccomp filter
+  also installed (dq-sandbox-07). Frames cross a plain host-owned file
+  (`setFrameBuffer`), not a Binder array, after the array form was found
+  to be the actual cause of an earlier silent isolated-process death
+  (dq-sandbox-04/05, fixed in dq-sandbox-06). Layer 1's seccomp filter
+  is confirmed installed in *both* `:runtime` and `:runtime_isolated` on
+  this rig, by distinct pid (dq-sandbox-07) -- a real gap this
+  milestone's own review surfaced and closed, not something planned
+  from the start. Audio is silent by design here: no `Os.memfd_create`
+  binding below API 30.
+- **emulator-5560 (API 34), still NOT confirmed working end to end --
+  see the dedicated note below.** The isolated UID itself is real and
+  distinct from the app's own there too (99019, 99021, 99005 across
+  different runs), and the isolated service does boot and reach ART's
+  own dex-loading code -- but no run on this rig has yet produced a
+  plugin that actually finished loading and started playing. What
+  looked like success in dq-sandbox-07 was a bug (see below), not a
+  pass.
 - Game and save file access work end to end through the host-brokered
-  `EngineFileBroker`, never a real path inside the isolated process.
-- Frames render and reach the screen -- CatSystem2 played interactively
-  for 67+ seconds at ~55fps through Scenario Select, a cutscene and a
-  CG scene with an overlay, reproduced twice on BlueStacks
-  (dq-sandbox-06) -- over a plain host-owned file (`setFrameBuffer`),
-  not a Binder array, after the array form was found to be the actual
-  cause of an earlier silent isolated-process death (dq-sandbox-04/05,
-  fixed in dq-sandbox-06).
-- Audio is silent-by-design on API 28 (no `Os.memfd_create` binding
-  below API 30) and has not yet been confirmed audible on a real game
-  on API 30+, since the only API 30+ rig available is the synthetic
-  CS2Fixture stub with no real audio data -- the mechanism itself
-  (shared ring, `Os.pread`/`Os.pwrite`) is exercised without error
-  there, but "the reader actually hears BGM/SE" per se remains unproven
-  past this milestone's own synthetic testing.
-- Layer 1 (the network seccomp filter) now covers both `:runtime` and
-  `:runtime_isolated`, confirmed installed in both on a real rig
-  (dq-sandbox-07) -- a real gap this milestone's own review surfaced
-  and closed, not something planned from the start.
-- A launch that cannot start in time, or an isolated peer that dies
-  mid-run, now reaches Enginehost's own on-screen failure text instead
-  of hanging forever (dq-sandbox-03's fix) or silently taking the whole
-  app down with no explanation (dq-sandbox-04's fix, confirmed
-  dq-sandbox-07: BlueStacks stayed up and stable, and a genuine
-  isolated-side failure -- the writable-dex rejection, before it was
-  fixed -- reliably showed on screen across every rig capture).
+  `EngineFileBroker`, on BlueStacks -- not yet demonstrated on
+  emulator-5560, since no isolated launch there has gotten past dex
+  loading to reach that code at all.
+- A launch that cannot start in time now reaches Enginehost's own
+  on-screen failure text instead of hanging forever (dq-sandbox-03's
+  fix, BlueStacks-confirmed). An isolated peer dying mid-run no longer
+  silently takes the whole app down with no explanation (dq-sandbox-04's
+  fix, confirmed on BlueStacks in dq-sandbox-07: it stayed up and
+  stable rather than crashing at all). Whether every *kind* of isolated
+  failure reliably reaches the screen is a separate, still-open
+  question -- see below.
+
+**emulator-5560 / API 34: not yet a working isolated launch, and the
+history of "fixed" claims for it needs to be read carefully.** Four
+consecutive dq passes each found and fixed a real, confirmed bug on
+this rig (dq-sandbox-04: writable-dex outright; dq-sandbox-05: the seal
+attempt itself failing with EPERM from a missing `MFD_ALLOW_SEALING`;
+dq-sandbox-06: the same EPERM in a different shape; dq-sandbox-07's own
+fix landed and *looked* like the rejection was gone) -- but dq-sandbox-08
+then found that dq-sandbox-07's apparent pass was actually a DIFFERENT
+bug (a checked exception from a since-removed `fchmod` call being
+silently swallowed instead of failing the launch) producing a false
+"no picture size" success message, not a real one. Once that swallow
+was fixed, the TRUE state was a fresh, previously-hidden failure: a
+third, unsealed file descriptor (fd 78) reaching ART, one neither of
+`ownedCopy()`'s two calls (dex, native library -- both genuinely sealed,
+confirmed by their own `F_GET_SEALS` readback) ever touched. A fix for
+that (routing `DexClassLoader`'s `optimizedDirectory` away from the
+app-UID-only `codeCacheDir` and onto the isolated-UID-accessible
+`cacheDir`, plus a per-input seal-state assertion log) is reasoned from
+the evidence but **unconfirmed on a rig as of dq-sandbox-09 being
+queued.** The honest status: emulator-5560 has never yet hosted a
+successfully-loaded isolated CatSystem2 plugin. Nothing about
+BlueStacks' own confirmed-working status is affected by any of this --
+that platform never depended on `ownedCopy()`, the sealed-memfd path,
+or the API-30+ gate at all.
 
 **What's still open, honestly, not swept under "done":**
 
@@ -1092,16 +1173,27 @@ emulator-5560/API 34), not just CI:**
   available evidence (a tiny, unrelated parcel failing right after the
   death, the classic symptom of an exhausted transaction buffer) and
   the death has not recurred since, across two separate confirmed-stable
-  runs (dq-sandbox-06, dq-sandbox-07). That is strong practical evidence
-  the real cause is fixed, but it was never caught in the act with a
-  definitive root-cause trace the way the writable-dex chain eventually
-  was. A memory limit was the other candidate raised and never
-  independently ruled in or out.
-- **This milestone covers one plugin.** CatSystem2 was chosen
-  deliberately as the easiest real case (a software pixel buffer, no
-  real surface, one native file-access seam) -- see "First milestone"
-  above for why. Nothing here has been re-tried against a second
-  engine; the roadmap below is what that would take, unstarted.
+  BlueStacks runs (dq-sandbox-06, dq-sandbox-07). That is strong
+  practical evidence the real cause is fixed, but it was never caught in
+  the act with a definitive root-cause trace. A memory limit was the
+  other candidate raised and never independently ruled in or out.
+- **emulator-5560's writable-dex chain is the opposite of resolved --
+  it is the running example of why this summary now hedges.** Four
+  consecutive dq passes each fixed a real bug there and each believed,
+  at the time, that the fix was the last one needed; one of those
+  passes (dq-sandbox-07) turned out to be wrong about that, for a
+  reason (a swallowed exception producing a false "success" outcome)
+  that had nothing to do with the seal mechanism it was nominally
+  testing. See the dedicated emulator-5560 note above for the full
+  chain and the current, still-unconfirmed state.
+- **This milestone covers one plugin, on one confirmed platform.**
+  CatSystem2 was chosen deliberately as the easiest real case (a
+  software pixel buffer, no real surface, one native file-access seam)
+  -- see "First milestone" above for why. Nothing here has been
+  re-tried against a second engine, and API 30+ has not yet hosted a
+  single successful isolated launch of this one; the roadmap below is
+  what a second engine would take, unstarted, and getting emulator-5560
+  working at all comes first.
 
 **Process note, for whoever reads this milestone's own commit history
 looking for how it went:** several fixes across dq-sandbox-04 through
@@ -1113,7 +1205,13 @@ checked (`SharedMemory.getFileDescriptor` does not exist as guessed;
 rig. The pattern that stopped recurring once adopted: check
 developer.android.com's own reference page for the exact method
 signature before writing the call, not after CI or a rig run disagrees
-with a guess.
+with a guess. A second, more expensive lesson from the same stretch of
+passes: an "apparent pass" on a rig is not the same claim as "the
+mechanism under test actually worked," if any exception anywhere in
+that mechanism's own path could have been silently swallowed instead of
+surfaced -- dq-sandbox-07's own false pass is the concrete example, and
+is why every "confirmed" claim in this document now tries to name the
+specific evidence for it rather than the on-screen outcome alone.
 
 ### Roadmap: the remaining plugins, in order
 
