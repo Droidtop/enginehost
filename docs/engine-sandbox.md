@@ -86,7 +86,7 @@ something to find out on the owner's device by shipping it. What *can*
 stop a game reading the whole of shared storage is running the engine
 under a UID that does not have it.
 
-## Layer 2: the engine under its own UID (the target, not built)
+## Layer 2: the engine under its own UID (built, CatSystem2 confirmed working)
 
 An `android:isolatedProcess="true"` service runs under a fresh UID with no
 permissions at all: no `inet` group, no shared storage, not even this
@@ -1020,6 +1020,100 @@ to open CatSystem2's own Save UI by controller or touch input on
 BlueStacks -- flagged as a possible CatSystem2 plugin input-mapping gap
 for that plugin's own controls work, not a sandbox issue, and still
 open.
+
+### Milestone summary: CatSystem2 isolated, confirmed on both rigs
+
+Sandbox layer 2's first milestone is done and confirmed on a device, not
+merely built and CI-green: CatSystem2 runs its own game logic inside
+`android:isolatedProcess="true"`, under a fresh UID with none of the
+host's permissions, and plays for minutes at a time through real menus,
+a cutscene and a CG scene with no crash. This section is the map of
+what that took, dq by dq, for whoever picks up the next plugin.
+
+**What's confirmed working, on real rigs (BlueStacks/API 28 and
+emulator-5560/API 34), not just CI:**
+
+- The isolated service boots, loads the plugin's own dex and native
+  library entirely by descriptor (never a path the isolated process
+  resolves itself), and starts the engine -- on *both* API levels, via
+  two different mechanisms the code picks between: below API 30, the
+  plain host-opened descriptor, reopened by `/proc/self/fd` path
+  (proven since dq-sandbox-03); API 30 and up, a sealed memfd copy this
+  process makes of its own (`ownedCopy()`), which is what actually
+  satisfies ART's newer writable-dex check that the plain path alone
+  does not (dq-sandbox-04 through dq-sandbox-07's own escalating fixes).
+- The isolated UID is real and distinct from the app's own on every rig
+  (99013, 99017, 99019, 99021, 99005 across different runs -- the
+  number moves, the boundary doesn't).
+- Game and save file access work end to end through the host-brokered
+  `EngineFileBroker`, never a real path inside the isolated process.
+- Frames render and reach the screen -- CatSystem2 played interactively
+  for 67+ seconds at ~55fps through Scenario Select, a cutscene and a
+  CG scene with an overlay, reproduced twice on BlueStacks
+  (dq-sandbox-06) -- over a plain host-owned file (`setFrameBuffer`),
+  not a Binder array, after the array form was found to be the actual
+  cause of an earlier silent isolated-process death (dq-sandbox-04/05,
+  fixed in dq-sandbox-06).
+- Audio is silent-by-design on API 28 (no `Os.memfd_create` binding
+  below API 30) and has not yet been confirmed audible on a real game
+  on API 30+, since the only API 30+ rig available is the synthetic
+  CS2Fixture stub with no real audio data -- the mechanism itself
+  (shared ring, `Os.pread`/`Os.pwrite`) is exercised without error
+  there, but "the reader actually hears BGM/SE" per se remains unproven
+  past this milestone's own synthetic testing.
+- Layer 1 (the network seccomp filter) now covers both `:runtime` and
+  `:runtime_isolated`, confirmed installed in both on a real rig
+  (dq-sandbox-07) -- a real gap this milestone's own review surfaced
+  and closed, not something planned from the start.
+- A launch that cannot start in time, or an isolated peer that dies
+  mid-run, now reaches Enginehost's own on-screen failure text instead
+  of hanging forever (dq-sandbox-03's fix) or silently taking the whole
+  app down with no explanation (dq-sandbox-04's fix, confirmed
+  dq-sandbox-07: BlueStacks stayed up and stable, and a genuine
+  isolated-side failure -- the writable-dex rejection, before it was
+  fixed -- reliably showed on screen across every rig capture).
+
+**What's still open, honestly, not swept under "done":**
+
+- **Saves are unverified on a real game.** dq-sandbox-06 and
+  dq-sandbox-07 both tried and could not find how to open CatSystem2's
+  own Save UI by controller or touch input on BlueStacks. This may be a
+  CatSystem2 plugin input-mapping gap (its own controls work, not this
+  milestone's), or it may need a different input sequence not yet
+  tried -- either way, the actual save/load round-trip this milestone's
+  own acceptance criteria calls for has not been demonstrated on a real
+  game since the frame-transfer fix landed, only inferred from the
+  in-process file-broker mechanism working in isolation.
+- **Audio on a real game, API 30+.** As above: mechanically exercised,
+  not audibly confirmed, for lack of a real-game rig at API 30+.
+- **A definitive, singular answer for why BlueStacks' isolated process
+  died silently in the first place** (dq-sandbox-04/05) was never
+  produced -- the frame-transfer-off-Binder fix matched the strongest
+  available evidence (a tiny, unrelated parcel failing right after the
+  death, the classic symptom of an exhausted transaction buffer) and
+  the death has not recurred since, across two separate confirmed-stable
+  runs (dq-sandbox-06, dq-sandbox-07). That is strong practical evidence
+  the real cause is fixed, but it was never caught in the act with a
+  definitive root-cause trace the way the writable-dex chain eventually
+  was. A memory limit was the other candidate raised and never
+  independently ruled in or out.
+- **This milestone covers one plugin.** CatSystem2 was chosen
+  deliberately as the easiest real case (a software pixel buffer, no
+  real surface, one native file-access seam) -- see "First milestone"
+  above for why. Nothing here has been re-tried against a second
+  engine; the roadmap below is what that would take, unstarted.
+
+**Process note, for whoever reads this milestone's own commit history
+looking for how it went:** several fixes across dq-sandbox-04 through
+dq-sandbox-07 were themselves wrong on the first attempt because a
+`android.system.Os`/`OsConstants` method was guessed rather than
+checked (`SharedMemory.getFileDescriptor` does not exist as guessed;
+`Os.fcntlLong` does not exist, the real generic fcntl binding is
+`Os.fcntlInt`) -- both caught immediately by CI, neither reaching a
+rig. The pattern that stopped recurring once adopted: check
+developer.android.com's own reference page for the exact method
+signature before writing the call, not after CI or a rig run disagrees
+with a guess.
 
 ### Roadmap: the remaining plugins, in order
 
