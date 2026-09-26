@@ -1306,6 +1306,19 @@ boots past this point.
 
 ### Milestone summary: CatSystem2 isolated, confirmed on both rigs
 
+**Correction (cmvssandbox pass, applying CMVS as the second engine):**
+the section below was written after dq-sandbox-08/09 and never updated
+past dq-sandbox-11 -- it still says emulator-5560 is "not yet a working
+isolated launch". That was overtaken by events: dq-sandbox-12
+(quoted in full further down) is a clean pass on that rig across every
+check, with `EngineProcess.isIsolated()` (the fix dq-sandbox-11 led to)
+confirmed working on both ends -- the isolated process's own
+`EnginehostSandbox` seccomp line appeared there for the first time ever,
+no `UnsatisfiedLinkError`, real native code running. Left the paragraphs
+below as they were written, per this document's own stated preference
+for a correction note over rewritten history; read them together with
+dq-sandbox-12's own entry, not in isolation.
+
 Sandbox layer 2's first milestone is confirmed on a device for one
 platform generation, and still in progress for the other -- this
 section says exactly which, after this same section overstated it once
@@ -1447,14 +1460,77 @@ surfaced -- dq-sandbox-07's own false pass is the concrete example, and
 is why every "confirmed" claim in this document now tries to name the
 specific evidence for it rather than the on-screen outcome alone.
 
+### CMVS: the second isolated engine
+
+Applied the same route CatSystem2 proved: a `cmvs_broker` (identical
+shape to `cs2_broker` -- `list`/`open_read`/`open_write`/`commit_write`/
+`remove`, one mechanism, not one per engine) that `cmvs_game_open_via_broker`
+and `cmvs_interp_save_broker` use in place of real `fopen()`/`opendir()`
+for the game folder and the save folder respectively; `cpz_open_fd` lets
+an archive open from an already-open descriptor the same way `cpz_open`
+does from a path. The recursive loose-file index (CMVS keeps a game's
+music, effects and video loose under the game folder rather than only in
+its CPZ archives, unlike CatSystem2's flatter shadowing) walks the
+broker's own `list()` the same way it walks a real directory: a plain
+file's `list()` answers empty exactly as an empty directory's would, so
+there is nothing to tell the two apart on and nothing incorrect about
+not trying -- an empty real directory is indexed as if it were a (never
+matched, never opened) loose file, which costs nothing.
+
+**The roadmap entry above (now corrected) named `camera.c`'s "touch/movie
+handling" as CMVS's extra surface.** That turned out not to describe
+this codebase: `src/camera.c` is the scene's 3D-projection camera (world
+coordinates onto the screen for a staged draw item) and has no touch or
+file-access code in it at all. CMVS's actual touch handling is
+`src/input.c`/`cmvs_session_pointer`/`cmvs_session_button` (already
+engine-internal, needing no broker work), and movie loading (`src/cmv.c`)
+already goes through the same `cmvs_game_data` loose/archive search
+every other asset does -- so once the game folder itself is
+broker-backed, a movie's bytes are too, with no separate seam. The one
+piece of new work this engine genuinely needed that CatSystem2 did not:
+CmvsPlugin's own wrapper had no touch input path AT ALL before this pass
+(its `onControllerEvent` always returned `false`, and there was no
+`EngineStepDriven`/pointer wiring of any kind) -- restored via the same
+`nativePointer`/`nativeTouch` pair CatSystem2 uses, feeding
+`cmvs_session_pointer`/`cmvs_session_button` for both the in-process
+`ScreenView` and the isolated `EngineStepDriven` path. CMVS also had no
+Android audio output at all before this pass, in-process or isolated,
+even though the engine's own `cmvs_session_mix` has supported it since
+before this plugin existed; both the AAudio path and the isolated
+shared-ring path were added together rather than adding only the
+isolated half and leaving the in-process launch worse off than the
+isolated one.
+
+Frames, the isolated audio ring, `enginehost_register_natives` +
+`android_dlopen_ext`/`ANDROID_DLEXT_USE_LIBRARY_FD`, and the
+`EngineProcess.isIsolated()`-gated `loadLibrary` catch are the exact
+same mechanisms CatSystem2 uses, reused rather than reimplemented; no
+host-side (Enginehost) change was needed for any of it -- `isolatable:
+true` in the bundle's own metadata is the whole switch
+(`RuntimeActivity.onCreate`: `if (resolved.plugin.isolatable) return
+startIsolatedRuntime(...)`, no consent prompt and no unsandboxed
+fallback for an isolatable plugin, confirmed by reading Enginehost's own
+source rather than assumed).
+
+Wrapper changes on `enginehost-cmvs-plugin`'s `plugin-core`
+(`4012a56`), merged into `plugin/2.0-3.0` (`b02fe16`); engine-side broker
+plumbing directly on `plugin/2.0-3.0` (`99ec5f5`), since that branch has
+no shared ancestor with `plugin-core` predating this pass and is the
+only line this repository currently ships. CI green on both, published
+to the unstable channel as `dev.enginehost.cmvs.ps2-ps3.v1` build 75
+(commit `c080fde`). Queued as `dq-cmvssandbox-01` (BlueStacks: ChronoClock,
+a real game, 60s+ isolated with a save round-trip if the save UI is
+reachable; emulator-5560: a synthetic fixture past loading) rather than
+run directly, per this repository's own rig-agent-only rule
+(`coordination/device/README.md`) -- **rig results are not yet in as of
+this writing; the mechanism is CI-verified only.**
+
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback
    seam end to end on the simplest surface shape.
-2. **CMVS** -- same transport and broker shape as CatSystem2 once the
-   broker exists; its extra surface (`camera.c`'s touch/movie handling)
-   is the first test that the design generalizes past the exact plugin
-   it was built against.
+2. **CMVS** (above) -- wrapper and engine-side broker work done, CI
+   green, rig confirmation queued as `dq-cmvssandbox-01`.
 3. **KiriKiri (`enginehost-kirikiri-plugin`/`enginehost-plugin-kirikiri`),
    NScripter, mkxp-z, Ren'Py, EasyRPG** -- other `plugin`-transport,
    non-Activity engines. Each needs its own file-access audit (some may
