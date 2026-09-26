@@ -921,6 +921,54 @@ code runs), which this filter does not touch or suppress the kernel's
 own audit trail for -- worth remembering if a future rig run needs to
 tell the two apart.
 
+**dq-sandbox-06 results: BlueStacks confirmed fixed, emulator-5560 hit
+the writable-dex rejection again, with a different signature.**
+BlueStacks ran CatSystem2 isolated for 67+ seconds at ~55fps, through
+Scenario Select, a cutscene and a CG scene, reproduced twice -- the
+frame-transfer fix (`054b9f4`) was the actual cause, confirmed rather
+than assumed. Saves are still unverified: the rig could not find how to
+open CatSystem2's own Save UI by controller or touch input; noted as a
+possible CatSystem2 controls/input-mapping gap for that plugin's own
+work, not a sandbox issue, and still needs checking once reachable.
+
+emulator-5560 (API 34) still hit `SecurityException: Writable dex file
+'/proc/self/fd/78' is not allowed` -- but this time with *none* of
+`ownedCopy()`'s own log lines anywhere in logcat, where dq-sandbox-05's
+capture of the same underlying rejection showed its `ErrnoException`
+clearly. Since `ownedCopy()` never logged anything on its OWN success
+path (only on failure), that silence was genuinely ambiguous: it could
+mean the API-30+ gate was skipping the function entirely, or that it
+ran, succeeded (no exception), and the resulting sealed memfd was
+*still* rejected as writable. Investigated rather than re-guessed a
+third time:
+
+- The API gate itself (`Build.VERSION.SDK_INT >= 30`) is correct and
+  unconditional; nothing in the code path could skip it on an API 34
+  device.
+- `ownedCopy()` now logs explicitly at entry and again on success (with
+  the sealed fd's `F_GET_SEALS` read back and printed), so this
+  ambiguity cannot recur -- a future rig run will say definitively which
+  case it hit.
+- The likelier explanation, and the one this pass fixes regardless of
+  which it turns out to be: **`F_ADD_SEALS`/`F_SEAL_WRITE` only stops
+  `write(2)`/`ftruncate(2)` on the memfd going forward -- it does
+  nothing to the file's own Unix permission bits.** `memfd_create(2)`
+  leaves a freshly created memfd privately read-write for its own
+  creator (this process), and a check that asks "is this file writable
+  *by me*" via `stat`/`access` rather than `fcntl(F_GET_SEALS)` would
+  still see it as writable no matter how thoroughly it is sealed --
+  seals and permission bits are two orthogonal mechanisms in Linux.
+  `ownedCopy()` now also calls `Os.fchmod(memFd, 0444)` (read-only for
+  owner, group and other) right after filling the file and before
+  sealing it, so whichever check ART's own loader actually performs --
+  seals, permission bits, or both -- is satisfied, rather than betting
+  the whole fix on a single guessed mechanism a second time.
+
+Not yet re-run: this needs its own rig pass (folded into a single
+dq-sandbox-07 alongside re-confirming BlueStacks and the seccomp
+install) before it can be called fixed rather than merely
+better-reasoned.
+
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback

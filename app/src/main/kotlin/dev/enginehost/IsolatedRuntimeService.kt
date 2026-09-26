@@ -335,12 +335,36 @@ private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd
  * mistake (fcntlLong -> fcntlInt) one commit earlier.
  */
 private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor {
+    // dq-sandbox-06 (emulator-5560, API 34): the writable-dex
+    // SecurityException came back with NONE of this function's own log
+    // lines anywhere in logcat -- meaning it either was not reached, or
+    // ran and returned successfully (this function never logged its own
+    // success, only its failure, so silence was ambiguous either way).
+    // Logged explicitly now so a future rig run can say for certain
+    // which it was, per the coordinator's own request, rather than
+    // inferring it from an absence.
+    Log.i("enginehost-isolated-runtime", "ownedCopy: sealing a memfd copy for ${procFdPath(pfd)}")
     val memFd = Os.memfd_create("enginehost-bundle", MFD_ALLOW_SEALING)
     try {
         FileOutputStream(memFd).use { output -> FileInputStream(pfd.fileDescriptor).copyTo(output) }
         Os.lseek(memFd, 0, OsConstants.SEEK_SET)
+        // Seals alone stop write(2)/ftruncate(2) on the memfd, but do not
+        // touch its ordinary Unix permission bits -- memfd_create leaves
+        // it privately read-write for its own creator, which is this
+        // process, so a check that looks at plain "is this writable by
+        // me" (stat/access, not F_GET_SEALS) would still call it
+        // writable no matter how it is sealed. Clearing every write bit
+        // covers that reading too, whichever one ART's own check turns
+        // out to be; either is satisfied by this file having neither.
+        Os.fchmod(memFd, DEX_MEMFD_MODE)
         val seals = F_SEAL_SEAL or F_SEAL_SHRINK or F_SEAL_GROW or F_SEAL_WRITE
         Os.fcntlInt(memFd, F_ADD_SEALS, seals)
+        val readBack = Os.fcntlInt(memFd, F_GET_SEALS, 0)
+        Log.i(
+            "enginehost-isolated-runtime",
+            "ownedCopy: sealed (F_GET_SEALS=$readBack, F_SEAL_WRITE " +
+                "${if (readBack and F_SEAL_WRITE != 0) "set" else "NOT set"}), mode chmod to ${DEX_MEMFD_MODE.toString(8)}",
+        )
         return ParcelFileDescriptor.dup(memFd)
     } finally {
         Os.close(memFd)
@@ -352,11 +376,14 @@ private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor {
 // developer.android.com's own OsConstants reference), so these are the
 // raw values memfd_create(2)'s own man page documents.
 private const val F_ADD_SEALS = 1033
+private const val F_GET_SEALS = 1034
 private const val F_SEAL_SEAL = 0x0001
 private const val F_SEAL_SHRINK = 0x0002
 private const val F_SEAL_GROW = 0x0004
 private const val F_SEAL_WRITE = 0x0008
 private const val MFD_ALLOW_SEALING = 0x0002
+/** 0444 octal -- read-only for owner, group, and other; Kotlin has no octal literal. */
+private const val DEX_MEMFD_MODE = 292
 
 /** [EngineHost] for an isolated launch: file access is broker-only, and every Activity-owned call crosses back to the host. */
 private class IsolatedEngineHost(
