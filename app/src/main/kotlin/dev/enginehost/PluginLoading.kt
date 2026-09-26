@@ -74,22 +74,30 @@ internal fun loadEnginePlugin(
  * The cost: [InMemoryDexClassLoader] is `final` and cannot override
  * `findLibrary` the way [PluginDexLoader] does for the in-process path,
  * so a plugin's native library needs a different way to bind its own
- * native methods -- [IsolatedNativeBridge], which `dlopen`s the library
- * directly (still by descriptor, via [ownedCopy]'s sealed memfd copy:
- * unlike the dex, this is a real `dlopen()` of a real path, still
- * subject to the SELinux denial reopening the bundle's own raw fd hit
- * in dq-sandbox-05, so this half keeps that fix) and `dlsym`s a single,
- * fixed, non-JNI-style entry point every isolatable plugin exports
- * (`enginehost_register_natives`, see `isolated_native_bridge.c`).
- * Sealing that copy is no longer load-bearing the way it was assumed to
- * be for the dex -- `dlopen` never consulted ART's writable-dex check
- * in the first place -- but it costs nothing to keep as a second,
+ * native methods -- [IsolatedNativeBridge], which loads the library via
+ * `android_dlopen_ext`/`ANDROID_DLEXT_USE_LIBRARY_FD` directly on
+ * [ownedCopy]'s sealed memfd copy's own fd, never a path: dq-sandbox-10
+ * found that even `dlopen()`ing a `/proc/self/fd/N` *path* is itself a
+ * fresh `open()` SELinux re-checks against the underlying file -- the
+ * exact class of denial dq-sandbox-05 found reopening the bundle's own
+ * raw fd for the dex, now hit for the native library's own memfd copy
+ * instead, once the dex half of that problem was fixed and this became
+ * the next thing standing in the way. `ANDROID_DLEXT_USE_LIBRARY_FD`
+ * reads the already-open fd's own bytes directly, with no second `open()`
+ * at all, mirroring the dex's own "no reopen" reasoning above rather
+ * than reintroducing the same class of bug one call site over. It then
+ * `dlsym`s a single, fixed, non-JNI-style entry point every isolatable
+ * plugin exports (`enginehost_register_natives`, see
+ * `isolated_native_bridge.c`). Sealing that copy is no longer
+ * load-bearing the way it was assumed to be for the dex -- neither
+ * `dlopen` nor `android_dlopen_ext` ever consulted ART's writable-dex
+ * check in the first place -- but it costs nothing to keep as a second,
  * independent hardening layer over the bundle's own code either way.
  */
 internal fun loadEnginePluginFromInMemoryDex(
     dexBuffers: Array<ByteBuffer>,
     entrypointClass: String,
-    nativeLibraryFdPaths: Map<String, String>,
+    nativeLibraryFds: Map<String, Int>,
     appClassLoader: ClassLoader,
 ): LoadedPlugin {
     val loader = InMemoryDexClassLoader(dexBuffers, appClassLoader)
@@ -104,7 +112,13 @@ internal fun loadEnginePluginFromInMemoryDex(
     require(EnginePlugin::class.java.isAssignableFrom(entrypoint)) {
         "$entrypointClass does not implement EnginePlugin"
     }
-    nativeLibraryFdPaths.values.forEach { path -> IsolatedNativeBridge.registerPluginNatives(path, entrypoint) }
+    // Raw fd numbers, not paths: dq-sandbox-10 found dlopen()ing a
+    // /proc/self/fd path is itself a fresh open() SELinux re-checks
+    // against the underlying file (the same class of denial dq-sandbox-05
+    // found for the dex) -- IsolatedNativeBridge uses
+    // android_dlopen_ext/ANDROID_DLEXT_USE_LIBRARY_FD on the fd directly
+    // instead, needing no second open() at all.
+    nativeLibraryFds.values.forEach { fd -> IsolatedNativeBridge.registerPluginNatives(fd, entrypoint) }
     val plugin = entrypoint.getDeclaredConstructor().newInstance() as EnginePlugin
     return LoadedPlugin(plugin, emptyList())
 }

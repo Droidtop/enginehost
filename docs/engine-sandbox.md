@@ -1184,6 +1184,76 @@ whether BlueStacks (proven working under the OLD path-based mechanism)
 still works under the new one too, INCLUDING a non-isolated launch this
 time, specifically to exercise the `isIsolatedProcess()` fix above.
 
+**dq-sandbox-10 results: BlueStacks confirmed on the new mechanism, and
+emulator-5560's dex loading is fully clean for the first time -- one
+more path-based open stood in the way of the rest.** BlueStacks: a
+clean pass on two separate plugin builds, the native engine genuinely
+running (archive key, 25 archives, `main.kcs` booting, 44-57fps), no
+`UnsatisfiedLinkError` anywhere -- confirms both the
+`InMemoryDexClassLoader` switch and the `RegisterNatives` bridge work
+correctly on the platform that was already proven under the old
+mechanism. emulator-5560: dex loading itself is now fully clean (no
+writable-dex rejection at all), but two things blocked a full run:
+
+1. **A plugin-update digest mismatch, specific to this rig.**
+   `"Downloaded bundle does not match GitHub's asset digest"`,
+   reproduced five times against two different builds, while BlueStacks
+   updated the identical builds cleanly in the same window -- ruling out
+   a genuinely corrupted upstream asset. Reviewed `PluginInstaller`'s
+   download/cache/verify path end to end and found no code bug that
+   reuses a partial download or a stale cache entry: the cache filename
+   is keyed to the *expected* digest itself, so a different build never
+   collides with an old one's cached bytes, and the temporary file is
+   always opened truncating (never resumed or appended to) on every
+   attempt. The leading remaining explanation is this rig's own network
+   path -- a proxy or CDN edge serving something different for the same
+   nominal URL than what BlueStacks's own path receives -- which no app
+   change can fix directly. Hardened against it and made it far easier
+   to diagnose regardless: explicit `Cache-Control: no-cache` and
+   `useCaches = false` defeat any intermediate cache; `Accept-Encoding:
+   identity` removes transparent-gzip mishandling by a misbehaving proxy
+   as a source of silently-wrong bytes; a failed download or failed
+   digest check now always deletes its own temporary file rather than
+   leaving debris at a deterministic path for a later attempt to find;
+   and the digest check itself now logs both the expected and actual
+   value, plus a `Content-Length`-vs-actual-bytes mismatch warning,
+   since dq-sandbox-10 found nothing in logcat said what either side of
+   the comparison actually was.
+2. **With the old plugin build still installed, native library loading
+   hit the expected `UnsatisfiedLinkError` -- then a fresh, different
+   problem:** an `avc` denial reopening the native library's own sealed
+   memfd copy *by path*, for `IsolatedNativeBridge`'s own `dlopen()`
+   call. The exact same class of denial dq-sandbox-05 found reopening
+   the bundle's own raw fd for the dex, hit one call site over, now that
+   the dex half of that problem is actually fixed and this became the
+   next thing standing in the way: a `/proc/self/fd/<N>` path is itself
+   a fresh `open()` the kernel and SELinux re-check against the
+   underlying file, sealed memfd or not. `IsolatedNativeBridge` now
+   loads the library via `android_dlopen_ext`/`ANDROID_DLEXT_USE_LIBRARY_FD`
+   directly on the fd, never a path -- the same "no reopen, only ever
+   read the fd Binder already cleared" reasoning already applied to the
+   dex, applied here to the one remaining path-based open in the whole
+   isolated launch sequence. Since `IsolatedRuntimeService`, the bridge,
+   and the plugin's own native code all run in the same isolated
+   process, the fd crosses as a plain `Int`, no Binder or descriptor
+   duplication involved at this hop at all.
+
+Neither fix is confirmed on a rig as of this writing -- dq-sandbox-11
+(emulator-5560, including a plugin update through the UI) is what will
+say whether the native-library fix actually clears the avc denial and
+whether the digest-mismatch hardening changed anything about this rig's
+own update behaviour.
+
+**Design note, not a bug, recorded so it is not mistaken for a gap
+later:** an isolatable plugin has no unsandboxed launch path at all --
+consistent with the owner's own sandbox-on-by-default decision (see
+"The sandbox is on by default" above), so `CatSystem2Plugin`'s static
+initializer's own `isIsolatedProcess()` rethrow branch cannot currently
+be exercised through Enginehost's UI for an isolatable plugin. Left as
+is: the check is correct and the branch is real dead code only in the
+sense that nothing in this app's own UI can reach it today, not because
+the reasoning is wrong.
+
 ### Milestone summary: CatSystem2 isolated, confirmed on both rigs
 
 Sandbox layer 2's first milestone is confirmed on a device for one
@@ -1201,13 +1271,19 @@ of what that took, dq by dq, for whoever picks up the next plugin.
 
 - **BlueStacks (API 28), fully confirmed end to end:** the isolated
   service boots, loads the plugin's own dex and native library entirely
-  by descriptor (never a path the isolated process resolves itself, via
-  the plain host-opened descriptor reopened by `/proc/self/fd` path,
-  proven since dq-sandbox-03), starts the engine, and plays
-  interactively for 67+ seconds at ~55fps through Scenario Select, a
-  cutscene and a CG scene with an overlay, reproduced twice
-  (dq-sandbox-06), still stable at 62s with Layer 1's seccomp filter
-  also installed (dq-sandbox-07). Frames cross a plain host-owned file
+  by descriptor, never a path the isolated process resolves itself --
+  originally via the plain host-opened descriptor reopened by
+  `/proc/self/fd` path (proven since dq-sandbox-03), now via
+  `InMemoryDexClassLoader` for the dex and `android_dlopen_ext`/
+  `ANDROID_DLEXT_USE_LIBRARY_FD` for the native library (the mechanism
+  API 34 forced, confirmed NOT to regress this platform in
+  dq-sandbox-10: same clean pass, `RegisterNatives` binding its own
+  native methods correctly, no `UnsatisfiedLinkError`) -- starts the
+  engine, and plays interactively for 67+ seconds at ~55fps through
+  Scenario Select, a cutscene and a CG scene with an overlay, reproduced
+  twice (dq-sandbox-06), still stable at 62s with Layer 1's seccomp
+  filter also installed (dq-sandbox-07), and again on the new loader
+  mechanism (dq-sandbox-10, 44-57fps). Frames cross a plain host-owned file
   (`setFrameBuffer`), not a Binder array, after the array form was found
   to be the actual cause of an earlier silent isolated-process death
   (dq-sandbox-04/05, fixed in dq-sandbox-06). Layer 1's seccomp filter

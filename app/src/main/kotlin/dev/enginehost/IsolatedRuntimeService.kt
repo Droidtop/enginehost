@@ -195,14 +195,25 @@ class IsolatedRuntimeService : Service() {
             val nativeLibrarySources = nativeLibraryFds.map { received ->
                 if (ownedCopiesRequired) ownedCopy(received).also { heldFds += it } else received
             }
-            val nativeLibraryFdPaths = nativeLibraryNames.indices.associate {
-                nativeLibraryNames[it] to procFdPath(nativeLibrarySources[it])
+            // dq-sandbox-10 (emulator-5560, old plugin build still installed):
+            // dlopen()ing a /proc/self/fd/<N> PATH is itself a fresh open() of
+            // the underlying file, which SELinux re-checks -- the same class
+            // of denial dq-sandbox-05 found reopening the bundle's own raw fd
+            // by path for the dex, now hit for the native library's memfd
+            // copy instead. IsolatedNativeBridge is handed the raw fd number
+            // directly (this is all within one process; no Binder crossing
+            // needed for an already-open descriptor) so it can
+            // android_dlopen_ext with ANDROID_DLEXT_USE_LIBRARY_FD, which
+            // reads the already-open fd's own bytes with no path and no
+            // second open() at all.
+            val nativeLibraryFdsByName = nativeLibraryNames.indices.associate {
+                nativeLibraryNames[it] to nativeLibrarySources[it].fd
             }
             dexFds.forEachIndexed { i, pfd -> Log.i("enginehost-isolated-runtime", "loader input: dex[$i] -> ${dexBuffers[i].remaining()} bytes read directly from ${procFdPath(pfd)}, no path handed to any loader") }
             nativeLibrarySources.forEachIndexed { i, pfd ->
                 logLoaderInput("nativeLib[$i]=${nativeLibraryNames.getOrNull(i)}", pfd)
             }
-            val loaded = loadEnginePluginFromInMemoryDex(dexBuffers, entrypointClass, nativeLibraryFdPaths, classLoader)
+            val loaded = loadEnginePluginFromInMemoryDex(dexBuffers, entrypointClass, nativeLibraryFdsByName, classLoader)
             resourceHandles += loaded.resourceHandles
             val session = EnginePluginSession(
                 // No real bundle directory in an isolated process: dex and
