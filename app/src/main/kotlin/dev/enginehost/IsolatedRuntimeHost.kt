@@ -57,6 +57,19 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
     private var loopHandler: Handler? = null
     private var view: IsolatedFrameView? = null
     private var pixels: IntArray = IntArray(0)
+    private var frameWidth: Int = 0
+    /**
+     * The host's own copy of the shared frame buffer handed to
+     * [IEngineRuntimeService.setFrameBuffer] (docs/engine-sandbox.md
+     * "Audio" precedent, dq-sandbox-05 "the frame-transfer path"): a
+     * plain host-owned file, not memfd, specifically so this works down
+     * to this app's real minSdk (26) rather than only API 30+ -- BlueStacks,
+     * where the crash this replaces a mechanism for was actually found,
+     * is API 28.
+     */
+    private var frameBufferPfd: ParcelFileDescriptor? = null
+    private var frameBufferFile: File? = null
+    private var frameBytes: ByteArray = ByteArray(0)
     private var stepping = false
     private var audioBridge: IsolatedAudioBridge? = null
     /**
@@ -147,16 +160,49 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                         }
                         val width = svc.pixelWidth()
                         val height = svc.pixelHeight()
+                        // dq-sandbox-05 (BlueStacks): step() used to carry the
+                        // whole frame as an `out int[] pixels` Binder array --
+                        // CatSystem2's default 1024x576 is ~2.25MB, sent 60
+                        // times a second -- consistent with the isolated
+                        // process's own Binder transaction buffer being
+                        // exhausted, which is the leading theory for why it
+                        // died silently and unexplained about 11s into every
+                        // run. Frame data now crosses through a plain
+                        // host-owned file instead (see setFrameBuffer's AIDL
+                        // doc comment), created only once width/height are
+                        // known, exactly like the audio ring is sized only
+                        // once a real sample rate is known.
+                        val frameFile = if (width > 0 && height > 0) {
+                            runCatching {
+                                File.createTempFile("enginehost-frame", ".buf", activity.cacheDir).also {
+                                    it.deleteOnExit()
+                                }
+                            }.getOrNull()
+                        } else {
+                            null
+                        }
+                        val framePfd = frameFile?.let {
+                            runCatching { ParcelFileDescriptor.open(it, ParcelFileDescriptor.MODE_READ_WRITE) }.getOrNull()
+                        }
+                        framePfd?.let { runCatching { svc.setFrameBuffer(it) } }
                         settle {
                             activity.runOnUiThread {
-                                if (width <= 0 || height <= 0) {
+                                if (width <= 0 || height <= 0 || framePfd == null) {
                                     bridge?.close()
-                                    onFailure("The isolated runtime reported no picture size")
+                                    framePfd?.let { runCatching { it.close() } }
+                                    frameFile?.let { runCatching { it.delete() } }
+                                    onFailure(
+                                        if (width <= 0 || height <= 0) "The isolated runtime reported no picture size"
+                                        else "Could not set up the isolated runtime's frame buffer",
+                                    )
                                     return@runOnUiThread
                                 }
                                 audioBridge = bridge
                                 bridge?.startPlayback()
+                                frameBufferPfd = framePfd
+                                frameBufferFile = frameFile
                                 pixels = IntArray(width * height)
+                                frameWidth = width
                                 val frameView = IsolatedFrameView(
                                     activity, width, height,
                                     onPointerMove = { x, y -> onLoop { runCatching { service?.onPointerMove(x, y) } } },
@@ -252,6 +298,10 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
         service = null
         audioBridge?.close()
         audioBridge = null
+        frameBufferPfd?.let { runCatching { it.close() } }
+        frameBufferPfd = null
+        frameBufferFile?.let { runCatching { it.delete() } }
+        frameBufferFile = null
     }
 
     private fun onLoop(block: () -> Unit) {
@@ -274,7 +324,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                 stepping = false
                 return
             }
-            val result = runCatching { svc.step(pixels) }
+            val result = runCatching { svc.step() }
             val error = result.exceptionOrNull()
             if (error != null) {
                 // dq-sandbox-04 (BlueStacks): the isolated peer died mid-run
@@ -313,11 +363,37 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                 return
             }
             if (band > 0) {
+                readChangedRows(band)
                 val snapshot = pixels.copyOf()
                 activity.runOnUiThread { view?.applyFrame(snapshot, band) }
             }
             loopHandler?.postDelayed(this, FRAME_INTERVAL_MS)
         }
+    }
+
+    /**
+     * Reads the rows [band] says changed out of [frameBufferPfd] into
+     * [pixels], at the same byte offset the isolated side wrote them to
+     * (IsolatedRuntimeService.writeChangedRows) -- never the whole
+     * frame, matching the row-diff [band] already encodes.
+     */
+    private fun readChangedRows(band: Int) {
+        val fd = frameBufferPfd ?: return
+        val width = frameWidth
+        if (width <= 0) return
+        val top = band ushr 16
+        val rows = band and 0xffff
+        val byteLength = rows * width * 4
+        if (frameBytes.size < byteLength) frameBytes = ByteArray(byteLength)
+        val byteOffset = top.toLong() * width * 4
+        var done = 0
+        while (done < byteLength) {
+            val n = Os.pread(fd.fileDescriptor, frameBytes, done, byteLength - done, byteOffset + done)
+            if (n <= 0) break
+            done += n
+        }
+        ByteBuffer.wrap(frameBytes, 0, byteLength).order(ByteOrder.nativeOrder())
+            .asIntBuffer().get(pixels, top * width, rows * width)
     }
 
     /**

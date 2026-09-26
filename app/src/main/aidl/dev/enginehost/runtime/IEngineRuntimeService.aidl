@@ -54,12 +54,33 @@ interface IEngineRuntimeService {
     int pixelHeight();
 
     /**
-     * One frame, exactly EngineStepDriven.step()'s contract: pixels is
-     * pixelWidth() * pixelHeight() ARGB_8888 ints; the return value is
-     * (firstChangedRow << 16) | changedRowCount, 0, or -1 once the engine
-     * has ended.
+     * The host's own frame buffer: a plain file the host owns, sized
+     * pixelWidth() * pixelHeight() * 4 bytes (ARGB_8888), that step()
+     * below writes changed rows into instead of returning them as a
+     * Binder array. Called exactly once, right after pixelWidth()/
+     * pixelHeight() are known and before the first step().
+     *
+     * dq-sandbox-05 (BlueStacks): the isolated process died silently,
+     * unexplained, about 11 seconds into frame stepping, with the host
+     * discovering it only via a failed step() Binder call on an
+     * unrelated, tiny follow-up transaction -- consistent with the
+     * process's Binder transaction buffer having been exhausted by
+     * `out int[] pixels` marshalling a full frame (CatSystem2's default
+     * 1024x576 is ~2.25MB) through Binder's own flat buffer on every
+     * step(), 60 times a second. Frame data crosses the boundary as
+     * shared memory instead, the same way audio does (docs/engine-sandbox.md
+     * "Audio"), so a step() call itself is a few bytes regardless of
+     * picture size.
      */
-    int step(out int[] pixels);
+    void setFrameBuffer(in ParcelFileDescriptor buffer);
+
+    /**
+     * One frame. Exactly EngineStepDriven.step()'s own return contract --
+     * (firstChangedRow << 16) | changedRowCount, 0, or -1 once the engine
+     * has ended -- but the changed rows themselves are written into the
+     * buffer given to setFrameBuffer, not returned here.
+     */
+    int step();
 
     /** Host-normalized controller input, exactly EngineControllerEvent's fields. Returns whether the plugin consumed it. */
     boolean onControllerEvent(String action, float value, int deviceId, String deviceDescriptor, long eventTime);

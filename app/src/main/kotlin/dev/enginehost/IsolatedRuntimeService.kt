@@ -23,6 +23,8 @@ import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Sandbox layer 2, first milestone (docs/engine-sandbox.md): the whole
@@ -79,6 +81,57 @@ class IsolatedRuntimeService : Service() {
             audioSampleRate: Int,
             callback: IEngineRuntimeCallback,
         ) {
+            // dq-sandbox-05 (emulator-5560): a ClassNotFoundException out of
+            // loadEnginePluginFromFds below reached "JavaBinder:" in logcat
+            // -- proof it WAS thrown -- yet svc.init() on the host side
+            // returned as if nothing had happened, and the launch limped on
+            // to an unrelated "no picture size" failure instead. The reason:
+            // android.os.Binder only marshals RemoteException, RuntimeException
+            // and OutOfMemoryError back across a transaction automatically;
+            // a plain checked Exception (ClassNotFoundException extends
+            // ReflectiveOperationException, neither of those) propagates
+            // past that machinery uncaught and is simply lost rather than
+            // reaching the caller as a thrown exception. Wrapping every
+            // failure from this method's real body in a RuntimeException
+            // here is what makes it actually cross the boundary, so
+            // IsolatedRuntimeHost's own catch (Throwable) -- and the
+            // on-screen failure it shows -- see the real reason.
+            try {
+                initInternal(
+                    dexFds, entrypointClass, nativeLibraryNames, nativeLibraryFds,
+                    engine, engineContext, engineVersion, runtimeVersion, capabilityId,
+                    execFile, optionsJson, runtimeRequirementKeys, runtimeRequirementValues,
+                    restartArguments, gameBroker, saveBroker, audioBuffer, audioSampleRate, callback,
+                )
+            } catch (e: RuntimeException) {
+                throw e
+            } catch (e: Throwable) {
+                Log.e(TAG, "isolated init failed", e)
+                throw RuntimeException(e.message ?: e.javaClass.simpleName, e)
+            }
+        }
+
+        private fun initInternal(
+            dexFds: Array<ParcelFileDescriptor>,
+            entrypointClass: String,
+            nativeLibraryNames: Array<String>,
+            nativeLibraryFds: Array<ParcelFileDescriptor>,
+            engine: String,
+            engineContext: String,
+            engineVersion: String,
+            runtimeVersion: String,
+            capabilityId: String,
+            execFile: String?,
+            optionsJson: String?,
+            runtimeRequirementKeys: Array<String>,
+            runtimeRequirementValues: Array<String>,
+            restartArguments: Array<String>,
+            gameBroker: IEngineFileBroker?,
+            saveBroker: IEngineFileBroker?,
+            audioBuffer: ParcelFileDescriptor?,
+            audioSampleRate: Int,
+            callback: IEngineRuntimeCallback,
+        ) {
             this@IsolatedRuntimeService.callback = callback
             this@IsolatedRuntimeService.restartArguments = restartArguments
             heldFds += dexFds
@@ -102,9 +155,22 @@ class IsolatedRuntimeService : Service() {
             // into a memfd this process created itself carries no such
             // label; reopening ITS /proc/self/fd entry checks this
             // process's access to its own memory-backed file instead.
-            val dexSources = dexFds.map { received -> ownedCopy(received)?.also { heldFds += it } ?: received }
+            // Below API 30 there is no memfd_create binding at all, so the
+            // plain received descriptor is the only option -- exactly what
+            // dq-sandbox-03 already proved works on BlueStacks (API 28),
+            // which predates ART's writable-dex check this milestone is
+            // otherwise working around. From API 30 up, that same plain
+            // descriptor is proven NOT to work (dq-sandbox-05, emulator-5560,
+            // SELinux enforcing: opening it by /proc/self/fd path hits a
+            // real avc denial), so a sealed-memfd copy failing there must
+            // fail the whole launch rather than silently falling back to a
+            // path already shown broken.
+            val ownedCopiesRequired = Build.VERSION.SDK_INT >= 30
+            val dexSources = dexFds.map { received ->
+                if (ownedCopiesRequired) ownedCopy(received).also { heldFds += it } else received
+            }
             val nativeLibrarySources = nativeLibraryFds.map { received ->
-                ownedCopy(received)?.also { heldFds += it } ?: received
+                if (ownedCopiesRequired) ownedCopy(received).also { heldFds += it } else received
             }
             val nativeLibraryFdPaths = nativeLibraryNames.indices.associate {
                 nativeLibraryNames[it] to procFdPath(nativeLibrarySources[it])
@@ -135,9 +201,50 @@ class IsolatedRuntimeService : Service() {
         override fun pixelWidth(): Int = stepDriven?.pixelWidth() ?: 0
         override fun pixelHeight(): Int = stepDriven?.pixelHeight() ?: 0
 
-        override fun step(pixels: IntArray): Int = runCatching { stepDriven?.step(pixels) ?: -1 }
-            .onFailure { Log.e(TAG, "step failed", it) }
-            .getOrDefault(-1)
+        /** The host's own frame buffer (docs/engine-sandbox.md "Audio" precedent); see the AIDL doc comment. */
+        override fun setFrameBuffer(buffer: ParcelFileDescriptor) {
+            heldFds += buffer
+            frameBufferFd = buffer
+        }
+
+        private var frameBufferFd: ParcelFileDescriptor? = null
+        private var frameScratch: IntArray = IntArray(0)
+        private var frameBytes: ByteArray = ByteArray(0)
+
+        override fun step(): Int = runCatching {
+            val driven = stepDriven ?: return@runCatching -1
+            val width = driven.pixelWidth()
+            val height = driven.pixelHeight()
+            if (frameScratch.size != width * height) frameScratch = IntArray(width * height)
+            val band = driven.step(frameScratch)
+            if (band > 0) writeChangedRows(width, band)
+            band
+        }.onFailure { Log.e(TAG, "step failed", it) }.getOrDefault(-1)
+
+        /**
+         * Copies the rows [band] says changed into [frameBufferFd] at
+         * their byte offset -- never the whole frame, matching the same
+         * row-diff [band] already carries so this is no more data than
+         * the old `out int[] pixels` transferred, just moved off Binder
+         * and onto a plain pwrite (dq-sandbox-05, "the frame-transfer
+         * path" -- see the AIDL doc comment on setFrameBuffer).
+         */
+        private fun writeChangedRows(width: Int, band: Int) {
+            val fd = frameBufferFd ?: return
+            val top = band ushr 16
+            val rows = band and 0xffff
+            val byteLength = rows * width * 4
+            if (frameBytes.size < byteLength) frameBytes = ByteArray(byteLength)
+            ByteBuffer.wrap(frameBytes, 0, byteLength).order(ByteOrder.nativeOrder())
+                .asIntBuffer().put(frameScratch, top * width, rows * width)
+            val byteOffset = top.toLong() * width * 4
+            var done = 0
+            while (done < byteLength) {
+                val n = Os.pwrite(fd.fileDescriptor, frameBytes, done, byteLength - done, byteOffset + done)
+                if (n <= 0) break
+                done += n
+            }
+        }
 
         override fun onControllerEvent(
             action: String,
@@ -186,13 +293,26 @@ private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd
 
 /**
  * A copy of pfd's bytes into an anonymous, memory-backed file this
- * process created itself (memfd_create(2)), or null when that is not
- * available (below API 30, where android.system.Os has no Java binding
- * for it yet) or fails for any reason -- the caller falls back to the
- * received descriptor unchanged either way, exactly today's behaviour.
+ * process created itself (memfd_create(2)), sealed non-writable before
+ * being handed anywhere. Called only when the caller has already
+ * checked API 30+ ([Os.memfd_create] has no Java binding below it); on
+ * any failure this THROWS rather than returning a fallback value --
+ * dq-sandbox-05 (emulator-5560, SELinux enforcing) found the caller's
+ * old fallback (the plain received descriptor, reopened by
+ * /proc/self/fd path) genuinely cannot work on a device that reaches
+ * this function at all: it hits a real avc denial
+ * (isolated_app -> app_data_file, permissive=0) opening the bundle's own
+ * classes.dex, silently corrupting the launch (a ClassNotFoundException
+ * that never reached the screen -- see [IsolatedRuntimeService.init]'s
+ * own wrapping try/catch for that half of the fix) rather than failing
+ * it outright. Below API 30, callers never call this at all and keep
+ * using the plain descriptor directly, unchanged -- proven to work
+ * there since dq-sandbox-03 (BlueStacks, API 28, predates ART's
+ * writable-dex check this function exists to satisfy).
+ *
  * Reads pfd directly (no reopen: this is the one operation Binder's own
- * fd transfer already cleared), so this needs no permission this process
- * does not already have from receiving pfd in the first place.
+ * fd transfer already cleared), so this needs no permission this
+ * process does not already have from receiving pfd in the first place.
  *
  * Sealed non-writable (F_ADD_SEALS) before it is handed anywhere: a
  * memfd this process created is otherwise still writable by it (the
@@ -206,33 +326,37 @@ private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd
  * so sealing is what satisfies it, not merely reopening read-only.
  * Applied to native-library copies too, not only dex: harmless for
  * dlopen and one less distinct code path to reason about.
+ *
+ * MFD_ALLOW_SEALING is required at creation time: without it,
+ * memfd_create(2) starts the file with F_SEAL_SEAL already set, which
+ * blocks every later F_ADD_SEALS call with EPERM (dq-sandbox-05,
+ * emulator-5560) -- confirmed against memfd_create(2)'s own man page,
+ * not guessed a second time after this same file's F_ADD_SEALS name
+ * mistake (fcntlLong -> fcntlInt) one commit earlier.
  */
-private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor? {
-    if (Build.VERSION.SDK_INT < 30) return null
-    return try {
-        val memFd = Os.memfd_create("enginehost-bundle", 0)
-        try {
-            FileOutputStream(memFd).use { output -> FileInputStream(pfd.fileDescriptor).copyTo(output) }
-            Os.lseek(memFd, 0, OsConstants.SEEK_SET)
-            val seals = F_SEAL_SEAL or F_SEAL_SHRINK or F_SEAL_GROW or F_SEAL_WRITE
-            Os.fcntlInt(memFd, F_ADD_SEALS, seals)
-            ParcelFileDescriptor.dup(memFd)
-        } finally {
-            Os.close(memFd)
-        }
-    } catch (e: Exception) {
-        Log.w("enginehost-isolated-runtime", "could not copy into an owned memfd; using the received descriptor as-is", e)
-        null
+private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor {
+    val memFd = Os.memfd_create("enginehost-bundle", MFD_ALLOW_SEALING)
+    try {
+        FileOutputStream(memFd).use { output -> FileInputStream(pfd.fileDescriptor).copyTo(output) }
+        Os.lseek(memFd, 0, OsConstants.SEEK_SET)
+        val seals = F_SEAL_SEAL or F_SEAL_SHRINK or F_SEAL_GROW or F_SEAL_WRITE
+        Os.fcntlInt(memFd, F_ADD_SEALS, seals)
+        return ParcelFileDescriptor.dup(memFd)
+    } finally {
+        Os.close(memFd)
     }
 }
 
-// linux/fcntl.h -- not exposed as named constants on android.system.OsConstants,
-// so these are the raw values memfd_create(2)'s own man page documents.
+// linux/fcntl.h and linux/memfd.h -- not exposed as named constants on
+// android.system.OsConstants (only MFD_CLOEXEC is; confirmed against
+// developer.android.com's own OsConstants reference), so these are the
+// raw values memfd_create(2)'s own man page documents.
 private const val F_ADD_SEALS = 1033
 private const val F_SEAL_SEAL = 0x0001
 private const val F_SEAL_SHRINK = 0x0002
 private const val F_SEAL_GROW = 0x0004
 private const val F_SEAL_WRITE = 0x0008
+private const val MFD_ALLOW_SEALING = 0x0002
 
 /** [EngineHost] for an isolated launch: file access is broker-only, and every Activity-owned call crosses back to the host. */
 private class IsolatedEngineHost(
