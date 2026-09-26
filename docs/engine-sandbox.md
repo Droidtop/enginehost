@@ -730,6 +730,69 @@ Audio was the one gap: it is the only thing CatSystem2 touches that both
 (a) is not already file- or callback-shaped and (b) resolves to a system
 service `isolated_app` cannot reach.
 
+**dq-sandbox-04 (both rigs): three platform-specific bugs, none of them
+the design being wrong.**
+
+- **API 34 (emulator-5560): ART refuses the whole launch.**
+  `SecurityException: Writable dex file '/proc/self/fd/76' is not
+  allowed.` ART's dex loader treats a memfd's ordinary read-write mode
+  bits as writable no matter how the fd handed to it was itself opened,
+  and only trusts `fcntl(fd, F_GET_SEALS)` carrying `F_SEAL_WRITE` as
+  proof it will not be written to again -- the same mechanism Android
+  itself uses elsewhere for handing over dex/APK content by descriptor.
+  `ownedCopy()` (IsolatedRuntimeService.kt) now seals the memfd
+  (`F_ADD_SEALS`: `F_SEAL_SEAL|F_SEAL_SHRINK|F_SEAL_GROW|F_SEAL_WRITE`,
+  via `Os.fcntlInt`) right after filling it and before the dup it hands
+  onward, for native-library copies too, not only dex.
+- **Also API 34: the audio bridge itself failed separately**, with
+  `NonWritableChannelException` out of `IsolatedAudioBridge.create()`.
+  A Java NIO `FileChannel`'s read/write capability comes from which
+  stream opened it (`FileInputStream` is always read-only,
+  `FileOutputStream` always write-only), never from the underlying fd's
+  own `O_RDWR` mode -- so `FileChannel.map(READ_WRITE, ...)` could never
+  have worked here regardless of what flags `memfd_create` was given.
+  Replaced the mapped `ByteBuffer` with direct `Os.pread`/`Os.pwrite` on
+  the fd (both take a plain byte array, operate at the syscall level,
+  and are not subject to that Java-side distinction) for the header
+  words and the ring data alike.
+- **API 28 (BlueStacks): the isolated process died silently mid-run**,
+  about 11 seconds into CatSystem2's own frame stepping, with no
+  tombstone and nothing else in logcat marking its own end -- the host
+  only found out when a subsequent `step()` Binder call failed with
+  `DeadObjectException`. The real bug wasn't the death itself (still
+  unexplained -- see below) but what the host did with it:
+  `frameStep()` funnelled that exception through the exact same silent
+  `activity.finish()` an ordinary end-of-game uses, and
+  `RuntimeActivity.onDestroy()` deliberately kills this `:runtime`
+  process on every finish (each launch owns its own process, success or
+  failure) -- so a crash and a clean exit were indistinguishable, and
+  with no back-stack destination for the rig's `am start` shortcut, the
+  whole app appeared to silently vanish to the home screen. `frameStep`
+  now tells the two apart: `svc.step(pixels)` throwing routes through
+  the same `onLaunchFailure` path a launch-time error already uses
+  (`RuntimeActivity.failAndFinish`, which sets a result extra the
+  launch screen reads before finishing), so the reason reaches the
+  screen instead of vanishing; only a real `-1` return value (the
+  engine's own `EngineStepDriven` contract for "I have ended") still
+  finishes silently, since that one is not an error. Also added
+  `logIsolatedDeath()`, reading `ActivityManager.getHistoricalProcessExitReasons`
+  (`ApplicationExitInfo`, API 30+) for whatever Android itself recorded
+  about why the isolated process stopped, since a `DeadObjectException`
+  alone never carries more than "remote process probably died" -- this
+  is diagnostic-only groundwork: BlueStacks is API 28, below that API,
+  so this specific rig still can't get a real answer from it, and the
+  actual root cause of the death itself remains open, to be chased with
+  whatever `logIsolatedDeath` and the now-visible on-screen failure
+  reason turn up on dq-sandbox-05.
+
+All three fixes are host-side only (Enginehost commits `eed4cd1` and
+`3e34269` on `main`); nothing changed in `enginehost-catsystem2-plugin`
+for this pass. Both new commits hit a real compile-time platform-API
+guess wrong on the first try (`Os.fcntlLong` does not exist; the actual
+generic fcntl binding is `Os.fcntlInt(FileDescriptor, int, int)`) --
+caught by CI, confirmed against developer.android.com's own reference
+pages before the fix, not guessed a second time.
+
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback
