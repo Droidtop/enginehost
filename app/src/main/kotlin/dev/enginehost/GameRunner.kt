@@ -120,6 +120,8 @@ object GameRunner {
             saves.saveFolderFor(config)
         } catch (e: UnusableSaveFolderException) {
             return Plan.Failure(context.getString(R.string.launch_save_folder_unusable, e.folder.absolutePath), retry = true)
+        } catch (e: IllegalArgumentException) {
+            return Plan.Failure(e.message ?: context.getString(R.string.launch_save_folder_invalid_name))
         }
         val resolved = PluginRegistry.resolve(
             context, config.engine, config.engineContext, config.engineVersion,
@@ -141,6 +143,14 @@ object GameRunner {
                 Intent(context, PluginTrustActivity::class.java)
                     .putExtra(PluginTrustActivity.EXTRA_BUNDLE, resolved.plugin.bundleId),
             )
+        }
+        // The config's execFile, when specified, must exist under the game folder.
+        // Check upfront so a missing file produces a clear failure instead of a
+        // later crash or silent black screen in the runtime.
+        config.execFile?.let { execFile ->
+            if (!File(gameFolder, execFile).isFile) {
+                return Plan.Failure(context.getString(R.string.launch_exec_file_missing, execFile), retry = false)
+            }
         }
         val runtimeClass = if (resolved.plugin.runtimeTransport == RUNTIME_TRANSPORT_ACTIVITY) {
             BundledActivityProxy::class.java

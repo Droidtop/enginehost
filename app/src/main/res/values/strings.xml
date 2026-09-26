@@ -415,6 +415,8 @@
     <string name="sandbox_consent_title">This engine can\'t run sandboxed</string>
     <string name="sandbox_consent_message">%1$s has no sandboxed runtime yet. Run it anyway and its code has Enginehost\'s own access while it runs: it can read and write anything on shared storage and use the network, the same as the app itself. This is asked every time; nothing is remembered.</string>
     <string name="sandbox_consent_run">Run unsandboxed</string>
+    <string name="launch_save_folder_invalid_name">The save folder name in the game\'s configuration is not valid.</string>
+    <string name="launch_exec_file_missing">The game\'s entry file \"%1$s\" does not exist in the game folder.</string>
     <string name="earlier_saves_title">Saves from an earlier Enginehost</string>
     <plurals name="earlier_saves_message">
         <item quantity="one">An earlier Enginehost kept %1$d save file for this game in %2$s. This engine saves in the game\'s own folder, as the original does, so the game will not find it there. Copy it into the game folder? Nothing is deleted, and a file the game folder already has is left as it is.</item>
