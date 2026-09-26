@@ -193,6 +193,19 @@ private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd
  * Reads pfd directly (no reopen: this is the one operation Binder's own
  * fd transfer already cleared), so this needs no permission this process
  * does not already have from receiving pfd in the first place.
+ *
+ * Sealed non-writable (F_ADD_SEALS) before it is handed anywhere: a
+ * memfd this process created is otherwise still writable by it (the
+ * mode bits say so, even though nothing here writes to it again), and
+ * dq-sandbox-04 on API 34 found ART's own dex loader refuses exactly
+ * that -- "SecurityException: Writable dex file '...' is not allowed."
+ * -- for a dex opened from such a descriptor. ART's own loader checks
+ * F_GET_SEALS for F_SEAL_WRITE as its accepted proof a writable-looking
+ * fd will not actually be written to again (the same mechanism used
+ * elsewhere on Android for handing over dex/APK content by descriptor),
+ * so sealing is what satisfies it, not merely reopening read-only.
+ * Applied to native-library copies too, not only dex: harmless for
+ * dlopen and one less distinct code path to reason about.
  */
 private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor? {
     if (Build.VERSION.SDK_INT < 30) return null
@@ -201,6 +214,8 @@ private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor? {
         try {
             FileOutputStream(memFd).use { output -> FileInputStream(pfd.fileDescriptor).copyTo(output) }
             Os.lseek(memFd, 0, OsConstants.SEEK_SET)
+            val seals = F_SEAL_SEAL or F_SEAL_SHRINK or F_SEAL_GROW or F_SEAL_WRITE
+            Os.fcntlLong(memFd, F_ADD_SEALS, seals.toLong())
             ParcelFileDescriptor.dup(memFd)
         } finally {
             Os.close(memFd)
@@ -210,6 +225,14 @@ private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor? {
         null
     }
 }
+
+// linux/fcntl.h -- not exposed as named constants on android.system.OsConstants,
+// so these are the raw values memfd_create(2)'s own man page documents.
+private const val F_ADD_SEALS = 1033
+private const val F_SEAL_SEAL = 0x0001
+private const val F_SEAL_SHRINK = 0x0002
+private const val F_SEAL_GROW = 0x0004
+private const val F_SEAL_WRITE = 0x0008
 
 /** [EngineHost] for an isolated launch: file access is broker-only, and every Activity-owned call crosses back to the host. */
 private class IsolatedEngineHost(

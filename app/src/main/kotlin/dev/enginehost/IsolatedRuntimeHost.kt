@@ -1,6 +1,8 @@
 package dev.enginehost
 
 import android.app.Activity
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -34,11 +36,9 @@ import dev.enginehost.runtime.IEngineRuntimeCallback
 import dev.enginehost.runtime.IEngineRuntimeService
 import java.io.File
 import java.io.FileDescriptor
-import java.io.FileInputStream
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.MappedByteBuffer
-import java.nio.channels.FileChannel
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
 
@@ -59,6 +59,18 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
     private var pixels: IntArray = IntArray(0)
     private var stepping = false
     private var audioBridge: IsolatedAudioBridge? = null
+    /**
+     * Set once by [start]; also used from [frameStep] when the isolated
+     * peer dies mid-run (dq-sandbox-04, BlueStacks): that case used to
+     * fall into the exact same silent activity.finish() a real
+     * EngineStepDriven end-of-game uses, and RuntimeActivity.onDestroy()
+     * deliberately kills this ":runtime" process on an ordinary finish
+     * -- so a crash and a clean exit must not reach finish() by the same
+     * unlabelled path, or the crash is indistinguishable from the game
+     * simply having ended, and the person is bounced out with no reason
+     * shown at all.
+     */
+    private var onLaunchFailure: ((String) -> Unit)? = null
 
     fun start(
         installed: InstalledPlugin,
@@ -76,6 +88,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
         display: FrameLayout,
         onFailure: (String) -> Unit,
     ) {
+        onLaunchFailure = onFailure
         // A launch can no longer hang the screen silently forever: nothing
         // reachable from this process can tell whether the isolated side
         // is making progress or stuck (dq-sandbox-03 found it stuck inside
@@ -261,7 +274,35 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                 stepping = false
                 return
             }
-            val band = runCatching { svc.step(pixels) }.onFailure { Log.e(TAG, "step failed", it) }.getOrDefault(-1)
+            val result = runCatching { svc.step(pixels) }
+            val error = result.exceptionOrNull()
+            if (error != null) {
+                // dq-sandbox-04 (BlueStacks): the isolated peer died mid-run
+                // (silently, no tombstone) and this step() call is how the
+                // host finds out, via DeadObjectException. This is NOT the
+                // same as EngineStepDriven's own step() returning a plain
+                // -1 below, which is the engine's normal "I have ended"
+                // signal -- routing both to the same silent
+                // activity.finish() meant a crash and a clean exit looked
+                // identical, and since RuntimeActivity.onDestroy()
+                // deliberately kills this ":runtime" process on an
+                // ordinary finish, the whole app appeared to silently die
+                // with no explanation at all. A crash goes through
+                // onLaunchFailure instead, the same on-screen failure path
+                // a launch-time error already uses.
+                stepping = false
+                logIsolatedDeath(error)
+                activity.runOnUiThread {
+                    val onFailure = onLaunchFailure
+                    if (onFailure != null) {
+                        onFailure("the isolated runtime stopped: " + (error.message ?: error.javaClass.simpleName))
+                    } else {
+                        activity.finish()
+                    }
+                }
+                return
+            }
+            val band = result.getOrDefault(-1)
             if (band < 0) {
                 // The engine ended on its own without calling EngineHost.finish/fail
                 // (CatSystem2's own in-process ScreenView just stops looping the
@@ -279,8 +320,49 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
         }
     }
 
+    /**
+     * Whatever this process can find out about why the isolated peer is
+     * gone, since [error] itself (a DeadObjectException off a failed
+     * Binder call) never carries more than "remote process probably
+     * died" -- dq-sandbox-04 found no tombstone and nothing else in
+     * logcat marking the isolated process's own end. ApplicationExitInfo
+     * (API 30+) is the one place Android records why a process it hosted
+     * actually stopped (crash, native crash, ANR, signal, low memory,
+     * ...); below API 30, or if nothing matches, this can only log what
+     * [error] itself says.
+     */
+    private fun logIsolatedDeath(error: Throwable) {
+        Log.e(TAG, "step failed; the isolated runtime is presumed dead", error)
+        if (Build.VERSION.SDK_INT < 30) {
+            Log.w(TAG, "no exit-reason record available below API 30 (this device is ${Build.VERSION.SDK_INT})")
+            return
+        }
+        try {
+            val am = activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val reasons = am.getHistoricalProcessExitReasons(activity.packageName, 0, 8)
+            val isolated = reasons.firstOrNull { it.processName.contains(ISOLATED_PROCESS_NAME) }
+            if (isolated == null) {
+                Log.w(TAG, "no matching exit-reason record found for $ISOLATED_PROCESS_NAME")
+                return
+            }
+            Log.e(
+                TAG,
+                "isolated runtime (${isolated.processName}, pid ${isolated.pid}) exit reason code " +
+                    "${isolated.reason} (see ApplicationExitInfo.REASON_*), status ${isolated.status}, " +
+                    "description: ${isolated.description}",
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "could not read the isolated process's exit reason", e)
+        }
+    }
+
     companion object {
         private const val TAG = "enginehost-isolated-host"
+        // Matches AndroidManifest.xml's android:process=":runtime_isolated"
+        // on IsolatedRuntimeService; ActivityManager reports the full name
+        // ("dev.enginehost:runtime_isolated"), so this only needs to be a
+        // substring of it.
+        private const val ISOLATED_PROCESS_NAME = ":runtime_isolated"
         // A fixed pace, not vsync: driving the loop off this process's own
         // Choreographer would still only pace the *call*, and the isolated
         // process's own vsync access is exactly what this milestone avoids
@@ -317,7 +399,6 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
  */
 private class IsolatedAudioBridge private constructor(
     private val ownedFd: FileDescriptor,
-    private val hostBuffer: MappedByteBuffer,
     val sampleRate: Int,
 ) {
     private var audioTrack: AudioTrack? = null
@@ -326,6 +407,46 @@ private class IsolatedAudioBridge private constructor(
 
     /** A descriptor the isolated service can pass on to its plugin; a fresh dup each call, closed by whoever receives it. */
     fun pluginSideBuffer(): ParcelFileDescriptor = ParcelFileDescriptor.dup(ownedFd)
+
+    /**
+     * pread/pwrite straight on [ownedFd], not a mapped ByteBuffer: a
+     * Java NIO FileChannel's read/write capability comes from how it was
+     * opened (FileInputStream -> read-only, FileOutputStream -> write-
+     * only), never from the underlying fd's own O_RDWR mode, so
+     * FileChannel.map(READ_WRITE, ...) on a channel built either way
+     * throws NonWritableChannelException regardless of memfd_create's
+     * own mode (dq-sandbox-04, API 34). Os.pread/pwrite operate on the
+     * fd directly at the syscall level and are unaffected by that Java
+     * wrapper distinction.
+     */
+    private fun readHeaderInt(offset: Int): Int {
+        val bytes = ByteArray(4)
+        preadFully(offset, bytes, 0, 4)
+        return ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()).int
+    }
+
+    private fun writeHeaderInt(offset: Int, value: Int) {
+        val bytes = ByteBuffer.allocate(4).order(ByteOrder.nativeOrder()).putInt(value).array()
+        pwriteFully(offset, bytes, 0, 4)
+    }
+
+    private fun preadFully(offset: Int, dst: ByteArray, dstOff: Int, length: Int) {
+        var done = 0
+        while (done < length) {
+            val n = Os.pread(ownedFd, dst, dstOff + done, length - done, (offset + done).toLong())
+            if (n <= 0) break
+            done += n
+        }
+    }
+
+    private fun pwriteFully(offset: Int, src: ByteArray, srcOff: Int, length: Int) {
+        var done = 0
+        while (done < length) {
+            val n = Os.pwrite(ownedFd, src, srcOff + done, length - done, (offset + done).toLong())
+            if (n <= 0) break
+            done += n
+        }
+    }
 
     fun startPlayback() {
         val minBufferBytes = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT)
@@ -349,8 +470,8 @@ private class IsolatedAudioBridge private constructor(
         val thread = Thread({
             val chunk = ByteArray(4096)
             while (playing) {
-                val writePos = hostBuffer.getInt(OFFSET_WRITE_POS)
-                val readPos = hostBuffer.getInt(OFFSET_READ_POS)
+                val writePos = readHeaderInt(OFFSET_WRITE_POS)
+                val readPos = readHeaderInt(OFFSET_READ_POS)
                 val available = writePos - readPos
                 if (available <= 0) {
                     Thread.sleep(5)
@@ -359,17 +480,14 @@ private class IsolatedAudioBridge private constructor(
                 val toRead = minOf(available, chunk.size)
                 val start = readPos.toRingOffset()
                 if (start + toRead <= RING_CAPACITY) {
-                    hostBuffer.position(HEADER_SIZE + start)
-                    hostBuffer.get(chunk, 0, toRead)
+                    preadFully(HEADER_SIZE + start, chunk, 0, toRead)
                 } else {
                     val first = RING_CAPACITY - start
-                    hostBuffer.position(HEADER_SIZE + start)
-                    hostBuffer.get(chunk, 0, first)
-                    hostBuffer.position(HEADER_SIZE)
-                    hostBuffer.get(chunk, first, toRead - first)
+                    preadFully(HEADER_SIZE + start, chunk, 0, first)
+                    preadFully(HEADER_SIZE, chunk, first, toRead - first)
                 }
                 track.write(chunk, 0, toRead)
-                hostBuffer.putInt(OFFSET_READ_POS, readPos + toRead)
+                writeHeaderInt(OFFSET_READ_POS, readPos + toRead)
             }
         }, "enginehost-isolated-audio")
         playbackThread = thread
@@ -406,12 +524,6 @@ private class IsolatedAudioBridge private constructor(
          * IsolatedRuntimeService.kt uses for the same reason), or the
          * shared region itself cannot be made -- a game still plays,
          * silently, exactly as when no audio device is available today.
-         *
-         * The mapping is made through a throwaway dup of the memfd
-         * (closed right after [FileChannel.map], which is safe: mmap
-         * stays valid once made, independent of the descriptor used to
-         * request it), never through [ownedFd] itself, which stays open
-         * and unmapped-from for [pluginSideBuffer] and [close] alone.
          */
         fun create(): IsolatedAudioBridge? {
             if (Build.VERSION.SDK_INT < 30) return null
@@ -420,18 +532,11 @@ private class IsolatedAudioBridge private constructor(
                     .takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
                 val fd = Os.memfd_create("enginehost-isolated-audio", 0)
                 Os.ftruncate(fd, TOTAL_SIZE.toLong())
-                val mapDup = ParcelFileDescriptor.dup(fd)
-                val buffer = try {
-                    FileInputStream(mapDup.fileDescriptor).channel
-                        .map(FileChannel.MapMode.READ_WRITE, 0, TOTAL_SIZE.toLong())
-                } finally {
-                    mapDup.close()
-                }
-                buffer.order(ByteOrder.nativeOrder())
-                buffer.putInt(OFFSET_WRITE_POS, 0)
-                buffer.putInt(OFFSET_READ_POS, 0)
-                buffer.putInt(OFFSET_CAPACITY, RING_CAPACITY)
-                IsolatedAudioBridge(fd, buffer, rate)
+                val bridge = IsolatedAudioBridge(fd, rate)
+                bridge.writeHeaderInt(OFFSET_WRITE_POS, 0)
+                bridge.writeHeaderInt(OFFSET_READ_POS, 0)
+                bridge.writeHeaderInt(OFFSET_CAPACITY, RING_CAPACITY)
+                bridge
             } catch (e: Exception) {
                 Log.w(TAG, "could not set up isolated audio; the game will play silently", e)
                 null
