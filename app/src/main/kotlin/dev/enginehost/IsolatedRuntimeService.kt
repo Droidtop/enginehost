@@ -92,10 +92,25 @@ class IsolatedRuntimeService : Service() {
             // ReflectiveOperationException, neither of those) propagates
             // past that machinery uncaught and is simply lost rather than
             // reaching the caller as a thrown exception. Wrapping every
-            // failure from this method's real body in a RuntimeException
-            // here is what makes it actually cross the boundary, so
-            // IsolatedRuntimeHost's own catch (Throwable) -- and the
-            // on-screen failure it shows -- see the real reason.
+            // failure from this method's real body in a well-known Binder
+            // exception type here is what makes it actually cross the
+            // boundary, so IsolatedRuntimeHost's own catch (Throwable) --
+            // and the on-screen failure it shows -- see the real reason.
+            // dq-sandbox-07 (emulator-5560): a checked ErrnoException
+            // thrown inside ownedCopy(), even after this exact wrapping
+            // existed, still did not surface on screen -- the launch
+            // continued as if init() had succeeded. android.os.Parcel's
+            // Binder exception marshalling only reliably reconstructs a
+            // fixed set of well-known types on the calling side
+            // (SecurityException, IllegalArgumentException,
+            // NullPointerException, IllegalStateException, and a few
+            // others); a generic, unrecognised RuntimeException is not
+            // guaranteed the same treatment, which is the leading
+            // explanation for that miss. Every one of Binder's own
+            // recognised types passes through unchanged below; anything
+            // else is wrapped in IllegalStateException, one of those
+            // recognised types, rather than a plain RuntimeException a
+            // second time.
             try {
                 initInternal(
                     dexFds, entrypointClass, nativeLibraryNames, nativeLibraryFds,
@@ -103,11 +118,17 @@ class IsolatedRuntimeService : Service() {
                     execFile, optionsJson, runtimeRequirementKeys, runtimeRequirementValues,
                     restartArguments, gameBroker, saveBroker, audioBuffer, audioSampleRate, callback,
                 )
-            } catch (e: RuntimeException) {
+            } catch (e: SecurityException) {
+                throw e
+            } catch (e: IllegalArgumentException) {
+                throw e
+            } catch (e: IllegalStateException) {
+                throw e
+            } catch (e: NullPointerException) {
                 throw e
             } catch (e: Throwable) {
                 Log.e(TAG, "isolated init failed", e)
-                throw RuntimeException(e.message ?: e.javaClass.simpleName, e)
+                throw IllegalStateException(e.message ?: e.javaClass.simpleName, e)
             }
         }
 
@@ -333,6 +354,38 @@ private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd
  * emulator-5560) -- confirmed against memfd_create(2)'s own man page,
  * not guessed a second time after this same file's F_ADD_SEALS name
  * mistake (fcntlLong -> fcntlInt) one commit earlier.
+ *
+ * dq-sandbox-07 (emulator-5560, API 34): the seal alone -- F_ADD_SEALS/
+ * F_SEAL_WRITE -- is what satisfies ART's dex loader; confirmed by the
+ * writable-dex rejection actually clearing on this rig. A second
+ * hardening step tried here in the previous pass, `Os.fchmod(memFd,
+ * 0444)`, is itself denied by SELinux (`avc: denied { setattr }` on the
+ * memfd's own `appdomain_tmpfs` object) and removed rather than fought:
+ * the seal is the layer ART actually checks and the isolated app domain
+ * is allowed to apply, so it is also the only layer this needs.
+ *
+ * Every failure in this function -- memfd_create, the copy, the seal,
+ * the dup -- is deliberately caught here and rethrown as
+ * [IllegalStateException] rather than left to propagate as whatever
+ * exception type actually occurred: `android.os.Parcel`'s Binder
+ * exception marshalling only reliably reconstructs a fixed set of
+ * well-known types on the calling side (`SecurityException`,
+ * `IllegalArgumentException`, `NullPointerException`,
+ * `IllegalStateException`, and a few others) -- an arbitrary checked
+ * exception, or even a plain unrecognised `RuntimeException`, is not
+ * guaranteed the same treatment. dq-sandbox-07's own fchmod failure
+ * reached the isolated process's logcat clearly but never surfaced on
+ * screen at all (the launch continued to the fixture's ordinary
+ * "no picture size" failure instead) -- consistent with exactly this:
+ * a checked `ErrnoException` thrown here, uncaught by this function
+ * itself before this pass, apparently did not survive the trip back to
+ * [IsolatedRuntimeService.init]'s own caller the way [SecurityException]
+ * reliably has in every other rig capture. Catching every failure at
+ * its true source and always re-throwing one of Binder's own
+ * known-safe types removes that ambiguity for good, rather than relying
+ * on init()'s outer wrapper (IsolatedRuntimeService.init) to have
+ * guessed the same thing correctly for whatever exception type happens
+ * to reach it.
  */
 private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor {
     // dq-sandbox-06 (emulator-5560, API 34): the writable-dex
@@ -344,30 +397,28 @@ private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor {
     // which it was, per the coordinator's own request, rather than
     // inferring it from an absence.
     Log.i("enginehost-isolated-runtime", "ownedCopy: sealing a memfd copy for ${procFdPath(pfd)}")
-    val memFd = Os.memfd_create("enginehost-bundle", MFD_ALLOW_SEALING)
     try {
-        FileOutputStream(memFd).use { output -> FileInputStream(pfd.fileDescriptor).copyTo(output) }
-        Os.lseek(memFd, 0, OsConstants.SEEK_SET)
-        // Seals alone stop write(2)/ftruncate(2) on the memfd, but do not
-        // touch its ordinary Unix permission bits -- memfd_create leaves
-        // it privately read-write for its own creator, which is this
-        // process, so a check that looks at plain "is this writable by
-        // me" (stat/access, not F_GET_SEALS) would still call it
-        // writable no matter how it is sealed. Clearing every write bit
-        // covers that reading too, whichever one ART's own check turns
-        // out to be; either is satisfied by this file having neither.
-        Os.fchmod(memFd, DEX_MEMFD_MODE)
-        val seals = F_SEAL_SEAL or F_SEAL_SHRINK or F_SEAL_GROW or F_SEAL_WRITE
-        Os.fcntlInt(memFd, F_ADD_SEALS, seals)
-        val readBack = Os.fcntlInt(memFd, F_GET_SEALS, 0)
-        Log.i(
-            "enginehost-isolated-runtime",
-            "ownedCopy: sealed (F_GET_SEALS=$readBack, F_SEAL_WRITE " +
-                "${if (readBack and F_SEAL_WRITE != 0) "set" else "NOT set"}), mode chmod to ${DEX_MEMFD_MODE.toString(8)}",
-        )
-        return ParcelFileDescriptor.dup(memFd)
-    } finally {
-        Os.close(memFd)
+        val memFd = Os.memfd_create("enginehost-bundle", MFD_ALLOW_SEALING)
+        try {
+            FileOutputStream(memFd).use { output -> FileInputStream(pfd.fileDescriptor).copyTo(output) }
+            Os.lseek(memFd, 0, OsConstants.SEEK_SET)
+            val seals = F_SEAL_SEAL or F_SEAL_SHRINK or F_SEAL_GROW or F_SEAL_WRITE
+            Os.fcntlInt(memFd, F_ADD_SEALS, seals)
+            val readBack = Os.fcntlInt(memFd, F_GET_SEALS, 0)
+            Log.i(
+                "enginehost-isolated-runtime",
+                "ownedCopy: sealed (F_GET_SEALS=$readBack, F_SEAL_WRITE " +
+                    "${if (readBack and F_SEAL_WRITE != 0) "set" else "NOT set"})",
+            )
+            return ParcelFileDescriptor.dup(memFd)
+        } finally {
+            Os.close(memFd)
+        }
+    } catch (e: IllegalStateException) {
+        throw e
+    } catch (e: Throwable) {
+        Log.e("enginehost-isolated-runtime", "ownedCopy failed for ${procFdPath(pfd)}", e)
+        throw IllegalStateException("could not prepare a sealed copy of the bundle's own code: " + (e.message ?: e.javaClass.simpleName), e)
     }
 }
 
@@ -382,8 +433,6 @@ private const val F_SEAL_SHRINK = 0x0002
 private const val F_SEAL_GROW = 0x0004
 private const val F_SEAL_WRITE = 0x0008
 private const val MFD_ALLOW_SEALING = 0x0002
-/** 0444 octal -- read-only for owner, group, and other; Kotlin has no octal literal. */
-private const val DEX_MEMFD_MODE = 292
 
 /** [EngineHost] for an isolated launch: file access is broker-only, and every Activity-owned call crosses back to the host. */
 private class IsolatedEngineHost(

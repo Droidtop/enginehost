@@ -969,6 +969,58 @@ dq-sandbox-07 alongside re-confirming BlueStacks and the seccomp
 install) before it can be called fixed rather than merely
 better-reasoned.
 
+**dq-sandbox-07 results: the writable-dex rejection is gone for good,
+seccomp confirmed installed in both processes, BlueStacks still
+stable -- and one more bug found and fixed.** Seccomp: confirmed
+installed in both `:runtime` and `:runtime_isolated` on BlueStacks
+(distinct pids, isolated uid 99021). BlueStacks: still stable at 62
+seconds, no regression from adding the seccomp install there.
+emulator-5560: the writable-dex `SecurityException` is gone -- the
+isolated launch now reaches the fixture's own ordinary "no picture
+size" failure, the expected outcome for a synthetic stub with no real
+image data. The seal alone (`F_ADD_SEALS`/`F_SEAL_WRITE`) is what
+satisfies ART's check, confirmed rather than assumed.
+
+But the previous pass's *second* hardening layer inside `ownedCopy()`
+-- `Os.fchmod(memFd, 0444)`, added so the sealed memfd would also be
+read-only by Unix permission bits, not only by the seal -- is itself
+denied by SELinux on this rig: `avc: denied { setattr } for
+name="memfd:enginehost-bundle" ... tcontext=u:object_r:appdomain_tmpfs:s0:...
+tclass=file`, throwing `android.system.ErrnoException: fchmod failed:
+EACCES`. Removed rather than fought: the seal is the layer ART actually
+checks, and the isolated app domain is not allowed to `fchmod` its own
+memfd under the current sepolicy, so this extra layer bought nothing
+and cost a real bug in exchange.
+
+That bug: the `fchmod` failure never reached the screen at all. The
+launch continued exactly as if `init()` had succeeded, straight to the
+fixture's own "no picture size" failure -- a security-hardening step
+failed silently and nothing surfaced it. Root cause: `ownedCopy()` had
+no `try`/`catch` of its own; the earlier fix (dq-sandbox-05) relied
+entirely on `init()`'s own outer wrapper, which rethrew any non-`RuntimeException`
+failure as a *plain* `RuntimeException`. `android.os.Parcel`'s Binder
+exception marshalling only reliably reconstructs a fixed set of
+well-known types on the calling side -- `SecurityException`,
+`IllegalArgumentException`, `NullPointerException`,
+`IllegalStateException`, and a few others -- not an arbitrary
+unrecognised `RuntimeException`. `SecurityException` (ART's own
+exception type) has reliably crossed correctly in every rig capture
+this milestone has produced; a checked `ErrnoException` wrapped in a
+plain `RuntimeException`, it turns out, has not. Fixed at both layers:
+`ownedCopy()` now catches every failure at its own source and rethrows
+`IllegalStateException` (one of Binder's known-safe types) with a clear
+message; `init()`'s outer wrapper now passes
+`SecurityException`/`IllegalArgumentException`/`IllegalStateException`/
+`NullPointerException` through unchanged and wraps anything else in
+`IllegalStateException` too, never a plain `RuntimeException` again.
+The `F_GET_SEALS` readback log stays.
+
+Saves are still unverified on a real game: the rig could not find how
+to open CatSystem2's own Save UI by controller or touch input on
+BlueStacks -- flagged as a possible CatSystem2 plugin input-mapping gap
+for that plugin's own controls work, not a sandbox issue, and still
+open.
+
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback
