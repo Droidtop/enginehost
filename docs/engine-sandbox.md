@@ -1248,11 +1248,61 @@ own update behaviour.
 later:** an isolatable plugin has no unsandboxed launch path at all --
 consistent with the owner's own sandbox-on-by-default decision (see
 "The sandbox is on by default" above), so `CatSystem2Plugin`'s static
-initializer's own `isIsolatedProcess()` rethrow branch cannot currently
-be exercised through Enginehost's UI for an isolatable plugin. Left as
-is: the check is correct and the branch is real dead code only in the
-sense that nothing in this app's own UI can reach it today, not because
-the reasoning is wrong.
+initializer's own isolation-rethrow branch cannot currently be
+exercised through Enginehost's UI for an isolatable plugin. Left as is:
+the branch is real dead code only in the sense that nothing in this
+app's own UI can reach it today, not because the reasoning is wrong.
+
+**dq-sandbox-11 results: the digest mismatch and the memfd-reopen avc
+denial are BOTH fixed -- and a third, more consequential bug surfaced
+in their place.** Plugin update: fixed, build 60 installed with
+expected and actual digests matching. `android_dlopen_ext`: fixed, no
+avc at all. But the isolated launch still died, with the exact
+`UnsatisfiedLinkError` `a34dee6`'s fix exists to swallow --
+`CatSystem2Plugin`'s own `isIsolatedProcess()` check (from that same
+pass) turned out to have the identical class of bug the design note
+above assumed was merely untestable, not wrong: it compared the process
+name with `.endsWith(":runtime_isolated")`, which is `false` on API
+34, because Android names an isolated *service's* process with the
+service's own component appended after a second colon there --
+confirmed directly from the rig's own logcat:
+
+> `Start proc 2456:dev.enginehost:runtime_isolated:dev.enginehost.IsolatedRuntimeService/u0i9`
+
+`EnginehostApplication.isIsolatedRuntimeProcess()` had the *identical*
+bug on the host side, independently -- an exact match against
+`"$packageName:runtime_isolated"`, never satisfied by the real,
+component-suffixed name -- meaning Layer 1's own seccomp filter (and
+anything else gated on this same check) had silently never installed
+in the isolated process on API 34 at all, since `RuntimeSandbox.apply()`
+was never reached there. This is the exact, direct explanation for
+something recorded as merely "unconfirmed" several dq passes ago: the
+isolated process's own `EnginehostSandbox` log line never once appeared
+on emulator-5560 in any prior capture, not because of a fast death or a
+logging gap, but because the check gating it was never true there.
+BlueStacks (API 28) names the process the simpler way, which is why
+every rig confirmation up to this point passed there and never exposed
+either copy of this mistake.
+
+Two independent copies of the same check, wrong for the same reason, is
+exactly what a shared implementation exists to prevent -- per the
+instruction that followed, this is now fixed in exactly one place. New
+plugin-api `EngineProcess.isIsolated()`: prefers
+`android.os.Process.isIsolated()` where the platform actually has it
+-- confirmed against developer.android.com's own reference to be API
+34+, *not* API 28+ as first suspected, so this app's own minSdk 26 (and
+BlueStacks's API 28) still need the fallback regardless -- and falls
+back everywhere else to a process-name check matching a
+`:runtime_isolated` segment as either the exact suffix or followed
+immediately by `:`, accepting both the bare and the component-appended
+forms without needing to know in advance which API level produces
+which. `EnginehostApplication` and `CatSystem2Plugin` (commit `ed0e5c3`,
+`plugin/0.1`) both now call this one implementation instead of each
+keeping (and each having gotten wrong) their own copy. Both repos' CI
+is green. **Unconfirmed on a rig as of this writing** -- dq-sandbox-12
+(emulator-5560) is what will say whether the isolated process's own
+`EnginehostSandbox` line finally appears and whether a game actually
+boots past this point.
 
 ### Milestone summary: CatSystem2 isolated, confirmed on both rigs
 

@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import android.app.Application
+import dev.enginehost.api.EngineProcess
 import java.io.File
 
 class EnginehostApplication : Application() {
@@ -56,8 +57,22 @@ class EnginehostApplication : Application() {
     /** The process RuntimeActivity and BundledActivityProxy are declared in. */
     private fun isRuntimeProcess(): Boolean = processName() == "$packageName:runtime"
 
-    /** IsolatedRuntimeService's own android:isolatedProcess process (docs/engine-sandbox.md "Layer 2"). */
-    private fun isIsolatedRuntimeProcess(): Boolean = processName() == "$packageName:runtime_isolated"
+    /**
+     * IsolatedRuntimeService's own android:isolatedProcess process
+     * (docs/engine-sandbox.md "Layer 2"). Delegates to
+     * [EngineProcess.isIsolated] rather than its own exact-string match
+     * against "$packageName:runtime_isolated" -- dq-sandbox-11 found
+     * that exact match false on API 34, where Android appends the
+     * isolated service's own component name after a second colon
+     * ("pkg:runtime_isolated:pkg.IsolatedRuntimeService"), meaning this
+     * check (and everything gated on it, including Layer 1's own
+     * seccomp filter) silently never ran on that API level at all until
+     * fixed. One canonical implementation in plugin-api now answers this
+     * for both the host and every plugin, rather than each having its
+     * own copy to get wrong independently -- CatSystem2Plugin's own
+     * static initialiser had the identical bug for the identical reason.
+     */
+    private fun isIsolatedRuntimeProcess(): Boolean = EngineProcess.isIsolated()
 
     private fun processName(): String? = runCatching {
         File("/proc/self/cmdline").readBytes().toString(Charsets.UTF_8).substringBefore(Char(0))
