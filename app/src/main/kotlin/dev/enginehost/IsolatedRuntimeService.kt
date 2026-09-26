@@ -166,53 +166,43 @@ class IsolatedRuntimeService : Service() {
                 gameBroker?.let(::AidlFileBrokerAdapter), saveBroker?.let(::AidlFileBrokerAdapter),
                 audioBuffer, audioSampleRate,
             )
-            // Prefer a descriptor this process owns outright over the
-            // received one: opening /proc/self/fd/<received fd> BY PATH is
-            // a fresh open() of the ORIGINAL file, which SELinux re-checks
-            // against that file's own security context (app_data_file) --
-            // the same check that may be refusing this launch in the first
-            // place, if that turns out to be what dq-sandbox-03 shows
-            // (docs/engine-sandbox.md "The bundle's own files"). A copy
-            // into a memfd this process created itself carries no such
-            // label; reopening ITS /proc/self/fd entry checks this
-            // process's access to its own memory-backed file instead.
-            // Below API 30 there is no memfd_create binding at all, so the
-            // plain received descriptor is the only option -- exactly what
-            // dq-sandbox-03 already proved works on BlueStacks (API 28),
-            // which predates ART's writable-dex check this milestone is
-            // otherwise working around. From API 30 up, that same plain
-            // descriptor is proven NOT to work (dq-sandbox-05, emulator-5560,
-            // SELinux enforcing: opening it by /proc/self/fd path hits a
-            // real avc denial), so a sealed-memfd copy failing there must
-            // fail the whole launch rather than silently falling back to a
-            // path already shown broken.
+            // dq-sandbox-09: Android 14's "safer dynamic code loading"
+            // refuses ANY path-based dex file this process could itself
+            // have written, seal or no seal -- confirmed directly (a
+            // genuinely sealed, F_GET_SEALS-verified memfd was still
+            // rejected). No path-based mechanism can satisfy that for a
+            // dex this process makes itself, so the dex is read directly
+            // into memory instead (loadEnginePluginFromInMemoryDex,
+            // InMemoryDexClassLoader) -- reading bytes from the received
+            // fd is not a reopen (the one operation Binder's own transfer
+            // already cleared), so it needs no additional permission
+            // either way, on any API level.
+            val dexBuffers = dexFds.map { received ->
+                ByteBuffer.wrap(FileInputStream(received.fileDescriptor).readBytes())
+            }.toTypedArray()
+            // The native library is not a dex/jar/apk, so it was never
+            // subject to the check above -- dlopen(), which
+            // IsolatedNativeBridge uses, never consulted ART's dex
+            // loader at all. What it IS still subject to is the SELinux
+            // denial dq-sandbox-05 found reopening the bundle's own raw
+            // fd by path (isolated_app -> app_data_file): a memfd copy
+            // sidesteps that the same way it always did, sealed or not,
+            // which is why this half of ownedCopy() stays. Below API 30
+            // there is no memfd_create binding at all, so the plain
+            // received descriptor is the only option -- proven fine
+            // there since dq-sandbox-03 (BlueStacks, API 28).
             val ownedCopiesRequired = Build.VERSION.SDK_INT >= 30
-            val dexSources = dexFds.map { received ->
-                if (ownedCopiesRequired) ownedCopy(received).also { heldFds += it } else received
-            }
             val nativeLibrarySources = nativeLibraryFds.map { received ->
                 if (ownedCopiesRequired) ownedCopy(received).also { heldFds += it } else received
             }
             val nativeLibraryFdPaths = nativeLibraryNames.indices.associate {
                 nativeLibraryNames[it] to procFdPath(nativeLibrarySources[it])
             }
-            // dq-sandbox-08 (emulator-5560): ownedCopy() sealed exactly the
-            // two descriptors it was given (dex, native library) and both
-            // read back F_SEAL_WRITE set -- yet ART still rejected a THIRD,
-            // never-sealed fd as writable. Whatever that third fd turns out
-            // to be, this is the true list of what THIS process handed the
-            // loader and each one's seal state at the moment of handing it
-            // over, so a future rig capture can compare it directly against
-            // whatever fd number ART's own exception names, rather than
-            // this process only ever knowing about the two it created.
-            dexSources.forEachIndexed { i, pfd -> logLoaderInput("dex[$i]", pfd) }
+            dexFds.forEachIndexed { i, pfd -> Log.i("enginehost-isolated-runtime", "loader input: dex[$i] -> ${dexBuffers[i].remaining()} bytes read directly from ${procFdPath(pfd)}, no path handed to any loader") }
             nativeLibrarySources.forEachIndexed { i, pfd ->
                 logLoaderInput("nativeLib[$i]=${nativeLibraryNames.getOrNull(i)}", pfd)
             }
-            val loaded = loadEnginePluginFromFds(
-                this@IsolatedRuntimeService, dexSources.map(::procFdPath), entrypointClass,
-                nativeLibraryFdPaths, classLoader,
-            )
+            val loaded = loadEnginePluginFromInMemoryDex(dexBuffers, entrypointClass, nativeLibraryFdPaths, classLoader)
             resourceHandles += loaded.resourceHandles
             val session = EnginePluginSession(
                 // No real bundle directory in an isolated process: dex and
@@ -326,14 +316,18 @@ class IsolatedRuntimeService : Service() {
 private fun procFdPath(pfd: ParcelFileDescriptor): String = "/proc/self/fd/${pfd.fd}"
 
 /**
- * What this process is about to hand the dex loader for one input,
- * and whether the kernel itself agrees it is sealed non-writable right
- * now -- not whether [ownedCopy] believes it sealed something earlier.
- * Added after dq-sandbox-08 found a fd ART rejected as writable that
- * neither of this run's two ownedCopy() calls (both confirmed sealed by
- * their own readback) accounted for, so the mismatch itself needs a
- * direct, per-input trail rather than trusting ownedCopy()'s own
- * bookkeeping alone.
+ * What this process is about to hand [IsolatedNativeBridge] for one
+ * native library, and whether the kernel itself agrees it is sealed
+ * non-writable right now -- not whether [ownedCopy] believes it sealed
+ * something earlier. Added after dq-sandbox-08 found a fd ART rejected
+ * as writable that neither of that run's two ownedCopy() calls (both
+ * confirmed sealed by their own readback) accounted for -- dq-sandbox-09
+ * later found that fd was the dex itself (now loaded a different way
+ * entirely, see [loadEnginePluginFromInMemoryDex]) and that sealing was
+ * never what ART's check inspects in the first place, but the direct,
+ * per-input trail this produces stays useful for the native library,
+ * which still goes through [ownedCopy] for an unrelated reason (the
+ * SELinux denial reopening the bundle's own raw fd, dq-sandbox-05).
  */
 private fun logLoaderInput(label: String, pfd: ParcelFileDescriptor) {
     val seals = runCatching { Os.fcntlInt(pfd.fileDescriptor, F_GET_SEALS, 0) }.getOrElse { -2 }
@@ -347,21 +341,22 @@ private fun logLoaderInput(label: String, pfd: ParcelFileDescriptor) {
 /**
  * A copy of pfd's bytes into an anonymous, memory-backed file this
  * process created itself (memfd_create(2)), sealed non-writable before
- * being handed anywhere. Called only when the caller has already
- * checked API 30+ ([Os.memfd_create] has no Java binding below it); on
- * any failure this THROWS rather than returning a fallback value --
- * dq-sandbox-05 (emulator-5560, SELinux enforcing) found the caller's
- * old fallback (the plain received descriptor, reopened by
- * /proc/self/fd path) genuinely cannot work on a device that reaches
- * this function at all: it hits a real avc denial
- * (isolated_app -> app_data_file, permissive=0) opening the bundle's own
- * classes.dex, silently corrupting the launch (a ClassNotFoundException
- * that never reached the screen -- see [IsolatedRuntimeService.init]'s
- * own wrapping try/catch for that half of the fix) rather than failing
- * it outright. Below API 30, callers never call this at all and keep
- * using the plain descriptor directly, unchanged -- proven to work
- * there since dq-sandbox-03 (BlueStacks, API 28, predates ART's
- * writable-dex check this function exists to satisfy).
+ * being handed anywhere. Used only for the plugin's native library now
+ * ([loadEnginePluginFromInMemoryDex] reads the dex directly into memory
+ * instead, needing no path-based copy at all -- dq-sandbox-09 found
+ * that sealing a memfd copy of the DEX never actually satisfied ART's
+ * writable-dex check, which is not seal-based; see that function's own
+ * doc comment). Called only when the caller has already checked API
+ * 30+ ([Os.memfd_create] has no Java binding below it); on any failure
+ * this THROWS rather than returning a fallback value -- dq-sandbox-05
+ * (emulator-5560, SELinux enforcing) found the caller's old fallback
+ * (the plain received descriptor, reopened by /proc/self/fd path)
+ * genuinely cannot work on a device that reaches this function at all:
+ * it hits a real avc denial (isolated_app -> app_data_file,
+ * permissive=0) opening the bundle's own file by that path. Below API
+ * 30, callers never call this at all and keep using the plain
+ * descriptor directly, unchanged -- proven to work there since
+ * dq-sandbox-03 (BlueStacks, API 28).
  *
  * Reads pfd directly (no reopen: this is the one operation Binder's own
  * fd transfer already cleared), so this needs no permission this

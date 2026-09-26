@@ -1076,6 +1076,103 @@ not proven the same way the seal mechanism itself eventually was;
 dq-sandbox-09 is what will say whether fd 78 is gone or whether the new
 per-input log now names it by a different label.
 
+**dq-sandbox-09 was decisive, and the codeCacheDir/cacheDir guess was
+wrong: the assertion log named fd 78 as `dex[0]` itself.** `loader
+input: dex[0] -> /proc/self/fd/78 (F_GET_SEALS=15, F_SEAL_WRITE set)` --
+ART rejected the genuinely, confirmed-sealed dex descriptor directly.
+Sealing was never what the check inspects. Per the explicit instruction
+that followed -- stop iterating on guesses, read the real check --
+this is Android 14's own documented **"safer dynamic code loading"**
+(<https://developer.android.com/about/versions/14/behavior-changes-14#safer-dynamic-code-loading>):
+
+> If your app targets Android 14 (API level 34) or higher and uses
+> Dynamic Code Loading (DCL), all dynamically-loaded files must be
+> marked as read-only. Otherwise, the system throws an exception.
+
+Two things confirmed directly from that page, not assumed:
+
+- **It is gated on the app's `targetSdk`, not just the device's API
+  level** ("If your app targets Android 14 ... or higher"). A device
+  running API 34 with an app whose `targetSdk` is lower would not hit
+  this at all -- irrelevant to Enginehost specifically (its own
+  `targetSdk` is 34+), but the mechanism the check itself uses is
+  targetSdk-gated, confirmed rather than assumed.
+- **The check is permission-bits-based, not seal-based.** The page's
+  own recommended fix is `File.setReadOnly()` -- a plain `chmod`,
+  called *before* writing content -- not `F_ADD_SEALS`/`F_SEAL_WRITE`
+  at all. This matches dq-sandbox-09's own evidence exactly: a `chmod`
+  is precisely what SELinux already refuses this app's isolated domain
+  permission to do to a memfd it creates (dq-sandbox-07's `avc: denied
+  { setattr }` for `appdomain_tmpfs`). No path-based dex file the
+  isolated host can make of its own -- sealed, chmod-attempted, or
+  neither -- can ever satisfy a check keyed to the file's own
+  permission bits when the one operation that would clear them is
+  itself denied.
+
+**The fix: stop making a file for the dex at all.** The isolated
+launch's dex now loads via `InMemoryDexClassLoader` (API 26+,
+`ByteBuffer[]` constructor API 27+) instead of any path-based loader --
+reading bytes directly from the already-Binder-transferred descriptor
+(not a reopen, so no separate permission check on any API level) into
+plain `ByteBuffer`s. There is no file, so "safer dynamic code loading"
+does not apply to it at all; `ownedCopy()`'s sealed-memfd-copy machinery
+is no longer used for the dex (kept only for the native library, for an
+unrelated reason -- see below). The in-process launch path
+(`loadEnginePlugin`/`PluginDexLoader`) is untouched: this is a genuinely
+different mechanism for isolated launches, recorded as such in
+`PluginLoading.kt`, not a shared variant with a flag.
+
+**The cost, weighed against the options the instruction offered:**
+`InMemoryDexClassLoader` is `final` and cannot override `findLibrary`
+the way `PluginDexLoader` does, so a plugin's native library can no
+longer bind its own native methods the ordinary way under isolation.
+Of the two named options --
+
+1. API 29+'s `librarySearchPath` constructor, pointed at some reachable
+   directory holding the library -- ruled out: the isolated UID cannot
+   traverse into this app's own private `files/` directory *at all* on
+   API 29+ (the original reason the whole fd-passing mechanism exists
+   in the first place, established back in dq-sandbox-03), so there is
+   no such directory to point it at.
+2. A small, versioned plugin-API contract where the host loads the
+   library and the plugin exports a registration entry point that
+   `RegisterNatives`s its own classes given the plugin's `ClassLoader`
+   -- chosen, since CatSystem2 is this project's own plugin and can
+   adopt the contract directly.
+
+New `IsolatedNativeBridge` (Kotlin) + `isolated_native_bridge.c`:
+`dlopen`s the plugin's own `.so` directly (still by descriptor -- a
+real `dlopen()` of a real path is not subject to "safer dynamic code
+loading" at all, that check is dex/jar/apk-specific per Android's own
+docs, but *is* still subject to the SELinux denial reopening the
+bundle's own raw fd hits, dq-sandbox-05 -- `ownedCopy()`'s sealed copy
+stays for the native library for exactly that reason, unrelated to
+sealing's original, now-abandoned dex purpose) and `dlsym`s a single,
+fixed, non-JNI-style symbol every isolatable plugin exports --
+`enginehost_register_natives(JNIEnv*, jclass)`, never named
+`Java_..._method`, so the JVM never tries to auto-bind it -- calling it
+once with the plugin's own `Class` object, already correctly resolved
+by ordinary Java reflection on the Kotlin side. No `FindClass`, so no
+ambiguity about which classloader's native-method table the binding
+lands in. CatSystem2's own implementation
+(`enginehost-catsystem2-plugin` commit `b64134e`, `plugin/0.1`) does
+nothing but call `RegisterNatives` with the same function pointers this
+file already defines for the ordinary JNI auto-binding path -- no
+plugin *behaviour* changed, only how those pointers get bound under
+isolation. Its static initialiser's own
+`System.loadLibrary("catsystem2")` now catches and ignores the
+`UnsatisfiedLinkError` that always follows under isolation (harmless:
+the host already bound everything before this class is ever
+instantiated).
+
+Both repos' CI is green (Enginehost commit TBD on `main`;
+`enginehost-catsystem2-plugin` commit `b64134e` on `plugin/0.1`, both
+ABIs). **Unconfirmed on a rig as of this writing** -- dq-sandbox-10 is
+what will say whether this actually gets CatSystem2 running on
+emulator-5560 for the first time, and, since the loader route changed,
+whether BlueStacks (proven working under the OLD path-based mechanism)
+still works under the new one too.
+
 ### Milestone summary: CatSystem2 isolated, confirmed on both rigs
 
 Sandbox layer 2's first milestone is confirmed on a device for one
