@@ -1160,18 +1160,29 @@ nothing but call `RegisterNatives` with the same function pointers this
 file already defines for the ordinary JNI auto-binding path -- no
 plugin *behaviour* changed, only how those pointers get bound under
 isolation. Its static initialiser's own
-`System.loadLibrary("catsystem2")` now catches and ignores the
-`UnsatisfiedLinkError` that always follows under isolation (harmless:
-the host already bound everything before this class is ever
-instantiated).
+`System.loadLibrary("catsystem2")` now catches
+`UnsatisfiedLinkError` -- but a review point caught before any rig
+confirmed the pivot working at all: catching it *unconditionally* would
+also hide a genuinely missing or broken `.so` in a normal, in-process
+launch (where `PluginDexLoader.findLibrary` DOES work and a failure
+here means something real), surfacing only later as a confusing
+`UnsatisfiedLinkError` from whatever native method happened to be
+called first, disconnected from this static block entirely. Fixed
+(`enginehost-catsystem2-plugin` commit `a34dee6`): a small
+`isIsolatedProcess()` check, reading `/proc/self/cmdline` the same way
+`EnginehostApplication.isIsolatedRuntimeProcess()` does on the host side
+(this plugin has no dependency on that app code to share the check with
+directly, so it reads the same information the same way instead) --
+the static block now rethrows unless it is actually running isolated.
 
-Both repos' CI is green (Enginehost commit TBD on `main`;
-`enginehost-catsystem2-plugin` commit `b64134e` on `plugin/0.1`, both
+Both repos' CI is green (Enginehost commit `c835417` on `main`;
+`enginehost-catsystem2-plugin` commit `a34dee6` on `plugin/0.1`, both
 ABIs). **Unconfirmed on a rig as of this writing** -- dq-sandbox-10 is
 what will say whether this actually gets CatSystem2 running on
 emulator-5560 for the first time, and, since the loader route changed,
 whether BlueStacks (proven working under the OLD path-based mechanism)
-still works under the new one too.
+still works under the new one too, INCLUDING a non-isolated launch this
+time, specifically to exercise the `isIsolatedProcess()` fix above.
 
 ### Milestone summary: CatSystem2 isolated, confirmed on both rigs
 
