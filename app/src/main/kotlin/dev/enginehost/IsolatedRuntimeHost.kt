@@ -21,8 +21,8 @@ import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelFileDescriptor
-import android.os.SharedMemory
 import android.os.VibrationEffect
+import android.system.Os
 import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -33,9 +33,12 @@ import dev.enginehost.runtime.IEngineFileBroker
 import dev.enginehost.runtime.IEngineRuntimeCallback
 import dev.enginehost.runtime.IEngineRuntimeService
 import java.io.File
+import java.io.FileDescriptor
+import java.io.FileInputStream
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.MappedByteBuffer
+import java.nio.channels.FileChannel
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
 
@@ -313,8 +316,8 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
  * increase, addressed into the ring by `% capacity`.
  */
 private class IsolatedAudioBridge private constructor(
-    private val memory: SharedMemory,
-    private val hostBuffer: ByteBuffer,
+    private val ownedFd: FileDescriptor,
+    private val hostBuffer: MappedByteBuffer,
     val sampleRate: Int,
 ) {
     private var audioTrack: AudioTrack? = null
@@ -322,7 +325,7 @@ private class IsolatedAudioBridge private constructor(
     @Volatile private var playing = false
 
     /** A descriptor the isolated service can pass on to its plugin; a fresh dup each call, closed by whoever receives it. */
-    fun pluginSideBuffer(): ParcelFileDescriptor = memory.fileDescriptor.let { ParcelFileDescriptor.dup(it) }
+    fun pluginSideBuffer(): ParcelFileDescriptor = ParcelFileDescriptor.dup(ownedFd)
 
     fun startPlayback() {
         val minBufferBytes = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT)
@@ -384,7 +387,7 @@ private class IsolatedAudioBridge private constructor(
         playbackThread = null
         audioTrack?.let { runCatching { it.stop() }; runCatching { it.release() } }
         audioTrack = null
-        runCatching { memory.close() }
+        runCatching { Os.close(ownedFd) }
     }
 
     companion object {
@@ -397,23 +400,42 @@ private class IsolatedAudioBridge private constructor(
         private const val TAG = "enginehost-isolated-audio"
 
         /**
-         * Null when this device cannot give the host a usable output rate,
-         * or the shared region itself cannot be made -- a game still
-         * plays, silently, exactly as when no audio device is available
-         * at all today.
+         * Null when this device cannot give the host a usable output
+         * rate, is older than API 30 ([Os.memfd_create] has no Java
+         * binding below it -- same gate [ownedCopy] in
+         * IsolatedRuntimeService.kt uses for the same reason), or the
+         * shared region itself cannot be made -- a game still plays,
+         * silently, exactly as when no audio device is available today.
+         *
+         * The mapping is made through a throwaway dup of the memfd
+         * (closed right after [FileChannel.map], which is safe: mmap
+         * stays valid once made, independent of the descriptor used to
+         * request it), never through [ownedFd] itself, which stays open
+         * and unmapped-from for [pluginSideBuffer] and [close] alone.
          */
-        fun create(): IsolatedAudioBridge? = try {
-            val rate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC)
-                .takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
-            val memory = SharedMemory.create("enginehost-isolated-audio", TOTAL_SIZE)
-            val buffer = memory.mapReadWrite().order(ByteOrder.nativeOrder())
-            buffer.putInt(OFFSET_WRITE_POS, 0)
-            buffer.putInt(OFFSET_READ_POS, 0)
-            buffer.putInt(OFFSET_CAPACITY, RING_CAPACITY)
-            IsolatedAudioBridge(memory, buffer, rate)
-        } catch (e: Exception) {
-            Log.w(TAG, "could not set up isolated audio; the game will play silently", e)
-            null
+        fun create(): IsolatedAudioBridge? {
+            if (Build.VERSION.SDK_INT < 30) return null
+            return try {
+                val rate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC)
+                    .takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
+                val fd = Os.memfd_create("enginehost-isolated-audio", 0)
+                Os.ftruncate(fd, TOTAL_SIZE.toLong())
+                val mapDup = ParcelFileDescriptor.dup(fd)
+                val buffer = try {
+                    FileInputStream(mapDup.fileDescriptor).channel
+                        .map(FileChannel.MapMode.READ_WRITE, 0, TOTAL_SIZE.toLong())
+                } finally {
+                    mapDup.close()
+                }
+                buffer.order(ByteOrder.nativeOrder())
+                buffer.putInt(OFFSET_WRITE_POS, 0)
+                buffer.putInt(OFFSET_READ_POS, 0)
+                buffer.putInt(OFFSET_CAPACITY, RING_CAPACITY)
+                IsolatedAudioBridge(fd, buffer, rate)
+            } catch (e: Exception) {
+                Log.w(TAG, "could not set up isolated audio; the game will play silently", e)
+                null
+            }
         }
 
         private const val DEFAULT_SAMPLE_RATE = 48_000

@@ -655,7 +655,7 @@ milestone" above): the isolated side never touches a real audio device
 at all, and the host owns the one real output.
 
 **The mechanism.** `IsolatedRuntimeHost` (`:runtime`, before it even
-binds the isolated service) creates an `android.os.SharedMemory` region
+binds the isolated service) creates an anonymous, memory-backed region via `android.system.Os.memfd_create` (API 30+; the same primitive `ownedCopy` in IsolatedRuntimeService.kt already relies on)
 -- a 16-byte header (write position, read position, capacity, reserved,
 each a little-endian `uint32`) followed by a 32KiB ring of raw 16-bit
 stereo PCM -- and hands a `dup()` of its fd across `IEngineRuntimeService.init()`
@@ -696,7 +696,7 @@ boundary. `IsolatedRuntimeHost.destroy()` and `IsolatedRuntimeService`/`close_se
 on both sides tear the bridge down (stop/join the thread, unmap, close
 the fd) whenever the launch itself ends, not only on success.
 
-A host that cannot make a `SharedMemory` region at all (or a plugin
+A host older than API 30, or one that cannot make the shared region at all (or a plugin
 built before this addition, or a game that reaches a broken audio path
 for its own reasons) still plays: `EngineHost.isolatedAudioBuffer()`
 answers `null`, `open_sound_bridged()` logs and returns without ever
