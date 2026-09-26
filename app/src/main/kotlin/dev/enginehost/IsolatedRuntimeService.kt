@@ -215,7 +215,7 @@ private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor? {
             FileOutputStream(memFd).use { output -> FileInputStream(pfd.fileDescriptor).copyTo(output) }
             Os.lseek(memFd, 0, OsConstants.SEEK_SET)
             val seals = F_SEAL_SEAL or F_SEAL_SHRINK or F_SEAL_GROW or F_SEAL_WRITE
-            Os.fcntlLong(memFd, F_ADD_SEALS, seals.toLong())
+            Os.fcntlInt(memFd, F_ADD_SEALS, seals)
             ParcelFileDescriptor.dup(memFd)
         } finally {
             Os.close(memFd)
