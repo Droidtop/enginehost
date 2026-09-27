@@ -1643,6 +1643,293 @@ next pass through this document does not re-derive it:**
   single-module broker swap; the actual seam needs its own dedicated audit
   once there is an isolated activity host to route it into.
 
+### Single transport: `android-activity` plugins migrate onto plugin-api, not a parallel isolation path (owner decision, 2026-09-27)
+
+The plan this document carried up to commit 2a54421 was to give
+`android-activity` plugins their *own* isolation mechanism: a host-owned
+Activity plus an isolated service the plugin's Activity-shaped code would be
+rehosted inside, alongside the existing plugin-api mechanism CatSystem2 and
+CMVS already prove. The owner rejected that after this document's own
+roadmap surfaced it: two isolation mechanisms for two transports is exactly
+the "two mechanisms for one job" this project's own standing rule (this
+file's earlier sections, and `AGENT-RULES.md`) says not to keep. The
+decision, plainly:
+
+1. **One plugin model for every official plugin.** Enginehost owns the
+   Activity, the window, input and the UI; the engine is a library the
+   plugin's own `EnginePlugin` implementation drives -- `EngineStepDriven`
+   or a real rendering surface, the file broker, frames, and the audio ring
+   -- the exact shape `runtimeTransport: plugin` (CatSystem2, CMVS) already
+   has and is already isolatable by construction. There is no second
+   transport to isolate; there is one transport every official plugin is
+   migrated onto.
+2. **Engines that currently own their own Activity (SDL's
+   `SDLActivity`/`GameActivity`, KiriKiri's `KR2Activity`, AGS's
+   `AGSRuntimeActivity`, mkxp-z's and LOVE's own `MainActivity`/
+   `GameActivity`) are migrated onto the plugin transport** via a
+   per-engine-family adapter that presents the engine's own native code
+   with the same interface it already expects, backed by the host-provided
+   surface and input instead of a real Activity. They stop owning a
+   screen; nothing about the engine's own C/C++ changes.
+3. **Sandbox support is a mandatory goal for every official plugin.**
+   `isolatable: true` is not a nice-to-have some plugins opt into -- it is
+   what "official plugin" is now defined to mean, once each engine's own
+   migration and file-access audit is done and rig-confirmed. The
+   per-launch "Run unsandboxed?" warning (this document, "The sandbox is on
+   by default") stays exactly as it is for as long as any official plugin
+   has not yet made that migration: it is the user's awareness guarantee,
+   not a setting, and nothing about this decision changes when or how it
+   shows.
+4. **Running unsandboxed for custom/third-party plugins is an open option
+   the owner raised, not a decision.** A third-party plugin author who has
+   not done an activity migration and cannot get `isolatable: true` may, in
+   principle, need a way to ship anyway -- but this document does not
+   propose a mechanism for it, and none is built. `EngineBundlePackage`'s
+   existing validation (`isolatable requires runtimeTransport: plugin`)
+   is unchanged; there is no sandbox-off switch anywhere in this pass, and
+   the per-launch warning for a plugin that is not isolatable is not
+   conditioned on a plugin's own claim about itself. If this is ever acted
+   on, it needs its own owner decision and its own pass of this document,
+   not an inference from this paragraph.
+
+This does not reopen or contradict the file-access audits already recorded
+above for NScripter and KiriKiri, or the transport/family facts recorded in
+each plugin's own `ENGINEHOST.md` (LOVE's, quoted below) -- it changes what
+those engines are migrated *onto*. Everywhere above that says "the
+activity-isolation rewrite" or "roadmap item 6" now means this migration,
+not a second isolation mechanism; item 6 below is rewritten accordingly.
+
+#### What actually couples an SDL-based engine to owning an Activity
+
+Checked directly against the vendored SDL2 Android glue in this project's
+own plugin repos (`android_SDL_android.c`, the C side of `org.libsdl.app.SDLActivity`)
+rather than assumed from upstream SDL's usual shape, because the answer
+determines how invasive the adapter has to be:
+
+**Confirmed via the plugin repos' own vendored source: SDL's native side never
+hardcodes the Java class it talks to.** `SDL_JAVA_INTERFACE(nativeSetupJNI)`
+(`enginehost-kirikiri-plugin/thirdparty/patch/sdl2/android_SDL_android.c:535`,
+identical shape confirmed present in `enginehost-love2d-plugin`,
+`enginehost-ags-plugin` and `enginehost-rpgmaker-mkxp-z-plugin`'s own vendored
+copies of the same file) takes `jclass cls` as a parameter -- whatever
+Java class happens to call the native method `nativeSetupJNI` -- and resolves
+every one of its callbacks as a **static** method on that class
+(`GetStaticMethodID`), not on an `Activity` instance and not by re-`FindClass`ing
+a hardcoded `"org/libsdl/app/SDLActivity"` name anywhere in this file. The full,
+closed set this file's own null-checks enumerate (`android_SDL_android.c:598-627`):
+`clipboardGetText`/`clipboardHasText`/`clipboardSetText`, `createCustomCursor`,
+`getContext`, `getDisplayDPI`, `getManifestEnvironmentVariables`,
+`getNativeSurface` (returns `android.view.Surface`), `initTouch`,
+`isAndroidTV`/`isChromebook`/`isDeXMode`, `isScreenKeyboardShown`, `isTablet`,
+`manualBackButton`, `minimizeWindow`, `openURL`, `requestPermission`,
+`sendMessage`, `setActivityTitle`, `setCustomCursor`, `setOrientation`,
+`setRelativeMouseEnabled`, `setSurfaceViewFormat`, `setSystemCursor`,
+`setWindowStyle`, `shouldMinimizeOnFocusLoss`, `showTextInput`,
+`supportsRelativeMouse` -- 28 methods, all static, all on whichever class calls
+`nativeSetupJNI`. The audio (`SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI)`,
+`:618`) and controller (`SDL_JAVA_CONTROLLER_INTERFACE(nativeSetupJNI)`, `:646`)
+halves are the same pattern against two more, independently-callable classes:
+11 audio methods (`audioOpen`/`audioWriteByteBuffer`/`audioWriteShortBuffer`/
+`audioWriteFloatBuffer`/`audioClose`, the capture mirror, `audioSetThreadPriority`)
+and 4 controller methods (`pollInputDevices`, `pollHapticDevices`, `hapticRun`,
+`hapticStop`).
+
+**This means "the engine is built around owning an Activity" is a property of
+each plugin's own vendored `SDLActivity.java` subclass (LOVE's `GameActivity`,
+645 lines; mkxp-z's `MainActivity`, 918 lines; AGS's `AGSRuntimeActivity` plus
+`EngineHostAgsActivity`; KiriKiri's `KR2Activity`), not of the engine's C/C++ or
+of SDL's own native glue.** Nothing in `android_SDL_android.c` calls
+`Activity.finish()`, checks `instanceof Activity`, or otherwise requires the
+class satisfying its static contract to extend `android.app.Activity` --
+it only ever calls the 28+11+4 static methods above and, separately, does
+`ANativeWindow_fromSurface` (NDK, `android/native_window_jni.h`, present since
+API 9 -- long below this project's own minSdk 26, not re-verified against
+developer.android.com in this pass; WebFetch was unavailable this session, so
+this one claim rests on long-standing, extremely stable NDK API surface rather
+than a live check, and should get that live check before the surface-handoff
+mechanism below ships) on whatever `jobject` `getNativeSurface()` hands back.
+The engine's own game code (AGS's interpreter, mkxp-z's Ruby/RGSS runtime,
+LOVE's Lua runtime, KiriKiri's script engine) never touches any of this at
+all -- it calls SDL's own portable API, which is what "the engine runs
+largely unmodified" already meant in the brief for this pass.
+
+**The one thing that is genuinely Activity-shaped and does need real
+replacement:** several of the 28 methods are meaningless without a real
+window/Activity to act on (`setOrientation`, `minimizeWindow`,
+`showTextInput`/IME, `openURL`, `requestPermission`, `setActivityTitle`) --
+the adapter answers these as host-mediated no-ops or host-delegated calls
+(orientation is Enginehost's own to decide, not a game's; IME text input
+routes through Enginehost's own soft-keyboard handling the same way any other
+plugin's text entry would, not built in this pass; `openURL`/`requestPermission`
+are exactly the kind of thing an isolated, no-permissions process must never
+be handed regardless of transport, so these two answer "denied" unconditionally
+under isolation and are not itself a regression -- an activity-transport SDL
+engine could reach `startActivity`/`ActivityCompat.requestPermissions` today
+precisely because it held a real Activity with the app's own permissions,
+which was already the thing this whole document exists to take away).
+
+#### The adapter: an `SdlEnginePlugin` shim, not a rewrite of SDL or of any engine
+
+A new class per engine family (first built for LOVE, see "First conversion"
+below) implements `dev.enginehost.api.EnginePlugin` and separately presents
+the static-method surface above -- it is the class that calls
+`nativeSetupJNI`/`AUDIO_INTERFACE(nativeSetupJNI)`/`CONTROLLER_INTERFACE(nativeSetupJNI)`,
+in place of `SDLActivity.onCreate` doing so today. Concretely:
+
+- **`getContext()`** returns `EngineHost.context()` (`plugin-api/EngineHost.java`,
+  already exists) -- an ordinary `Context`, not tied to being an Activity's
+  own; every other static method that needs a `Context` (creating a
+  `Vibrator`, checking a system feature, reading `DisplayMetrics`) already
+  only ever needs a `Context`, confirmed by reading each call site, not
+  assumed from the method's name.
+- **`getNativeSurface()`** is the one method that needs new host machinery,
+  covered below ("Surface handoff").
+- **Input** (`onNativeKeyDown`/`onNativeKeyUp`/`onNativeTouch`/`onNativeMouse`,
+  declared `native` in `SDLActivity.java` and implemented by the same
+  `android_SDL_android.c`) are called directly by the adapter's own
+  `onControllerEvent`/pointer handling -- `RuntimeControllerRouter` already
+  normalizes pad/touch input host-side for every plugin
+  (`EngineControllerEvent`); the adapter's job is translating that
+  normalized event into the SDL key/mouse call an upstream `SDLActivity`
+  subclass's own `dispatchKeyEvent`/`onTouchEvent` override would have made,
+  which is exactly the kind of per-engine translation LOVE's, AGS's and
+  mkxp-z's existing wrapper subclasses already do today (AGS's
+  `EngineHostAgsActivity.setDigital`, quoted in this repo, already calls
+  `SDLActivity.onNativeKeyDown`/`onNativeMouse` directly rather than through
+  any Activity input-dispatch path) -- this pass generalizes a pattern this
+  project's own plugins already use, it does not invent a new one.
+- **Audio** crosses through the same shared-memory ring `IsolatedAudioBridge`
+  already implements for CatSystem2/CMVS (this document, "Audio"), not
+  AAudio directly: the adapter's `audioOpen`/`audioWriteShortBuffer`/etc.
+  static methods write into `EngineHost.isolatedAudioBuffer()` under
+  isolation, and into a real `AudioTrack` in the in-process (non-isolated)
+  case -- reusing the mechanism, not reimplementing it, matching how CMVS
+  reused CatSystem2's ring rather than inventing its own.
+- **Files.** SDL's own file access (`SDL_RWops`, `SDL_AndroidGetInternalStoragePath`,
+  etc.) is a separate seam from the 28-method contract above and is audited
+  per engine, same as CatSystem2/CMVS's native file layers were: LOVE mounts
+  the game through PhysFS against a real path today (`GameActivity.setEnginehostGame`,
+  this repo's own `ENGINEHOST.md`), which needs the same broker-callback
+  seam (`EngineFileBroker`, already built) wired into PhysFS's own
+  `PHYSFS_Io` abstraction -- PhysFS, like CatSystem2's `cs2_files`, already
+  funnels all access through one small vtable-shaped abstraction rather than
+  scattered `fopen`, so this is the same shape of seam, not a new kind.
+- **Controller/haptics polling** (`pollInputDevices`, `pollHapticDevices`,
+  `hapticRun`/`hapticStop`) already have a host-side answer for every other
+  plugin (`RuntimeControllerRouter`, `EngineHost.rumbleController`) and are
+  wired the same way, not through Android's `InputManager`/`Vibrator`
+  directly (which an isolated UID cannot reach for `Vibrator` the ordinary
+  way either -- already solved, this document's "Vibrator: already bridged").
+
+#### Surface handoff: the actual open platform question, not assumed either way
+
+SDL renders GPU frames (GL, or Vulkan for engines that use it), not a
+software pixel buffer -- CatSystem2's own AIDL (`IEngineRuntimeService.aidl`)
+says plainly why *it* avoided this: "There is no Surface or
+SurfaceControlViewHost here on purpose... which is untried." This document
+does not walk that back or assume the answer for SDL: **whether an
+`android:isolatedProcess="true"` service can render onto a real
+`android.view.Surface` at all (reach `SurfaceFlinger` for buffer dequeue and
+present) is the single largest platform-behavior risk in this whole
+migration, and needs an on-device confirmation before `isolatable: true` is
+set on any SDL-based bundle** -- not inferred from Chrome's or WebView's own
+renderer sandbox precedent (this document's own "WebView inside an isolated
+service" section already reasons from that precedent for a different
+question, audio/video decode access, and is careful to call that "not
+established from source reading alone" too).
+
+**Mechanism, if it works:** the plain `Surface` handoff this document already
+named as an option ("Surfaces and input", "Plain Surface handoff") --
+`RuntimeActivity` (which already owns the window and passes a `FrameLayout`
+into `IsolatedRuntimeHost.start()` today) creates a `SurfaceView`, waits for
+`surfaceCreated`, and hands that `Surface` -- `Parcelable`, the same as any
+other AIDL `in`/`out` argument this project already sends across (`ParcelFileDescriptor`,
+`IBinder`s) -- to the isolated service via a new `IEngineRuntimeService`
+method (`setGameSurface(in Surface surface)`, mirroring `setFrameBuffer`'s
+own shape and added the same way: additive, called once, only for a plugin
+whose capability declares it renders onto a surface rather than a pixel
+buffer). The isolated side's `SdlEnginePlugin.getNativeSurface()` returns
+that received `Surface` object directly to the native call site;
+`ANativeWindow_fromSurface` on it is the same NDK call any in-process
+`SDLActivity` already makes on its own `SurfaceView`'s `Surface` -- nothing
+about that call cares whether the `Surface` object arrived by local
+construction or by Binder, because a `Surface`'s Binder-transported form
+already carries the same `IGraphicBufferProducer` handle either way (how
+`Surface`'s own `Parcelable` implementation works, not specific to this
+project). This is the same class of mechanism `MediaCodec.configure(...,
+surface, ...)` and `Camera2`'s capture targets already use to hand a decoder
+or camera pipeline in another process somewhere to draw -- precedent this
+document already cited before this pass, not new to it.
+
+**What is not assumed:** whether the *isolated UID itself* is allowed to
+reach `SurfaceFlinger` for this at all is a `isolated_app` SELinux policy
+question this document has already flagged as open for a related but
+different case (WebView's own renderer needs) and has never actually tested
+for a GL-rendering isolated service in this codebase. dq-sandbox's own
+history (CatSystem2, this document above) shows this project's actual
+platform behavior has repeatedly surprised guesses that seemed reasonable
+from general Android knowledge (`Os.fcntlLong` not existing,
+`F_ADD_SEALS`/`MFD_ALLOW_SEALING`, Android 14's dex-writability check) --
+the same discipline applies here: the surface-handoff mechanism is built
+and CI-tested, but `isolatable: true` for any SDL-based bundle is gated on
+an actual rig pass that gets a real GL frame from an isolated process onto
+the screen, not on this section's own reasoning being sound.
+
+**If it does not work:** the fallback is not a new mechanism, it is the one
+CatSystem2 already uses -- render into a CPU-side buffer the isolated
+process can hand over as plain data (a `setFrameBuffer`-shaped file, not a
+Surface) and skip GL/GPU rendering entirely for the isolated path. This
+would cost real performance for a GPU-driven engine (a full-frame `glReadPixels`
+readback every frame, unlike CatSystem2's native row-diffed software
+rasterizer) and is recorded here as the fallback, not the plan, precisely
+because it is worse and only used if the surface-handoff mechanism's own
+rig check fails.
+
+#### First conversion: LOVE (love2d)
+
+Chosen over AGS, mkxp-z and KiriKiri for the same reason CatSystem2 was
+chosen as the first plugin-api milestone: smallest surface, not a coin flip.
+
+- Its own `ENGINEHOST.md` (`enginehost-love2d-plugin`, `plugin-core` branch)
+  already documents its transport, its exact Activity subclass
+  (`EngineHostGameActivity` on the `plugin/11.5` line), its save-path seam
+  (`Filesystem::setIdentity`'s Android branch, an upstream patch this
+  repository already carries and does not own outright), and its file
+  access shape (PhysFS mounting a `.love` zip or a fused executable) --
+  more already-recorded groundwork than any other `android-activity`
+  plugin has.
+- `GameActivity` itself is 645 lines, the smallest of the four SDL-based
+  wrapper subclasses checked this pass (mkxp-z's `MainActivity`: 918;
+  AGS's own Activity plus `EngineHostAgsActivity`: comparable combined
+  size with more engine-specific controller-mapping logic already built on
+  top of it, which is a second, separable piece of work; KiriKiri already
+  has its own dedicated, wider file-access audit recorded above and was
+  never a same-pass candidate).
+- Its controller model (`love.gamepad`) is a straightforward id-per-button
+  map, the same shape CatSystem2's own controller wiring already has,
+  unlike AGS's mouse/key emulation logic (`EngineHostAgsActivity`'s pointer
+  shaping) which is real, separable additional work regardless of
+  transport.
+
+**Scope of this pass's actual build (see "What was built" in the final
+report):** the `SdlEnginePlugin` adapter's Java class and its native
+`RegisterNatives`-bound glue (the same explicit-binding mechanism CatSystem2
+and CMVS already use, not automatic `Java_...` symbol lookup, since an
+isolated launch's `InMemoryDexClassLoader` cannot bind natives the ordinary
+way -- this document, "The fix: stop making a file for the dex at all"),
+covering the boot-critical subset of the 28+11+4 methods (context, surface,
+touch/key input, clipboard as inert stubs, orientation as a host no-op) and
+the generic host-side `setGameSurface`/`isolatedSurface()` plumbing. This is
+a real, CI-verified slice, not a complete migration: PhysFS's own broker
+seam, the full save-path patch carrying over, and the remaining static
+methods (IME, cursor shapes, DeX/Chromebook/TV detection) are follow-on
+work the roadmap below now names explicitly, and `runtimeTransport` in
+LOVE's shipped `bundle-metadata.json` is **not** flipped to `plugin` in this
+pass -- that flip, and `isolatable: true` after it, both wait on the
+surface-handoff rig check above actually passing on a real game, the same
+gate CatSystem2's own `isolatable: true` waited on.
+
+
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback
@@ -1668,24 +1955,38 @@ next pass through this document does not re-derive it:**
 5. **Flash/AIR (`enginehost-flash-air-plugin`)** -- same web-hosted shape
    as above if it also runs inside a WebView-equivalent runtime; audit
    before assuming.
-6. **`runtimeTransport: activity` plugins (SDL/Godot's Activity path, now
-   including `enginehost-love2d-plugin`, `enginehost-kirikiri-plugin` and
-   `enginehost-nscripter-plugin`)** last, deliberately: these need the
-   second host-side rewrite the audit above describes (an Activity's
-   responsibilities moved into a host-owned Activity plus an isolated
-   service, not a broker swap alone) and are the largest remaining piece
-   of work, not a small follow-on. LÖVE for Android is a concrete
-   instance, not a hypothetical one: its `EngineHostGameActivity` is
-   SDL's `GameActivity`/`SDLActivity`, the same Activity-owns-the-window
-   shape as Godot, and it ships and runs unisolated today (recorded in
-   its own `ENGINEHOST.md`, "Transport and sandboxing"), asking the
-   standard unsandboxed prompt on every launch. KiriKiri and NScripter
-   are two more, confirmed rather than assumed: both bundles declare
-   `runtimeTransport: android-activity` in their own `bundle-metadata.json`,
-   so `GameRunner` routes every launch of either through the same
-   unsandboxed `BundledActivityProxy` LÖVE uses, never through
-   `RuntimeActivity`'s `isolatable` branch -- see the dedicated section
-   above for the evidence and each engine's own file-access audit, done
-   in advance for whoever picks up this rewrite. All of these stay on
-   layer 1 only until that rewrite is scoped and designed in its own
-   pass of this document.
+6. **`runtimeTransport: activity` plugins (SDL/Godot's Activity path:
+   `enginehost-love2d-plugin`, `enginehost-kirikiri-plugin`,
+   `enginehost-nscripter-plugin`, `enginehost-ags-plugin`,
+   `enginehost-rpgmaker-mkxp-z-plugin`, and Godot itself)** migrate onto
+   the plugin-api transport rather than getting a second isolation
+   mechanism -- see "Single transport: `android-activity` plugins migrate
+   onto plugin-api" above for the owner's decision, the per-engine-family
+   adapter design, and why the surface-handoff question is the actual
+   open risk, not a rewrite of any engine. Order, revised now that the
+   adapter's own shared shape is known:
+   1. **LOVE** -- first conversion (above): smallest SDL-based wrapper
+      checked, most already-recorded groundwork (`ENGINEHOST.md`), and
+      this pass's own `SdlEnginePlugin` adapter slice targets it first.
+      Not yet isolatable; the surface-handoff rig check gates that.
+   2. **AGS, mkxp-z** -- same SDL family, same adapter, once LOVE's own
+      rig check confirms the surface-handoff mechanism actually renders a
+      frame from an isolated process. AGS carries real, separable
+      additional work (`EngineHostAgsActivity`'s mouse/key emulation from
+      pad input) that has nothing to do with the transport migration
+      itself and does not block it.
+   3. **KiriKiri** -- same SDL family (`thirdparty/patch/sdl2/android_SDL_android.c`,
+      confirmed vendored), but its own file-access audit above already
+      found a wider, less centralized surface than CatSystem2, CMVS or
+      LOVE's PhysFS seam (StorageIntf is Windows-only in this tree, ~15
+      more files call `fopen` directly outside it) -- that audit still
+      applies unchanged under this migration and is its own, separate
+      piece of work once the adapter itself is proven.
+   4. **NScripter** -- not SDL-based (confirmed: no `SDLActivity`/
+      `android_SDL_android.c` anywhere in `enginehost-nscripter-plugin`),
+      so it needs its own adapter or its own migration shape, not this
+      one; its `envdata`-beside-the-game-folder quirk (this document,
+      above) is unrelated to transport and stays open either way.
+   5. **Godot** -- not checked this pass for whether it is SDL-based or
+      uses its own `GodotActivity`/`GodotIO` glue with a different static
+      contract; audit before assuming either shape.

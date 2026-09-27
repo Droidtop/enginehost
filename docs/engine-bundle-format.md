@@ -585,3 +585,43 @@ unisolated path, and a plugin that omits it is never asked to run
 isolated. Not present in any shipped bundle yet; recorded here so the
 field, when it lands, matches the shape decided in `docs/engine-sandbox.md`
 rather than being improvised in the same change that adds it.
+
+
+## `runtimeTransport: android-activity` is deprecated for official plugins (2026-09-27)
+
+Sandbox layer 2 (`docs/engine-sandbox.md`, "Single transport") only fits
+`runtimeTransport: plugin`: an isolated Android service must be a `<service>`,
+never an `<activity>`, so a bundle whose own Activity is what the OS starts
+and resumes cannot be isolated no matter what else is built. The owner's
+decision is not a second isolation mechanism for this transport -- it is
+that official plugins stop using it. Each `android-activity` official plugin
+(currently `enginehost-love2d-plugin`, `enginehost-kirikiri-plugin`,
+`enginehost-nscripter-plugin`, `enginehost-ags-plugin`,
+`enginehost-rpgmaker-mkxp-z-plugin`, and Godot, pending its own audit) is
+migrated onto `runtimeTransport: plugin` via a per-engine-family adapter
+(`docs/engine-sandbox.md`'s "The adapter: an `SdlEnginePlugin` shim" for the
+SDL family) that presents the engine's existing native code with the
+interface it already expects, backed by a host-owned Activity instead of its
+own. `runtimeTransport: android-activity` itself is not removed from this
+schema in this pass -- existing shipped bundles on it still load exactly as
+before, and it is not rejected at install or launch time -- but no *new*
+official plugin should be authored against it, and each existing one is
+migrated in the order `docs/engine-sandbox.md`'s roadmap item 6 now gives.
+
+**Sandbox support (`isolatable: true`) is a mandatory goal for every official
+plugin**, not an opt-in some plugins get and others skip -- it is what
+"official plugin" means once each engine's migration and file-access audit
+is rig-confirmed. The per-launch "Run unsandboxed?" warning
+(`docs/engine-sandbox.md`, "The sandbox is on by default") is unchanged by
+this decision and keeps showing, on every launch, for every plugin that has
+not yet reached `isolatable: true` -- it is not weakened, delayed, or made
+conditional on a migration being "in progress."
+
+**Running unsandboxed for custom/third-party plugins is an option the owner
+raised, not a decision, and nothing in this pass builds it.** A third-party
+plugin that cannot or does not migrate has no sandbox-off switch today, and
+`EngineBundlePackage`'s existing validation
+(`isolatable requires runtimeTransport: plugin`) is unchanged. If a
+deliberate, user-facing way to run such a plugin unsandboxed is ever built,
+it needs its own owner decision, its own pass of this document, and is out
+of scope here.
