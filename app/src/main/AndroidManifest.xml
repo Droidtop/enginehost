@@ -101,6 +101,10 @@
             android:name=".PluginTrustActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".CallerAccessSettingsActivity"
+            android:exported="false" />
+
         <!-- PackageInstaller reports the self-update verdict here. -->
         <receiver
             android:name=".AppUpdateStatusReceiver"

@@ -90,9 +90,6 @@ class LaunchActivity : EnginehostActivity() {
     /** Earlier saves were offered on this screen and answered; a retry or restart does not ask again. */
     private var earlierSavesAnswered = false
 
-    /** offerExternalLaunchConsent was shown and accepted; a retry within this screen does not ask again. */
-    private var externalCallerConsented = false
-
     /** What the run that just ended passed to EngineHost.restart, until the next run takes it. */
     private var restartArguments: Array<String>? = null
 
@@ -132,13 +129,23 @@ class LaunchActivity : EnginehostActivity() {
                     launchWhenRuntimeGone()
                     return
                 }
-                // LAUNCH stays open to any app by design (owner,
-                // 2026-09-24); this is what stops that being silent. See
-                // offerExternalLaunchConsent.
-                val unverifiedCaller = intent.getStringExtra(EXTRA_UNVERIFIED_CALLER_LABEL)
-                if (unverifiedCaller != null && !externalCallerConsented) {
-                    offerExternalLaunchConsent(plan, unverifiedCaller)
-                    return
+                // Per-caller allow/ask/block (owner, 2026-09-27). Absent
+                // for droidtop and every in-app caller (GameRunner.run's
+                // default), which are never gated. See
+                // offerCallerAccessPrompt, showCallerBlocked.
+                val callerKey = intent.getStringExtra(EXTRA_CALLER_KEY)
+                if (callerKey != null) {
+                    when (val access = EffectiveAccess.forCaller(CallerAccessStore(this), packageManager, callerKey)) {
+                        EffectiveAccess.Allow -> {}
+                        EffectiveAccess.Ask -> {
+                            offerCallerAccessPrompt(callerKey)
+                            return
+                        }
+                        is EffectiveAccess.Block -> {
+                            showCallerBlocked(callerKey, access.reason)
+                            return
+                        }
+                    }
                 }
                 // Sandbox layer 2 is the default (owner, 2026-09-25): a
                 // plugin that cannot run isolated gets no silent pass. See
@@ -153,26 +160,57 @@ class LaunchActivity : EnginehostActivity() {
     }
 
     /**
-     * `path` reached this app's exported door ([LaunchEntryActivity]) from
-     * a caller Android's own record does not show as droidtop under
-     * droidtop's signing certificate ([TrustedCallers]). `LAUNCH` stays
-     * open to any app by design (owner, 2026-09-24: "Any app can make
-     * enginehost run a game, that's intentional") -- this does not narrow
-     * that: any app can still ask for a game to run. It only stops that
-     * being silent, the same "ask every time, remember nothing" shape as
-     * [offerSandboxConsent], Cancel first and focused. [label] is the
-     * caller's package name when Android's own record names one, or a
-     * generic word when it does not (no referrer at all, e.g. a launch
-     * from adb).
+     * Asks once about a caller CallerAccessStore has no explicit decision
+     * for and CallerDefaults does not block by default (owner,
+     * 2026-09-27). Quick, controller and touch alike, Cancel first and
+     * focused, same shape as [offerSandboxConsent]: this is a question
+     * about a caller Enginehost has never been told about, not a repeated
+     * warning. "Always allow"/"Block this app" both persist and re-run
+     * [launch], which re-reads the now-decided store on its next pass;
+     * Cancel decides nothing and asks again next time.
      */
-    private fun offerExternalLaunchConsent(plan: GameRunner.Plan.Runtime, label: String) {
+    private fun offerCallerAccessPrompt(callerKey: String) {
+        val label = callerAccessLabel(callerKey)
         val shown = runCatching {
             Sheet(this)
-                .title(R.string.external_launch_consent_title)
-                .message(getString(R.string.external_launch_consent_message, label, gameFolder.name))
+                .title(R.string.caller_access_ask_title)
+                .message(getString(R.string.caller_access_ask_message, label, gameFolder.name))
                 .choice(R.string.cancel) { cancel() }
-                .choice(R.string.external_launch_consent_run) {
-                    externalCallerConsented = true
+                .choice(R.string.caller_access_always_allow) {
+                    CallerAccessStore(this).setDecision(callerKey, CallerDecision.ALLOW)
+                    launch()
+                }
+                .choice(R.string.caller_access_block, tone = Sheet.Tone.DANGER) {
+                    CallerAccessStore(this).setDecision(callerKey, CallerDecision.BLOCK)
+                    cancel()
+                }
+                .onCancel { cancel() }
+                .show()
+        }.isSuccess
+        if (!shown) cancel()
+    }
+
+    /**
+     * [callerKey] is Blocked, either by a person's own decision or by
+     * CallerDefaults (a browser or a known remote-access/automation
+     * tool). Refuses with a plain reason; "Allow this app" is the same
+     * undo CallerAccessSettingsActivity offers, right where the person is
+     * already looking, not the only way to reach it.
+     */
+    private fun showCallerBlocked(callerKey: String, reason: CallerDefaults.BlockReason?) {
+        val label = callerAccessLabel(callerKey)
+        val message = when (reason) {
+            CallerDefaults.BlockReason.BROWSER -> getString(R.string.caller_access_blocked_browser, label)
+            CallerDefaults.BlockReason.REMOTE_OR_AUTOMATION -> getString(R.string.caller_access_blocked_remote, label)
+            null -> getString(R.string.caller_access_blocked_message, label)
+        }
+        val shown = runCatching {
+            Sheet(this)
+                .title(R.string.caller_access_blocked_title)
+                .message(message)
+                .choice(R.string.ok) { cancel() }
+                .choice(R.string.caller_access_allow_anyway) {
+                    CallerAccessStore(this).setDecision(callerKey, CallerDecision.ALLOW)
                     launch()
                 }
                 .onCancel { cancel() }
@@ -180,6 +218,9 @@ class LaunchActivity : EnginehostActivity() {
         }.isSuccess
         if (!shown) cancel()
     }
+
+    private fun callerAccessLabel(callerKey: String): String =
+        if (callerKey == LaunchCaller.UNKNOWN_KEY) getString(R.string.caller_access_unknown_label) else callerKey
 
     /**
      * This plugin has no isolated runtime (docs/engine-sandbox.md "Layer
@@ -451,10 +492,10 @@ class LaunchActivity : EnginehostActivity() {
         const val EXTRA_PATH = "path"
         const val EXTRA_CONFIG = "config"
         const val EXTRA_AUTOINSTALL = "autoinstallPlugin"
-        /** Set only by this app's own code (LaunchEntryActivity, GameRunner.run); never part of the LAUNCH contract a caller can set. */
-        private const val EXTRA_UNVERIFIED_CALLER_LABEL = "dev.enginehost.launch.UNVERIFIED_CALLER"
         /** Game setup's Test: run the pending testing configuration. Not part of the LAUNCH contract. */
         const val EXTRA_TESTING = "dev.enginehost.launch.TESTING"
+        /** Set only by this app's own code (LaunchEntryActivity, GameRunner.run) for a non-droidtop caller; never part of the LAUNCH contract a caller can set. */
+        private const val EXTRA_CALLER_KEY = "dev.enginehost.launch.CALLER_KEY"
 
         /**
          * The one way a game is started, from inside this app or from
@@ -478,7 +519,7 @@ class LaunchActivity : EnginehostActivity() {
             inlineJson: String?,
             autoInstallPlugin: Boolean,
             testing: Boolean = false,
-            callerLabel: String? = null,
+            caller: LaunchCaller = LaunchCaller.Droidtop,
         ) {
             val intent = Intent(context, LaunchActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             if (!RunningGame.isRunning(gameFolder)) {
@@ -487,7 +528,7 @@ class LaunchActivity : EnginehostActivity() {
                 inlineJson?.let { intent.putExtra(EXTRA_CONFIG, it) }
                 if (autoInstallPlugin) intent.putExtra(EXTRA_AUTOINSTALL, true)
                 if (testing) intent.putExtra(EXTRA_TESTING, true)
-                callerLabel?.let { intent.putExtra(EXTRA_UNVERIFIED_CALLER_LABEL, it) }
+                if (caller !is LaunchCaller.Droidtop) intent.putExtra(EXTRA_CALLER_KEY, caller.storeKey)
             }
             context.startActivity(intent)
         }

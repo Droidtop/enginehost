@@ -1,140 +1,114 @@
-# LaunchEntryActivity: closing the confused deputy without closing LAUNCH, 2026-09-27
+# LaunchEntryActivity: an allow/ask/block filter, not a caller gate, 2026-09-27
 
 Scope: `dev.enginehost.LAUNCH` (`LaunchEntryActivity`, `LaunchActivity`), the
-gap named `docs/security/2026-09-24-launch-trust-sandbox.md` H2 and its
-"LAUNCH stays open by the owner's rule" note, and the owner decision of
-2026-09-24: "Any app can make enginehost run a game, that's intentional."
+gap named `docs/security/2026-09-24-launch-trust-sandbox.md` H2's confused-
+deputy half, and three owner decisions, in order:
 
-## The problem
+1. 2026-09-24: "Any app can make enginehost run a game, that's intentional."
+2. 2026-09-27 (morning): "Enginehost's primary focus is programmatic engine
+   launches. The ENTIRE point is letting apps do that." -- overrode this
+   document's first version, which added an unconditional per-launch
+   consent sheet for any caller not verified as droidtop.
+3. 2026-09-27 (revision, current): "A prompt is fine. It might be wise to
+   have an allowlist/blocklist function to filter launches, that way a
+   browser can't hijack it. Sane defaults, of course (blocklist filtering
+   browsers and network tools, etc)." -- this is what ships.
 
-`LaunchEntryActivity` is `exported="true"` with no permission. Any
-zero-permission app on the device can fire `dev.enginehost.LAUNCH` with a
-`path` extra naming any folder it can read (which, before the Layer 2
-sandbox lands for a given plugin, is most of shared storage once the game
-starts -- H2) and Enginehost will read that folder's config, resolve a
-plugin for it and run it, with no indication to the person that anything
-happened until a game they did not start is already on screen. That is a
-classic confused-deputy shape: Enginehost has more authority over the
-device (all-files access, in the unsandboxed case) than the calling app
-does, and the calling app spends that authority through Enginehost without
-the person's knowledge.
+## The model
 
-## Why a signature/knownSigner permission does not fit here
+Every caller of `LAUNCH` other than droidtop resolves to one of three
+effective outcomes (`EffectiveAccess.forCaller`, `CallerAccess.kt`):
 
-The obvious close is a custom permission on `LaunchEntryActivity`
-(`android:permission`, `protectionLevel="signature|knownSigner"`,
-`android:knownCerts` naming droidtop's certificate) so only droidtop can
-start it. Two things rule it out:
+- **Allow**: the launch proceeds exactly as if it came from droidtop -- no
+  screen, no delay.
+- **Ask**: `LaunchActivity` shows a quick prompt (`offerCallerAccessPrompt`)
+  naming the caller and the game, Cancel first and focused. "Always allow
+  this app" and "Block this app" both persist (`CallerAccessStore`) and
+  either continue the launch or cancel it; Cancel decides nothing and asks
+  again next time.
+- **Block**: the launch is refused with a plain reason
+  (`showCallerBlocked`) -- "this looks like a browser", "this looks like a
+  remote-access or automation tool", or nothing more specific for a
+  person's own Block decision -- with "Allow this app" right there to
+  undo it.
 
-1. **`knownSigner` needs API 31.** Enginehost's `minSdk` is 26
-   (`app/build.gradle.kts:18`), and the BlueStacks rig -- the device this
-   host is actually tested on today -- is Android 9
-   (`docs/coordination` device README, "RIG ERA"). Below API 31 the
-   `knownSigner` clause is simply not evaluated, which leaves plain
-   `signature` (exact same signing certificate) as the enforced rule.
-   droidtop and Enginehost are signed with different certificates by
-   design (`docs/plugin-catalog.md`, "Official keys form one hierarchy" --
-   each app gets its own operational subkey). A plain `signature`
-   permission would therefore lock EVERY caller out, droidtop included, on
-   every device below API 31 -- the opposite of "without breaking
-   droidtop's legitimate LAUNCH intent."
-2. **A manifest permission is enforced by the platform before any app code
-   runs.** A caller that lacks the permission does not reach
-   `LaunchEntryActivity.onCreate` at all; there is no way to fall back to a
-   confirmation prompt for a caller the permission rejects. That would
-   make `LAUNCH` closed to everyone but droidtop outright, which is a
-   direct reversal of the owner's 2026-09-24 decision that any app can ask
-   Enginehost to run a game. Reversing a recorded decision like that is
-   the owner's call, not something to do silently inside a "close the
-   confused deputy" task.
+Resolution order: a person's own stored decision
+(`CallerAccessStore.decisionFor`, ALLOW or BLOCK) always wins. With no
+stored decision, `CallerDefaults` decides: a package that resolves as the
+device's `ACTION_VIEW` `http`/`https` handler, or is on a short list of
+major browsers' own package names (a fallback for one that is not
+currently the default handler), or is a known terminal/SSH, remote-desktop
+or device-automation package (Termux, TeamViewer, AnyDesk, VNC clients,
+Tasker, MacroDroid, Automate -- there is no platform category for these,
+so this is a maintained list, not a heuristic) starts **Blocked**.
+Everything else starts **Ask**. `CallerAccessSettingsActivity` (Settings >
+App launch access) lists every package with an explicit decision and lets
+a person change or remove one, or add a decision for an app that has not
+asked yet.
 
-So a permission gate is out on both compatibility and design-authority
-grounds, not just implementation cost.
+**Verified droidtop** (`TrustedCallers`, unchanged from this document's
+first version) is never gated: `GameRunner.run`'s default `LaunchCaller`
+is `Droidtop`, and every in-app launch (library, config editor test run,
+trust-screen continuation) uses that default, so none of this applies to
+anything already inside Enginehost.
 
-## Why an ordinary caller-identity check does not work either
+**Caller identity** is exactly what the first version of this document
+built and is unchanged: `LaunchEntryActivity` trusts only the referrer
+Android itself supplied, never `Intent.EXTRA_REFERRER`/
+`EXTRA_REFERRER_NAME` on the intent it received (either is an ordinary
+extra any caller can set on its own intent, and `Activity.getReferrer()`
+would otherwise repeat it back unchecked). No referrer at all -- the shape
+`adb shell am start` takes, having no calling Activity to attribute -- and
+an intent that supplies its own referrer extras both resolve to
+`LaunchCaller.Unknown`, a single bucket keyed as `"(unrecognized caller)"`
+that gets its own Allow/Ask/Block decision like any real package (default:
+Ask, since neither browser/automation heuristic applies to it).
 
-Android gives an exported `Activity` no reliable, unspoofable way to learn
-who started it from a plain `startActivity`/`am start` call:
-`getCallingPackage()` only populates for `startActivityForResult`, which
-droidtop's caller does not use and this task cannot require it to (a
-droidtop-side change is out of scope here: "Enginehost is separate from
-droidtop"). `getReferrer()` looks tempting, but its own contract says it
-prefers `Intent.EXTRA_REFERRER`/`EXTRA_REFERRER_NAME` when either is
-present on the received intent -- and those are ordinary extras any caller
-can set on the intent it sends. A malicious app can simply claim to be
-`android-app://dev.droidtop.app` and `getReferrer()` will repeat that claim
-back unchallenged.
+## Why not the two earlier shapes
 
-## What actually ships
-
-`LaunchEntryActivity` still accepts `LAUNCH` from any caller -- the door
-stays open, nothing is rejected. What changed is what happens next:
-
-- `LaunchEntryActivity.unverifiedCallerLabel()` reads the intent it
-  received directly. If that intent itself carries `EXTRA_REFERRER` or
-  `EXTRA_REFERRER_NAME`, the caller supplied its own claim and is treated
-  as unverifiable regardless of what it claims (this is exactly the
-  spoofing vector above, so it is never trusted). Only when NEITHER extra
-  is present does it read `referrer`, which in that case can only have
-  come from Android's own record of the real calling activity's package --
-  not from anything the caller's intent said about itself.
-- That package name is then checked against `TrustedCallers.isDroidtop`,
-  which requires both the exact package (`dev.droidtop.app`) and a
-  matching APK signing certificate read live from `PackageManager`
-  (`GET_SIGNING_CERTIFICATES` on API 28+, `GET_SIGNATURES` below it) --
-  not anything the caller asserts. The pinned certificate SHA-256
-  (`38b1ef4bc47fa8cd62ffcbb43fa85d7f450e9c2d4a8b690776d2218b23f0749f`) was
-  extracted 2026-09-27 from both assets of `Droidtop/droidtop`'s `latest`
-  release (`droidtop-latest.apk` and `droidtop-latest-debug.apk`, which
-  share one signer), by parsing the APK Signing Block v2 directly (no
-  `apksigner` was available in this environment).
-- A verified droidtop caller runs exactly as before: no new screen, no
-  extra tap.
-- Anything else -- a real referrer naming some other package, a caller
-  that supplied its own (disbelieved) referrer extras, or no referrer at
-  all (the common shape for `adb shell am start`, and for any caller not
-  started from another activity's context) -- carries a label into
-  `LaunchActivity`, which shows a new consent sheet
-  (`offerExternalLaunchConsent`) naming the game and the caller (or "An
-  app" when no real name is known) before the plugin resolves and runs.
-  Cancel is first and focused, matching `offerSandboxConsent`'s existing
-  "ask every time, remember nothing" shape; nothing is stored, so the next
-  launch from the same unverified caller asks again.
+- **A caller check with no filter (this document's first version)**: asked
+  about every non-droidtop caller unconditionally, which the 2026-09-27
+  override rejected outright -- programmatic launch from any app is the
+  product, so gating on identity alone, even just to ask, was in the way
+  for the overwhelmingly common case of a legitimate caller.
+- **No gate at all (the override's own literal wording)**: closes nothing.
+  A page loaded in any browser, or a script an automation app runs, could
+  still trigger `LAUNCH` exactly as any other app can, with nothing in the
+  way and nothing recorded. The revision restores a prompt specifically
+  because that gap -- "a browser can't hijack it" -- was the point being
+  protected against, not caller identity as such.
 
 ## What this does and does not close
 
-- **Closed:** an app dropping a folder somewhere Enginehost can read and
-  silently making Enginehost run it, unnoticed, is no longer possible --
-  the person sees a plain "launch this game?" prompt naming the caller
-  before anything runs, for every caller this cannot verify as droidtop.
-- **Not closed:** everything H2 already named. A person who taps Launch
-  extends the same trust an approved bundle already gets (M3); this
-  screen does not, and cannot, narrow what the plugin can do once running.
-  It also does nothing for `autoinstallPlugin`, which can still start a
-  catalog download before the person answers this prompt; approval to run
-  still gates execution as before.
-- **Open decision for the owner:** whether "any app can make Enginehost
-  run a game" (2026-09-24) still means "silently" for non-droidtop
-  callers, or whether this per-launch prompt is the intended shape going
-  forward. This change assumes the latter (fail toward asking, not toward
-  silent execution, for a gap this severity) but does not itself settle
-  the standing decision -- flagged here for confirmation rather than
-  decided unilaterally.
+- **Closed**: a browser or a known remote-access/automation tool cannot
+  silently trigger `LAUNCH` -- it is blocked by default, with a reason,
+  until a person explicitly allows it. A caller nobody has decided about
+  yet gets one quick, dismissable prompt rather than silent execution.
+- **Not closed**: this is app-identity policy, not the sandbox. A person
+  who taps "Always allow" or a plugin that cannot run isolated (`Run
+  unsandboxed?`, `offerSandboxConsent`, unchanged) still gets exactly the
+  access `docs/security/2026-09-24-launch-trust-sandbox.md` H2 describes
+  once the game is running. The real fix for that remains the sandbox
+  itself (`docs/engine-sandbox.md`, Layer 2); this filter decides who may
+  ask for a game to start, not what the game's own code can do once it
+  has.
+- **Not attempted**: distinguishing a browser's own navigation from a page
+  script inside it, or verifying an automation app's specific action --
+  both are the same caller identity either way, which is all `LAUNCH` (or
+  any exported Android component) can ever see.
 
 ## Needs a rig check
 
-Install the built debug APK on BlueStacks (RIG ERA / `device/wadb`) and,
-with a droidtop build installed and already able to reach `LAUNCH` (the
-existing dq-pluginui items exercise this path), confirm:
+Install the built debug APK on BlueStacks (RIG ERA / `device/wadb`,
+rig lock) and confirm, the user way:
 
-1. A game folder launched the same way droidtop already does it (an actual
-   droidtop `LAUNCH` from its own UI, not `adb shell am start`) still
-   starts straight through, no new screen, same as before this change.
-2. `adb shell am start -a dev.enginehost.LAUNCH --es path "'<folder>'"`
-   (the rig's own documented launch command, which has no real activity
-   referrer) now stops at the new "Launch this game?" sheet naming "An
-   app" and the game's title, with Cancel focused; tapping Launch runs the
-   game exactly as before, tapping Cancel or Back returns to wherever the
-   screen goes on cancel today.
-3. Repeat step 2's `am start` launch a second time after Cancel: the sheet
-   appears again (nothing was remembered).
+1. `adb shell am start -a dev.enginehost.LAUNCH --es path "'<folder>'"`
+   (an unrecognized caller) stops at "Launch this game?", Cancel focused,
+   naming the caller as unrecognized and the game.
+2. Picking "Always allow this app" runs the game; repeating the same `am
+   start` afterwards runs it again with no prompt (Settings > App launch
+   access now lists "An unrecognized caller" as Allowed).
+3. A caller resolved as a browser (or a synthetic test package registered
+   to handle `ACTION_VIEW` `http`) is refused outright with the browser
+   message, no prompt, and "Allow this app" on that screen moves it to
+   Allowed.

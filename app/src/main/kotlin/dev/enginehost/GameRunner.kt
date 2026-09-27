@@ -2,6 +2,7 @@ package dev.enginehost
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import java.io.File
 
 /** Resolves folder-authoritative configuration and enters the host-owned runtime process. */
@@ -43,9 +44,12 @@ object GameRunner {
         inlineJson: String? = null,
         autoInstallPlugin: Boolean = false,
         testing: Boolean = false,
-        callerLabel: String? = null,
+        caller: LaunchCaller = LaunchCaller.Droidtop,
     ) {
-        LaunchActivity.start(context, gameFolder, inlineJson, autoInstallPlugin, testing, callerLabel)
+        if (caller !is LaunchCaller.Droidtop) {
+            Log.i("enginehost", "LAUNCH ${gameFolder.name} from ${caller.storeKey}")
+        }
+        LaunchActivity.start(context, gameFolder, inlineJson, autoInstallPlugin, testing, caller)
     }
 
     /**

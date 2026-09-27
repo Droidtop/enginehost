@@ -16,10 +16,13 @@ import java.io.File
  * see [LaunchActivity.start] for what Android does with a second launch
  * intent aimed straight at a live game task.
  *
- * `LAUNCH` stays open to any app by design (owner, 2026-09-24), so this
- * does not reject a caller. What it decides is whether [GameRunner.run]
- * carries a label for [LaunchActivity]'s external-caller consent prompt:
- * see [unverifiedCallerLabel].
+ * Programmatic launches from any app are the point of this door (owner,
+ * 2026-09-27: "Enginehost's primary focus is programmatic engine launches.
+ * The ENTIRE point is letting apps do that."), so this never refuses a
+ * caller itself. What [caller] decides is entirely downstream, in
+ * [LaunchActivity]: whether the person allowed, blocked, or has not yet
+ * been asked about this exact caller (`CallerAccessStore`,
+ * `CallerDefaults`). See docs/security/2026-09-27-launch-entry-consent.md.
  */
 class LaunchEntryActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,35 +33,32 @@ class LaunchEntryActivity : Activity() {
                 File(path),
                 intent.getStringExtra(LaunchActivity.EXTRA_CONFIG),
                 intent.getBooleanExtra(LaunchActivity.EXTRA_AUTOINSTALL, false),
-                callerLabel = unverifiedCallerLabel(),
+                caller = caller(),
             )
         }
         finish()
     }
 
     /**
-     * Null when Android's own record of who started this activity names
-     * droidtop's package under droidtop's own signing certificate
-     * ([TrustedCallers]); otherwise a label to show on the consent
-     * [LaunchActivity] asks for before the game actually runs.
-     *
-     * Only a referrer derived with neither `EXTRA_REFERRER` nor
-     * `EXTRA_REFERRER_NAME` present on the intent THIS activity received is
-     * trusted: both are ordinary extras any caller can set on the intent it
-     * sends, and `Activity.getReferrer()` prefers them over Android's own
-     * record of the calling package -- so a caller supplying either is
-     * treated as unverifiable even when it names droidtop, exactly the
-     * caller that check exists to catch. When neither extra is present,
-     * `referrer` can only have come from the system, which fills it from
-     * the actual calling activity's package and cannot be spoofed by the
-     * caller's own intent data.
+     * [LaunchCaller.Droidtop] only when Android's own record of who
+     * started this activity names droidtop's package under droidtop's own
+     * signing certificate ([TrustedCallers]). [LaunchCaller.Unknown] when
+     * the intent this activity received supplied its own `EXTRA_REFERRER`
+     * or `EXTRA_REFERRER_NAME` -- ordinary extras any caller can set on
+     * the intent it sends, which `Activity.getReferrer()` prefers over
+     * Android's own record, so neither is trusted here -- or when there is
+     * no referrer at all (the shape `adb shell am start` takes). Otherwise
+     * [LaunchCaller.App] with the real, system-attributed package.
      */
-    private fun unverifiedCallerLabel(): String? {
+    private fun caller(): LaunchCaller {
         if (intent.hasExtra(Intent.EXTRA_REFERRER) || intent.hasExtra(Intent.EXTRA_REFERRER_NAME)) {
-            return getString(R.string.external_launch_unknown_caller)
+            return LaunchCaller.Unknown
         }
-        val callerPackage = referrer?.host ?: return getString(R.string.external_launch_unknown_caller)
-        if (TrustedCallers.isDroidtop(packageManager, callerPackage)) return null
-        return callerPackage
+        val callerPackage = referrer?.host ?: return LaunchCaller.Unknown
+        return if (TrustedCallers.isDroidtop(packageManager, callerPackage)) {
+            LaunchCaller.Droidtop
+        } else {
+            LaunchCaller.App(callerPackage)
+        }
     }
 }

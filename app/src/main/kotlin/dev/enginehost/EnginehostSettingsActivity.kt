@@ -101,6 +101,14 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             PlatformSnapshot.shortCommit(this) ?: getString(R.string.platform_snapshot_unrecorded),
         )
         findViewById<View>(R.id.appVersionRow).setOnClickListener { checkAppUpdate() }
+        findViewById<View>(R.id.launchAccessRow).setOnClickListener {
+            startActivity(Intent(this, CallerAccessSettingsActivity::class.java))
+        }
+        refresh()
+    }
+
+    override fun onResume() {
+        super.onResume()
         refresh()
     }
 
@@ -232,6 +240,10 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             resources.getStringArray(R.array.plugin_stream_entries)[updateCheck.stream.ordinal]
         refreshEngineRows()
         refreshLastChecked()
+        val decisions = CallerAccessStore(this).all()
+        findViewById<TextView>(R.id.launchAccessValue).text = resources.getQuantityString(
+            R.plurals.launch_access_summary, decisions.size, decisions.size,
+        )
     }
 
     /**
