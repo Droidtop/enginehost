@@ -1885,6 +1885,89 @@ rasterizer) and is recorded here as the fallback, not the plan, precisely
 because it is worse and only used if the surface-handoff mechanism's own
 rig check fails.
 
+#### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
+
+The static-method-contract finding above (`nativeSetupJNI`'s `cls` parameter)
+is still correct for the native/C side and for `SDL.java`'s three
+`setupJNI()` calls -- but it describes how the *native* code resolves its
+Java callbacks, not how SDL's own *Java* glue is wired together, and that
+turned out to matter more than this document first accounted for.
+
+**`SDL.java`'s own `setupJNI()` hardcodes the class by name**, not
+dynamically: `SDLActivity.nativeSetupJNI(); SDLAudioManager.nativeSetupJNI();
+SDLControllerManager.nativeSetupJNI();` (`SDL.java`, confirmed from
+`enginehost-love2d-plugin`'s vendored copy at
+`love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDL.java`).
+So `cls` in `nativeSetupJNI`'s native implementation is always
+`SDLActivity.class`, regardless of what other class exists, unless this one
+call site is repointed -- a small, real, legitimate patch (one line, the
+kind of upstream hook this project already makes elsewhere), not the
+blocker.
+
+**The real blocker: `SDLSurface.java` (the actual `SurfaceView` subclass that
+owns the native-thread state machine) reads and writes `SDLActivity`'s own
+static fields and calls `SDLActivity.mSingleton`'s instance methods directly,
+by name, throughout -- not through any interface or callback a subclass
+could substitute.** Checked line by line, not assumed: `SDLActivity.mSingleton`,
+`SDLActivity.mNextNativeState`/`mCurrentNativeState` (its `NativeState`
+enum-driven startup sequence), `SDLActivity.handleNativeState()`,
+`SDLActivity.getContext()`, `SDLActivity.onNativeSurfaceCreated()`/
+`onNativeSurfaceChanged()`/`onNativeSurfaceDestroyed()`/`onNativeResize()`,
+and -- the part that actually matters here -- real `Activity` instance
+methods called directly on `SDLActivity.mSingleton`:
+`SDLActivity.mSingleton.getRequestedOrientation()`,
+`SDLActivity.mSingleton.isInMultiWindowMode()`,
+`SDLActivity.mSingleton.getWindow()`. `mSingleton` is declared
+`protected static SDLActivity mSingleton` -- a specific class, not
+`Activity` or `Context` -- and several of `SDLActivity.java`'s own methods
+that `SDLSurface` calls (`createSDLSurface()`, `getArguments()`,
+`getLibraries()`, `superOnBackPressed()`) are `SDLActivity`-specific
+protected instance methods, not generic `Activity` ones.
+
+This means the adapter this document proposed above -- a new, unrelated
+class presenting the same 28 static methods, with no `Activity` anywhere --
+cannot simply take over from `SDLActivity` for the video/window contract:
+`SDLSurface`'s own lifecycle state machine (surface-created/changed/destroyed,
+window-focus-gated startup, orientation) is written against `SDLActivity`
+the class, not against an interface, and several of its calls need a real,
+attached `Activity` instance (`getWindow()`, `isInMultiWindowMode()`,
+`getRequestedOrientation()`) to behave correctly -- not merely a `Context`.
+A plain Java object built by `new SDLActivity()` outside Android's own
+`Instrumentation`-driven Activity creation has no attached `Window` and
+calling `getWindow()` on it is exactly the kind of platform behavior this
+project's own rules say not to guess at; it was not attempted.
+
+**What an actual fix needs, not yet built:** either (a) a scoped patch to
+`SDLSurface.java` and `SDLActivity.java` broadening `mSingleton`'s declared
+type from `SDLActivity` to `Activity` (or an even narrower interface
+carrying only `getWindow()`/`getRequestedOrientation()`/
+`isInMultiWindowMode()`/`runOnUiThread()`/`finish()`) and moving the
+handful of genuinely `SDLActivity`-specific methods (`createSDLSurface()`,
+`getArguments()`, `getLibraries()`) onto the new adapter class instead --
+real, mechanical, and scoped, but touching two vendored files, not one new
+shim class -- or (b) a plugin-api addition letting a non-isolated launch's
+plugin obtain the real host `Activity` (`RuntimeActivity` itself, already a
+genuine, properly attached `FragmentActivity`) through `EnginePluginSession`/
+`EngineHost` -- nullable, isolated launches keep getting `null`, matching
+this document's existing nullable-under-isolation pattern
+(`gameBroker()`/`isolatedAudioBuffer()`) -- so that route (a)'s broadened
+type has a real Activity to hold. Neither is built in this pass: shipping
+half of either without the other would be code with no working boot path,
+which is worse than not shipping it, and this document's own "no hacky time
+pressure" and "accuracy over deference" rules say to record the real
+finding rather than force something through to claim the milestone met.
+
+**Status of this pass's actual LOVE work: investigation only, no plugin
+repo commit.** `enginehost-love2d-plugin` is unchanged. What is built and
+CI-green is the engine-agnostic host-side piece two sections up (`usesSurface()`/
+`setGameSurface()`, `IsolatedRuntimeHost`/`IsolatedRuntimeService`,
+`EnginePlugin`'s two new default methods) -- real, useful regardless of
+which of (a)/(b) above the next pass picks, and already covers the case
+where a plugin's own Surface need is architecturally simple enough not to
+require `SDLSurface`'s specific machinery at all. The SDL family
+specifically needs the follow-on work named above before a first real
+conversion attempt, not before its design is understood.
+
 #### First conversion: LOVE (love2d)
 
 Chosen over AGS, mkxp-z and KiriKiri for the same reason CatSystem2 was
@@ -1965,10 +2048,12 @@ gate CatSystem2's own `isolatable: true` waited on.
    adapter design, and why the surface-handoff question is the actual
    open risk, not a rewrite of any engine. Order, revised now that the
    adapter's own shared shape is known:
-   1. **LOVE** -- first conversion (above): smallest SDL-based wrapper
-      checked, most already-recorded groundwork (`ENGINEHOST.md`), and
-      this pass's own `SdlEnginePlugin` adapter slice targets it first.
-      Not yet isolatable; the surface-handoff rig check gates that.
+   1. **LOVE** -- first conversion target (above), smallest SDL-based
+      wrapper checked and most already-recorded groundwork (`ENGINEHOST.md`)
+      -- but the adapter itself needs the `SDLSurface.java`/`SDLActivity.java`
+      Activity-coupling fix this pass's own "Correction" section found
+      before a first real attempt, not a straightforward shim. Not yet
+      isolatable; the surface-handoff rig check gates that regardless.
    2. **AGS, mkxp-z** -- same SDL family, same adapter, once LOVE's own
       rig check confirms the surface-handoff mechanism actually renders a
       frame from an isolated process. AGS carries real, separable

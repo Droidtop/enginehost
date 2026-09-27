@@ -1,5 +1,6 @@
 package dev.enginehost.api;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.ParcelFileDescriptor;
 import java.io.File;
@@ -8,6 +9,25 @@ import java.io.File;
 public interface EngineHost {
     /** Enginehost context. Modules must not retain it beyond the session. */
     Context context();
+
+    /**
+     * The real host Activity (RuntimeActivity), for a plugin family whose
+     * upstream Java glue genuinely needs a live, attached Activity rather
+     * than a Context -- e.g. an SDL-based engine migrating off
+     * runtimeTransport: android-activity, whose own SurfaceView-owning
+     * glue calls real Activity instance methods (getWindow(),
+     * isInMultiWindowMode(), getRequestedOrientation()) directly
+     * (docs/engine-sandbox.md "Correction... SDLSurface.java"). Null
+     * under isolation (docs/engine-sandbox.md "Layer 2"): an isolated
+     * service is never an Activity and never gets one, by the same rule
+     * that makes session.display() null there too. A plugin that needs
+     * this for its non-isolated launch and gets usesSurface()/
+     * attachIsolatedSurface() right for its isolated one can still run
+     * under both; a plugin that cannot do without a real Activity at all
+     * cannot be made isolatable, the same conclusion this document
+     * already reaches for runtimeTransport: android-activity itself.
+     */
+    default Activity activity() { return null; }
     /**
      * What the engine's SYSTEM save locations mean on this device (a user
      * profile, AppData, a browser's storage), in a folder the person chose.

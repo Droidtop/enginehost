@@ -371,6 +371,8 @@ private class RuntimeHost(
     private val files = RuntimeFileSystem(gameFolder)
 
     override fun context(): Context = activity
+    /** EngineHost.activity(); this launch is never isolated (RuntimeHost is the in-process EngineHost only). */
+    override fun activity(): Activity = activity
     override fun saveDirectory(): File = save
     override fun cacheDirectory(): File = cache
     override fun fileSystem(): EngineFileSystem = files
