@@ -1,6 +1,7 @@
 package dev.enginehost.runtime;
 
 import android.os.ParcelFileDescriptor;
+import android.view.Surface;
 import dev.enginehost.runtime.IEngineFileBroker;
 import dev.enginehost.runtime.IEngineRuntimeCallback;
 
@@ -10,12 +11,18 @@ import dev.enginehost.runtime.IEngineRuntimeCallback;
  * session; destroyRuntime() ends it and the process is not reused for
  * another launch.
  *
- * There is no Surface or SurfaceControlViewHost here on purpose: the first
- * milestone targets an EngineStepDriven plugin (plugin-api/EngineStepDriven),
- * whose engine renders a software pixel buffer rather than owning a real
- * drawing surface, so the host drives frames itself instead of depending on
- * the isolated process reaching SurfaceFlinger's vsync source, which is
- * untried (see the design doc's "surfaces and input").
+ * The first milestone (CatSystem2, CMVS) targeted an EngineStepDriven
+ * plugin (plugin-api/EngineStepDriven), whose engine renders a software
+ * pixel buffer rather than owning a real drawing surface, so the host
+ * drove frames itself instead of depending on the isolated process
+ * reaching SurfaceFlinger's vsync source, which was untried at the time
+ * (see docs/engine-sandbox.md's "surfaces and input"). usesSurface()/
+ * setGameSurface() below are the later, still-unconfirmed-on-a-device
+ * mechanism for a plugin that cannot avoid owning a real Surface (SDL and
+ * other GPU-rendering engines migrating off runtimeTransport: android-activity,
+ * docs/engine-sandbox.md "Surface handoff") -- a plugin using it does not
+ * implement EngineStepDriven and pixelWidth()/pixelHeight()/step()/
+ * setFrameBuffer() are meaningless for it.
  */
 interface IEngineRuntimeService {
     /**
@@ -52,6 +59,32 @@ interface IEngineRuntimeService {
 
     int pixelWidth();
     int pixelHeight();
+
+    /**
+     * True when this launch's plugin renders GPU frames onto a real
+     * Surface (docs/engine-sandbox.md "Surface handoff") rather than the
+     * EngineStepDriven pixel-buffer path pixelWidth()/pixelHeight()/step()
+     * below drive -- EnginePlugin.usesSurface(), asked once, right after
+     * init() succeeds. When true, the host skips pixelWidth()/pixelHeight()/
+     * setFrameBuffer()/step() entirely (they stay meaningless, matching
+     * EngineStepDriven not being implemented) and calls setGameSurface()
+     * instead, once its own SurfaceView is ready.
+     */
+    boolean usesSurface();
+
+    /**
+     * The host's own SurfaceView's Surface (Parcelable; the same
+     * cross-process handoff MediaCodec.configure and Camera2's capture
+     * targets already use to hand a decoder or camera pipeline in another
+     * process somewhere to draw), for a plugin that answered true from
+     * usesSurface(). Called at most once, before any input or lifecycle
+     * call reaches the plugin. Whether an isolated_app UID may actually
+     * reach SurfaceFlinger for this at all is not established from source
+     * reading alone (docs/engine-sandbox.md "Surface handoff") -- this
+     * method exists so that question can be tested on a device, not
+     * because the answer is assumed here.
+     */
+    void setGameSurface(in Surface surface);
 
     /**
      * The host's own frame buffer: a plain file the host owns, sized

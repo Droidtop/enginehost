@@ -28,6 +28,8 @@ import android.system.Os
 import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -56,6 +58,8 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
     private var loopThread: HandlerThread? = null
     private var loopHandler: Handler? = null
     private var view: IsolatedFrameView? = null
+    /** Non-null only for a usesSurface() plugin (docs/engine-sandbox.md "Surface handoff"); mutually exclusive with [view]. */
+    private var gameSurfaceView: SurfaceView? = null
     private var pixels: IntArray = IntArray(0)
     private var frameWidth: Int = 0
     /**
@@ -157,6 +161,61 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                             // AIDL duplicates each descriptor across the binder call; this
                             // process's own copies are spent once init() returns (or throws).
                             (dexFds.asList() + nativeLibraryFds.asList()).forEach { runCatching { it.close() } }
+                        }
+                        // Two mutually exclusive shapes past this point
+                        // (docs/engine-sandbox.md "Surface handoff"):
+                        // usesSurface() means a real GPU-rendering plugin
+                        // that owns a Surface, pixelWidth()/pixelHeight()/
+                        // step()/setFrameBuffer() are meaningless for it and
+                        // are not called at all; otherwise this is the
+                        // original EngineStepDriven pixel-buffer path,
+                        // unchanged.
+                        if (runCatching { svc.usesSurface() }.getOrDefault(false)) {
+                            activity.runOnUiThread {
+                                val surfaceView = SurfaceView(activity)
+                                gameSurfaceView = surfaceView
+                                surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
+                                    override fun surfaceCreated(holder: SurfaceHolder) {
+                                        val ok = runCatching { svc.setGameSurface(holder.surface) }
+                                            .onFailure { Log.e(TAG, "setGameSurface failed", it) }
+                                            .isSuccess
+                                        settle {
+                                            activity.runOnUiThread {
+                                                if (!ok) {
+                                                    bridge?.close()
+                                                    onFailure("Could not hand the isolated runtime its rendering surface")
+                                                    return@runOnUiThread
+                                                }
+                                                audioBridge = bridge
+                                                bridge?.startPlayback()
+                                            }
+                                        }
+                                    }
+
+                                    override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {}
+                                    override fun surfaceDestroyed(holder: SurfaceHolder) {}
+                                })
+                                // Raw view coordinates, no engine-pixel-space scaling: unlike
+                                // CatSystem2's fixed internal resolution behind IsolatedFrameView,
+                                // a Surface-rendering plugin already draws at this view's own
+                                // pixel size, so the isolated side's own SDL bridge (or
+                                // equivalent) is what translates these into its engine's touch
+                                // model, the same translation an in-process SDLActivity's own
+                                // onTouchEvent already does today.
+                                surfaceView.setOnTouchListener { _, event ->
+                                    val x = event.x.roundToInt()
+                                    val y = event.y.roundToInt()
+                                    when (event.actionMasked) {
+                                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
+                                            onLoop { runCatching { service?.onPointerMove(x, y) } }
+                                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                                            onLoop { runCatching { service?.onPointerUp(x, y) } }
+                                    }
+                                    true
+                                }
+                                display.addView(surfaceView, ViewGroup.LayoutParams(-1, -1))
+                            }
+                            return@Runnable
                         }
                         val width = svc.pixelWidth()
                         val height = svc.pixelHeight()
@@ -302,6 +361,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
         frameBufferPfd = null
         frameBufferFile?.let { runCatching { it.delete() } }
         frameBufferFile = null
+        gameSurfaceView = null
     }
 
     private fun onLoop(block: () -> Unit) {
