@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    PLACEHOLDER icon, replace with real art. See docs/icon-placeholder.md for
+    the sizes and safe-zone rules the replacement must follow.
+
+    A plain "EH" block mark in the on-accent colour, kept inside the
+    adaptive-icon safe zone (a 66dp circle centred on the 108x108 canvas) so
+    it survives every launcher's mask shape.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/eh_on_accent"
+        android:pathData="
+            M35,37 H41 V71 H35 Z
+            M35,37 H51 V43 H35 Z
+            M35,51 H51 V57 H35 Z
+            M35,65 H51 V71 H35 Z
+            M57,37 H63 V71 H57 Z
+            M67,37 H73 V71 H67 Z
+            M57,51 H73 V57 H57 Z" />
+</vector>

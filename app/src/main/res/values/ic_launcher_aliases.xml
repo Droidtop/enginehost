@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Aliases for the adaptive-icon foreground and monochrome layers. Dropping
+    in real art (docs/icon-placeholder.md) means adding the new drawable and
+    repointing these two lines at it, or replacing the placeholder files in
+    place; ic_launcher.xml and ic_launcher_round.xml never name the
+    placeholder directly.
+-->
+<resources>
+    <item name="ic_launcher_foreground" type="drawable">@drawable/ic_launcher_foreground_placeholder</item>
+    <item name="ic_launcher_monochrome" type="drawable">@drawable/ic_launcher_monochrome_placeholder</item>
+</resources>
