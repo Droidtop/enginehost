@@ -53,6 +53,16 @@ on:
         description: The repository's committed key document, relative to its root.
         type: string
         default: enginehost-public-key.json
+      channel:
+        description: >-
+          The release channel this signed bundle is being produced for, if
+          any ("stable", "testing", "unstable", or empty for a run that is
+          not being published, e.g. an ordinary push build with no promote
+          dispatch). Only checked to refuse signing a pre-1.0 pluginVersion
+          for "stable" -- no plugin publishes a 0.x build as stable
+          (W1: docs/security/2026-09-27-pre-1.0-stable-guard.md).
+        type: string
+        default: ""
     secrets:
       ENGINEHOST_SIGNING_KEY_PEM:
         required: true
@@ -69,6 +79,7 @@ jobs:
           TOOLING_SHA: ${{ inputs.tooling-sha }}
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: ${{ inputs.repository-key-document }}
+          CHANNEL: ${{ inputs.channel }}
         run: |
           set -euo pipefail
           # A branch or tag name here would let whoever can move it choose the
@@ -76,6 +87,7 @@ jobs:
           [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
           [[ "$BUNDLE" =~ ^[A-Za-z0-9._-]+\.enginehost\.tar\.xz$ ]] || { echo "bad bundle name '$BUNDLE'" >&2; exit 1; }
           [[ "$KEY_DOCUMENT" =~ ^[A-Za-z0-9._/-]+$ && "$KEY_DOCUMENT" != *..* ]] || { echo "bad key document path '$KEY_DOCUMENT'" >&2; exit 1; }
+          [[ -z "$CHANNEL" || "$CHANNEL" =~ ^(stable|testing|unstable)$ ]] || { echo "bad channel '$CHANNEL'" >&2; exit 1; }
       - name: Check out the repository key document
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -100,6 +112,7 @@ jobs:
           ENGINEHOST_SIGNING_KEY_PEM: ${{ secrets.ENGINEHOST_SIGNING_KEY_PEM }}
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: repository/${{ inputs.repository-key-document }}
+          CHANNEL: ${{ inputs.channel }}
         run: |
           set -euo pipefail
           test -n "$ENGINEHOST_SIGNING_KEY_PEM"
@@ -109,6 +122,23 @@ jobs:
           tar -xpf unsigned-download/unsigned.tar -C unsigned --no-same-owner
           test -d unsigned/payload
           test -f unsigned/bundle-metadata.json
+          # W1: no plugin publishes a 0.x pluginVersion as stable. Checked
+          # here, not only in each repository's own publish job, because
+          # this is the one place every plugin's signing key is used --
+          # a plugin workflow that skipped or mis-wired its own guard would
+          # otherwise still get a signed stable-channel bundle out of this.
+          if [ "$CHANNEL" = stable ]; then
+            if ! python3 - unsigned/bundle-metadata.json <<'PYEOF'
+          import json, sys
+          version = json.load(open(sys.argv[1]))["pluginVersion"]
+          major = int(str(version).split(".")[0])
+          sys.exit(0 if major >= 1 else 1)
+          PYEOF
+            then
+              echo "::error::refusing to sign a stable-channel bundle at a pre-1.0 pluginVersion" >&2
+              exit 1
+            fi
+          fi
           key="$RUNNER_TEMP/signing-key.pem"
           trap 'rm -f "$key"' EXIT
           (umask 077; printf '%s' "$ENGINEHOST_SIGNING_KEY_PEM" > "$key")
