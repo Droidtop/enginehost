@@ -49,6 +49,20 @@ data class InstalledPlugin(
 data class ResolvedPlugin(val plugin: InstalledPlugin, val capability: EngineCapability)
 
 object PluginResolver {
+    /**
+     * [trustOf] decides whether trust is even considered: callers with no
+     * notion of trust (existing JVM tests, and anywhere the caller already
+     * filtered its candidate list) get today's behaviour by leaving it at
+     * the default, which treats every candidate as approved. A real caller
+     * ([PluginRegistry.resolve]) passes [PluginTrustStore.state] so a
+     * DENIED bundle is dropped before capability matching even starts --
+     * it never resolves, however specific or however new its version --
+     * and, among what is left, an APPROVED capability always outranks a
+     * PENDING one of the same or even better fit. Before this, trust was
+     * checked only after the fact, on whichever bundle resolution already
+     * picked, so a pending or denied bundle could outrank an approved one
+     * on version alone and be the one to detour to the trust screen.
+     */
     fun resolve(
         plugins: List<InstalledPlugin>,
         engine: String,
@@ -56,12 +70,14 @@ object PluginResolver {
         engineVersion: Version,
         runtimeRequirements: Map<String, Version>,
         pluginVersionAllowlist: VersionConstraint?,
+        trustOf: (InstalledPlugin) -> PluginTrustState = { PluginTrustState.APPROVED },
     ): ResolvedPlugin? {
         val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
         return plugins.asSequence()
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }
             .filter { it.info.runs(engine) }
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
+            .filter { trustOf(it) != PluginTrustState.DENIED }
             .flatMap { plugin ->
                 plugin.info.capabilities.asSequence()
                     .filter {
@@ -71,7 +87,8 @@ object PluginResolver {
                     .map { ResolvedPlugin(plugin, it) }
             }
             .sortedWith(
-                compareByDescending<ResolvedPlugin> { it.capability.runtimeVersion == engineVersion }
+                compareByDescending<ResolvedPlugin> { trustOf(it.plugin) == PluginTrustState.APPROVED }
+                    .thenByDescending { it.capability.runtimeVersion == engineVersion }
                     .thenBy { it.capability.specificityFor(engineVersion) }
                     .thenByDescending { it.plugin.info.pluginVersion }
                     .thenBy { it.plugin.bundleId }
@@ -195,9 +212,13 @@ object PluginRegistry {
         engineVersion: Version,
         runtimeRequirements: Map<String, Version>,
         pluginVersionAllowlist: VersionConstraint?,
-    ): ResolvedPlugin? = PluginResolver.resolve(
-        discover(context), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
-    )
+    ): ResolvedPlugin? {
+        val trustStore = PluginTrustStore(context)
+        return PluginResolver.resolve(
+            discover(context), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
+            trustOf = trustStore::state,
+        )
+    }
 }
 
 /** Shared with [EngineBundleInstaller], which is the sole creator of these directories. */
