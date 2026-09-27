@@ -66,11 +66,15 @@ class CallerAccessSettingsActivity : EnginehostActivity() {
     private fun offerChange(key: String, current: CallerDecision?) {
         Sheet(this)
             .title(displayName(key))
-            .choice(R.string.launch_access_allow, current = current == CallerDecision.ALLOW) {
+            .choice(getString(R.string.launch_access_allow), current = current == CallerDecision.ALLOW) {
                 store.setDecision(key, CallerDecision.ALLOW)
                 render()
             }
-            .choice(R.string.launch_access_block, current = current == CallerDecision.BLOCK, tone = Sheet.Tone.DANGER) {
+            .choice(
+                getString(R.string.launch_access_block),
+                current = current == CallerDecision.BLOCK,
+                tone = Sheet.Tone.DANGER,
+            ) {
                 store.setDecision(key, CallerDecision.BLOCK)
                 render()
             }
