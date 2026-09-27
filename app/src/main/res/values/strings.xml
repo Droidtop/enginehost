@@ -415,6 +415,10 @@
     <string name="sandbox_consent_title">This engine can\'t run sandboxed</string>
     <string name="sandbox_consent_message">%1$s has no sandboxed runtime yet. Run it anyway and its code has Enginehost\'s own access while it runs: it can read and write anything on shared storage and use the network, the same as the app itself. This is asked every time; nothing is remembered.</string>
     <string name="sandbox_consent_run">Run unsandboxed</string>
+    <string name="external_launch_consent_title">Launch this game?</string>
+    <string name="external_launch_consent_message">%1$s asked Enginehost to launch “%2$s”. Only allow this if you expect it. This is asked every time an app Enginehost cannot recognize as droidtop does this; nothing is remembered.</string>
+    <string name="external_launch_consent_run">Launch</string>
+    <string name="external_launch_unknown_caller">An app</string>
     <string name="launch_save_folder_invalid_name">The save folder name in the game\'s configuration is not valid.</string>
     <string name="launch_exec_file_missing">The game\'s entry file \"%1$s\" does not exist in the game folder.</string>
     <string name="earlier_saves_title">Saves from an earlier Enginehost</string>

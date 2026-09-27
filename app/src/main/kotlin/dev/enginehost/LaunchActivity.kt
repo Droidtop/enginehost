@@ -90,6 +90,9 @@ class LaunchActivity : EnginehostActivity() {
     /** Earlier saves were offered on this screen and answered; a retry or restart does not ask again. */
     private var earlierSavesAnswered = false
 
+    /** offerExternalLaunchConsent was shown and accepted; a retry within this screen does not ask again. */
+    private var externalCallerConsented = false
+
     /** What the run that just ended passed to EngineHost.restart, until the next run takes it. */
     private var restartArguments: Array<String>? = null
 
@@ -129,6 +132,14 @@ class LaunchActivity : EnginehostActivity() {
                     launchWhenRuntimeGone()
                     return
                 }
+                // LAUNCH stays open to any app by design (owner,
+                // 2026-09-24); this is what stops that being silent. See
+                // offerExternalLaunchConsent.
+                val unverifiedCaller = intent.getStringExtra(EXTRA_UNVERIFIED_CALLER_LABEL)
+                if (unverifiedCaller != null && !externalCallerConsented) {
+                    offerExternalLaunchConsent(plan, unverifiedCaller)
+                    return
+                }
                 // Sandbox layer 2 is the default (owner, 2026-09-25): a
                 // plugin that cannot run isolated gets no silent pass. See
                 // offerSandboxConsent for why this asks again on every run.
@@ -139,6 +150,35 @@ class LaunchActivity : EnginehostActivity() {
                 enterRuntime(plan)
             }
         }
+    }
+
+    /**
+     * `path` reached this app's exported door ([LaunchEntryActivity]) from
+     * a caller Android's own record does not show as droidtop under
+     * droidtop's signing certificate ([TrustedCallers]). `LAUNCH` stays
+     * open to any app by design (owner, 2026-09-24: "Any app can make
+     * enginehost run a game, that's intentional") -- this does not narrow
+     * that: any app can still ask for a game to run. It only stops that
+     * being silent, the same "ask every time, remember nothing" shape as
+     * [offerSandboxConsent], Cancel first and focused. [label] is the
+     * caller's package name when Android's own record names one, or a
+     * generic word when it does not (no referrer at all, e.g. a launch
+     * from adb).
+     */
+    private fun offerExternalLaunchConsent(plan: GameRunner.Plan.Runtime, label: String) {
+        val shown = runCatching {
+            Sheet(this)
+                .title(R.string.external_launch_consent_title)
+                .message(getString(R.string.external_launch_consent_message, label, gameFolder.name))
+                .choice(R.string.cancel) { cancel() }
+                .choice(R.string.external_launch_consent_run) {
+                    externalCallerConsented = true
+                    launch()
+                }
+                .onCancel { cancel() }
+                .show()
+        }.isSuccess
+        if (!shown) cancel()
     }
 
     /**
@@ -411,6 +451,8 @@ class LaunchActivity : EnginehostActivity() {
         const val EXTRA_PATH = "path"
         const val EXTRA_CONFIG = "config"
         const val EXTRA_AUTOINSTALL = "autoinstallPlugin"
+        /** Set only by this app's own code (LaunchEntryActivity, GameRunner.run); never part of the LAUNCH contract a caller can set. */
+        private const val EXTRA_UNVERIFIED_CALLER_LABEL = "dev.enginehost.launch.UNVERIFIED_CALLER"
         /** Game setup's Test: run the pending testing configuration. Not part of the LAUNCH contract. */
         const val EXTRA_TESTING = "dev.enginehost.launch.TESTING"
 
@@ -430,7 +472,14 @@ class LaunchActivity : EnginehostActivity() {
          * does, as launching content from a frontend replaces what an
          * emulator was running.
          */
-        fun start(context: Context, gameFolder: File, inlineJson: String?, autoInstallPlugin: Boolean, testing: Boolean = false) {
+        fun start(
+            context: Context,
+            gameFolder: File,
+            inlineJson: String?,
+            autoInstallPlugin: Boolean,
+            testing: Boolean = false,
+            callerLabel: String? = null,
+        ) {
             val intent = Intent(context, LaunchActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             if (!RunningGame.isRunning(gameFolder)) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -438,6 +487,7 @@ class LaunchActivity : EnginehostActivity() {
                 inlineJson?.let { intent.putExtra(EXTRA_CONFIG, it) }
                 if (autoInstallPlugin) intent.putExtra(EXTRA_AUTOINSTALL, true)
                 if (testing) intent.putExtra(EXTRA_TESTING, true)
+                callerLabel?.let { intent.putExtra(EXTRA_UNVERIFIED_CALLER_LABEL, it) }
             }
             context.startActivity(intent)
         }

@@ -43,8 +43,9 @@ object GameRunner {
         inlineJson: String? = null,
         autoInstallPlugin: Boolean = false,
         testing: Boolean = false,
+        callerLabel: String? = null,
     ) {
-        LaunchActivity.start(context, gameFolder, inlineJson, autoInstallPlugin, testing)
+        LaunchActivity.start(context, gameFolder, inlineJson, autoInstallPlugin, testing, callerLabel)
     }
 
     /**
