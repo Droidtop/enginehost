@@ -1555,6 +1555,94 @@ repository) was run immediately after as a regression check and reached
 a real composited frame the same way, unaffected by this fix. Full
 account: `coordination/agents/cmvssandbox/LOG.md`.
 
+### NScripter and KiriKiri: blocked on the activity-isolation rewrite, not the broker
+
+Both were next on the roadmap below as if they were another CatSystem2/CMVS
+pass -- audit the file-access seam, add a broker, flip `isolatable: true`.
+That assumption does not survive checking the host code. Neither engine can
+reach layer 2 at all yet, for a reason that has nothing to do with either
+engine's own file access:
+
+**Both bundles declare `"runtimeTransport": "android-activity"`**
+(`enginehost-nscripter-plugin/enginehost/bundle-metadata.json:7`,
+`enginehost-kirikiri-plugin/enginehost/bundle-metadata.json:7`, true on
+`plugin-core` and every line branch checked). `GameRunner.plan()` reads that
+field and picks the Activity class the launch `Intent` targets:
+
+```kotlin
+val runtimeClass = if (resolved.plugin.runtimeTransport == RUNTIME_TRANSPORT_ACTIVITY) {
+    BundledActivityProxy::class.java
+} else {
+    RuntimeActivity::class.java
+}
+```
+
+(`GameRunner.kt:155-157`). The `isolatable` branch this whole document is
+about -- `if (resolved.plugin.isolatable) return startIsolatedRuntime(...)`
+-- lives inside `RuntimeActivity.onCreate` (`RuntimeActivity.kt:78-79`) and
+nowhere else. An `android-activity` bundle never constructs a
+`RuntimeActivity`; it always runs as `BundledActivityProxy`, which is a bare
+manifest placeholder with no isolation branch of its own at all:
+
+```kotlin
+/** Manifest placeholder replaced before construction by [EnginehostComponentFactory]. */
+class BundledActivityProxy : Activity()
+```
+
+(`BundledActivityProxy.kt`), declared in the manifest at the ordinary
+`:runtime` process, not `:runtime_isolated`, and with no
+`android:isolatedProcess` attribute (`AndroidManifest.xml:122-125`, compare
+`IsolatedRuntimeService`'s own declaration two entries down at
+`AndroidManifest.xml:137-140`, which does carry both). Setting
+`isolatable: true` in either plugin's `bundle-metadata.json` today would be
+a no-op read by nothing: `GameRunner` never inspects `isolatable` before
+choosing `BundledActivityProxy`, so the flag would sit there unread and the
+launch would proceed exactly as unsandboxed as it does now, which is worse
+than not setting it (a reader of the bundle metadata would reasonably
+believe the claim).
+
+This is exactly item 6 of the roadmap below -- "these need the second
+host-side rewrite ... not a small follow-on" -- arriving two engines earlier
+than the roadmap's own ordering expected, because the roadmap classified
+NScripter and KiriKiri from their engine family (SDL/native, "like
+CatSystem2") rather than from their bundle metadata's actual
+`runtimeTransport`. Both are moved out of item 3 and folded into item 6
+below, corrected.
+
+**What each engine's own file access looks like anyway, recorded now so the
+next pass through this document does not re-derive it:**
+
+- **NScripter (OnscripterYuri).** No `EngineFileSystem`-shaped seam: 23
+  files under `src/onsyuri/` call `fopen`/`opendir` directly, concentrated
+  in `ONScripter_file.cpp` and `ONScripter_file2.cpp` but not confined to
+  them. Whenever the activity rewrite lands, this needs the same
+  per-engine broker-callback seam CatSystem2 and CMVS both needed, not the
+  broker-wiring-only path CatSystem2's easiest cases got. It also has a
+  second, independent problem the broker's read-only-game/read-write-save
+  split does not yet answer: `envdata` (the engine's global settings file)
+  is deliberately excluded from the save directory and read and written
+  *beside the game* on every launch (`ScriptParser.cpp:359`, `:384` --
+  already called out as an open question in this plugin's own
+  `ENGINEHOST.md`, "One file does not"). A broker whose game-folder side is
+  read-only, matching CatSystem2 and CMVS, would break that write outright;
+  this needs either a narrow write exception for that one file or the
+  one-line upstream change ENGINEHOST.md already proposes (stop excluding
+  `envdata` from the save directory when one was given on the command
+  line, which is always true here) before it can be isolated at all.
+- **KiriKiri (Kirikiroid2Yuri).** Has a real storage abstraction
+  (`StorageIntf`/`BinaryStream`/`TextStream` under `src/core/base/`), but
+  the concrete implementation checked into this tree is
+  `src/core/base/win32/StorageImpl.cpp` -- Windows-shaped, not an
+  Android/POSIX one living beside it under a parallel directory the way
+  the abstraction's naming implies. Direct `fopen()` calls exist scattered
+  across roughly fifteen files outside that abstraction too (`7zArchive.cpp`,
+  `UtilStreams.cpp`, `environ/android/AndroidUtils.cpp`,
+  `environ/ConfigManager/*.cpp`, the vendored `cocos2d/CustomFileUtils.cpp`
+  and `movie/ffmpeg/` decoder glue). This is a wider, less centralized
+  surface than either CatSystem2 or CMVS had, and it is not close to a
+  single-module broker swap; the actual seam needs its own dedicated audit
+  once there is an isolated activity host to route it into.
+
 ### Roadmap: the remaining plugins, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback
@@ -1562,13 +1650,14 @@ account: `coordination/agents/cmvssandbox/LOG.md`.
 2. **CMVS** (above) -- wrapper and engine-side broker work done, CI
    green, rig-confirmed working on BlueStacks (build 76, after fixing a
    `RegisterNatives` table gap build 75 shipped with).
-3. **KiriKiri (`enginehost-kirikiri-plugin`/`enginehost-plugin-kirikiri`),
-   NScripter, mkxp-z, Ren'Py, EasyRPG** -- other `plugin`-transport,
-   non-Activity engines. Each needs its own file-access audit (some may
-   already route entirely through `EngineFileSystem` rather than raw
+3. **mkxp-z, Ren'Py, EasyRPG** -- other `plugin`-transport, non-Activity
+   engines, not yet checked. Each needs its own file-access audit (some
+   may already route entirely through `EngineFileSystem` rather than raw
    `fopen`, which would mean only the Java-side broker wiring, no native
-   callback seam) before being scheduled; this doc does not assume they
-   match CatSystem2's shape without checking.
+   callback seam) and its own `runtimeTransport` check before being
+   scheduled; this doc does not assume they match CatSystem2's shape
+   without checking. KiriKiri and NScripter were assumed to belong here,
+   from their engine family, and did not once checked -- see item 6.
 4. **HTML and RPG Maker MV/MZ (WebView-hosted)** -- blocked on the WebView
    audit item above being resolved on-device (does a `WebView` construct
    and render inside `isolated_app`/`isolated_app_locked` at all, and does
@@ -1579,15 +1668,24 @@ account: `coordination/agents/cmvssandbox/LOG.md`.
 5. **Flash/AIR (`enginehost-flash-air-plugin`)** -- same web-hosted shape
    as above if it also runs inside a WebView-equivalent runtime; audit
    before assuming.
-6. **`runtimeTransport: activity` plugins (SDL/Godot's Activity path,
-   now including `enginehost-love2d-plugin`)** last, deliberately: these
-   need the second host-side rewrite the audit above describes (an
-   Activity's responsibilities moved into a host-owned Activity plus an
-   isolated service, not a broker swap alone) and are the largest
-   remaining piece of work, not a small follow-on. LÖVE for Android is a
-   concrete instance, not a hypothetical one: its `EngineHostGameActivity`
-   is SDL's `GameActivity`/`SDLActivity`, the same Activity-owns-the-window
-   shape as Godot, and it ships and runs unisolated today (recorded in its
-   own `ENGINEHOST.md`, "Transport and sandboxing"), asking the standard
-   unsandboxed prompt on every launch. They stay on layer 1 only until
-   that rewrite is scoped and designed in its own pass of this document.
+6. **`runtimeTransport: activity` plugins (SDL/Godot's Activity path, now
+   including `enginehost-love2d-plugin`, `enginehost-kirikiri-plugin` and
+   `enginehost-nscripter-plugin`)** last, deliberately: these need the
+   second host-side rewrite the audit above describes (an Activity's
+   responsibilities moved into a host-owned Activity plus an isolated
+   service, not a broker swap alone) and are the largest remaining piece
+   of work, not a small follow-on. LÖVE for Android is a concrete
+   instance, not a hypothetical one: its `EngineHostGameActivity` is
+   SDL's `GameActivity`/`SDLActivity`, the same Activity-owns-the-window
+   shape as Godot, and it ships and runs unisolated today (recorded in
+   its own `ENGINEHOST.md`, "Transport and sandboxing"), asking the
+   standard unsandboxed prompt on every launch. KiriKiri and NScripter
+   are two more, confirmed rather than assumed: both bundles declare
+   `runtimeTransport: android-activity` in their own `bundle-metadata.json`,
+   so `GameRunner` routes every launch of either through the same
+   unsandboxed `BundledActivityProxy` LÖVE uses, never through
+   `RuntimeActivity`'s `isolatable` branch -- see the dedicated section
+   above for the evidence and each engine's own file-access audit, done
+   in advance for whoever picks up this rewrite. All of these stay on
+   layer 1 only until that rewrite is scoped and designed in its own
+   pass of this document.
