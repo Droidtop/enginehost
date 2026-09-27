@@ -29,5 +29,28 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!--
+             docs/engine-sandbox.md "Surface handoff" feasibility exerciser:
+             can an isolated_app UID composite into a Surface handed to it
+             over Binder at all. DUMP-gated like the install activities
+             above: adb/CI only, absent from release builds.
+        -->
+        <activity
+            android:name=".DebugSurfaceTestActivity"
+            android:exported="true"
+            android:permission="android.permission.DUMP"
+            android:process=":runtime">
+            <intent-filter>
+                <action android:name="dev.enginehost.debug.SURFACE_TEST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <service
+            android:name=".DebugSurfaceTestService"
+            android:exported="false"
+            android:isolatedProcess="true"
+            android:process=":debug_surface_test" />
+
     </application>
 </manifest>
