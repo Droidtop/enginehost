@@ -1885,6 +1885,77 @@ rasterizer) and is recorded here as the fallback, not the plan, precisely
 because it is worse and only used if the surface-handoff mechanism's own
 rig check fails.
 
+#### Feasibility result, emulator-5560 (API 34): SELinux denies isolated_app the graphics allocator fd -- a real block, not a guess
+
+Built the smallest possible exerciser (debug build only, `DebugSurfaceTestActivity`
++ `DebugSurfaceTestService`, commit `9e1dda5`): a host `SurfaceView` in
+`:runtime`, its `Surface` handed to a real `android:isolatedProcess="true"`
+service in its own process, which calls `Surface.lockCanvas()` /
+`unlockCanvasAndPost()` -- no GL/EGL, the simplest possible composite, so a
+failure isolates the SurfaceFlinger-reachability question from anything
+GL-specific.
+
+**Result on emulator-5560: fails, every call, with a real SELinux denial
+underneath a misleading exception.** The isolated service does start (own
+uid confirmed distinct: `99012`, vs the app's own `10193`), does receive
+the `Surface` and see `surface.isValid == true`, and does reach
+`Surface.lockCanvas()` -- but every call throws `IllegalArgumentException`
+from `nativeLockCanvas`, not a `SecurityException`. logcat's own audit line
+says what actually happened:
+
+```
+avc: denied { use } for path="/dev/goldfish_address_space" dev="tmpfs" ino=550
+scontext=u:r:isolated_app:s0:c512,c768 tcontext=u:r:hal_graphics_allocator_default:s0
+tclass=fd permissive=0 app=dev.enginehost
+```
+
+`isolated_app`'s SELinux domain is denied `use` of a file descriptor for
+`/dev/goldfish_address_space` -- the emulator's virtual GPU IPC device,
+opened by `hal_graphics_allocator_default` (the graphics allocator HAL) and
+passed to the app process as an already-open fd for buffer allocation. The
+isolated UID cannot use that inherited fd at all, so any Canvas/GL path
+that needs a real graphics buffer allocated fails at the allocator, surfaced
+by `Surface.lockCanvas()`'s own native code as a generic
+`IllegalArgumentException` rather than anything naming SELinux -- this
+project's own established pattern (dq-sandbox's dex-loading saga, several
+sections above) of a real platform denial reaching Java as the wrong
+exception type, confirmed again here rather than assumed from that
+precedent alone: the raw `avc: denied` line is the actual evidence, not an
+inference from the exception shape.
+
+Full logcat: `coordination/agents/actsandbox/emulator5560-surfacetest-logcat.txt`.
+Screenshot (host `SurfaceView` composites black, since the isolated side
+never successfully draws into it): `coordination/agents/actsandbox/emulator5560-surfacetest.png`.
+
+**What this does and does not tell us.** `/dev/goldfish_address_space` is
+specific to the Android emulator's own virtual GPU (goldfish/ranchu); it is
+not present on real hardware or on BlueStacks, which use a different
+graphics allocator path. This result does not by itself say a real device
+or BlueStacks would fail the same way -- it says the *emulator's own*
+allocator HAL fd is unreachable from `isolated_app`, which is real evidence
+for *this rig specifically*, not yet for the platform in general. The
+BlueStacks half of this check is pending the rig lock (held by another
+agent's session at the time of this pass) and will be added to this
+section once run, not assumed from this result either way.
+
+**Working conclusion so far, to revise once BlueStacks is checked:** if the
+allocator-fd block is `isolated_app`-wide (i.e. the SELinux policy category
+itself, not a goldfish-specific rule), the plain-`Surface`-handoff mechanism
+this document proposed for SDL/GPU engines cannot work as designed on any
+device, and the fallback already named in "Surface handoff" above --
+software readback (`glReadPixels`, or Canvas-only rendering with no GPU
+allocator involved at all) into the existing `setFrameBuffer`-shaped path
+-- is not merely a worse option, it may be the only one available to an
+isolated launch for a GPU-rendering engine. `SurfaceControlViewHost`
+(API 30+) would not help either: it composites a real View hierarchy, which
+still needs the same graphics-buffer allocation this denial blocks. A
+shared hardware buffer (`AHardwareBuffer`/`HardwareBuffer`, allocated
+host-side and handed to the isolated process as data rather than asking the
+isolated process to allocate one itself) is the one alternative not yet
+ruled out by this result -- worth a second, smaller exerciser if BlueStacks
+confirms the same block, before concluding no isolated GPU rendering is
+possible at all.
+
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
 The static-method-contract finding above (`nativeSetupJNI`'s `cls` parameter)
