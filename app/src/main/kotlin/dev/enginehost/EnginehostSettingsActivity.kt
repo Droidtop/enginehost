@@ -29,6 +29,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     private lateinit var browserStartStore: GameBrowserStartStore
     private lateinit var browserStartLocation: TextView
     private lateinit var updateCheck: PluginUpdateCheck
+    private lateinit var tokenStore: GithubTokenStore
 
     /** Engine families with an installed plugin, in the order their rows are shown. */
     private var engines: List<String> = emptyList()
@@ -39,6 +40,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         store = SaveLocationStore(this)
         browserStartStore = GameBrowserStartStore(this)
         updateCheck = PluginUpdateCheck(this)
+        tokenStore = GithubTokenStore(this)
         setContentView(R.layout.activity_settings)
         wireBackButton()
         location = findViewById(R.id.saveLocationValue)
@@ -104,6 +106,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         findViewById<View>(R.id.launchAccessRow).setOnClickListener {
             startActivity(Intent(this, CallerAccessSettingsActivity::class.java))
         }
+        findViewById<View>(R.id.githubTokenRow).setOnClickListener { showTokenSheet() }
         refresh()
     }
 
@@ -227,6 +230,8 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     }
 
     private fun refresh() {
+        val tokenValue = findViewById<TextView>(R.id.githubTokenValue)
+        tokenValue.text = if (tokenStore.hasToken) getString(R.string.github_token_masked, tokenStore.masked()) else getString(R.string.github_token_hint)
         location.text = store.root().path
         val tree = browserStartStore.treeUri()
         browserStartLocation.text = if (tree == null) {
@@ -293,6 +298,59 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 DateUtils.getRelativeDateTimeString(this, last, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0),
             )
         }
+    }
+
+    private fun showTokenSheet() {
+        val actions = mutableListOf<Pair<String, () -> Unit>>()
+        if (tokenStore.hasToken) {
+            actions += getString(R.string.github_token_edit) to { editToken() }
+            actions += getString(R.string.github_token_test) to { testToken() }
+            actions += getString(R.string.github_token_remove) to {
+                tokenStore.remove()
+                refresh()
+            }
+        } else {
+            actions += getString(R.string.github_token_set) to { editToken() }
+        }
+        choose(R.string.github_token_row, actions)
+    }
+
+    private fun editToken() {
+        val input = android.widget.EditText(this).apply {
+            hint = getString(R.string.github_token_paste_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+        }
+        Sheet(this).title(R.string.github_token_row).content(input).apply {
+            choice(getString(android.R.string.ok)) {
+                val text = input.text.toString().trim()
+                if (text.isNotEmpty()) {
+                    tokenStore.set(text)
+                    refresh()
+                }
+            }
+        }.show()
+    }
+
+    private fun testToken() {
+        val token = tokenStore.get() ?: return
+        Thread {
+            val result = runCatching {
+                val connection = java.net.URL("https://api.github.com/user").openConnection() as java.net.HttpURLConnection
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 30_000
+                connection.setRequestProperty("Accept", "application/vnd.github+json")
+                connection.setRequestProperty("User-Agent", "enginehost/0.1")
+                connection.setRequestProperty("Authorization", "Bearer $token")
+                connection.responseCode in 200..299
+            }.getOrDefault(false)
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    if (result) getString(R.string.github_token_test_ok, "user") else getString(R.string.github_token_test_fail),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+        }.start()
     }
 
     companion object {

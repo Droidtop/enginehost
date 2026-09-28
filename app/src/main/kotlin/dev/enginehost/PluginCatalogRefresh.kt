@@ -283,7 +283,7 @@ class CatalogRefresh(private val context: Context) {
      * answered for releases only while it is fresh.
      */
     private fun fetchIndex(indexUrl: String): PluginsIndex? {
-        val text = runCatching { Transport.getOrNull(indexUrl) }.getOrNull() ?: return null
+        val text = runCatching { Transport.getOrNull(indexUrl, context) }.getOrNull() ?: return null
         val index = runCatching { PluginCatalogIndex.parse(text) }.getOrNull() ?: return null
         runCatching { PluginCatalogIndex.keep(context, text) }
         runCatching { PluginOriginStore(context).learnOfficial(index) }
@@ -362,7 +362,7 @@ class CatalogRefresh(private val context: Context) {
             val text = runCatching { file.readText() }.getOrNull()
             if (text != null && Transport.sha256(text) == sha256) return text
         }
-        val text = Transport.get(asset.url)
+        val text = Transport.get(asset.url, context)
         if (sha256 != null) {
             check(Transport.sha256(text) == sha256) {
                 asset.name + " does not match the hash the plugins index published"

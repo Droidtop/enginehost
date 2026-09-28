@@ -174,6 +174,13 @@ class GithubPluginCatalogClient(private val context: Context) {
         connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
         connection.setRequestProperty("User-Agent", "enginehost/0.1")
         ifNoneMatch?.let { connection.setRequestProperty("If-None-Match", it) }
+        // Attach the user's GitHub token to plugin-source API requests.
+        if (GithubTokenStore.scopedHost(url)) {
+            val token = GithubTokenStore(context).get()
+            if (token != null) {
+                connection.setRequestProperty("Authorization", "Bearer $token")
+            }
+        }
         try {
             val status = connection.responseCode
             if (status == HttpURLConnection.HTTP_NOT_MODIFIED) return null

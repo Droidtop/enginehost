@@ -104,12 +104,20 @@ object PlatformIndex {
 
 /** The one HTTP + atomic-write helper the registry refresh uses. */
 internal object Transport {
-    fun get(url: String): String = getOrNull(url) ?: error("HTTP 404 from $url")
+    fun get(url: String, context: Context? = null): String = getOrNull(url, context) ?: error("HTTP 404 from $url")
 
-    fun getOrNull(url: String): String? {
+    fun getOrNull(url: String, context: Context? = null): String? {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 15_000
         connection.readTimeout = 30_000
+        // Attach the user's GitHub token only to plugin-source hosts.
+        if (context != null && GithubTokenStore.scopedHost(url)) {
+            val tokenStore = GithubTokenStore(context)
+            val token = tokenStore.get()
+            if (token != null) {
+                connection.setRequestProperty("Authorization", "Bearer $token")
+            }
+        }
         return try {
             when (val code = connection.responseCode) {
                 200 -> connection.inputStream.bufferedReader().use { it.readText() }

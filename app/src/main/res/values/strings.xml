@@ -351,6 +351,18 @@
     <string name="updates_last_checked">Last checked %1$s</string>
     <string name="updates_never_checked">Not checked yet</string>
     <string name="updates_install_plugins_automatically">Install plugin updates automatically</string>
+
+    <!-- GitHub token for plugin sources -->
+    <string name="github_token_row">GitHub token for plugin sources</string>
+    <string name="github_token_hint">Not set — updates use the public rate</string>
+    <string name="github_token_set">Set token</string>
+    <string name="github_token_edit">Edit</string>
+    <string name="github_token_test">Test</string>
+    <string name="github_token_test_ok">Token valid (%1$s)</string>
+    <string name="github_token_test_fail">Token rejected by GitHub</string>
+    <string name="github_token_remove">Remove</string>
+    <string name="github_token_masked">%1$s (masked)</string>
+    <string name="github_token_paste_hint">Paste your GitHub personal access token</string>
     <string name="platform_snapshot_unrecorded">unrecorded</string>
     <string name="app_version_line">Enginehost %1$s (build %2$d), engine registry snapshot %3$s</string>
     <string name="app_update_available">Enginehost %1$s is available</string>
