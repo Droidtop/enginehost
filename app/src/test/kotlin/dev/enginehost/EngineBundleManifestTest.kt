@@ -46,6 +46,32 @@ class EngineBundleManifestTest {
         }
     }
 
+    @Test
+    fun `carriedAbis counts only the payload's top-level lib ABI directories`() {
+        // The check at install refuses what the runtime's own loader could
+        // not resolve, so the derivation has to match that loader exactly:
+        // dex and resource APKs are not ABIs, and libraries nested under
+        // components/<id>/<version>/lib/<abi>/ are resolved by the engine
+        // wrapper at launch, not by the host's native library path -- the
+        // x86_64 directory inside the spine component here must not make
+        // this an x86_64-capable bundle.
+        val keys = keyPair("secp256r1")
+        val parsed = EngineBundleManifestReader.parse(
+            manifest(
+                keys.public.encoded,
+                listOf(
+                    "classes.dex",
+                    "lib/arm64-v8a/libengine.so",
+                    "lib/arm64-v8a/libSDL2.so",
+                    "runtime.apk",
+                    "components/spine/1.2/lib/x86_64/libspine.so",
+                ),
+            ),
+        )
+
+        assertEquals(listOf("arm64-v8a"), parsed.carriedAbis)
+    }
+
     private fun keyPair(curve: String) = KeyPairGenerator.getInstance("EC").run {
         initialize(ECGenParameterSpec(curve))
         generateKeyPair()
@@ -58,12 +84,16 @@ class EngineBundleManifestTest {
             sign()
         }
 
-    private fun manifest(publicKey: ByteArray): ByteArray {
+    private fun manifest(publicKey: ByteArray): ByteArray = manifest(publicKey, listOf("classes.dex"))
+
+    private fun manifest(publicKey: ByteArray, paths: List<String>): ByteArray {
         val payloadDigest = java.security.MessageDigest.getInstance("SHA-256").run {
-            update("classes.dex".toByteArray())
-            update(0)
-            update("0".toByteArray())
-            update(0)
+            paths.forEach { path ->
+                update(path.toByteArray())
+                update(0)
+                update("0".toByteArray())
+                update(0)
+            }
             digest().joinToString("") { "%02X".format(it) }
         }
         return JSONObject()
@@ -95,13 +125,17 @@ class EngineBundleManifestTest {
             )
             .put(
                 "files",
-                JSONArray().put(
-                    JSONObject()
-                        .put("path", "classes.dex")
-                        .put("size", 0)
-                        .put("sha256", sha256(ByteArray(0)))
-                        .put("mode", 292),
-                ),
+                JSONArray().apply {
+                    paths.forEach { path ->
+                        put(
+                            JSONObject()
+                                .put("path", path)
+                                .put("size", 0)
+                                .put("sha256", sha256(ByteArray(0)))
+                                .put("mode", 292),
+                        )
+                    }
+                },
             )
             .toString()
             .toByteArray()
