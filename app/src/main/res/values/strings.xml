@@ -433,13 +433,13 @@
     <string name="launch_access_blocked">Blocked</string>
     <string name="caller_access_unknown_label">An unrecognized caller (e.g. adb)</string>
     <string name="caller_access_ask_title">Launch this game?</string>
-    <string name="caller_access_ask_message">%1 asked Enginehost to launch “%2”.</string>
+    <string name="caller_access_ask_message">%1$s asked Enginehost to launch “%2$s”.</string>
     <string name="caller_access_always_allow">Always allow this app</string>
     <string name="caller_access_block">Block this app</string>
     <string name="caller_access_blocked_title">This app is blocked</string>
-    <string name="caller_access_blocked_message">%1 is blocked from launching games here.</string>
-    <string name="caller_access_blocked_browser">%1 looks like a browser. Browsers are blocked from launching games by default.</string>
-    <string name="caller_access_blocked_remote">%1 looks like a remote-access or automation tool. These are blocked from launching games by default.</string>
+    <string name="caller_access_blocked_message">%1$s is blocked from launching games here.</string>
+    <string name="caller_access_blocked_browser">%1$s looks like a browser. Browsers are blocked from launching games by default.</string>
+    <string name="caller_access_blocked_remote">%1$s looks like a remote-access or automation tool. These are blocked from launching games by default.</string>
     <string name="caller_access_allow_anyway">Allow this app</string>
     <string name="launch_save_folder_invalid_name">The save folder name in the game\'s configuration is not valid.</string>
     <string name="launch_exec_file_missing">The game\'s entry file \"%1$s\" does not exist in the game folder.</string>
