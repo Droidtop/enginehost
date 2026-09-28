@@ -586,6 +586,7 @@ private class IsolatedAudioBridge private constructor(
 
     fun startPlayback() {
         val minBufferBytes = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT)
+        val bufferBytes = maxOf(minBufferBytes, RING_CAPACITY)
         val track = AudioTrack(
             AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_GAME)
@@ -596,10 +597,20 @@ private class IsolatedAudioBridge private constructor(
                 .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
                 .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                 .build(),
-            maxOf(minBufferBytes, RING_CAPACITY),
+            bufferBytes,
             AudioTrack.MODE_STREAM,
             AudioManager.AUDIO_SESSION_ID_GENERATE,
         )
+        // Prime the track with real silence before play(): a MODE_STREAM
+        // track started with nothing ever written has no guarantee its
+        // native buffer holds zeros, and on this device it doesn't -- the
+        // burst of static heard at every launch was that uninitialized
+        // buffer being played back before the isolated side had written a
+        // single frame. Writing a full silent buffer (sized to the track's
+        // own buffer, not the possibly-negative getMinBufferSize error
+        // code) first forces the HAL to actually mix zeros for however long
+        // it takes the ring reader below to catch up with real audio.
+        track.write(ByteArray(bufferBytes), 0, bufferBytes)
         track.play()
         audioTrack = track
         playing = true
