@@ -76,45 +76,41 @@ jobs:
         run: echo "name=$(sed -n 's/^enginehost\.version=//p' gradle.properties)" >> "$GITHUB_OUTPUT"
 
   publish:
-    # Same shape as droidtop's: a permanent, linkable "give this to
-    # someone to install" release that always points at the newest
-    # build of the mainline, main. The tag is created AT the commit that
-    # was built (--target): without it gh tags the default branch's
-    # head, which for weeks was a stale main, so `latest` named a commit
-    # the APK was never built from.
+    # Two releases from one mechanism (build-scripts/release_channel.py,
+    # ported from droidtop's; Droidtop/tracker#122): a permanent, never
+    # overwritten release per green build (publish-build) is Enginehost's
+    # build history, and the rolling "latest" release (publish-latest) is
+    # the one moving pointer AppUpdate.kt reads. The tag for publish-build
+    # is created AT the commit that was built; publish-latest keeps using
+    # --target for the same reason the old inline version did: without it
+    # gh tags the default branch's head, which for weeks was a stale main,
+    # so `latest` named a commit the APK was never built from.
     #
-    # release-info.json is the in-app update check's one probe: the
-    # app downloads this small file unauthenticated, compares
-    # versionCode with its own, and verifies any downloaded APK
-    # against apkSha256 before handing it to the Android installer
-    # (see AppUpdate.kt).
-    #
-    # Its own job so the write token never shares a runner with Gradle:
-    # it downloads the APKs the build job made and runs nothing else.
+    # Its own job so the write token never shares a runner with Gradle: it
+    # downloads the APKs the build job made and runs nothing else.
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
+      - name: Checkout (release script only)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: build-scripts
+          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: enginehost-apks
-          path: apks
-      - name: Publish rolling "latest" release
+          path: outputs/apk
+      - name: Write release-info.json
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
           RUN_NUMBER: ${{ github.run_number }}
           COMMIT: ${{ github.sha }}
           ENGINEHOST_VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
-          # The download is the release build. The debug build rides beside
-          # it for test rigs (it carries the adb bundle-install harness); an
-          # install updates to the build type it already is (AppUpdate.kt).
-          cp "$(find apks -name app-release.apk -print -quit)" enginehost-latest.apk
-          cp "$(find apks -name app-debug.apk -print -quit)" enginehost-latest-debug.apk
           python3 - <<'PY'
           import hashlib, json, os
           def sha(name):
@@ -124,19 +120,24 @@ jobs:
               {
                   "formatVersion": 1,
                   "versionCode": run,
-                  "versionName": f"{os.environ['ENGINEHOST_VERSION']}-dev-{run}",
+                  "versionName": f"{os.environ['ENGINEHOST_VERSION']}-dev.{run}",
                   "apkName": "enginehost-latest.apk",
-                  "apkSha256": sha("enginehost-latest.apk"),
+                  "apkSha256": sha("outputs/apk/release/app-release.apk"),
                   "debugApkName": "enginehost-latest-debug.apk",
-                  "debugApkSha256": sha("enginehost-latest-debug.apk"),
+                  "debugApkSha256": sha("outputs/apk/debug/app-debug.apk"),
                   "commit": os.environ["COMMIT"],
               },
-              open("release-info.json", "w"),
+              open("outputs/release-info.json", "w"),
               indent=2,
           )
           PY
-          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest enginehost-latest.apk enginehost-latest-debug.apk release-info.json \
-            --target "$COMMIT" \
-            --title "Enginehost — latest build" \
-            --notes "Automatically built from commit $COMMIT (build $RUN_NUMBER). enginehost-latest.apk is the release build; enginehost-latest-debug.apk is the debug build for test rigs. Both are signed with the persistent Enginehost CI key, so either installs over a previous one without uninstalling. release-info.json is what the in-app update check reads."
+      - name: Publish the permanent per-build release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 build-scripts/release_channel.py publish-build outputs
+      - name: Update the rolling "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 build-scripts/release_channel.py publish-latest outputs
