@@ -135,6 +135,12 @@ class LaunchActivity : EnginehostActivity() {
                 // offerCallerAccessPrompt, showCallerBlocked.
                 val callerKey = intent.getStringExtra(EXTRA_CALLER_KEY)
                 if (callerKey != null) {
+                    // Recorded regardless of the decision below, so
+                    // CallerAccessSettingsActivity can list a real caller
+                    // even when PackageManager's own query can't see it
+                    // (package visibility, or a caller that hasn't shown up
+                    // in a LAUNCHER query for some other reason).
+                    CallerSightingsStore(this).record(callerKey)
                     when (val access = EffectiveAccess.forCaller(CallerAccessStore(this), packageManager, callerKey)) {
                         EffectiveAccess.Allow -> {}
                         EffectiveAccess.Ask -> {

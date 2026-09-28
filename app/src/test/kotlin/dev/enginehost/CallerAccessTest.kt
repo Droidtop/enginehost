@@ -111,4 +111,17 @@ class CallerAccessTest {
         assertEquals(LaunchCaller.UNKNOWN_KEY, LaunchCaller.Unknown.storeKey)
         assertEquals("com.example.app", LaunchCaller.App("com.example.app").storeKey)
     }
+
+    // -- CallerSightingsStore --
+
+    @Test
+    fun `a real package is worth recording as a sighting`() {
+        assertTrue(CallerSightingsStore.worthRecording("com.example.app"))
+        assertTrue(CallerSightingsStore.worthRecording(TrustedCallers.DROIDTOP_PACKAGE))
+    }
+
+    @Test
+    fun `the unrecognized-caller bucket is never worth recording as a sighting`() {
+        assertFalse(CallerSightingsStore.worthRecording(LaunchCaller.UNKNOWN_KEY))
+    }
 }

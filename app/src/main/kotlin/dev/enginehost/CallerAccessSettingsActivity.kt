@@ -40,16 +40,27 @@ class CallerAccessSettingsActivity : EnginehostActivity() {
 
     private fun render() {
         list.removeAllViews()
-        val decisions = store.all().toList().sortedBy { (key, _) -> displayName(key) }
-        emptyState.visibility = if (decisions.isEmpty()) View.VISIBLE else View.GONE
-        decisions.forEach { (key, decision) -> addRow(key, decision) }
+        val decided = store.all()
+        // Every package that has an explicit decision, plus every real
+        // caller LaunchActivity has actually seen and not yet decided
+        // (CallerSightingsStore) -- package visibility can keep a genuine
+        // caller out of offerAddCaller's own query, but it should never
+        // keep it off this list once it has really called (owner, build
+        // 234 follow-up).
+        val keys = (decided.keys + CallerSightingsStore(this).all()).distinct().sortedBy { displayName(it) }
+        emptyState.visibility = if (keys.isEmpty()) View.VISIBLE else View.GONE
+        keys.forEach { key -> addRow(key, decided[key]) }
     }
 
-    private fun addRow(key: String, decision: CallerDecision) {
+    private fun addRow(key: String, decision: CallerDecision?) {
         val row = layoutInflater.inflate(R.layout.item_caller_access, list, false)
         row.findViewById<TextView>(R.id.callerName).text = displayName(key)
         row.findViewById<TextView>(R.id.callerDecisionValue).setText(
-            if (decision == CallerDecision.ALLOW) R.string.launch_access_allowed else R.string.launch_access_blocked,
+            when (decision) {
+                CallerDecision.ALLOW -> R.string.launch_access_allowed
+                CallerDecision.BLOCK -> R.string.launch_access_blocked
+                null -> R.string.launch_access_ask
+            },
         )
         row.setOnClickListener { offerChange(key, decision) }
         list.addView(row)

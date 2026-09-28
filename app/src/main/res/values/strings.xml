@@ -431,6 +431,7 @@
     <string name="launch_access_remove">Remove (ask each time)</string>
     <string name="launch_access_allowed">Allowed</string>
     <string name="launch_access_blocked">Blocked</string>
+    <string name="launch_access_ask">Asked each time</string>
     <string name="caller_access_unknown_label">An unrecognized caller (e.g. adb)</string>
     <string name="caller_access_ask_title">Launch this game?</string>
     <string name="caller_access_ask_message">%1$s asked Enginehost to launch “%2$s”.</string>

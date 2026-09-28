@@ -88,6 +88,42 @@ class CallerAccessStore(context: Context) {
 }
 
 /**
+ * Every real caller [LaunchActivity] has actually gated a `LAUNCH` from,
+ * decided or not, kept independently of [CallerAccessStore] (which only
+ * ever holds ALLOW/BLOCK). Package visibility (Android 11+) can hide a
+ * caller from `CallerAccessSettingsActivity`'s own `queryIntentActivities`
+ * app picker even once it has genuinely called Enginehost: a plain
+ * PackageManager query only sees what the device chooses to show this app,
+ * not what has actually reached it (owner, build 234 follow-up: "the list
+ * should also show every app that has actually called Enginehost"). Never
+ * records [LaunchCaller.UNKNOWN_KEY]: that bucket names no real package, so
+ * there is nothing here for a person to recognise or decide about beyond
+ * the Ask prompt itself.
+ */
+class CallerSightingsStore(context: Context) {
+    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    fun record(key: String) {
+        if (!worthRecording(key)) return
+        val current = prefs.getStringSet(KEY_SEEN, emptySet()) ?: emptySet()
+        if (key in current) return
+        // getStringSet hands back the live backing set on some OEM
+        // implementations; copy before mutating so the edit is real.
+        prefs.edit().putStringSet(KEY_SEEN, HashSet(current).apply { add(key) }).apply()
+    }
+
+    fun all(): Set<String> = prefs.getStringSet(KEY_SEEN, emptySet()) ?: emptySet()
+
+    companion object {
+        private const val PREFS = "caller-sightings-v1"
+        private const val KEY_SEEN = "seen"
+
+        /** The testable core: [LaunchCaller.UNKNOWN_KEY] names no real package, so it is never worth remembering. */
+        fun worthRecording(key: String): Boolean = key != LaunchCaller.UNKNOWN_KEY
+    }
+}
+
+/**
  * The sane default this app ships with before a person has decided
  * anything about a caller (owner, 2026-09-27): a browser, or a known
  * remote-access or automation tool, starts Blocked rather than Ask,

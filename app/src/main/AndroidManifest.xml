@@ -19,6 +19,45 @@
     <!-- Bundled engines run inside this process, so a plugin that rumbles the pad or buzzes a virtual button (EasyRPG) needs the permission declared here, not in its own manifest. -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!--
+         Package visibility (Android 11+, enforced here since targetSdk 34):
+         without this, PackageManager hides every app but this one, the
+         system's always-visible packages and anything the two apps already
+         interact with, so CallerAccessSettingsActivity's app picker showed
+         only a handful of system apps, CallerDefaults.resolvesHttpHandlerOn
+         could not see any browser, and even TrustedCallers.isDroidtop's
+         getPackageInfo(dev.droidtop.app, GET_SIGNING_CERTIFICATES) threw
+         NameNotFoundException: droidtop's own LAUNCH calls fell through
+         to the ordinary caller-gate path instead of being recognised and
+         let straight through (owner, build 234: "most applications don't
+         appear on the list, and droidtop is not one of the four that
+         does"). The explicit package entry is what actually fixes droidtop:
+         it guarantees visibility regardless of what droidtop's own
+         manifest happens to declare. The two intent entries are the
+         platform-documented shape for "see every launchable app" and "see
+         the device's http/https handlers", used by
+         CallerAccessSettingsActivity.offerAddCaller and
+         CallerDefaults.resolvesHttpHandlerOn respectively. See
+         docs/security/2026-09-27-launch-entry-consent.md.
+    -->
+    <queries>
+        <package android:name="dev.droidtop.app" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
+
     <application
         android:name=".EnginehostApplication"
         android:appComponentFactory=".EnginehostComponentFactory"

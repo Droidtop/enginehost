@@ -97,6 +97,56 @@ Ask, since neither browser/automation heuristic applies to it).
   both are the same caller identity either way, which is all `LAUNCH` (or
   any exported Android component) can ever see.
 
+## Package visibility follow-up, build 234, 2026-09-28
+
+The owner, updating to the build that shipped the model above: "most
+applications don't appear on the list, and droidtop is not one of the four
+that does, so it's now broken." Confirmed on the console: Settings > App
+launch access > Add an app showed only four system packages (the launcher,
+Music, Files, system Settings).
+
+Cause: `AndroidManifest.xml` declared no `<queries>` and no
+`QUERY_ALL_PACKAGES`. Since targetSdk 34 (Android 11+ package visibility,
+enforced), `PackageManager` hides every app from Enginehost except itself,
+a short always-visible system list, and anything it already interacts
+with. Three things broke at once from that one gap:
+
+- `CallerAccessSettingsActivity.offerAddCaller`'s
+  `queryIntentActivities(LAUNCHER)` returned almost nothing to add.
+- `CallerDefaults.resolvesHttpHandlerOn`'s `queryIntentActivities(ACTION_VIEW
+  http)` returned nothing either, so no package could ever resolve as a
+  browser by the platform check (the hardcoded package-name list still
+  worked).
+- `TrustedCallers.isDroidtop`'s `getPackageInfo(dev.droidtop.app,
+  GET_SIGNING_CERTIFICATES)` threw `NameNotFoundException` for the same
+  reason, so a real droidtop launch was never recognised as
+  `LaunchCaller.Droidtop`. It fell to `LaunchCaller.App("dev.droidtop.app")`
+  instead, which the caller-access model above resolves to **Ask** (never
+  Block, matching `blockReason is never applied to the unrecognized-caller
+  bucket`) -- but droidtop was also the one package `offerAddCaller`
+  deliberately excludes from its own picker (it is meant to need no manual
+  decision at all), so once a person cancelled or missed that prompt there
+  was no way back into it from the list either.
+
+Fix: a `<queries>` block declaring the `LAUNCHER` intent (what
+`offerAddCaller` needs), the `VIEW`/`BROWSABLE` `http`/`https` intents
+(what `resolvesHttpHandlerOn` needs), and an explicit `<package
+android:name="dev.droidtop.app" />` -- the one that actually matters here,
+since it guarantees droidtop's visibility regardless of whether the
+`LAUNCHER` query would have caught it. With visibility restored,
+`isDroidtop` succeeds again and a real droidtop launch goes straight
+through as `LaunchCaller.Droidtop`, exactly as before this regression:
+no picker entry needed, because it is never gated in the first place.
+
+Also added, from the same report: `CallerSightingsStore` records every
+real (non-droidtop, non-`Unknown`) caller `LaunchActivity` actually gates,
+independent of what a `PackageManager` query can see. Settings > App
+launch access now lists a caller it has seen and not yet decided (shown as
+"Asked each time") alongside the ones with an explicit decision, so a
+caller invisible to `offerAddCaller` for some other reason still shows up
+once it has genuinely called, and a person is never stuck unable to find
+it in the list.
+
 ## Needs a rig check
 
 Install the built debug APK on BlueStacks (RIG ERA / `device/wadb`,
@@ -112,3 +162,16 @@ rig lock) and confirm, the user way:
    to handle `ACTION_VIEW` `http`) is refused outright with the browser
    message, no prompt, and "Allow this app" on that screen moves it to
    Allowed.
+
+Package visibility follow-up (build 234 fix), both rigs (emulator-5560,
+Android 14; BlueStacks, Android 9), with droidtop's latest debug APK
+installed alongside:
+
+4. Launch a game from droidtop's own library the ordinary way: it starts
+   with no prompt at all (droidtop is `LaunchCaller.Droidtop`, never
+   gated).
+5. Settings > App launch access > Add an app lists real installed apps,
+   not just system ones.
+6. A caller resolved as a browser is still blocked by default and an
+   ordinary unrecognized app still gets Ask, confirming the `<queries>`
+   visibility fix did not also widen who gets Allow.
