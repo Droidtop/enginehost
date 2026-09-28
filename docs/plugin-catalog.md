@@ -86,6 +86,23 @@ GitHub's `X-RateLimit-Reset` names ("GitHub rate limit, try again after
 itself. A 403 with allowance left is not a rate limit and does not claim to
 be.
 
+## User GitHub token (Enginehost settings)
+
+Enginehost can use a user-provided GitHub personal access token for plugin-source
+requests only (catalog fetches, release metadata, bundle downloads, and key
+document fetches). The token is never created or filled by the app; the user
+pastes it themselves in Enginehost's own Settings (a settings row: masked,
+removable, with a "Test" action that calls `api.github.com/user`). It is stored
+Keystore-backed, encrypted (`AES/GCM` via Android KeyStore), and never logged
+or placed in a URL. It is attached only to requests whose host is in the
+plugin-source scope (`api.github.com`, `github.com`, `raw.githubusercontent.com`,
+`objects.githubusercontent.com`); no other host ever receives it. Without a
+token the behavior is unchanged: unauthenticated requests with today's rate
+limits. Private repositories work when the token has read access to releases
+and the asset download uses the API asset URL (`Accept:
+application/octet-stream`) through the same attachment mechanism (`Transport`
+and `GithubPluginCatalogClient`).
+
 ## Official repositories Enginehost was not built with
 
 The index also carries each official repository's key document, including
