@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     One game's own screen, opened from its card on Home: what it is and
-    whether it can start, Play as the primary action, and the rest of what
-    can be done to this one game (its setup, a problem report, removing it
-    from the list).
+    whether it can start, the cover plate that fills the space between
+    the header and the actions, Play as the primary action, and the rest
+    of what can be done to this one game (its setup, a problem report,
+    removing it from the list).
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fillViewport="true"
     android:scrollbars="none">
 
     <LinearLayout
@@ -80,6 +82,65 @@
             android:layout_marginTop="@dimen/eh_space_s"
             android:textAppearance="@style/TextAppearance.Enginehost.Mono"
             android:textIsSelectable="false" />
+
+        <!--
+            The cover plate, the screen's content region: the game's own
+            art when it has any, otherwise the same plate with its name
+            and engine line, never a stand-in cover. It takes all the
+            height the header and actions leave free; a window too short
+            for that scrolls instead (eh_plate_min).
+        -->
+        <FrameLayout
+            android:id="@+id/gamePlate"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:layout_weight="1"
+            android:background="@drawable/eh_card_bg"
+            android:minHeight="@dimen/eh_plate_min">
+
+            <ImageView
+                android:id="@+id/plateArt"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:padding="@dimen/eh_space_m"
+                android:scaleType="fitCenter"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/platePlaceholder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:padding="@dimen/eh_space_l">
+
+                <TextView
+                    android:id="@+id/plateTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center_horizontal"
+                    android:maxLines="2"
+                    android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+                <TextView
+                    android:id="@+id/plateLine"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:ellipsize="end"
+                    android:gravity="center_horizontal"
+                    android:maxLines="2"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Body"
+                    android:textColor="@color/eh_text_secondary"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+        </FrameLayout>
 
         <Button
             android:id="@+id/playButton"

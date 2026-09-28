@@ -2,9 +2,11 @@ package dev.enginehost
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -12,8 +14,9 @@ import java.io.File
 
 /**
  * One game's own screen, opened from its card on Home: its name, engine
- * and state, Play as the primary action, and everything else that applies
- * to this one game -- its setup, a problem report, taking it off the list.
+ * and state, the cover plate as the content region, Play as the primary
+ * action, and everything else that applies to this one game -- its setup,
+ * a problem report, taking it off the list.
  *
  * Game setup lives here and nowhere on Home (UI assessment 2026-09-24,
  * H9): it is always about one game, so it is reached from that game.
@@ -57,6 +60,10 @@ class GameActivity : EnginehostActivity() {
         showTitle(null)
         Thread {
             val status = GameStatus.of(this, folder)
+            // The art is the game's own icon (GameIcon), read from the same
+            // config the status just resolved. The executable can sit on
+            // removable storage, so this stays off the thread that is drawing.
+            val art = status.config?.let { GameIcon.load(folder, it) }
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 showTitle(status.title)
@@ -75,6 +82,7 @@ class GameActivity : EnginehostActivity() {
                         visibility = View.VISIBLE
                     }
                 }
+                showPlate(art, status)
             }
         }.start()
     }
@@ -85,8 +93,30 @@ class GameActivity : EnginehostActivity() {
     }
 
     private fun showTitle(configTitle: String?) {
-        findViewById<TextView>(R.id.gameTitle).text =
-            configTitle ?: folder.name.ifBlank { folder.absolutePath }
+        val title = configTitle ?: folder.name.ifBlank { folder.absolutePath }
+        findViewById<TextView>(R.id.gameTitle).text = title
+        findViewById<TextView>(R.id.plateTitle).text = title
+    }
+
+    /**
+     * The cover plate that fills this screen's freed space, so the window
+     * holds the thing and not flat background: the game's own art when it
+     * has any, and when it does not, the same plate with the same two
+     * lines -- its name and what it is -- rather than a stand-in cover
+     * (design language, 2026-09-17: a made-up cover is a lie about the
+     * thing). The name is the plate's title line, already shown; while
+     * resolution has not answered, the plate shows that name alone.
+     */
+    private fun showPlate(art: Bitmap?, status: GameStatus) {
+        findViewById<ImageView>(R.id.plateArt).apply {
+            if (art != null) setImageBitmap(art)
+            visibility = if (art == null) View.GONE else View.VISIBLE
+        }
+        findViewById<TextView>(R.id.plateLine).apply {
+            text = status.chip.ifBlank { status.text }
+            visibility = View.VISIBLE
+        }
+        findViewById<View>(R.id.platePlaceholder).visibility = if (art == null) View.VISIBLE else View.GONE
     }
 
     private fun play() {

@@ -6,7 +6,9 @@ import java.io.File
 /**
  * One game's state in a line, as Home's card and the game's own screen
  * both show it: whether it can start, and if not, why. [engine] and [chip]
- * name the engine once the config has said which it is.
+ * name the engine once the config has said which it is, and [config] is
+ * that resolved config, so a caller that also needs the folder's own
+ * answers (the game's art, say) does not resolve the same file twice.
  *
  * Resolution reads the disk and the plugin registry, so callers run
  * [of] off the UI thread.
@@ -17,6 +19,7 @@ class GameStatus(
     val engine: String? = null,
     val chip: String = "",
     val title: String? = null,
+    val config: EngineConfig? = null,
 ) {
     companion object {
         fun of(context: Context, folder: File): GameStatus {
@@ -38,7 +41,7 @@ class GameStatus(
             }.getOrNull()
             val chip = "${EngineNames.line(config.engine, config.engineContext)} ${config.engineVersion}"
             val text = context.getString(if (resolved == null) R.string.status_no_plugin_short else R.string.status_ready_short)
-            return GameStatus(resolved != null, text, config.engine, chip, config.title)
+            return GameStatus(resolved != null, text, config.engine, chip, config.title, config)
         }
     }
 }
