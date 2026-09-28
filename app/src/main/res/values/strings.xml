@@ -418,8 +418,8 @@
     <string name="launch_access_section">App launch access</string>
     <string name="launch_access_row">Which apps can launch a game</string>
     <plurals name="launch_access_summary">
-        <item quantity="one">%1 app decided</item>
-        <item quantity="other">%1 apps decided</item>
+        <item quantity="one">%1$d app decided</item>
+        <item quantity="other">%1$d apps decided</item>
     </plurals>
     <string name="launch_access_title">App launch access</string>
     <string name="launch_access_intro">Enginehost can be asked by any app to launch a game (that is the point of it). Decide here which apps may do that with no prompt, which are refused outright, and which are asked about each time.</string>
