@@ -373,7 +373,7 @@ class LaunchActivity : EnginehostActivity() {
     }
 
     private fun report() {
-        startActivity(ProblemReportActivity.intent(this, gameFolder, lastCrash, beforeStart = !runtimeCovered))
+        startActivity(ProblemReportActivity.intent(this, gameFolder, lastCrash?.reason, lastCrash?.trace, beforeStart = !runtimeCovered))
     }
 
     /**

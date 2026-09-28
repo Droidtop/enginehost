@@ -71,7 +71,11 @@ data class ProblemReport(
                 engineVersion = config?.engineVersion?.toString() ?: "",
                 config = configText,
                 plugin = resolved?.let {
-                    "${it.plugin.bundleId} ${PluginVersions.display(it.plugin.info.pluginVersion)}"
+                    val p = it.plugin
+                    val sandbox = if (p.isolatable) "sandboxed" else "not sandboxed"
+                    val origin = p.origin.ifBlank { "unknown origin" }
+                    "${p.bundleId} ${PluginVersions.display(p.info.pluginVersion)} " +
+                        "($origin, signer ${p.signerIdentity.ifBlank { "unsigned" }}, $sandbox)"
                 } ?: context.getString(R.string.report_no_plugin),
                 host = "${context.packageManager.getPackageInfo(context.packageName, 0).versionName} " +
                     "(build ${AppUpdate.installedVersionCode(context)})",
@@ -100,13 +104,22 @@ data class ProblemReport(
         /**
          * Absolute paths become the names a reader needs. The game's name
          * stays in the report's own field; the storage layout around it helps
-         * nobody and is replaced.
+         * nobody and is replaced. A log line can also carry things that were
+         * never about the game at all: an email a plugin's own crash handler
+         * logged, a LAN IP from a socket error, a home directory, a bearer
+         * token or GitHub token in a request log. Those go too, on the same
+         * keep-the-shape-drop-the-value principle as the path scrubbing.
          */
         fun scrub(text: String, gameFolder: File?): String {
             var result = text
             gameFolder?.let { result = result.replace(it.absolutePath, "<game>") }
             result = result.replace(Regex("/storage/[^/\\s]+"), "<storage>")
             result = result.replace(Regex("/data/(user/\\d+|data)/[^/\\s]+"), "<app>")
+            result = result.replace(Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"), "<email>")
+            result = result.replace(Regex("\\b\\d{1,3}(\\.\\d{1,3}){3}\\b"), "<ip>")
+            result = result.replace(Regex("/home/[^/\\s]+"), "<home>")
+            result = result.replace(Regex("Bearer\\s+\\S+", RegexOption.IGNORE_CASE), "Bearer <redacted>")
+            result = result.replace(Regex("gh[pousr]_[A-Za-z0-9]{20,}"), "<redacted>")
             return result.trim()
         }
 

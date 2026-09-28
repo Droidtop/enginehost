@@ -19,16 +19,15 @@ import java.io.File
  *
  * Enginehost fills in what it knows, and every field stays editable:
  * detection is a guess, the plugin it picked may be the wrong one, and the
- * person with the game in front of them is the one who can correct it. The
- * game's name leads and is required, because a report nobody can trace to a
- * game cannot be acted on. Sending opens the project's form with these
- * values already in it.
+ * person with the game in front of them is the one who can correct it. No
+ * field is required -- the game's name leads but falls back to the engine
+ * (or just "Enginehost" for a report about the host itself) when there is
+ * no game to name, so a person can always just press Send. Sending opens
+ * the project's form with these values already in it.
  */
 class ProblemReportActivity : EnginehostActivity() {
-    /** The game field while it is empty (a report cannot go without it); sending after that. */
-    override fun primaryAction(): View? =
-        findViewById<android.widget.EditText>(R.id.reportGame)?.takeIf { it.text.isBlank() }
-            ?: findViewById(R.id.sendReportButton)
+    /** The report is never blocked on the game field -- see [fill] -- so Send is always where the pad starts. */
+    override fun primaryAction(): View? = findViewById(R.id.sendReportButton)
 
     private var log: String = ""
     private var symptom: String = ""
@@ -80,7 +79,13 @@ class ProblemReportActivity : EnginehostActivity() {
     }
 
     private fun fill(report: ProblemReport) {
-        field(R.id.reportGame).setText(report.gameName)
+        // A blank game field used to block Send outright. For a report about
+        // Enginehost itself (or any crash before the game was identified)
+        // there is no game name to give, so the field falls back to the
+        // engine family and version -- still something a reader can act on
+        // -- and stays optional besides; see send().
+        val engineLabel = "${report.engineLine} ${report.engineVersion}".trim()
+        field(R.id.reportGame).setText(report.gameName.ifBlank { engineLabel.ifBlank { getString(R.string.app_name) } })
         field(R.id.reportEngine).setText("${report.engineLine} ${report.engineVersion}".trim())
         field(R.id.reportEnvironment).setText(report.environment())
         val crash = intent.getStringExtra(EXTRA_CRASH_REASON)?.let { reason ->
@@ -106,14 +111,9 @@ class ProblemReportActivity : EnginehostActivity() {
     private fun includeLog(): Boolean = findViewById<SwitchCompat>(R.id.includeLogSwitch).isChecked
 
     private fun send() {
+        // Every field is optional: the person only has to press Send. The
+        // game field is prefilled (see fill()) but editable, never required.
         val game = text(R.id.reportGame)
-        if (game.isBlank()) {
-            // Without the game there is nothing to reproduce, so this is the
-            // one field the report cannot go without.
-            field(R.id.reportGame).error = getString(R.string.report_game_required)
-            field(R.id.reportGame).requestFocus()
-            return
-        }
         val url = ProblemReport.formUrl(
             game = game,
             engine = text(R.id.reportEngine),
@@ -155,21 +155,25 @@ class ProblemReportActivity : EnginehostActivity() {
         private val BLANK_LINE = System.lineSeparator() + System.lineSeparator()
 
         /**
-         * Report a game, or Enginehost itself when [gameFolder] is null. A
-         * [crash] the watch noticed leads the log; [beforeStart] says whether
-         * the runtime ever drew a frame, which is the difference between the
-         * two symptoms a crash can be.
+         * Report a game, or Enginehost itself when [gameFolder] is null --
+         * a host-process crash ([HostCrashWatch]) has no game folder at all,
+         * only a [crashReason] and [crashTrace], same as a game runtime one
+         * ([CrashWatch]) reduces to once its own gameFolder is passed
+         * separately. [beforeStart] says whether the runtime ever drew a
+         * frame, which is the difference between the two symptoms a game
+         * crash can be; meaningless (left false) for a host crash.
          */
         fun intent(
             context: Context,
             gameFolder: File?,
-            crash: CrashWatch.Crash? = null,
+            crashReason: String? = null,
+            crashTrace: String? = null,
             beforeStart: Boolean = false,
         ): Intent = Intent(context, ProblemReportActivity::class.java).apply {
             gameFolder?.let { putExtra(EXTRA_PATH, it.absolutePath) }
-            crash?.let {
-                putExtra(EXTRA_CRASH_REASON, it.reason)
-                putExtra(EXTRA_CRASH_TRACE, it.trace)
+            crashReason?.let {
+                putExtra(EXTRA_CRASH_REASON, it)
+                putExtra(EXTRA_CRASH_TRACE, crashTrace.orEmpty())
                 putExtra(EXTRA_CRASH_BEFORE_START, beforeStart)
             }
         }

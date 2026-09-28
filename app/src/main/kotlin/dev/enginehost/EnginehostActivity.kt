@@ -122,13 +122,26 @@ abstract class EnginehostActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Enginehost's own crash is unconditional -- it does not belong to
+        // any one screen the way a game's runtime crash belongs to whatever
+        // screen was watching it launch -- so it is not gated on
+        // reportsRuntimeCrashes, and checked before that early return.
+        HostCrashWatch.consume(this)?.let { crash ->
+            Sheet(this)
+                .title(getString(R.string.host_stopped_title))
+                .message(getString(R.string.launch_crashed, crash.reason))
+                .choice(R.string.action_report) {
+                    startActivity(ProblemReportActivity.intent(this, gameFolder = null, crashReason = crash.reason, crashTrace = crash.trace))
+                }
+                .show()
+        }
         if (!reportsRuntimeCrashes) return
         val crash = CrashWatch.consume(this) ?: return
         Sheet(this)
             .title(getString(R.string.game_stopped_title, crash.gameFolder.name))
             .message(getString(R.string.launch_crashed, crash.reason))
             .choice(R.string.action_report) {
-                startActivity(ProblemReportActivity.intent(this, crash.gameFolder, crash))
+                startActivity(ProblemReportActivity.intent(this, crash.gameFolder, crash.reason, crash.trace))
             }
             .show()
     }

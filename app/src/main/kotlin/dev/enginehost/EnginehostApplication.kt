@@ -19,6 +19,9 @@ class EnginehostApplication : Application() {
         if (isDefaultProcess()) {
             runCatching { EngineBundleInstaller.sweepOrphanedStaging(this) }
             runCatching { removeSharedRenpyTree() }
+            // The only process a person ever sees Enginehost's own UI in;
+            // a game's runtime crash is CrashWatch's job, not this one's.
+            HostCrashWatch.install(this)
         }
         // The sandbox goes on before anything else in either runtime
         // process, so no engine code ever runs without it. Layer 2
