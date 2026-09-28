@@ -285,3 +285,19 @@ replace another bundle.
 
 A valid signature proves who published bytes; it does not grant those bytes
 Enginehost's permissions.
+
+## Buriko (OpenBGI) plugin verification (2026-09-24 rig logs dq-buriko-04/05/06)
+
+Build 96 (`plugin/0.0.1`) reaches the title screen at ~15 s (logo at ~15 s,
+full-screen white by 20 s), confirming faster boot timing vs. earlier builds
+(~60 s in dq-buriko-04, build 83). The engine does **not** stop cleanly: no
+"Engine stopped" line, no stub opcode reached, no crash in logcat. After the
+logo fades out (~30 s) the screen stays black; Thread 2 never logs "has ended"
+and continues printing `Stack underflow!` (12 occurrences by 60 s). The
+runtime activity (`BundledActivityProxy`) remains up until force-stopped
+(at 60 s in dq-buriko-06, at 120 s in dq-buriko-05). This is a stall, not a
+crash — refers to the plugin owner (`agent buriko` notes, BRIEF.md).
+Remaining work: the title screen renders (dq-buriko-06) but the engine
+waits in a message/poll loop; the exact stop reason is the engine-side
+stub/opcode path past title._bp (Grp0 0xB7 window-content build) not being
+reached.
