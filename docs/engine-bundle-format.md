@@ -109,6 +109,25 @@ is missing and the upstream it would come from; it does not quietly ship one ABI
 and leave the host to fail at `System.loadLibrary`. A plugin with no native code
 at all carries no `lib/` directory and is architecture-agnostic.
 
+Enginehost enforces its side of this at install: a bundle whose payload carries
+`lib/<abi>/` directories for ABIs this device runs none of is refused with a
+sentence naming both sides, instead of installing cleanly and dying at
+`System.loadLibrary` with an `UnsatisfiedLinkError` on first launch — a bundle
+picked from a file or a custom origin never passes through the catalog's
+admission check, so the host is the last one that can say it. The device's half
+of the comparison is `Build.SUPPORTED_ABIS`, the same list the runtime's own
+native library path is built from (in-process, activity-transport and isolated
+alike), so an install can never disagree with the load-time choice it mirrors;
+and a device that runs an ABI through binary translation (an x86_64 emulator
+listing `arm64-v8a`) is a device that runs it. The install check is deliberately
+not the two-ABI minimum itself: a single-ABI bundle still installs anywhere it
+does run, and the requirement that a *published* bundle carry both required ABIs
+stays an admission rule, the catalog index's to enforce. Component libraries
+nested at `components/<id>/<version>/lib/<abi>/` are outside it — the engine
+wrapper resolves those at launch, not the host's library path; if component
+bundles ever need the same refusal, that changes with the wrapper code that
+resolves them.
+
 A resource APK must compile its resource table at a package id of its own.
 Android resource IDs are `0xPPTTEEEE`, and aapt2 builds an ordinary
 application at the default `0x7f` — the same id Enginehost's own resources

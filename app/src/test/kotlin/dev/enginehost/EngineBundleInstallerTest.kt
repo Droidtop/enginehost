@@ -1,5 +1,6 @@
 package dev.enginehost
 
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,5 +39,46 @@ class EngineBundleInstallerTest {
         assertFalse(staging.exists())
         assertTrue(installed.isDirectory)
         assertTrue(installedFile.isFile)
+    }
+
+    @Test
+    fun `an arm64-only bundle is refused on an x86_64 device, naming both sides`() {
+        // The sentence is the whole point: a person installing a file by
+        // hand needs to hear what the bundle ships and what this device
+        // runs, not an UnsatisfiedLinkError at first launch. Both halves
+        // have to be in the message or the refusal explains nothing.
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            EngineBundleInstaller.requireRunnableAbis(
+                "dev.enginehost.kirikiri.v1",
+                listOf("arm64-v8a"),
+                listOf("x86_64", "x86"),
+            )
+        }
+        assertTrue(error.message!!.contains("arm64-v8a"))
+        assertTrue(error.message!!.contains("x86_64"))
+    }
+
+    @Test
+    fun `a bundle is accepted when the device runs any ABI it ships, wherever listed`() {
+        // Build.SUPPORTED_ABIS is the device's order of preference, and an
+        // emulator that runs arm64 through binary translation lists it
+        // after x86_64: position in the list must not matter, only
+        // membership, or the check would disagree with the load-time
+        // choice it mirrors.
+        EngineBundleInstaller.requireRunnableAbis(
+            "dev.enginehost.example.v1",
+            listOf("arm64-v8a"),
+            listOf("x86_64", "x86", "arm64-v8a", "armeabi-v7a"),
+        )
+        EngineBundleInstaller.requireRunnableAbis(
+            "dev.enginehost.example.v1",
+            listOf("arm64-v8a", "x86_64"),
+            listOf("x86_64", "x86"),
+        )
+    }
+
+    @Test
+    fun `a bundle with no native code is architecture-agnostic and installs anywhere`() {
+        EngineBundleInstaller.requireRunnableAbis("dev.enginehost.html.v1", emptyList(), listOf("x86_64"))
     }
 }

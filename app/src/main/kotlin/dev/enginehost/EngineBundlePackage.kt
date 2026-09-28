@@ -46,6 +46,19 @@ data class EngineBundleManifest(
      */
     val engines: List<String> = emptyList(),
 ) {
+    /**
+     * The ABIs this bundle's signed payload carries native libraries for:
+     * its distinct top-level `lib/<abi>/` directories, the directories the
+     * runtime's own native library path is built from. Empty means the
+     * bundle has no native code and is architecture-agnostic
+     * (docs/engine-bundle-format.md).
+     */
+    val carriedAbis: List<String>
+        get() = files.mapNotNull { file ->
+            val segments = file.path.split('/')
+            if (segments.size > 2 && segments[0] == "lib") segments[1] else null
+        }.distinct()
+
     fun installedRecord(archiveSha256: String): JSONObject = JSONObject()
         .put("formatVersion", 1)
         .put("bundleId", bundleId)
@@ -193,6 +206,13 @@ object EngineBundleInstaller {
             ) {
                 "Bundle signer does not match the key pinned for ${manifest.origin}"
             }
+            // A bundle this device cannot run would install cleanly and die
+            // at System.loadLibrary on first launch, an UnsatisfiedLinkError
+            // that names neither side of the mismatch. Refuse it here with a
+            // sentence that does, against the same Build.SUPPORTED_ABIS the
+            // runtime's own native library path is built from, so an install
+            // can never disagree with the load-time choice it mirrors.
+            requireRunnableAbis(manifest.bundleId, manifest.carriedAbis, Build.SUPPORTED_ABIS.toList())
             // Every directory carrying this bundle ID, not just the first:
             // a crash between a previous replacement's rename and its cleanup
             // can leave a superseded build behind, and treating the whole set
@@ -263,6 +283,20 @@ object EngineBundleInstaller {
         } catch (error: Throwable) {
             forceDeleteRecursively(staging)
             throw error
+        }
+    }
+
+    /**
+     * Refuses [carried] when this device runs none of it. Split out, with
+     * the device's own ABIs a parameter, so the refusal can be exercised
+     * in a plain JVM test the way [InstalledBundleVerifier.checkPayload]
+     * is. A bundle with no native code ([carried] empty) is
+     * architecture-agnostic and runs everywhere.
+     */
+    internal fun requireRunnableAbis(bundleId: String, carried: List<String>, deviceAbis: List<String>) {
+        require(carried.isEmpty() || carried.any { it in deviceAbis }) {
+            "Bundle $bundleId ships native libraries for ${carried.joinToString()} only, " +
+                "and this device runs ${deviceAbis.joinToString()}"
         }
     }
 
