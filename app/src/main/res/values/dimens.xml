@@ -29,4 +29,11 @@
     <dimen name="eh_sheet_max_width">480dp</dimen>
     <dimen name="eh_launch_icon">112dp</dimen>
     <dimen name="eh_launch_title_text">26sp</dimen>
+    <!--
+        The cover plate's floor on a game's own screen. The plate fills
+        whatever the header and actions leave free; on a window too short
+        for that it stays this tall and the screen scrolls, because a plate
+        that collapses to nothing turns back into the empty gap it replaced.
+    -->
+    <dimen name="eh_plate_min">128dp</dimen>
 </resources>
