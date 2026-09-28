@@ -86,7 +86,7 @@
         <!--
             The cover plate, the screen's content region: the game's own
             art when it has any, otherwise the same plate with its name
-            and engine line -- never a stand-in cover. It takes all the
+            and engine line, never a stand-in cover. It takes all the
             height the header and actions leave free; a window too short
             for that scrolls instead (eh_plate_min).
         -->
