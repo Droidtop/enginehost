@@ -33,6 +33,13 @@
             android:visibility="gone" />
 
         <TextView
+            android:id="@+id/sandboxBadge"
+            style="@style/Widget.Enginehost.Badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s" />
+
+        <TextView
             android:id="@+id/releaseVersion"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
