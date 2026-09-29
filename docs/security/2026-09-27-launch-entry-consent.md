@@ -147,6 +147,28 @@ caller invisible to `offerAddCaller` for some other reason still shows up
 once it has genuinely called, and a person is never stuck unable to find
 it in the list.
 
+## Order of checks, 2026-09-28
+
+Caller access is the first thing `LaunchActivity` does, before anything about
+the game is read (Droidtop/tracker#44). The access decision needs only the
+caller key and, for a prompt, the folder's name as text; it never touches the
+folder. Block refuses and Ask waits for the person's choice with no planning
+done, so a blocked or unapproved caller cannot make Enginehost inspect the
+folder it named, resolve plugins, persist a pending launch or open the setup,
+catalog or trust screens. Only after Allow does `GameRunner.plan` run, and it
+runs off the main thread with the launch screen showing its starting state
+(Droidtop/tracker#45); the result is applied on the main thread and dropped if
+the screen has gone. A retry or an engine restart on the same screen does not
+ask again.
+
+The already-running-game shortcut in `LaunchActivity.start` (which brings the
+running game's task forward and carries no extras) is gated the same way
+before it is taken: for a caller that is not droidtop, anything but Allow
+leaves the running game untouched and says so in a toast, because a launch
+screen started to ask would clear the game that is running. Allow the app
+under Settings > App launch access and launch again. `GameRunner.run` no
+longer logs the game folder's name with the caller.
+
 ## Needs a rig check
 
 Install the built debug APK on BlueStacks (RIG ERA / `device/wadb`,

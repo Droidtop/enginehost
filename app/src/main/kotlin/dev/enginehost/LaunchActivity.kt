@@ -93,13 +93,89 @@ class LaunchActivity : EnginehostActivity() {
     /** What the run that just ended passed to EngineHost.restart, until the next run takes it. */
     private var restartArguments: Array<String>? = null
 
-    /** Plan the launch and enter the runtime, or go where the plan says first. */
+    /** The caller (if any) has been let through for this screen's launch: asked once, not again on a retry or a restart. */
+    private var accessCleared = false
+
+    /** A plan is being worked out off the main thread; a second one is not started beside it. */
+    private var planning = false
+
+    /**
+     * Decide who may launch, then plan the launch and enter the runtime, or
+     * go where the plan says first. Caller access comes first and reads
+     * nothing of the game: a blocked or not yet approved caller must not
+     * make Enginehost inspect its folder or open the setup, catalog or trust
+     * screens (Droidtop/tracker#44).
+     */
     private fun launch(waitedForRuntime: Boolean = false) {
+        if (!accessCleared && !resolveCallerAccess()) return
+        planAndStart(waitedForRuntime)
+    }
+
+    /**
+     * Per-caller allow/ask/block (owner, 2026-09-27). Absent for droidtop and
+     * every in-app caller (GameRunner.run's default), which are never gated.
+     * True when the launch may go on now; false when it is waiting on a
+     * prompt or refused, both of which come back through [launch] or end the
+     * screen. See offerCallerAccessPrompt, showCallerBlocked.
+     */
+    private fun resolveCallerAccess(): Boolean {
+        val callerKey = intent.getStringExtra(EXTRA_CALLER_KEY)
+        if (callerKey == null) {
+            accessCleared = true
+            return true
+        }
+        // Recorded regardless of the decision below, so
+        // CallerAccessSettingsActivity can list a real caller even when
+        // PackageManager's own query can't see it (package visibility, or a
+        // caller that hasn't shown up in a LAUNCHER query for some other
+        // reason).
+        CallerSightingsStore(this).record(callerKey)
+        return when (val access = EffectiveAccess.forCaller(CallerAccessStore(this), packageManager, callerKey)) {
+            EffectiveAccess.Allow -> {
+                accessCleared = true
+                true
+            }
+            EffectiveAccess.Ask -> {
+                showTitle(null)
+                showStarting()
+                offerCallerAccessPrompt(callerKey)
+                false
+            }
+            is EffectiveAccess.Block -> {
+                showTitle(null)
+                showStarting()
+                showCallerBlocked(callerKey, access.reason)
+                false
+            }
+        }
+    }
+
+    /**
+     * Everything planning does (folder checks, engine detection, config and
+     * save-location reads, plugin discovery) touches storage that can be slow
+     * or missing, so it runs off the main thread and the screen shows the
+     * starting state meanwhile (Droidtop/tracker#45). The result is applied
+     * on the main thread, and dropped when the screen has gone by then.
+     */
+    private fun planAndStart(waitedForRuntime: Boolean) {
+        if (planning) return
+        planning = true
+        showStarting()
         val inlineJson = intent.getStringExtra(EXTRA_CONFIG)
-        val plan = GameRunner.plan(
-            this, gameFolder, inlineJson, intent.getBooleanExtra(EXTRA_AUTOINSTALL, false),
-            intent.getBooleanExtra(EXTRA_TESTING, false),
-        )
+        val autoInstall = intent.getBooleanExtra(EXTRA_AUTOINSTALL, false)
+        val testing = intent.getBooleanExtra(EXTRA_TESTING, false)
+        Thread {
+            val plan = runCatching { GameRunner.plan(this, gameFolder, inlineJson, autoInstall, testing) }
+                .getOrElse { GameRunner.Plan.Failure(it.message ?: getString(R.string.launch_plan_failed), retry = true) }
+            runOnUiThread {
+                planning = false
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                applyPlan(plan, waitedForRuntime)
+            }
+        }.start()
+    }
+
+    private fun applyPlan(plan: GameRunner.Plan, waitedForRuntime: Boolean) {
         when (plan) {
             is GameRunner.Plan.Detour -> {
                 plan.notice?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
@@ -128,30 +204,6 @@ class LaunchActivity : EnginehostActivity() {
                 if (!waitedForRuntime && RuntimeProcess.alive(this)) {
                     launchWhenRuntimeGone()
                     return
-                }
-                // Per-caller allow/ask/block (owner, 2026-09-27). Absent
-                // for droidtop and every in-app caller (GameRunner.run's
-                // default), which are never gated. See
-                // offerCallerAccessPrompt, showCallerBlocked.
-                val callerKey = intent.getStringExtra(EXTRA_CALLER_KEY)
-                if (callerKey != null) {
-                    // Recorded regardless of the decision below, so
-                    // CallerAccessSettingsActivity can list a real caller
-                    // even when PackageManager's own query can't see it
-                    // (package visibility, or a caller that hasn't shown up
-                    // in a LAUNCHER query for some other reason).
-                    CallerSightingsStore(this).record(callerKey)
-                    when (val access = EffectiveAccess.forCaller(CallerAccessStore(this), packageManager, callerKey)) {
-                        EffectiveAccess.Allow -> {}
-                        EffectiveAccess.Ask -> {
-                            offerCallerAccessPrompt(callerKey)
-                            return
-                        }
-                        is EffectiveAccess.Block -> {
-                            showCallerBlocked(callerKey, access.reason)
-                            return
-                        }
-                    }
                 }
                 // Sandbox layer 2 is the default (owner, 2026-09-25): a
                 // plugin that cannot run isolated gets no silent pass. See
@@ -528,7 +580,20 @@ class LaunchActivity : EnginehostActivity() {
             caller: LaunchCaller = LaunchCaller.Droidtop,
         ) {
             val intent = Intent(context, LaunchActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (!RunningGame.isRunning(gameFolder)) {
+            if (RunningGame.isRunning(gameFolder)) {
+                // Bringing the running game forward is a launch like any other
+                // and gets the same access decision. It is made here, before
+                // the shortcut, because the shortcut carries no extras for the
+                // launch screen to decide on, and a launch screen started for
+                // a prompt would clear the game that is running
+                // (Droidtop/tracker#44). Anything but Allow leaves it alone.
+                if (caller !is LaunchCaller.Droidtop &&
+                    EffectiveAccess.forCaller(CallerAccessStore(context), context.packageManager, caller.storeKey) !is EffectiveAccess.Allow
+                ) {
+                    Toast.makeText(context, R.string.caller_access_running_refused, Toast.LENGTH_LONG).show()
+                    return
+                }
+            } else {
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 intent.putExtra(EXTRA_PATH, gameFolder.absolutePath)
                 inlineJson?.let { intent.putExtra(EXTRA_CONFIG, it) }

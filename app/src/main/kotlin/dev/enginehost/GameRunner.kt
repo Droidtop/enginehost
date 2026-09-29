@@ -47,7 +47,7 @@ object GameRunner {
         caller: LaunchCaller = LaunchCaller.Droidtop,
     ) {
         if (caller !is LaunchCaller.Droidtop) {
-            Log.i("enginehost", "LAUNCH ${gameFolder.name} from ${caller.storeKey}")
+            Log.i("enginehost", "LAUNCH from ${caller.storeKey}")
         }
         LaunchActivity.start(context, gameFolder, inlineJson, autoInstallPlugin, testing, caller)
     }

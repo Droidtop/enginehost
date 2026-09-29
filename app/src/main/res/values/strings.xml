@@ -463,6 +463,8 @@
     <string name="caller_access_blocked_browser">%1$s looks like a browser. Browsers are blocked from launching games by default.</string>
     <string name="caller_access_blocked_remote">%1$s looks like a remote-access or automation tool. These are blocked from launching games by default.</string>
     <string name="caller_access_allow_anyway">Allow this app</string>
+    <string name="caller_access_running_refused">A game is already running, and this app is not allowed to bring it forward. Allow it under Settings, App launch access.</string>
+    <string name="launch_plan_failed">Enginehost could not prepare this game.</string>
     <string name="launch_save_folder_invalid_name">The save folder name in the game\'s configuration is not valid.</string>
     <string name="launch_exec_file_missing">The game\'s entry file \"%1$s\" does not exist in the game folder.</string>
     <string name="earlier_saves_title">Saves from an earlier Enginehost</string>
