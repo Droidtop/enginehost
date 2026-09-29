@@ -25,6 +25,12 @@ object PluginUpdates {
             manifest.origin == installed.origin &&
             manifest.info.pluginVersion > installed.info.pluginVersion
 
+    /** Whether [manifest] is a lower version of the installed bundle -- a downgrade. */
+    fun isDowngrade(installed: InstalledPlugin, manifest: EngineBundleManifest): Boolean =
+        manifest.bundleId == installed.bundleId &&
+            manifest.origin == installed.origin &&
+            manifest.info.pluginVersion < installed.info.pluginVersion
+
     /** The newest available update for each installed bundle, keyed by bundle ID. */
     fun updatesFor(
         installed: List<InstalledPlugin>,

@@ -530,6 +530,7 @@ class PluginCatalogActivity : EnginehostActivity() {
      */
     private fun addRelease(plugin: AvailablePlugin, older: List<AvailablePlugin> = emptyList()) {
         val card = layoutInflater.inflate(R.layout.item_release, releaseList, false)
+        val installed = PluginRegistry.discover(this).filter { it.bundleId == plugin.bundleId }
         card.findViewById<TextView>(R.id.releaseTitle).text = EngineNames.engines(plugin.manifest).joinToString(" · ")
         card.findViewById<TextView>(R.id.releaseVersion).apply {
             // A runtime that accepts any engine version ships no version worth a number.
@@ -579,14 +580,25 @@ class PluginCatalogActivity : EnginehostActivity() {
                 val row = layoutInflater.inflate(R.layout.item_release_build, olderList, false)
                 row.findViewById<TextView>(R.id.buildLabel).text =
                     getString(R.string.release_build_line, PluginVersions.display(build.info.pluginVersion), streamName(build.stream))
-                row.findViewById<Button>(R.id.buildInstallButton).setOnClickListener { view ->
-                    view.isEnabled = false
-                    PluginInstaller.install(
-                        this@PluginCatalogActivity,
-                        build,
-                        onError = { message -> view.isEnabled = true; toast(message) },
-                        onStatus = { status -> runOnUiThread { statusText.text = status } },
-                    )
+                row.findViewById<Button>(R.id.buildInstallButton).apply {
+                    // An older build than one already installed is a
+                    // downgrade: the installer refuses it, and the button
+                    // says so rather than letting a tap find out. Going back
+                    // means uninstalling first.
+                    if (installed.any { PluginUpdates.isDowngrade(it, build.manifest) }) {
+                        setText(R.string.older_than_installed)
+                        isEnabled = false
+                    } else {
+                        setOnClickListener { view ->
+                            view.isEnabled = false
+                            PluginInstaller.install(
+                                this@PluginCatalogActivity,
+                                build,
+                                onError = { message -> view.isEnabled = true; toast(message) },
+                                onStatus = { status -> runOnUiThread { statusText.text = status } },
+                            )
+                        }
+                    }
                 }
                 olderList.addView(row)
             }
@@ -612,7 +624,6 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
         } else {
             val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
-            val installed = PluginRegistry.discover(this).filter { it.bundleId == plugin.bundleId }
             // A strictly newer build of an installed bundle is an update; the
             // installer replaces in place, and whether it prompts is decided
             // by trust carry-over: same origin and key and the approval the

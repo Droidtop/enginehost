@@ -60,6 +60,34 @@ class PluginUpdatesTest {
     }
 
     @Test
+    fun `an older build of the same bundle from the same origin is a downgrade`() {
+        assertTrue(PluginUpdates.isDowngrade(installed(pluginVersion = "3"), manifest(pluginVersion = "2")))
+        // The same build is neither an update nor a downgrade.
+        assertFalse(PluginUpdates.isDowngrade(installed(pluginVersion = "2"), manifest(pluginVersion = "2")))
+        assertFalse(PluginUpdates.isDowngrade(installed(pluginVersion = "1"), manifest(pluginVersion = "2")))
+    }
+
+    @Test
+    fun `a different origin publishing an older build is not a downgrade`() {
+        assertFalse(
+            PluginUpdates.isDowngrade(
+                installed(pluginVersion = "3"),
+                manifest(origin = "https://github.com/somebody-else/enginehost-renpy-plugin", pluginVersion = "2"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a downgrade is never offered as an update`() {
+        assertTrue(
+            PluginUpdates.updatesFor(
+                listOf(installed(pluginVersion = "4")),
+                listOf(available(manifest(pluginVersion = "4")), available(manifest(pluginVersion = "2"))),
+            ).isEmpty(),
+        )
+    }
+
+    @Test
     fun `a different bundle id is never an update, even for the same engine`() {
         assertFalse(
             PluginUpdates.isNewerBuildOf(

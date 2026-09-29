@@ -252,6 +252,12 @@ different origin is a new decision and prompts as before, with the Plugins
 screen saying which of the two changed. There is no path that skips a prompt
 a key or origin change requires.
 
+A downgrade -- an older build of an installed bundle -- is refused outright
+by the installer (`only a newer build from the same repository can replace
+it`), and the catalog marks such builds on their button instead of letting
+a tap discover the refusal. Going back to an older build means uninstalling
+first, then installing it.
+
 The Enginehost APK itself follows the same pattern one level up: CI
 publishes a rolling `latest` release whose `release-info.json` carries the
 build's monotonic `versionCode` and APK digest, the app compares that number

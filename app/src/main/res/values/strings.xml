@@ -333,6 +333,7 @@
     <string name="engine_family">Engine</string>
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
     <string name="update_to_build">Update to build %1$s</string>
+    <string name="older_than_installed">Older than installed</string>
     <string name="updates_section">Updates</string>
     <string name="updates_frequency_label">Check for updates</string>
     <string-array name="update_frequency_entries">
