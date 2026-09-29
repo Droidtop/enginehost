@@ -205,6 +205,18 @@ once that exact build has installed and booted a real game on hardware.
 Compiling, packaging and even verifying signatures prove nothing about
 whether the runtime starts.
 
+The evidence game must be built by the line's own engine series. A game that
+merely *loads* under a runtime is not evidence for it: the Ren'Py 8.0 line's
+first candidate was a 7.4.10 build whose bytecode the 8.0
+runtime happens to run, so its clean launch says nothing about 8.0 games.
+When the library holds no title for a series, the engine's own demo game of
+that exact version stands in. Decided 2026-09-29 for the 8.0 line, after a
+census of every Ren'Py game on the game share (each game's runtime version
+file or build stamp, 40 and 19 of them) turned up versions 6.99 through
+7.8.2 and 8.1 through 8.5.3 and no 8.0.x build at all: the line is checked
+against the_question, the demo visual novel the official Ren'Py SDK 8.0.3
+itself ships with its scripts compiled by that SDK.
+
 Signing is one mechanism, Enginehost's reusable workflow
 `.github/workflows/sign-engine-bundle.yml`. A plugin repository's build job
 never sees its signing key: it tars the unsigned `payload/` and
