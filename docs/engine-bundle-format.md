@@ -51,8 +51,11 @@ this repository. In a game's `pluginVersions` allowlist a token that is
 one version (`1.0.0-3`) is exact and a range joins two versions with a dash
 (`1.2.0-1.4.0`). How updates are
 discovered, gated and approved is docs/plugin-catalog.md's Updates section;
-the invariant that matters here is that replacing bytes never carries over
-approval, which is bound to the exact archive digest and signer.
+the invariant that matters here is that replacing bytes never widens
+approval: it is bound to the exact archive digest and signer, and a
+replacement inherits a previous build's approval only when it is the same
+origin under the same verified key (decided 2026-09-27,
+Droidtop/tracker#23).
 
 Each capability declares the exact `runtimeVersion` bundled. Compatibility can
 be advertised as exact `supportedVersions`, inclusive `supportedRanges`, and/or

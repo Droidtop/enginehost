@@ -127,6 +127,9 @@
     <string name="installed">Installed</string>
     <string name="requires_api">Needs a newer Enginehost</string>
     <string name="install">Install</string>
+    <string name="downgrade_title">Install an older build?</string>
+    <string name="downgrade_message">Installed\n%1$s\n\nThis build\n%2$s\n\nAn older build can bring back problems the newer one fixed. It comes from the same repository as the installed one.</string>
+    <string name="downgrade_accept">Install the older build</string>
     <string name="release_runs">%1$s</string>
     <string name="release_meta">%1$s · %2$s</string>
     <string name="release_meta_third_party">%1$s · %2$s · Third party: %3$s</string>

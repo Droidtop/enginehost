@@ -80,6 +80,28 @@ class PluginUpdatesTest {
     }
 
     @Test
+    fun `a lower build of the same bundle from the same origin is a downgrade, not an update`() {
+        val manifest = manifest(pluginVersion = "2")
+        val installed = installed(pluginVersion = "3")
+        assertTrue(PluginUpdates.isDowngradeOf(installed, manifest))
+        assertFalse(PluginUpdates.isNewerBuildOf(installed, manifest))
+    }
+
+    @Test
+    fun `an equal or newer build is not a downgrade`() {
+        assertFalse(PluginUpdates.isDowngradeOf(installed(pluginVersion = "2"), manifest(pluginVersion = "2")))
+        assertFalse(PluginUpdates.isDowngradeOf(installed(pluginVersion = "1"), manifest(pluginVersion = "2")))
+    }
+
+    @Test
+    fun `a lower build of the same bundle id from a different origin is neither update nor downgrade`() {
+        val manifest = manifest(origin = "https://github.com/somebody-else/enginehost-renpy-plugin", pluginVersion = "1")
+        val installed = installed(pluginVersion = "2")
+        assertFalse(PluginUpdates.isDowngradeOf(installed, manifest))
+        assertFalse(PluginUpdates.isNewerBuildOf(installed, manifest))
+    }
+
+    @Test
     fun `updatesFor returns the newest build per installed bundle and skips other api versions`() {
         val plugin = installed(pluginVersion = "1")
         val updates = PluginUpdates.updatesFor(

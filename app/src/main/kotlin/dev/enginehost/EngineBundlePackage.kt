@@ -181,10 +181,23 @@ object EngineBundleManifestReader {
 
 /** Installs one self-verifying .tar.xz package into Enginehost-private storage. */
 object EngineBundleInstaller {
+    /**
+     * The archive is an older build of a bundle already installed from the
+     * same origin. [install] refuses it until the caller passes
+     * `allowDowngrade`, which only a person's explicit accept of a
+     * downgrade warning -- both build numbers shown side by side, the
+     * pattern `PluginCatalogActivity.reviewChangedKey` uses for a changed
+     * repository key -- should produce, so a picked file can be caught and
+     * asked about rather than predicted.
+     */
+    class DowngradeRequired(val installedVersion: Version, val incomingVersion: Version) :
+        IllegalArgumentException("Build $incomingVersion is older than installed build $installedVersion")
+
     fun install(
         context: Context,
         archive: File,
         expectedManifest: EngineBundleManifest? = null,
+        allowDowngrade: Boolean = false,
     ): InstalledPlugin {
         require(archive.isFile) { "Engine bundle does not exist" }
         val archiveSha = sha256(archive)
@@ -220,14 +233,20 @@ object EngineBundleInstaller {
             val existing = PluginRegistry.discover(context).filter { it.bundleId == manifest.bundleId }
             existing.forEach { previous ->
                 require(previous.archiveSha256 != archiveSha) { "Bundle ${manifest.bundleId} is already installed" }
-                // Same line, different bytes: only a strictly newer build from
-                // the same origin may replace what is there. The replacement
-                // arrives unapproved -- trust decisions bind the exact archive
-                // digest and signer, so the user re-approves the new build
-                // before it ever executes.
-                require(PluginUpdates.isNewerBuildOf(previous, manifest)) {
-                    "Bundle ${manifest.bundleId} build ${previous.info.pluginVersion} is already installed; " +
-                        "only a newer build from the same repository can replace it"
+                // Same line, different bytes: a strictly newer build from
+                // the same origin replaces what is there, and an older one
+                // only after the person accepted a downgrade warning.
+                // Anything else -- another origin, or the same build number
+                // with different bytes -- replaces nothing.
+                when {
+                    PluginUpdates.isNewerBuildOf(previous, manifest) -> {}
+                    PluginUpdates.isDowngradeOf(previous, manifest) && allowDowngrade -> {}
+                    PluginUpdates.isDowngradeOf(previous, manifest) ->
+                        throw DowngradeRequired(previous.info.pluginVersion, manifest.info.pluginVersion)
+                    else -> throw IllegalArgumentException(
+                        "Bundle ${manifest.bundleId} build ${previous.info.pluginVersion} is already installed; " +
+                            "only a newer build from the same repository can replace it",
+                    )
                 }
             }
             File(staging, PluginRegistry.SIGNED_MANIFEST).writeBytes(manifest.rawBytes)
@@ -279,7 +298,16 @@ object EngineBundleInstaller {
             runCatching {
                 BundleStamps(context).write(destination, InstalledBundleVerifier.stampAll(destination, manifest.files))
             }
-            return PluginRegistry.readRecord(destination)
+            val installed = PluginRegistry.readRecord(destination)
+            // The replacement inherits the person's approval exactly as far as
+            // it is provably the same line: same origin, same verified signing
+            // key as an APPROVED build being replaced. A different key or
+            // origin inherits nothing and the new archive stays PENDING, so
+            // the trust prompt appears as before. The inherited decision is
+            // stored for the new archive like a manual Approve.
+            val trust = PluginTrustStore(context)
+            existing.forEach { previous -> trust.carryApprovalFrom(previous, installed) }
+            return installed
         } catch (error: Throwable) {
             forceDeleteRecursively(staging)
             throw error

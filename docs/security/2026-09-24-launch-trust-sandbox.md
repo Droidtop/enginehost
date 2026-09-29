@@ -190,11 +190,15 @@ purpose for the rigs, so it stays the owner's call.
   file's SHA-256 match the signed manifest, and the aggregate digest binds
   the ordered payload; the tree is staged privately and renamed in whole;
   the signer must match the origin's pinned key; a same-ID bundle replaces
-  another only as a strictly newer build from the same origin.
+  another only as a strictly newer build from the same origin, or an older
+  one after an explicit downgrade warning.
 - Approval is bound to bundle ID, archive digest and signer, so a
-  replacement arrives unapproved, except that a bundle signed by its origin's
-  root-certified key (Official) is approved by default unless the person
-  denied it (2026-09-28, docs/plugin-catalog.md "Provenance").
+  replacement arrives unapproved unless it is provably the same line as an
+  approved build -- same origin, same verified signing key -- in which case
+  it inherits that approval and prompts no one (2026-09-27,
+  docs/plugin-catalog.md "Updates"), or it is Official, approved by default
+  unless the person denied it (2026-09-28, docs/plugin-catalog.md
+  "Provenance").
 - Launch rechecks the manifest signature, the pin, the install record and
   every payload file's stamp (rehashing on any change), and refuses files
   the manifest does not sign, before any bundle code loads. Both runtime

@@ -1,8 +1,8 @@
 package dev.enginehost
 
 /**
- * The single definition of "this signed bundle is a newer build of that
- * installed one", shared by the installer (which enforces it before
+ * The single definition of where a signed bundle stands relative to an
+ * installed one, shared by the installer (which enforces it before
  * replacing anything) and the catalog (which uses it to offer updates).
  */
 object PluginUpdates {
@@ -16,15 +16,31 @@ object PluginUpdates {
      * a line, `pluginVersion` is the wrapper build number -- `runtimeVersion`
      * never changes inside a bundle ID, so it plays no part here.
      *
-     * Replacing a bundle never inherits its approval: the trust store binds
-     * a decision to the exact archive digest and signer (see
-     * PluginTrustStore), so the replacement is unapproved until the user
-     * approves that exact new archive.
+     * Replacing a bundle with such an update carries the person's APPROVED
+     * decision with it when the new archive is provably the same line under
+     * the same key: same origin, and a verified signer identical to the
+     * previously-approved build's (PluginTrustStore.carryApprovalFrom;
+     * decided 2026-09-27, docs/plugin-catalog.md "Updates"). A different
+     * signing key, or a different origin, carries nothing -- the replacement
+     * is unapproved and prompts exactly as before.
      */
     fun isNewerBuildOf(installed: InstalledPlugin, manifest: EngineBundleManifest): Boolean =
         manifest.bundleId == installed.bundleId &&
             manifest.origin == installed.origin &&
             manifest.info.pluginVersion > installed.info.pluginVersion
+
+    /**
+     * Whether [manifest] is a step back within [installed]'s line: the same
+     * bundle ID from the same repository at a strictly lower build number.
+     * The installer replaces nothing with it until the person has accepted
+     * a downgrade warning naming both builds, and a version equal to the
+     * installed one is neither an update nor a downgrade, so it replaces
+     * nothing at all.
+     */
+    fun isDowngradeOf(installed: InstalledPlugin, manifest: EngineBundleManifest): Boolean =
+        manifest.bundleId == installed.bundleId &&
+            manifest.origin == installed.origin &&
+            manifest.info.pluginVersion < installed.info.pluginVersion
 
     /** The newest available update for each installed bundle, keyed by bundle ID. */
     fun updatesFor(

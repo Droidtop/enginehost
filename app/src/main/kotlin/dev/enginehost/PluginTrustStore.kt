@@ -26,6 +26,26 @@ class PluginTrustStore(private val context: Context) {
     fun deny(plugin: InstalledPlugin) = decide(plugin, "denied")
     fun isApproved(plugin: InstalledPlugin): Boolean = state(plugin) == PluginTrustState.APPROVED
 
+    /**
+     * Carries the person's APPROVED decision from [previous], the build
+     * being replaced, to [next], its replacement -- when [next] is provably
+     * the same line: the same bundle ID, from the same origin, signed by
+     * the same verified key as the build that earned the approval
+     * (decided 2026-09-27, docs/plugin-catalog.md "Updates",
+     * docs/ui-v2.md section 3). The carried decision is stored for the
+     * new archive exactly like a manual Approve, so it still binds the
+     * exact digest and signer it names. Nothing is carried from a DENIED
+     * or PENDING build, and a different key or origin carries nothing --
+     * those replacements prompt for a fresh approval as before.
+     *
+     * Returns whether [next] is trusted and so needs no prompt.
+     */
+    fun carryApprovalFrom(previous: InstalledPlugin, next: InstalledPlugin): Boolean {
+        if (!isApproved(previous) || !approvalCarries(previous, next)) return false
+        approve(next)
+        return true
+    }
+
     /** Signed by its origin's root-certified key, compiled in or learned from the plugins index. */
     fun isOfficial(plugin: InstalledPlugin): Boolean {
         val keys = PluginOriginKeyStore(context)
@@ -67,6 +87,21 @@ class PluginTrustStore(private val context: Context) {
             "denied" -> PluginTrustState.DENIED
             else -> if (official) PluginTrustState.APPROVED else PluginTrustState.PENDING
         }
+
+        /**
+         * The carry-over rule (see [carryApprovalFrom]), split out so a
+         * plain JVM test can exercise it the way [effectiveState]'s tests do.
+         * [next] must be the same bundle ID from the same origin, and its
+         * verified signer must be identical to [previous]'s. The origin is
+         * part of the rule because a stored decision names no origin:
+         * without the check, two origins sharing a signing key (the
+         * developer key) could trade an approval neither of them earned.
+         */
+        internal fun approvalCarries(previous: InstalledPlugin, next: InstalledPlugin): Boolean =
+            previous.signerIdentity.isNotBlank() &&
+                previous.bundleId == next.bundleId &&
+                previous.origin == next.origin &&
+                previous.signerIdentity == next.signerIdentity
     }
 
     private fun decide(plugin: InstalledPlugin, decision: String) {

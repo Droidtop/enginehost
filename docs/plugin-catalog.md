@@ -245,6 +245,8 @@ assets are up. Anything not yet proven stays a CI artifact.
 Within one bundle ID, `pluginVersion` orders builds: a release carrying the
 same `bundleId` from the same origin with a strictly higher `pluginVersion`
 is an update, and installing it replaces the older build in place. A
+strictly lower `pluginVersion` from the same origin is a downgrade, not an
+update: it replaces nothing without an explicit warning first (below). A
 different bundle ID -- a new engine series, or a deliberate `-vN` bump -- is
 a different bundle and coexists, exactly as before. A different origin
 publishing an already-installed bundle ID is never an update; its signature
@@ -259,14 +261,25 @@ interval. The check has an off switch in settings, and turning it off stops
 all automatic update traffic.
 
 Optionally ("Install plugin updates automatically", off by default),
-Enginehost downloads and installs such an update itself. This replaces
-bytes, never trust: execution approval is bound to the exact archive digest
-and signer, so an automatically installed update of a Third party or Community
-bundle is unapproved until the user approves that exact new archive -- the
-trust prompt appears before it runs anything, exactly as for a manual install.
-Approval is never inherited across an update. The one default is Official
-(below): a bundle signed by its origin's root-certified key is approved unless
-the person denied it.
+Enginehost downloads and installs such an update itself. Approval still
+binds the exact archive digest and signer, but an update inherits the
+approval of the build it replaces when it is provably the same line: same
+origin, and a verified signing key identical to the previously-approved
+build's (decided 2026-09-27, owner; docs/ui-v2.md section 3,
+Droidtop/tracker#23). Such an update installs and runs with no new prompt,
+however it arrived -- download, automatic pass, or file. A different signing
+key, or a different origin, inherits nothing: the replacement is unapproved
+until the user approves that exact new archive, exactly as before. The one
+default is Official (below): a bundle signed by its origin's root-certified
+key is approved unless the person denied it.
+
+A downgrade -- an older build of a line this device already has, from the
+same origin -- is a deliberate step back, never an ordinary install. The
+catalog's other-builds list and a picked file both stop and show the
+installed and incoming build numbers side by side, and only an explicit
+accept installs it (the same pattern as a changed repository key). An
+accepted downgrade inherits approval under the same rule as an update: same
+origin and key carries, anything else prompts.
 
 The Enginehost APK itself follows the same pattern one level up: CI
 publishes a rolling `latest` release whose `release-info.json` carries the
@@ -304,9 +317,13 @@ replace another bundle.
   are approved by default (decided 2026-09-28, Droidtop/tracker#34): the
   provenance check that earns the badge is the check an approval prompt would
   repeat, and a fresh install must not open on a wall of identical prompts.
-  A person's own Deny always wins over the default
-  (`PluginTrustStore.effectiveState`). Third party, Community and developer
-  key builds are never approved by default.
+  A newer build from the same origin signed with the same verified key
+  inherits that approval (decided 2026-09-27, Droidtop/tracker#23); a
+  different key or origin inherits nothing and prompts as before. A
+  person's own Deny always wins over the default and over carry-over
+  (`PluginTrustStore.effectiveState`, `PluginTrustStore.carryApprovalFrom`).
+  Third party, Community and developer key builds are never approved by
+  default.
 
 A valid signature proves who published bytes; it does not grant those bytes
 Enginehost's permissions.

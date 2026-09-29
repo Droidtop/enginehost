@@ -71,11 +71,13 @@ repository and the token it needs did not exist.
 | Developer build | Signed with the primary developer's key; files put on the device only | Its own warning badge | - |
 
 Every level still needs the person to approve each exact archive before it
-runs. Nothing in this design approves anything, and no level is inherited by
-another: a third-party repository cannot become Official by being listed, by
-anything in the index, or by a key document that claims an issuer, because
-official status is only ever the device's own verification of the root's
-signature.
+runs; the one thing that inherits an approval is a replacement build from
+the same origin under the same verified key (docs/plugin-catalog.md
+"Updates"), which carries the line's approval with it. Nothing in this
+design approves anything, and no level is inherited by another: a
+third-party repository cannot become Official by being listed, by anything
+in the index, or by a key document that claims an issuer, because official
+status is only ever the device's own verification of the root's signature.
 
 ## Threats
 

@@ -16,20 +16,13 @@ object PluginInstaller {
         plugin: AvailablePlugin,
         onError: (String) -> Unit,
         onStatus: ((String) -> Unit)? = null,
+        allowDowngrade: Boolean = false,
     ) {
         Thread {
             runCatching {
                 val archive = download(activity, plugin, onStatus)
-                val installed = EngineBundleInstaller.install(activity, archive, plugin.manifest)
-                PendingPluginLaunchStore(activity).peek()?.let {
-                    PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
-                }
-                activity.runOnUiThread {
-                    activity.startActivity(
-                        Intent(activity, PluginTrustActivity::class.java)
-                            .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
-                    )
-                }
+                val installed = EngineBundleInstaller.install(activity, archive, plugin.manifest, allowDowngrade)
+                afterInstall(activity, installed)
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }
@@ -43,26 +36,100 @@ object PluginInstaller {
      * meant anyone without a command line could not install a plugin at all. The
      * file still goes through exactly the same verification and the same trust
      * prompt as a downloaded one -- picking it locally buys no extra privilege.
+     *
+     * The bundle ID inside a picked file is not known until the archive is
+     * verified, so a downgrade hiding in one is caught rather than predicted:
+     * the first attempt is refused with [EngineBundleInstaller.DowngradeRequired]
+     * and this asks, with both build numbers side by side, before retrying
+     * with the downgrade allowed.
      */
     fun installFromFile(activity: Activity, uri: Uri, onError: (String) -> Unit) {
         Thread {
             runCatching {
-                val archive = copyIn(activity, uri)
-                val installed = EngineBundleInstaller.install(activity, archive)
-                archive.delete()
-                PendingPluginLaunchStore(activity).peek()?.let {
-                    PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
-                }
-                activity.runOnUiThread {
-                    activity.startActivity(
-                        Intent(activity, PluginTrustActivity::class.java)
-                            .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
-                    )
-                }
+                installPicked(activity, copyIn(activity, uri), onError)
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }
         }.start()
+    }
+
+    private fun installPicked(
+        activity: Activity,
+        archive: File,
+        onError: (String) -> Unit,
+        allowDowngrade: Boolean = false,
+    ) {
+        runCatching {
+            val installed = EngineBundleInstaller.install(activity, archive, allowDowngrade = allowDowngrade)
+            archive.delete()
+            afterInstall(activity, installed)
+        }.onFailure { error ->
+            if (error is EngineBundleInstaller.DowngradeRequired && !allowDowngrade) {
+                activity.runOnUiThread {
+                    confirmDowngrade(
+                        activity, error,
+                        onAccept = { installPicked(activity, archive, onError, allowDowngrade = true) },
+                        onCancel = { archive.delete() },
+                    )
+                }
+            } else {
+                archive.delete()
+                activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
+            }
+        }
+    }
+
+    /**
+     * A downgrade needs an explicit accept, never a default: both build
+     * numbers are shown side by side (the pattern
+     * `PluginCatalogActivity.reviewChangedKey` uses for a changed key), and
+     * cancelling installs nothing and keeps nothing.
+     */
+    private fun confirmDowngrade(
+        activity: Activity,
+        downgrade: EngineBundleInstaller.DowngradeRequired,
+        onAccept: () -> Unit,
+        onCancel: () -> Unit,
+    ) {
+        Sheet(activity)
+            .title(activity.getString(R.string.downgrade_title))
+            .message(
+                activity.getString(
+                    R.string.downgrade_message,
+                    PluginVersions.display(downgrade.installedVersion),
+                    PluginVersions.display(downgrade.incomingVersion),
+                ),
+            )
+            .choice(R.string.downgrade_accept) { Thread { onAccept() }.start() }
+            .onCancel(onCancel)
+            .show()
+    }
+
+    /**
+     * What follows a successful install. A build that is already trusted --
+     * an update that carried the person's approval over from the build it
+     * replaced, or an Official bundle approved by default -- has nothing
+     * left to decide, so no trust screen appears and a launch waiting on
+     * this install goes straight to the game, exactly where the screen's
+     * Approve would have taken it. Anything else stops for the fresh
+     * approval, as before.
+     */
+    private fun afterInstall(activity: Activity, installed: InstalledPlugin) {
+        PendingPluginLaunchStore(activity).peek()?.let {
+            PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
+        }
+        activity.runOnUiThread {
+            if (!PluginTrustStore(activity).isApproved(installed)) {
+                activity.startActivity(
+                    Intent(activity, PluginTrustActivity::class.java)
+                        .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
+                )
+                return@runOnUiThread
+            }
+            PendingPluginLaunchStore(activity).consumeFor(installed.bundleId)?.let { pending ->
+                GameRunner.run(activity, java.io.File(pending.gamePath), pending.callerConfig, testing = pending.testing)
+            }
+        }
     }
 
     /** Download (or reuse the cached copy of) a catalog entry's archive, quietly. */

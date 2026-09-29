@@ -581,12 +581,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                     getString(R.string.release_build_line, PluginVersions.display(build.info.pluginVersion), streamName(build.stream))
                 row.findViewById<Button>(R.id.buildInstallButton).setOnClickListener { view ->
                     view.isEnabled = false
-                    PluginInstaller.install(
-                        this@PluginCatalogActivity,
-                        build,
-                        onError = { message -> view.isEnabled = true; toast(message) },
-                        onStatus = { status -> runOnUiThread { statusText.text = status } },
-                    )
+                    installBuild(build) { view.isEnabled = true }
                 }
                 olderList.addView(row)
             }
@@ -614,8 +609,10 @@ class PluginCatalogActivity : EnginehostActivity() {
             val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
             val installed = PluginRegistry.discover(this).filter { it.bundleId == plugin.bundleId }
             // A strictly newer build of an installed bundle is an update; the
-            // installer replaces in place and the trust prompt re-appears for
-            // the new archive before it can run.
+            // installer replaces in place. The trust prompt re-appears for
+            // the new archive only when it is not the same line under the
+            // same verified key as the build the person approved (same key
+            // and origin: the approval carries, no prompt).
             val update = installed.isNotEmpty() &&
                 installed.all { PluginUpdates.isNewerBuildOf(it, plugin.manifest) }
             val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
@@ -650,6 +647,50 @@ class PluginCatalogActivity : EnginehostActivity() {
             actions.addView(button)
         }
         releaseList.addView(card)
+    }
+
+    /**
+     * Install one release, asking first when it is a step back. A build
+     * older than what is installed for its bundle ID is a downgrade, not an
+     * update: both build numbers are shown side by side and only an explicit
+     * accept installs it -- the same pattern [reviewChangedKey] uses for a
+     * changed repository key. Cancelling re-enables the button and installs
+     * nothing. A build that is not older than anything installed (nothing
+     * for this bundle ID yet, or a newer one) installs without asking.
+     */
+    private fun installBuild(build: AvailablePlugin, whenDone: () -> Unit) {
+        val downgrades = PluginRegistry.discover(this)
+            .filter { it.bundleId == build.bundleId && PluginUpdates.isDowngradeOf(it, build.manifest) }
+        if (downgrades.isEmpty()) {
+            PluginInstaller.install(
+                this,
+                build,
+                onError = { message -> whenDone(); toast(message) },
+                onStatus = { status -> runOnUiThread { statusText.text = status } },
+            )
+            return
+        }
+        val installed = downgrades.maxBy { it.info.pluginVersion }
+        Sheet(this)
+            .title(getString(R.string.downgrade_title))
+            .message(
+                getString(
+                    R.string.downgrade_message,
+                    PluginVersions.display(installed.info.pluginVersion),
+                    PluginVersions.display(build.info.pluginVersion),
+                ),
+            )
+            .choice(R.string.downgrade_accept) {
+                PluginInstaller.install(
+                    this,
+                    build,
+                    onError = { message -> whenDone(); toast(message) },
+                    onStatus = { status -> runOnUiThread { statusText.text = status } },
+                    allowDowngrade = true,
+                )
+            }
+            .onCancel(whenDone)
+            .show()
     }
 
     private fun refresh() {
