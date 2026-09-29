@@ -44,7 +44,7 @@ object HintRow {
                 contentDescription = context.getString(hint.label)
                 setOnClickListener { hint.press() }
             }
-            pill.addView(TextView(context, null, 0, R.style.Widget_Enginehost_Chip).apply { text = hint.button })
+            pill.addView(TextView(context, null, 0, R.style.Widget_Enginehost_HintGlyph).apply { text = hint.button })
             pill.addView(
                 TextView(context).apply {
                     setText(hint.label)

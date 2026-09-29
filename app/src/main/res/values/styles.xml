@@ -143,6 +143,26 @@
     </style>
 
     <!--
+        The pad's glyph in a hint row: the accent's own container, letter
+        pinned to its on-colour. Not the engine chip, whose ground is white
+        so a family hue can tint it: unpainted, the glyph's letter fell
+        back to the theme's text colour and vanished white on white at
+        night, and in sheets under the platform dialog theme too.
+    -->
+    <style name="Widget.Enginehost.HintGlyph" parent="">
+        <item name="android:background">@drawable/eh_chip_bg</item>
+        <item name="android:backgroundTint">@color/eh_accent_container</item>
+        <item name="android:textColor">@color/eh_on_accent_container</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:paddingLeft">10dp</item>
+        <item name="android:paddingRight">10dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <!--
         The Ultimate warning. Deliberately outside the density tokens: it keeps
         full padding in landscape while everything around it tightens, because
         the label alone no longer says the build is unfinished, so this sentence
