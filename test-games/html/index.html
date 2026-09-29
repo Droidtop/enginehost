@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<!--
+  Enginehost conformance test game for the html plugin (engineContext
+  compiled-html).  MIT licence -- test-games/LICENSE.  See
+  docs/conformance-test-games.md.
+
+  It is shaped like a compiled Twine 2 story -- a tw-storydata element
+  whose tw-passagedata passages the runtime walks -- but the runtime is a
+  minimal original one instead of a third-party story format, so nothing
+  here redistributes Twine or any story-format code.  It exercises the
+  three things every conformance game must: a frame that changes on its
+  own (the CSS-animated circle), an input response (passages change on
+  link clicks, and Enter/Space activates the first link), and a save
+  (only the save link's passage is written to this story's local storage,
+  which the plugin persists into the Enginehost save directory, and is
+  read back on the next launch).
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Enginehost conformance test</title>
+<style>
+  body { background: #3a5f9a; color: #fff; font: 20px sans-serif; margin: 24px; }
+  tw-story { display: block; }
+  a { color: #ffe080; font-size: 24px; }
+  .pulse { display: inline-block; font-size: 40px; animation: pulse 1.1s infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.5); } }
+</style>
+</head>
+<body>
+
+<tw-storydata name="Enginehost conformance test" startnode="1" creator="Enginehost" creator-version="1" format="enginehost-minimal" format-version="1">
+<tw-passagedata pid="1" name="Start">The circle never stops moving, so the frame keeps changing on its own.
+[[Flip the colour and save]]
+[[Flip the colour, skip the save]]</tw-passagedata>
+<tw-passagedata pid="2" name="Flip the colour and save" saves="yes">You chose: the colour changed, which is the frame changing on input.
+A save was written to this story's local storage, wherever Enginehost mapped it.
+[[Back to start]]</tw-passagedata>
+<tw-passagedata pid="3" name="Flip the colour, skip the save">You chose: the colour changed, and no save was written this time.
+[[Back to start]]</tw-passagedata>
+</tw-storydata>
+
+<script>
+(function () {
+  "use strict";
+
+  var data = document.querySelector("tw-storydata");
+  var startPid = data.getAttribute("startnode");
+  var passages = {};
+  var nodes = data.querySelectorAll("tw-passagedata");
+  for (var i = 0; i < nodes.length; i++) {
+    passages[nodes[i].getAttribute("name")] = {
+      pid: nodes[i].getAttribute("pid"),
+      saves: nodes[i].getAttribute("saves") === "yes",
+      text: nodes[i].textContent
+    };
+  }
+
+  function startName() {
+    for (var name in passages) {
+      if (passages[name].pid === startPid) {
+        return name;
+      }
+    }
+  }
+
+  function render(name) {
+    var old = document.querySelector("tw-story");
+    if (old) {
+      old.parentNode.removeChild(old);
+    }
+    var story = document.createElement("tw-story");
+    var pulse = document.createElement("div");
+    pulse.className = "pulse";
+    pulse.textContent = "o";
+    story.appendChild(pulse);
+    var parts = passages[name].text.split(/(\[\[[^\]]*\]\])/);
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      var link = /^\[\[([^\]]*)\]\]$/.exec(parts[i]);
+      if (link) {
+        var a = document.createElement("a");
+        a.href = "#";
+        a.textContent = link[1];
+        (function (target) {
+          a.addEventListener("click", function (event) {
+            event.preventDefault();
+            show(target, true);
+          });
+        })(link[1]);
+        story.appendChild(a);
+        story.appendChild(document.createElement("br"));
+      } else {
+        story.appendChild(document.createTextNode(parts[i]));
+      }
+    }
+    document.body.appendChild(story);
+    document.body.style.background = (name === "Start") ? "#3a5f9a" : "#9a3a5f";
+  }
+
+  function show(name, viaLink) {
+    if (!passages[name]) {
+      name = startName();
+    }
+    render(name);
+    if (viaLink && passages[name].saves) {
+      try { localStorage.setItem("enginehost-conformance-html", name); } catch (e) {}
+    }
+  }
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" || event.key === " ") {
+      var first = document.querySelector("tw-story a");
+      if (first) {
+        first.click();
+      }
+    }
+  });
+
+  var saved = null;
+  try { saved = localStorage.getItem("enginehost-conformance-html"); } catch (e) {}
+  show(saved && passages[saved] ? saved : startName());
+})();
+</script>
+</body>
+</html>
