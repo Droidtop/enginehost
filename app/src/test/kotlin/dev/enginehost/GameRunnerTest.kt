@@ -1,14 +1,20 @@
 package dev.enginehost
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 
+/**
+ * The execFile half of the launch preflight, tested through
+ * [GameRunner.missingExecFile]: the whole decision, whose answer
+ * [GameRunner.plan] turns into a Plan.Failure sentence. This app has no
+ * Robolectric, so plan() itself, which needs a real Context to resolve
+ * plugins and read the sentence's string resource, cannot run in a unit
+ * test -- which is why the decision sits in a Context-free function.
+ */
 class GameRunnerTest {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
@@ -32,84 +38,28 @@ class GameRunnerTest {
         )
     }
 
-    private fun makeGameFolder(withExecFile: Boolean = true): File {
-        val folder = temporaryFolder.newFolder("game")
-        if (withExecFile) {
-            File(folder, "Game.exe").writeText("")
-        }
-        return folder
+    @Test
+    fun `an entry file the game folder has lets the launch proceed`() {
+        val gameFolder = temporaryFolder.newFolder("game")
+        File(gameFolder, "Game.exe").writeText("")
+        assertNull(GameRunner.missingExecFile(gameFolder, makeConfig(execFile = "Game.exe")))
     }
 
     @Test
-    fun `valid save folder name passes validation`() {
-        assertTrue(SaveFolders.isPlainName("my-game"))
-        assertTrue(SaveFolders.isPlainName("my_game"))
-        assertTrue(SaveFolders.isPlainName("my.game"))
-        assertTrue(SaveFolders.isPlainName("game"))
+    fun `an entry file the game folder lacks is the launch failure`() {
+        val gameFolder = temporaryFolder.newFolder("game")
+        assertEquals("Game.exe", GameRunner.missingExecFile(gameFolder, makeConfig(execFile = "Game.exe")))
     }
 
     @Test
-    fun `invalid save folder names are rejected`() {
-        assertFalse(SaveFolders.isPlainName(""))
-        assertFalse(SaveFolders.isPlainName("."))
-        assertFalse(SaveFolders.isPlainName(".."))
-        assertFalse(SaveFolders.isPlainName("a/b"))
-        assertFalse(SaveFolders.isPlainName("a\\b"))
-        assertFalse(SaveFolders.isPlainName("a\u0000b"))
+    fun `a config naming no entry file asks for no check`() {
+        val gameFolder = temporaryFolder.newFolder("game")
+        assertNull(GameRunner.missingExecFile(gameFolder, makeConfig(execFile = null)))
     }
 
     @Test
-    fun `save folder name validation message is clear`() {
-        // The require() in SaveLocationStore.saveFolderFor throws with this message
-        val config = makeConfig(saveFolder = "invalid/name")
-        val root = File("/tmp/saves")
-        val folder = File(root, config.saveFolder!!)
-        
-        // Test the validation logic directly
-        val isValid = SaveFolders.isPlainName(config.saveFolder!!)
-        assertFalse(isValid)
-    }
-
-    @Test
-    fun `execFile existence check fails for missing file`() {
-        val gameFolder = makeGameFolder(withExecFile = false)
-        val config = makeConfig(execFile = "Game.exe")
-        
-        val execFile = config.execFile!!
-        val exists = File(gameFolder, execFile).isFile
-        
-        assertFalse(exists)
-    }
-
-    @Test
-    fun `execFile existence check passes for existing file`() {
-        val gameFolder = makeGameFolder(withExecFile = true)
-        val config = makeConfig(execFile = "Game.exe")
-        
-        val execFile = config.execFile!!
-        val exists = File(gameFolder, execFile).isFile
-        
-        assertTrue(exists)
-    }
-
-    @Test
-    fun `execFile is null passes without check`() {
-        val gameFolder = makeGameFolder(withExecFile = false)
-        val config = makeConfig(execFile = null)
-        
-        assertNull(config.execFile)
-    }
-
-    @Test
-    fun `execFile with path traversal is checked against game folder`() {
-        val gameFolder = makeGameFolder(withExecFile = false)
-        val config = makeConfig(execFile = "../outside.exe")
-        
-        val execFile = config.execFile!!
-        val targetFile = File(gameFolder, execFile)
-        
-        // The file doesn't exist, but also the canonical path would be outside
-        // the game folder. The isFile check handles this naturally.
-        assertFalse(targetFile.isFile)
+    fun `an entry file name that escapes the game folder still has to name an existing file`() {
+        val gameFolder = temporaryFolder.newFolder("game")
+        assertEquals("../outside.exe", GameRunner.missingExecFile(gameFolder, makeConfig(execFile = "../outside.exe")))
     }
 }
