@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enginehost.dev/schema/conformance-manifest-v1.json",
+  "title": "Enginehost conformance manifest",
+  "description": "The manifest a plugin repository writes into the signed payload (enginehost-bundle.json) and that the conformance suite validates. It is a strict subset of the signed manifest in docs/engine-bundle-format.md; the conformance suite checks this shape, not the format doc.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "bundleId",
+    "engine",
+    "pluginVersion",
+    "apiVersion",
+    "entrypoint",
+    "origin",
+    "signing",
+    "dexFiles",
+    "capabilities",
+    "files"
+  ],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "bundleId": { "type": "string", "minLength": 1 },
+    "engine": { "type": "string", "minLength": 1 },
+    "pluginVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+    },
+    "apiVersion": { "type": "integer", "minimum": 1 },
+    "entrypoint": { "type": "string", "minLength": 1 },
+    "origin": { "type": "string", "minLength": 1 },
+    "signing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "publicKeySpki", "keySha256"],
+      "properties": {
+        "algorithm": { "const": "SHA256withECDSA" },
+        "publicKeySpki": { "type": "string", "minLength": 1 },
+        "keySha256": { "type": "string", "minLength": 1 }
+      }
+    },
+    "dexFiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "resourceApks": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "engineContext", "runtimeVersion"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "engineContext": { "type": "string", "minLength": 1 },
+          "runtimeVersion": { "type": "string", "minLength": 1 },
+          "supportedSeries": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "supportedRanges": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "supportedVersions": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "acceptsAnyEngineVersion": { "type": "boolean" },
+          "runtimeComponents": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "declaredOptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "type"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "repeats": { "type": "boolean" },
+          "type": {
+            "type": "string",
+            "enum": ["string", "number", "boolean", "choice", "path", "file"]
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["value", "label"],
+              "properties": {
+                "value": { "type": "string" },
+                "label": { "type": "string" }
+              }
+            }
+          },
+          "mimeTypes": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "payloadSha256": { "type": "string", "minLength": 1 },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "size", "sha256", "mode"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "size": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "minLength": 1 },
+          "mode": { "type": "integer", "minimum": 0, "maximum": 0o777 }
+        }
+      }
+    },
+    "source": { "type": "object" },
+    "licenses": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "notes": { "type": "string" },
+    "hostType": { "type": "string", "enum": ["android", "linux"] },
+    "isolatable": { "type": "boolean" }
+  }
+}
