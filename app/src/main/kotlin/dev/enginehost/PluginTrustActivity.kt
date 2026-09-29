@@ -210,6 +210,35 @@ class PluginTrustActivity : EnginehostActivity() {
         badge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, container))
         badge.setTextColor(ContextCompat.getColor(this, onContainer))
 
+        // The sandbox badge (owner, 2026-09-27), from the manifest's own
+        // flags: a person deciding what to keep sees which engines still run
+        // with the app's own access -- and a launch of one of those keeps
+        // asking, every time (LaunchActivity's sandbox consent).
+        val sandbox = card.findViewById<TextView>(R.id.sandboxBadge)
+        val sandboxSupported = plugin.supportsSandboxing
+        sandbox.text = getString(
+            R.string.sandbox_badge,
+            getString(
+                if (sandboxSupported) {
+                    R.string.sandbox_supported
+                } else {
+                    R.string.sandbox_unsupported
+                },
+            ),
+        )
+        sandbox.backgroundTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(
+                this,
+                if (sandboxSupported) R.color.eh_official_container else R.color.eh_caution_container,
+            ),
+        )
+        sandbox.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (sandboxSupported) R.color.eh_on_official_container else R.color.eh_on_caution_container,
+            ),
+        )
+
         card.findViewById<TextView>(R.id.originValue).text = "${getString(R.string.origin_label)}: " + if (thirdParty != null) {
             getString(R.string.origin_verified_third_party, plugin.origin, thirdParty.maintainerName)
         } else {
@@ -219,6 +248,26 @@ class PluginTrustActivity : EnginehostActivity() {
             "${getString(R.string.signer_label)}: ${plugin.signerIdentity}"
         card.findViewById<TextView>(R.id.trustState).text =
             "${getString(R.string.trust_state_label)}: ${getString(stateLabel(state))}"
+
+        // A pending decision on a line that already has one is the one time
+        // the question deserves more than "approve?": say what changed. The
+        // prior warning names a key change (a rotation, or someone else
+        // taking the repository over) or an origin change (a different
+        // publisher altogether); both still prompt exactly as before.
+        card.findViewById<TextView>(R.id.trustPriorWarning).apply {
+            if (state != PluginTrustState.PENDING) return@apply
+            when (trust.prior(plugin)) {
+                PluginTrustDecisions.Prior.DIFFERENT_KEY -> {
+                    text = getString(R.string.trust_key_changed_warning)
+                    visibility = View.VISIBLE
+                }
+                PluginTrustDecisions.Prior.DIFFERENT_ORIGIN -> {
+                    text = getString(R.string.trust_origin_changed_warning)
+                    visibility = View.VISIBLE
+                }
+                PluginTrustDecisions.Prior.NONE -> {}
+            }
+        }
 
         if (ultimateBuild) {
             // The primary developer's key proves origin more strongly than any

@@ -246,6 +246,17 @@ itself. Installing from the catalog keeps its behaviour and opens the
 same one-plugin decision screen whenever the carry-over does not cover
 the build.
 
+Each installed plugin card carries a sandbox badge from the manifest's
+own `isolatable` and `runtimeTransport` flags ("Sandbox: supported" /
+"not supported"), the same fact the launch-time consent asks about
+(docs/engine-sandbox.md). A plugin waiting for a decision whose signer
+or origin differs from the record its bundle ID already has says which
+changed: a key change can be a rotation or someone taking the repository
+over, an origin change a different publisher altogether. The question
+that is left after carry-over is therefore the one warning that matters,
+and the verified signer fingerprint and origin stay one tap away under
+Details on the same card.
+
 ## Updates
 
 Within one bundle ID, `pluginVersion` orders builds: a release carrying the

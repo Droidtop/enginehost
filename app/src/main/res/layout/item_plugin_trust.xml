@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One installed plugin: what it runs, its provenance badge, its build and
-    source on one line, and the decision. The identifiers a security review
-    wants (bundle id, verified origin, signer fingerprint) are one tap away
-    under Details rather than in everyone's face.
+    One installed plugin: what it runs, its provenance and sandbox badges,
+    its build and source on one line, and the decision. The identifiers a
+    security review wants (bundle id, verified origin, signer fingerprint)
+    are one tap away under Details rather than in everyone's face, and the
+    warnings (a developer build; a signer or origin that changed against
+    the record) sit between the facts and the buttons.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/Widget.Enginehost.Card"
@@ -30,6 +32,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/eh_space_s" />
+
+        <TextView
+            android:id="@+id/sandboxBadge"
+            style="@style/Widget.Enginehost.Badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_xs" />
 
     </LinearLayout>
 
@@ -93,6 +102,14 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/eh_space_m"
         android:text="@string/ultimate_warning"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/trustPriorWarning"
+        style="@style/Widget.Enginehost.Warning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
         android:visibility="gone" />
 
     <LinearLayout

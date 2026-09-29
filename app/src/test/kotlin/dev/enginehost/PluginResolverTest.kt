@@ -1,7 +1,9 @@
 package dev.enginehost
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -82,6 +84,19 @@ class PluginResolverTest {
         val resolved = resolve(listOf(pending), mapOf("godot-pending" to PluginTrustState.PENDING))
 
         assertEquals("godot-pending", resolved?.plugin?.bundleId)
+    }
+
+    @Test
+    fun `a plugin supports sandboxing only when isolatable on the plugin transport`() {
+        // The Plugins screen's sandbox badge reads this, and a launch of a
+        // plugin without it keeps asking (docs/engine-sandbox.md "Layer 2"):
+        // the format allows `isolatable` only together with the plugin-api
+        // transport, so the badge states what a launch will actually do.
+        assertTrue(plugin("godot-isolated").copy(isolatable = true).supportsSandboxing)
+        assertFalse(plugin("godot-plain").supportsSandboxing)
+        assertFalse(
+            plugin("godot-activity").copy(runtimeTransport = RUNTIME_TRANSPORT_ACTIVITY).supportsSandboxing,
+        )
     }
 
     @Test

@@ -44,6 +44,13 @@ data class InstalledPlugin(
     /** Compatibility alias while callers migrate from package terminology. */
     val packageName: String get() = bundleId
     val signerIdentity: String = signerFingerprints.sorted().joinToString("+")
+    /**
+     * Whether this plugin supports the isolated runtime (docs/engine-sandbox.md
+     * "Layer 2"): the manifest's `isolatable`, which the format only allows
+     * together with `runtimeTransport: plugin-api`. Shown as the sandbox
+     * badge on the Plugins screen.
+     */
+    val supportsSandboxing: Boolean = isolatable && runtimeTransport == RUNTIME_TRANSPORT_PLUGIN
 }
 
 data class ResolvedPlugin(val plugin: InstalledPlugin, val capability: EngineCapability)

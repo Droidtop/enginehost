@@ -122,6 +122,12 @@ relaunching the same game asks again, and a launch that finds nowhere to
 show the sheet (the screen already finishing) refuses rather than ever
 reading silence as consent. Enginehost only; droidtop is unaffected.
 
+The Plugins screen says which is which before any launch: every installed
+plugin card carries a badge read from the manifest's own `isolatable` and
+`runtimeTransport` flags ("Sandbox: supported" / "Sandbox: not
+supported"), so a person can see which engines still run with the app's
+own access while deciding what to keep installed.
+
 ### Audit: what breaks per plugin shape
 
 Today every v1 plugin, of both transports, runs inside one process,
