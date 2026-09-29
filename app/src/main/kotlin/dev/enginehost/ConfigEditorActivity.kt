@@ -191,11 +191,24 @@ class ConfigEditorActivity : EnginehostActivity() {
             .filter { it.isNotBlank() }.distinct().sorted()
 
     private fun pickEngine() {
-        pickFromList(R.string.pick_engine_title, engineChoices(), otherLabel = getString(R.string.other_custom)) {
+        pickFromList(
+            R.string.pick_engine_title,
+            engineChoices(),
+            otherLabel = getString(R.string.other_custom),
+            labelOf = EngineNames::family,
+        ) {
             engine = it.ifBlank { null }
             refreshEditors()
         }
     }
+
+    /** A variant as a person reads it ("VX Ace"); the raw id stays in enginehost.json. */
+    private fun variantLabel(context: String): String =
+        EngineNames.variant(engine.orEmpty(), context) ?: getString(R.string.variant_standard)
+
+    /** An embedded runtime map as a person reads it: "Ruby 1.9.2". */
+    private fun runtimeLabel(components: Map<String, Any?>): String =
+        components.entries.joinToString(" · ") { (name, version) -> "${EngineNames.componentName(name)} $version" }
 
     private fun pickContext() {
         pickFromList(
@@ -203,6 +216,7 @@ class ConfigEditorActivity : EnginehostActivity() {
             engine?.let(::contextChoices).orEmpty(),
             clearLabel = getString(R.string.value_not_set),
             otherLabel = getString(R.string.other_custom),
+            labelOf = ::variantLabel,
         ) {
             engineContext = it.ifBlank { null }
             refreshEditors()
@@ -224,15 +238,7 @@ class ConfigEditorActivity : EnginehostActivity() {
                     .filter { it.runtimeComponents.isNotEmpty() }
             }
             .map { capability ->
-                val label = buildString {
-                    append(capability.engineContext)
-                    append(" · runtime ").append(capability.runtimeVersion)
-                    append(" · ")
-                    append(
-                        capability.runtimeComponents.entries
-                            .joinToString { (name, version) -> "$name $version" },
-                    )
-                }
+                val label = "${variantLabel(capability.engineContext)} · ${runtimeLabel(capability.runtimeComponents)}"
                 label to capability.runtimeComponents
             }
             .distinctBy { it.first }
@@ -504,6 +510,8 @@ class ConfigEditorActivity : EnginehostActivity() {
         choices: List<String>,
         clearLabel: String? = null,
         otherLabel: String? = null,
+        /** How a stored id reads in the list; two ids that read the same are told apart by the id in brackets. */
+        labelOf: (String) -> String = { it },
         onPick: (String) -> Unit,
     ) {
         val labels = mutableListOf<String>()
@@ -512,8 +520,10 @@ class ConfigEditorActivity : EnginehostActivity() {
             labels += it
             actions += { onPick("") }
         }
+        val shown = choices.associateWith(labelOf)
         choices.forEach { choice ->
-            labels += choice
+            val label = shown.getValue(choice)
+            labels += if (shown.values.count { it == label } > 1) "$label ($choice)" else label
             actions += { onPick(choice) }
         }
         otherLabel?.let {
@@ -546,13 +556,11 @@ class ConfigEditorActivity : EnginehostActivity() {
 
     private fun refreshEditors() {
         val notSet = getString(R.string.value_not_set)
-        engineButton.text = engine ?: notSet
-        contextButton.text = engineContext ?: notSet
+        engineButton.text = engine?.let(EngineNames::family) ?: notSet
+        contextButton.text = engineContext?.let(::variantLabel) ?: notSet
         runtimesButton.text = runtimeRequirements
             ?.takeIf { it.length() > 0 }
-            ?.let { json ->
-                json.keys().asSequence().joinToString { name -> "$name ${json.optString(name)}" }
-            }
+            ?.let { json -> runtimeLabel(json.keys().asSequence().associateWith { json.optString(it) }) }
             ?: getString(R.string.runtime_none)
         pluginVersionButton.text = pluginVersionConstraint ?: getString(R.string.any_version)
         execFileButton.text = execFile ?: getString(R.string.exec_clear)
@@ -694,7 +702,7 @@ class ConfigEditorActivity : EnginehostActivity() {
                 ?.let { loadedDocument.put("saveFolder", it) }
         }
         refreshEditors()
-        val found = getString(R.string.detected_engine, detection.engine, detection.evidence)
+        val found = getString(R.string.detected_engine, EngineNames.line(detection.engine, detection.engineContext), detection.evidence)
         detectionLabel.text = if (versionField.text.isBlank()) {
             "$found\n${getString(R.string.engine_version_not_found)}"
         } else {

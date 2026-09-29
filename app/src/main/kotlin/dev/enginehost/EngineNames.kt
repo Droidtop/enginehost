@@ -90,6 +90,19 @@ object EngineNames {
     }
 
     /**
+     * The variant on its own, for a field that already says which engine it is
+     * under: "VX Ace" for RPG Maker's `vxace`, "4.1" for Godot 4.1. Null for
+     * the engine's default or implementation-detail context (Ren'Py
+     * "standard"), which the caller words itself.
+     */
+    fun variant(engine: String, engineContext: String?): String? {
+        val family = family(engine)
+        val line = line(engine, engineContext)
+        if (line == family) return null
+        return line.removePrefix(family).trim().ifEmpty { line }
+    }
+
+    /**
      * The compatibility line a game targets, e.g. "RPG Maker VX Ace", from
      * the engine and context vocabulary the bundles actually publish. A
      * context that is only an implementation detail (Ren'Py "standard",

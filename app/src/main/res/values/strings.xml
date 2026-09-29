@@ -265,7 +265,8 @@
     <string name="label_engine_context">Variant</string>
     <string name="label_engine_version">Engine version</string>
     <string name="engine_version_help">The engine version the game shipped with, read from the game files when possible.</string>
-    <string name="label_runtimes">Embedded runtime</string>
+    <string name="label_runtimes">Script engine the game carries</string>
+    <string name="variant_standard">Standard</string>
     <string name="label_plugin_versions">Plugin builds</string>
     <string name="label_exec_file">Entry file</string>
     <string name="label_options">Options</string>
@@ -273,7 +274,7 @@
     <string name="value_not_set">Not set</string>
     <string name="pick_engine_title">Engine</string>
     <string name="pick_context_title">Variant</string>
-    <string name="pick_runtimes_title">Embedded runtime</string>
+    <string name="pick_runtimes_title">Script engine the game carries</string>
     <string name="pick_plugin_version_title">Plugin builds</string>
     <string name="pick_exec_title">Entry file</string>
     <string name="other_custom">Other…</string>
