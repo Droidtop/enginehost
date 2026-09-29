@@ -201,10 +201,11 @@ object EngineBundleInstaller {
             existing.forEach { previous ->
                 require(previous.archiveSha256 != archiveSha) { "Bundle ${manifest.bundleId} is already installed" }
                 // Same line, different bytes: only a strictly newer build from
-                // the same origin may replace what is there. The replacement
-                // arrives unapproved -- trust decisions bind the exact archive
-                // digest and signer, so the user re-approves the new build
-                // before it ever executes.
+                // the same origin may replace what is there. Whether the
+                // replacement needs a new approval is decided by trust
+                // carry-over (PluginTrustStore), not here: same origin and
+                // signing key and it runs on the approval the line already
+                // has; anything else prompts before it executes.
                 require(PluginUpdates.isNewerBuildOf(previous, manifest)) {
                     "Bundle ${manifest.bundleId} build ${previous.info.pluginVersion} is already installed; " +
                         "only a newer build from the same repository can replace it"

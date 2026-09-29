@@ -43,8 +43,10 @@ is a strictly newer build than the one before it without anyone editing a
 file. A hand-written third component is therefore replaced in CI, and a
 deliberate bump is expressed in major or minor. How updates are
 discovered, gated and approved is docs/plugin-catalog.md's Updates section;
-the invariant that matters here is that replacing bytes never carries over
-approval, which is bound to the exact archive digest and signer.
+the invariant that matters here is that approval binds the bundle ID, the
+origin and the verified signer, so an update signed by the same key runs on
+the approval the line already has while a key or origin change is a new
+decision.
 
 Each capability declares the exact `runtimeVersion` bundled. Compatibility can
 be advertised as exact `supportedVersions`, inclusive `supportedRanges`, and/or

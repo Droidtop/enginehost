@@ -614,8 +614,9 @@ class PluginCatalogActivity : EnginehostActivity() {
             val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
             val installed = PluginRegistry.discover(this).filter { it.bundleId == plugin.bundleId }
             // A strictly newer build of an installed bundle is an update; the
-            // installer replaces in place and the trust prompt re-appears for
-            // the new archive before it can run.
+            // installer replaces in place, and whether it prompts is decided
+            // by trust carry-over: same origin and key and the approval the
+            // line already has covers it, anything else asks anew.
             val update = installed.isNotEmpty() &&
                 installed.all { PluginUpdates.isNewerBuildOf(it, plugin.manifest) }
             val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION

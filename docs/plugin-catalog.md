@@ -242,12 +242,15 @@ interval. The check has an off switch in settings, and turning it off stops
 all automatic update traffic.
 
 Optionally ("Install plugin updates automatically", off by default),
-Enginehost downloads and installs such an update itself. This replaces
-bytes, never trust: execution approval is bound to the exact archive digest
-and signer, so an automatically installed update is unapproved until the
-user approves that exact new archive -- the trust prompt appears before it
-runs anything, exactly as for a manual install. Approval is never inherited
-across an update, and there is no path that skips it.
+Enginehost downloads and installs such an update itself. An installed update
+runs only on approval, but approval is a decision about a whole line, not one
+archive (owner, 2026-09-27): it binds the bundle ID, the origin and the
+verified signing key, so an update from the same origin signed by the same
+key as the build the person approved is already approved -- no prompt. A
+different key (a rotation, or someone else taking the repository over) or a
+different origin is a new decision and prompts as before, with the Plugins
+screen saying which of the two changed. There is no path that skips a prompt
+a key or origin change requires.
 
 The Enginehost APK itself follows the same pattern one level up: CI
 publishes a rolling `latest` release whose `release-info.json` carries the
@@ -280,8 +283,10 @@ replace another bundle.
   index as above.
 - **Third party** means the person added the origin from droidtop-platforms'
   third-party list, and the bundle is signed by the key that listing names.
-- **Approved** means the user has allowed that exact bundle ID and signing-key
-  identity to execute inside Enginehost's runtime process.
+- **Approved** means the user has allowed that bundle ID, from that origin,
+  signed by that verified signing key, to execute inside Enginehost's
+  runtime process -- and with it every future build of that line signed by
+  the same key.
 
 A valid signature proves who published bytes; it does not grant those bytes
 Enginehost's permissions.

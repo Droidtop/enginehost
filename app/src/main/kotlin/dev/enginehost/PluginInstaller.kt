@@ -24,12 +24,7 @@ object PluginInstaller {
                 PendingPluginLaunchStore(activity).peek()?.let {
                     PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
                 }
-                activity.runOnUiThread {
-                    activity.startActivity(
-                        Intent(activity, PluginTrustActivity::class.java)
-                            .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
-                    )
-                }
+                activity.runOnUiThread { promptUnlessCarried(activity, installed) }
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }
@@ -53,16 +48,26 @@ object PluginInstaller {
                 PendingPluginLaunchStore(activity).peek()?.let {
                     PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
                 }
-                activity.runOnUiThread {
-                    activity.startActivity(
-                        Intent(activity, PluginTrustActivity::class.java)
-                            .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
-                    )
-                }
+                activity.runOnUiThread { promptUnlessCarried(activity, installed) }
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }
         }.start()
+    }
+
+    /**
+     * The one post-install decision point (owner, 2026-09-27): an approval
+     * carried from the line's earlier builds covers this one, and
+     * re-prompting for it is the noise the carry-over rule exists to remove;
+     * a new line, a different key or a different origin asks as always.
+     */
+    private fun promptUnlessCarried(activity: Activity, installed: InstalledPlugin) {
+        if (PluginTrustStore(activity).state(installed) != PluginTrustState.APPROVED) {
+            activity.startActivity(
+                Intent(activity, PluginTrustActivity::class.java)
+                    .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
+            )
+        }
     }
 
     /** Download (or reuse the cached copy of) a catalog entry's archive, quietly. */
