@@ -216,7 +216,7 @@ class ConfigEditorActivity : EnginehostActivity() {
             engine?.let(::contextChoices).orEmpty(),
             clearLabel = getString(R.string.value_not_set),
             otherLabel = getString(R.string.other_custom),
-            labelOf = ::variantLabel,
+            labelOf = this::variantLabel,
         ) {
             engineContext = it.ifBlank { null }
             refreshEditors()
@@ -557,7 +557,7 @@ class ConfigEditorActivity : EnginehostActivity() {
     private fun refreshEditors() {
         val notSet = getString(R.string.value_not_set)
         engineButton.text = engine?.let(EngineNames::family) ?: notSet
-        contextButton.text = engineContext?.let(::variantLabel) ?: notSet
+        contextButton.text = engineContext?.let(this::variantLabel) ?: notSet
         runtimesButton.text = runtimeRequirements
             ?.takeIf { it.length() > 0 }
             ?.let { json -> runtimeLabel(json.keys().asSequence().associateWith { json.optString(it) }) }
