@@ -23,7 +23,7 @@ class SaveLocationStore(context: Context) {
     fun root(): File = preferences.getString(KEY_ROOT, null)?.let(::File) ?: defaultRoot()
 
     /** The shared save folder, created and checked writable. */
-    fun saveRoot(): File = ensureUsable(File(root(), "saves"))
+    fun saveRoot(): File = saveRootFor(root())
 
     /** An engine family's own root, when one was chosen. */
     fun overrideFor(engine: String): File? = preferences.getString(KEY_ENGINE_PREFIX + engine, null)?.let(::File)
@@ -32,21 +32,17 @@ class SaveLocationStore(context: Context) {
     fun rootFor(engine: String): File = overrideFor(engine) ?: root()
 
     /** The save folder handed to an engine family's runtime, created and checked writable. */
-    fun saveRootFor(engine: String): File = ensureUsable(File(rootFor(engine), "saves"))
+    fun saveRootFor(engine: String): File = saveRootFor(rootFor(engine))
 
     /**
      * The folder handed to a game's runtime as what its system locations
      * mean: the engine's save root, or the game's own folder beneath it for
      * an engine whose system location has no per-game name ([SaveFolders]).
      * A `saveFolder` an older config names for any other engine is not used.
+     * The decision itself lives in a Context-free overload, so it can be
+     * unit tested.
      */
-    fun saveFolderFor(config: EngineConfig): File {
-        val root = saveRootFor(config.engine)
-        if (!SaveFolders.applies(config.engine, config.engineContext)) return root
-        val name = config.saveFolder ?: return root
-        require(SaveFolders.isPlainName(name)) { "A save folder must be a single folder name" }
-        return ensureUsable(File(root, name))
-    }
+    fun saveFolderFor(config: EngineConfig): File = saveFolderFor(saveRootFor(config.engine), config)
 
     /**
      * Saves an earlier Enginehost kept for this game in a folder of its own
@@ -92,11 +88,6 @@ class SaveLocationStore(context: Context) {
         require(canonical.isDirectory || canonical.mkdirs()) { "Could not create the selected folder" }
         require(canonical.canWrite()) { "The selected folder is not writable" }
         return canonical
-    }
-
-    private fun ensureUsable(folder: File): File = folder.also {
-        if (!it.isDirectory && !it.mkdirs()) throw UnusableSaveFolderException(it, "Could not create Enginehost's save folder")
-        if (!it.canWrite()) throw UnusableSaveFolderException(it, "Enginehost's save folder is not writable")
     }
 
     /** Legacy location used before the configurable shared save root existed. */
@@ -152,6 +143,35 @@ class SaveLocationStore(context: Context) {
         private const val KEY_ROOT = "root"
         private const val KEY_ENGINE_PREFIX = "root."
         private const val KEY_EARLIER_LEFT_PREFIX = "earlier-left."
+
+        /**
+         * The saves folder beneath a save root, created and checked writable.
+         * Free of the Context the store's own half needs to resolve the root,
+         * so the way a launch fails here -- a card that is not mounted, a
+         * root chosen once and gone since -- can be unit tested: this app
+         * has no Robolectric, so nothing holding a Context can be.
+         */
+        fun saveRootFor(root: File): File = ensureUsable(File(root, "saves"))
+
+        /**
+         * The decision the Context-bound half of this store makes, on a
+         * save root already resolved: the root itself, or the game's own
+         * folder beneath it, made usable. Kept free of the Context for the
+         * same reason as [saveRootFor], so both of its failure paths (an
+         * unusable root, a name that is not one plain folder name) are
+         * testable.
+         */
+        fun saveFolderFor(root: File, config: EngineConfig): File {
+            if (!SaveFolders.applies(config.engine, config.engineContext)) return root
+            val name = config.saveFolder ?: return root
+            require(SaveFolders.isPlainName(name)) { "A save folder must be a single folder name" }
+            return ensureUsable(File(root, name))
+        }
+
+        private fun ensureUsable(folder: File): File = folder.also {
+            if (!it.isDirectory && !it.mkdirs()) throw UnusableSaveFolderException(it, "Could not create Enginehost's save folder")
+            if (!it.canWrite()) throw UnusableSaveFolderException(it, "Enginehost's save folder is not writable")
+        }
     }
 }
 

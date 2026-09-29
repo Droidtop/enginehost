@@ -152,10 +152,8 @@ object GameRunner {
         // The config's execFile, when specified, must exist under the game folder.
         // Check upfront so a missing file produces a clear failure instead of a
         // later crash or silent black screen in the runtime.
-        config.execFile?.let { execFile ->
-            if (!File(gameFolder, execFile).isFile) {
-                return Plan.Failure(context.getString(R.string.launch_exec_file_missing, execFile), retry = false)
-            }
+        missingExecFile(gameFolder, config)?.let { execFile ->
+            return Plan.Failure(context.getString(R.string.launch_exec_file_missing, execFile), retry = false)
         }
         val runtimeClass = if (resolved.plugin.runtimeTransport == RUNTIME_TRANSPORT_ACTIVITY) {
             BundledActivityProxy::class.java
@@ -188,4 +186,15 @@ object GameRunner {
         }
         return Plan.Runtime(intent, config, resolved, saves.earlierSavesFor(config, gameFolder))
     }
+
+    /**
+     * The entry file [config] names that [gameFolder] does not have, for an
+     * engine that needs one file rather than the folder scanned: the reason
+     * this launch cannot run, or null when it may proceed. Held apart from
+     * [plan] and free of the Context so the preflight can be unit tested;
+     * this app has no Robolectric, so [plan] itself cannot be. [plan] turns
+     * a non-null answer into a Plan.Failure sentence, not a crash.
+     */
+    fun missingExecFile(gameFolder: File, config: EngineConfig): String? =
+        config.execFile?.takeIf { !File(gameFolder, it).isFile }
 }
