@@ -148,6 +148,7 @@ jobs:
             --metadata unsigned/bundle-metadata.json --payload unsigned/payload \
             --private-key "$key" \
             --repository-key-document "$KEY_DOCUMENT" \
+            --release-history-repo "$GITHUB_REPOSITORY" \
             --output "output/$BUNDLE" \
             --release-envelope output/enginehost-release.json \
             --public-key-document output/enginehost-public-key.json
