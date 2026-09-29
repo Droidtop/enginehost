@@ -167,7 +167,7 @@ object PluginRegistry {
         return InstalledPlugin(
             PluginInfo(
                 json.requiredString("engine"),
-                Version.parse(json.requiredString("pluginVersion")),
+                Version.parsePlugin(json.requiredString("pluginVersion")),
                 PluginCapabilitiesReader.parse(capabilityDocument.toString()),
                 engines = json.optJSONArray("engines")?.let { array -> (0 until array.length()).map { array.getString(it) } }.orEmpty(),
             ),

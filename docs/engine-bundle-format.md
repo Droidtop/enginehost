@@ -42,10 +42,11 @@ a declared version is `-1`, the next `-2`, and a new declared version starts
 again at `-1`. `dev.enginehost.Version` orders by X.Y.Z, then by N; a version
 with no `-N` compares as build 0, so `1.0.0-N` is the 1.0.0 release and not a
 pre-release. Versions published before this (`X.Y.<run>`, the CI run number
-in the third place) still parse and order by their dotted parts, which puts
-`1.0.57` above `1.0.0-99` and below `1.0.57-1`: a repository moving to the
-new form declares a version above its last legacy run number (or a new
-minor) so the first `-1` build is offered as an update. The one script
+in the third place) are read as `X.Y.0-<run>` (`Version.parsePlugin`, decided 2026-09-29,
+Droidtop/tracker#126): `1.0.57` is `1.0.0-57`, so a line's next patch bump
+(`1.0.1-1`, `0.9.1-1`) orders above every legacy build and is offered as an update.
+Only plugin bundle versions and the `pluginVersions` allowlist use this reading;
+engine and runtime versions do not. The one script
 that emits this form is `scripts/build-engine-bundle.py`, run by the pinned
 `sign-engine-bundle.yml` job: it reads the calling repository's releases and
 numbers the build (highest published `-N` for that declared version on that

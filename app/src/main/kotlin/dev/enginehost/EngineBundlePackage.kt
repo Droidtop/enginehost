@@ -148,7 +148,7 @@ object EngineBundleManifestReader {
             bundleId,
             PluginInfo(
                 json.requiredString("engine"),
-                Version.parse(json.requiredString("pluginVersion")),
+                Version.parsePlugin(json.requiredString("pluginVersion")),
                 PluginCapabilitiesReader.parse(capabilityDocument.toString()),
                 engines = engines,
             ),

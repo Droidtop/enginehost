@@ -13,11 +13,11 @@ package dev.enginehost
  * a pre-release below it, and it sorts above a bare 1.0.0.
  *
  * Legacy plugin versions are `X.Y.<run>`, where the CI run number sat in the
- * third place. They stay comparable by the same rule: X.Y.57 orders by its
- * dotted parts (so it is above 1.0.0-99) and below 1.0.57-1. The consequence
- * is that the first declared version of the new form must exceed the last
- * legacy run number in its third place (or bump the minor) to be offered as
- * an update over a legacy install.
+ * third place. [parsePlugin] reads one with no build, and a non-zero third
+ * place, as `X.Y.0-<run>`: 1.0.57 is 1.0.0-57, so 1.0.1-1 and 0.9.1-1 order
+ * above every legacy build of their line. Only plugin bundle versions and the
+ * plugin allowlist use it; engine and runtime versions ("4.5.1") go through
+ * [parse] untouched.
  */
 data class Version(val parts: List<Int>, val build: Int? = null) : Comparable<Version> {
     private fun canonicalParts(): List<Int> = parts.dropLastWhile { it == 0 }.ifEmpty { listOf(0) }
@@ -55,6 +55,13 @@ data class Version(val parts: List<Int>, val build: Int? = null) : Comparable<Ve
     }
 
     companion object {
+        /** A plugin bundle version: [parse], with a legacy `X.Y.<run>` read as `X.Y.0-<run>`. */
+        fun parsePlugin(raw: String): Version {
+            val v = parse(raw)
+            if (v.build != null || v.parts.size != 3 || v.parts[2] == 0) return v
+            return Version(listOf(v.parts[0], v.parts[1], 0), v.parts[2])
+        }
+
         fun parse(raw: String): Version {
             val normalized = raw.trim()
             require(normalized.matches(Regex("[0-9]+(?:\\.[0-9]+)*(?:-[0-9]+)?"))) {
@@ -116,11 +123,11 @@ class VersionConstraint private constructor(private val entries: List<Entry>) {
          * where both sides are versions ("1.2.0-1.4.0", "1.0.0-3-1.0.0-9").
          */
         private fun parseEntry(token: String): Entry {
-            runCatching { Version.parse(token) }.getOrNull()?.let { return Entry.Exact(it) }
+            runCatching { Version.parsePlugin(token) }.getOrNull()?.let { return Entry.Exact(it) }
             var dash = token.indexOf('-', startIndex = 1)
             while (dash > 0) {
-                val low = runCatching { Version.parse(token.substring(0, dash)) }.getOrNull()
-                val high = runCatching { Version.parse(token.substring(dash + 1)) }.getOrNull()
+                val low = runCatching { Version.parsePlugin(token.substring(0, dash)) }.getOrNull()
+                val high = runCatching { Version.parsePlugin(token.substring(dash + 1)) }.getOrNull()
                 if (low != null && high != null) {
                     require(low <= high) { "Version range must be ordered: $token" }
                     return Entry.Range(low, high)

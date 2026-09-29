@@ -33,11 +33,37 @@ class VersionBuildTest {
     }
 
     @Test
-    fun legacyRunNumberVersionsStayComparable() {
-        assertTrue(v("1.0.57") > v("1.0.0-99"))
-        assertTrue(v("1.0.57-1") > v("1.0.57"))
-        assertTrue(v("1.0.58") > v("1.0.57"))
-        assertTrue(v("1.1.0-1") > v("1.0.57"))
+    fun legacyRunNumberVersionsReadAsBuildsOfTheMinor() {
+        val p = Version.Companion::parsePlugin
+        assertEquals(p("1.0.0-57"), p("1.0.57"))
+        assertEquals(p("0.9.0-12"), p("0.9.12"))
+        assertTrue(p("1.0.58") > p("1.0.57"))
+        assertTrue(p("1.0.1-1") > p("1.0.57"))
+        assertTrue(p("0.9.1-1") > p("0.9.12"))
+        assertTrue(p("1.0.57") > p("1.0.0-56"))
+        assertTrue(p("1.1.0-1") > p("1.0.57"))
+    }
+
+    @Test
+    fun parsePluginLeavesOtherVersionsAlone() {
+        assertEquals(listOf(1, 0, 1), Version.parsePlugin("1.0.1-1").parts)
+        assertEquals(listOf(1, 0, 0), Version.parsePlugin("1.0.0").parts)
+        assertNull(Version.parsePlugin("1.0.0").build)
+        assertEquals(listOf(1, 2), Version.parsePlugin("1.2").parts)
+        assertEquals(listOf(1, 2, 3, 4), Version.parsePlugin("1.2.3.4").parts)
+    }
+
+    @Test
+    fun engineVersionsAreNotReinterpreted() {
+        assertEquals(listOf(4, 5, 1), v("4.5.1").parts)
+        assertNull(v("4.5.1").build)
+        assertTrue(v("4.5.1") > v("4.5.0-9"))
+    }
+
+    @Test
+    fun allowlistReadsLegacyPluginVersions() {
+        assertTrue(VersionConstraint.parse("1.0.57").matches(Version.parsePlugin("1.0.0-57")))
+        assertTrue(VersionConstraint.parse("1.0.50-1.0.60").matches(Version.parsePlugin("1.0.57")))
     }
 
     @Test
@@ -64,8 +90,8 @@ class VersionBuildTest {
     fun displaysTheBuildNumber() {
         assertEquals("1.0 · build 57", PluginVersions.display(v("1.0.0-57")))
         assertEquals("1.2.1 · build 3", PluginVersions.display(v("1.2.1-3")))
-        assertEquals("1.0 · build 21", PluginVersions.display(v("1.0.21")))
+        assertEquals("1.0 · build 21", PluginVersions.display(Version.parsePlugin("1.0.21")))
         assertEquals("57", PluginVersions.build(v("1.0.0-57")))
-        assertEquals("21", PluginVersions.build(v("1.0.21")))
+        assertEquals("21", PluginVersions.build(Version.parsePlugin("1.0.21")))
     }
 }
