@@ -1,6 +1,5 @@
 package dev.enginehost
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -66,13 +65,8 @@ class CallerAccessSettingsActivity : EnginehostActivity() {
         list.addView(row)
     }
 
-    private fun displayName(key: String): String {
-        if (key == LaunchCaller.UNKNOWN_KEY) return getString(R.string.caller_access_unknown_label)
-        val label = runCatching {
-            packageManager.getApplicationLabel(packageManager.getApplicationInfo(key, 0))
-        }.getOrNull()
-        return if (label != null) "$label ($key)" else key
-    }
+    private fun displayName(key: String): String =
+        if (key == LaunchCaller.UNKNOWN_KEY) getString(R.string.caller_access_unknown_label) else CallerLabels.of(packageManager, key)
 
     private fun offerChange(key: String, current: CallerDecision?) {
         Sheet(this)
@@ -96,23 +90,57 @@ class CallerAccessSettingsActivity : EnginehostActivity() {
             .show()
     }
 
-    /** Every launchable app on the device besides this one, droidtop and whatever already has a decision -- picking one starts deciding it. */
+    /**
+     * The apps worth deciding about, named by their own names and ranked:
+     * frontends and launchers, games, other installed apps. The device's own
+     * apps wait behind "Show every app" (Droidtop/tracker#33). Read off the
+     * main thread: it asks the package manager about every app.
+     */
     private fun offerAddCaller() {
         val decided = store.all().keys
-        val apps = runCatching {
-            val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            packageManager.queryIntentActivities(launcherIntent, 0)
-                .mapNotNull { it.activityInfo?.packageName }
-                .distinct()
-                .filter { it != packageName && it != TrustedCallers.DROIDTOP_PACKAGE && it !in decided }
-                .sortedBy { displayName(it) }
-        }.getOrDefault(emptyList())
-        if (apps.isEmpty()) {
+        Thread {
+            val apps = runCatching { CallerPicker.load(this, decided) }.getOrDefault(emptyList())
+            runOnUiThread {
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                showAddCaller(apps)
+            }
+        }.start()
+    }
+
+    private fun showAddCaller(all: List<CallerCandidate>) {
+        if (all.isEmpty()) {
             Sheet(this).title(R.string.launch_access_add).message(R.string.launch_access_add_empty).choice(R.string.ok) {}.show()
             return
         }
+        val relevant = CallerPicker.relevant(all)
         val sheet = Sheet(this).title(R.string.launch_access_add)
-        apps.forEach { pkg -> sheet.choice(displayName(pkg)) { offerChange(pkg, null) } }
+        if (relevant.isEmpty()) sheet.message(R.string.launch_access_add_none)
+        addCandidates(sheet, relevant)
+        if (relevant.size < all.size) {
+            sheet.choice(R.string.launch_access_show_all) { showEveryApp(all) }
+        }
         sheet.show()
+    }
+
+    private fun showEveryApp(all: List<CallerCandidate>) {
+        val sheet = Sheet(this).title(R.string.launch_access_add)
+        addCandidates(sheet, CallerPicker.everything(all))
+        sheet.show()
+    }
+
+    /** One row per app: its name, what kind of app it is when that helps, and its package id only where two apps share a name. */
+    private fun addCandidates(sheet: Sheet, candidates: List<CallerCandidate>) {
+        val labelCounts = candidates.groupingBy { it.label }.eachCount()
+        candidates.forEach { candidate ->
+            val role = when (candidate.role) {
+                CallerCandidate.Role.FRONTEND -> getString(R.string.caller_role_frontend)
+                CallerCandidate.Role.GAME -> getString(R.string.caller_role_game)
+                CallerCandidate.Role.BLOCKED_BY_DEFAULT -> getString(R.string.caller_role_blocked)
+                CallerCandidate.Role.APP -> null
+            }
+            val detail = listOfNotNull(role, candidate.packageName.takeIf { labelCounts.getValue(candidate.label) > 1 })
+                .joinToString(" · ").ifEmpty { null }
+            sheet.choice(candidate.label, detail) { offerChange(candidate.packageName, null) }
+        }
     }
 }

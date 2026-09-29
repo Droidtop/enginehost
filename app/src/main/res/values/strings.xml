@@ -442,6 +442,11 @@
     <string name="launch_access_empty">No app has an explicit decision yet. A browser or a known remote-access/automation tool is blocked by default; anything else is asked about the first time it tries.</string>
     <string name="launch_access_add">Add an app</string>
     <string name="launch_access_add_empty">Every launchable app on this device already has a decision.</string>
+    <string name="launch_access_add_none">No launchers, frontends or games found. Show every app to pick another.</string>
+    <string name="launch_access_show_all">Show every app</string>
+    <string name="caller_role_frontend">Launcher or frontend</string>
+    <string name="caller_role_game">Game</string>
+    <string name="caller_role_blocked">Blocked by default</string>
     <string name="launch_access_allow">Allow</string>
     <string name="launch_access_block">Block</string>
     <string name="launch_access_remove">Remove (ask each time)</string>

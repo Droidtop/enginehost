@@ -208,13 +208,19 @@ object CallerDefaults {
         else -> null
     }
 
-    /** The real, on-device [resolvesHttpHandler]: does [packageName] resolve `ACTION_VIEW` for a plain `http` URL. */
-    fun resolvesHttpHandlerOn(pm: PackageManager): (String) -> Boolean = { packageName ->
-        val probe = Intent(Intent.ACTION_VIEW, Uri.parse("http://example.com"))
-        runCatching {
-            pm.queryIntentActivities(probe, PackageManager.MATCH_DEFAULT_ONLY)
-                .any { it.activityInfo?.packageName == packageName }
-        }.getOrDefault(false)
+    /**
+     * The real, on-device [resolvesHttpHandler]: does [packageName] resolve
+     * `ACTION_VIEW` for a plain `http` URL. The handlers are asked for once,
+     * on the first check, however many packages are tested with it.
+     */
+    fun resolvesHttpHandlerOn(pm: PackageManager): (String) -> Boolean {
+        val handlers by lazy {
+            val probe = Intent(Intent.ACTION_VIEW, Uri.parse("http://example.com"))
+            runCatching {
+                pm.queryIntentActivities(probe, PackageManager.MATCH_DEFAULT_ONLY).mapNotNull { it.activityInfo?.packageName }.toSet()
+            }.getOrDefault(emptySet())
+        }
+        return { packageName -> packageName in handlers }
     }
 }
 
