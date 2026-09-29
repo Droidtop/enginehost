@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Plugins screen: the plugins that are installed come first and are
+    the screen's primary content, the Updates section follows, and Add
+    plugins opens the catalog and its sources for adding new ones. The
+    same layout serves the one-plugin decision screen (EXTRA_BUNDLE),
+    which renders with the section and the Add button hidden.
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -64,13 +71,42 @@
             android:textAppearance="@style/TextAppearance.Enginehost.Body"
             android:visibility="gone" />
 
+        <LinearLayout
+            android:id="@+id/updatesSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_l"
+                android:text="@string/updates_section"
+                android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+            <Button
+                android:id="@+id/updateAllButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/update_all" />
+
+            <LinearLayout
+                android:id="@+id/updateList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:orientation="vertical" />
+
+        </LinearLayout>
+
         <Button
             android:id="@+id/openCatalogButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_m"
-            android:text="@string/open_plugin_catalog"
-            android:visibility="gone" />
+            android:text="@string/open_plugin_catalog" />
 
     </LinearLayout>
 </ScrollView>

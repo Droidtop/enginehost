@@ -596,6 +596,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                                 build,
                                 onError = { message -> view.isEnabled = true; toast(message) },
                                 onStatus = { status -> runOnUiThread { statusText.text = status } },
+                                onInstalled = { runOnUiThread { render() } },
                             )
                         }
                     }
@@ -657,6 +658,9 @@ class PluginCatalogActivity : EnginehostActivity() {
                         }
                     },
                     onStatus = { status -> runOnUiThread { button.text = status } },
+                    // A carried update installs without opening the trust
+                    // screen, so this screen learns it happened here.
+                    onInstalled = { runOnUiThread { render() } },
                 )
             }
             actions.addView(button)

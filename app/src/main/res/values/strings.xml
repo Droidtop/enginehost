@@ -71,10 +71,10 @@
     <string name="installing">Installing…</string>
 
     <!-- Plugin trust -->
-    <string name="trust_title">Installed plugins</string>
+    <string name="trust_title">Plugins</string>
     <string name="trust_intro">Plugins run inside Enginehost with its file access. Approve the ones you trust.</string>
     <string name="trust_empty">No plugins installed yet.</string>
-    <string name="open_plugin_catalog">Browse plugins</string>
+    <string name="open_plugin_catalog">Add plugins</string>
     <string name="badge_official">Official</string>
     <string name="badge_ultimate">Ultimate</string>
     <string name="badge_community">Community</string>
@@ -94,7 +94,7 @@
     <string name="uninstall">Uninstall</string>
 
     <!-- Plugin catalog -->
-    <string name="catalog_title">Plugins</string>
+    <string name="catalog_title">Add plugins</string>
     <string name="catalog_intro">One plugin per engine. Install what your games need.</string>
     <string name="origin_url_hint">https://github.com/owner/plugin-repo</string>
     <string name="add_custom_origin">Add</string>
@@ -333,6 +333,7 @@
     <string name="engine_family">Engine</string>
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
     <string name="update_to_build">Update to build %1$s</string>
+    <string name="update_all">Update all</string>
     <string name="older_than_installed">Older than installed</string>
     <string name="updates_section">Updates</string>
     <string name="updates_frequency_label">Check for updates</string>

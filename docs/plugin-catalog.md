@@ -93,7 +93,7 @@ the certificate the offline root key made for that exact origin. On every
 fetch of the index, Enginehost verifies each certificate against the root
 compiled into the APK and adds the origin as official when it verifies
 (`PluginOriginStore.learnOfficial`): a repository Droidtop registers after
-this build shipped appears on the Plugins screen at the next refresh, with
+this build shipped appears in the catalog at the next refresh, with
 the Official badge, and cannot be removed by the person, exactly like a
 compiled-in one. The index's own `trust` field is not consulted; only the
 root's signature makes an origin official, so nothing the index says (or
@@ -161,9 +161,9 @@ and the list changes only by a reviewed edit to `third-party.json`.
 droidtop-platforms keeps a list of third-party maintainers
 (`plugins/third-party.json`: who they are, their GitHub account, their keys,
 their repositories), and their registered repositories are in the index
-marked `third-party` with the maintainer and the listed key. The Plugins
-screen offers them under **Quick add third-party repositories**, in the
-Sources fold (whose toggle says how many are waiting to be added). Adding one
+marked `third-party` with the maintainer and the listed key. The catalog's
+Sources fold offers them under **Quick add third-party repositories** (whose
+toggle says how many are waiting to be added). Adding one
 shows a trust prompt naming the maintainer and the key's fingerprint and
 saying that Droidtop has not reviewed the plugins; accepting fetches the key
 document the repository itself publishes and pins it only when it is the key
@@ -173,7 +173,7 @@ and a repository dropped from the list stays until the person removes it,
 marked "No longer listed".
 
 Its bundles are **Third party** wherever trust is shown: the badge on the
-Installed plugins screen with the maintainer's name, and the release card's
+Plugins screen with the maintainer's name, and the release card's
 meta line in the store. They are never Official, and like every other bundle
 each one waits for the person's approval before it runs. Why the design looks
 like this, and what it does not protect against:
@@ -222,6 +222,29 @@ committed at that run's own commit, requires an `--evidence` statement of
 what was seen on hardware (written verbatim into the release notes -- never
 invented), assembles the release as a draft, and publishes it only when all
 assets are up. Anything not yet proven stays a CI artifact.
+
+## The Plugins screen
+
+Home's Plugins button and its update notice both open the screen of what
+is installed (owner, 2026-09-27), not the store. Installed plugins lead:
+each card carries its provenance badge, build and origin, trust state and
+the decision itself. Below them an Updates section offers **Update all**
+and one update per pending build, and **Add plugins** opens the catalog
+and its sources for adding new ones. The Updates section answers from
+the same cached catalogs and the same `PluginUpdates.updatesFor` as
+Home's notice, refreshed by the same pass when those catalogs are stale,
+so the two screens cannot disagree about whether updates exist.
+
+The flow is flat: one screen per decision, and each decision returns to
+the Plugins list when made. An update the line's approval already covers
+runs with no further screen; one whose key or origin changed opens the
+single-plugin decision screen (the same screen filtered to that bundle),
+and deciding there finishes back on the list instead of leaving a second
+screen to Back out of. Update all never stacks decision screens:
+everything it installs that still needs a decision waits on the list
+itself. Installing from the catalog keeps its behaviour and opens the
+same one-plugin decision screen whenever the carry-over does not cover
+the build.
 
 ## Updates
 

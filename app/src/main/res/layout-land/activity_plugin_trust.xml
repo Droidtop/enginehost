@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape plugin trust. Two cards per row rather than one full width card,
-    which still leaves each card wider than a portrait phone screen, so the
-    density gain here costs the security surface nothing: badge, fingerprint
-    and Ultimate warning all keep their portrait treatment.
+    Landscape Plugins screen. Installed plugins are two cards per row, and
+    the Updates section below keeps one row per pending update; each card
+    stays wider than a portrait phone screen, so the density gain costs
+    the provenance surface nothing.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -71,13 +71,42 @@
             android:textAppearance="@style/TextAppearance.Enginehost.Body"
             android:visibility="gone" />
 
+        <LinearLayout
+            android:id="@+id/updatesSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_l"
+                android:text="@string/updates_section"
+                android:textAppearance="@style/TextAppearance.Enginehost.SectionTitle" />
+
+            <Button
+                android:id="@+id/updateAllButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/update_all" />
+
+            <LinearLayout
+                android:id="@+id/updateList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:orientation="vertical" />
+
+        </LinearLayout>
+
         <Button
             android:id="@+id/openCatalogButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_m"
-            android:text="@string/open_plugin_catalog"
-            android:visibility="gone" />
+            android:text="@string/open_plugin_catalog" />
 
     </LinearLayout>
 </ScrollView>

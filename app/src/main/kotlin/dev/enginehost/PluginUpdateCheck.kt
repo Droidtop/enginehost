@@ -84,8 +84,13 @@ class PluginUpdateCheck(private val context: Context) {
         }.start()
     }
 
-    /** Whether any installed plugin's catalog is older than [CATALOG_MAX_AGE_MS]. */
-    private fun catalogsStale(): Boolean {
+    /**
+     * Whether any installed plugin's catalog is older than
+     * [CATALOG_MAX_AGE_MS]. What a screen that shows pending updates reads
+     * before deciding to run the pass: [pending] alone would answer from a
+     * catalog that may no longer describe what is published.
+     */
+    fun catalogsStale(): Boolean {
         val cache = PluginCatalogCache(context)
         return PluginRegistry.discover(context).map { it.origin }.filter(String::isNotBlank).distinct()
             .any { cache.isStale(it, CATALOG_MAX_AGE_MS) }

@@ -104,7 +104,7 @@
                     android:text="@string/add_games" />
 
                 <Button
-                    android:id="@+id/pluginCatalogButton"
+                    android:id="@+id/pluginsButton"
                     style="@style/Widget.Enginehost.Button.Nav"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

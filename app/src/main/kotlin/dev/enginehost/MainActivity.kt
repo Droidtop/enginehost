@@ -49,8 +49,11 @@ class MainActivity : EnginehostActivity() {
         findViewById<Button>(R.id.enginehostSettingsButton).setOnClickListener {
             startActivity(Intent(this, EnginehostSettingsActivity::class.java))
         }
-        findViewById<Button>(R.id.pluginCatalogButton).setOnClickListener {
-            startActivity(Intent(this, PluginCatalogActivity::class.java))
+        // The Plugins screen: installed plugins first, updates and adding
+        // new ones from there (owner, 2026-09-27). The catalog itself is a
+        // destination of that screen's Add button, not of Home.
+        findViewById<Button>(R.id.pluginsButton).setOnClickListener {
+            startActivity(Intent(this, PluginTrustActivity::class.java))
         }
         // Y is "play this game" only while a game has focus, so the hint
         // row follows focus.
@@ -86,7 +89,10 @@ class MainActivity : EnginehostActivity() {
                         setOnClickListener {
                             startActivity(
                                 if (pending.isNotEmpty()) {
-                                    Intent(this@MainActivity, PluginCatalogActivity::class.java)
+                                    // The Plugins screen's Updates section is
+                                    // where a pending update is acted on; the
+                                    // catalog is only where new ones come from.
+                                    Intent(this@MainActivity, PluginTrustActivity::class.java)
                                 } else {
                                     Intent(this@MainActivity, EnginehostSettingsActivity::class.java)
                                 },

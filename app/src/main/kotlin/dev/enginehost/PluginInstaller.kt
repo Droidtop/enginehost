@@ -11,11 +11,18 @@ import java.net.URL
 
 /** Downloads, verifies and atomically installs a self-contained engine bundle. */
 object PluginInstaller {
+    /**
+     * @param onInstalled called on the UI thread when the bundle is in place
+     *   and the carried-approval check has run -- the point for a caller
+     *   that is staying on screen to re-render what it shows about the
+     *   plugin.
+     */
     fun install(
         activity: Activity,
         plugin: AvailablePlugin,
         onError: (String) -> Unit,
         onStatus: ((String) -> Unit)? = null,
+        onInstalled: (() -> Unit)? = null,
     ) {
         Thread {
             runCatching {
@@ -24,7 +31,10 @@ object PluginInstaller {
                 PendingPluginLaunchStore(activity).peek()?.let {
                     PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
                 }
-                activity.runOnUiThread { promptUnlessCarried(activity, installed) }
+                activity.runOnUiThread {
+                    promptUnlessCarried(activity, installed)
+                    onInstalled?.invoke()
+                }
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }

@@ -6,19 +6,40 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 
-/** First-class approval UI for code that will execute with Enginehost's permissions. */
+/**
+ * The Plugins screen (owner, 2026-09-27): what is installed comes first and
+ * is the screen's primary content, the Updates section below offers what
+ * those plugins may become (Update all, or one build at a time), and Add
+ * plugins opens the catalog and its sources for adding new ones.
+ *
+ * The same screen serves as the one decision surface for a single bundle
+ * (EXTRA_BUNDLE): it then shows exactly that plugin and nothing else, and
+ * finishing the decision returns to the Plugins list rather than stacking
+ * another screen on top of it.
+ */
 class PluginTrustActivity : EnginehostActivity() {
-    /** The first plugin to decide on; the catalog when there is none. */
+    /** The first plugin to act on; the Updates section or Add plugins when there is none. */
     override fun primaryAction(): View? =
-        firstSelectable(findViewById(R.id.pluginList)) ?: findViewById<View>(R.id.openCatalogButton)?.takeIf { it.isShown }
+        firstSelectable(findViewById(R.id.pluginList))
+            ?: firstSelectable(findViewById(R.id.updateList))
+            ?: findViewById<View>(R.id.openCatalogButton)?.takeIf { it.isShown }
 
     private lateinit var list: ViewGroup
     private lateinit var emptyState: TextView
     private lateinit var openCatalogButton: Button
+    private lateinit var updatesSection: View
+    private lateinit var updateAllButton: Button
+    private lateinit var updateList: LinearLayout
     private lateinit var trust: PluginTrustStore
+
+    /** The last answer to [refreshUpdates]; the Updates section renders from it. */
+    private var pendingUpdates: List<AvailablePlugin> = emptyList()
+    private var updating = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,27 +50,130 @@ class PluginTrustActivity : EnginehostActivity() {
         list = findViewById(R.id.pluginList)
         emptyState = findViewById(R.id.emptyState)
         openCatalogButton = findViewById(R.id.openCatalogButton)
+        updatesSection = findViewById(R.id.updatesSection)
+        updateAllButton = findViewById(R.id.updateAllButton)
+        updateList = findViewById(R.id.updateList)
         openCatalogButton.setOnClickListener {
             startActivity(Intent(this, PluginCatalogActivity::class.java))
         }
+        updateAllButton.setOnClickListener { updateAll() }
     }
 
     override fun onResume() {
         super.onResume()
         render()
+        refreshUpdates()
     }
 
+    /** One render path for the whole screen, so no part can disagree with another. */
     private fun render() {
+        renderInstalled()
+        renderUpdates()
+    }
+
+    private fun renderInstalled() {
         list.removeAllViews()
         val requestedPackage = intent.getStringExtra(EXTRA_BUNDLE)
+        // A decision screen shows exactly its plugin: nothing to add beside
+        // the question it exists to ask.
+        openCatalogButton.visibility = if (requestedPackage == null) View.VISIBLE else View.GONE
         val plugins = PluginRegistry.discover(this).filter {
             requestedPackage == null || it.bundleId == requestedPackage
         }
-        val empty = plugins.isEmpty()
-        emptyState.visibility = if (empty) View.VISIBLE else View.GONE
-        openCatalogButton.visibility = if (empty) View.VISIBLE else View.GONE
+        emptyState.visibility = if (plugins.isEmpty()) View.VISIBLE else View.GONE
         plugins.sortedWith(compareBy({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId }))
             .forEach { plugin -> addPlugin(plugin) }
+    }
+
+    private fun renderUpdates() {
+        // A decision screen shows exactly its plugin: no Updates section to
+        // wander into mid-decision, and no Add plugins beside the question.
+        val deciding = intent.hasExtra(EXTRA_BUNDLE)
+        updatesSection.visibility =
+            if (!deciding && pendingUpdates.isNotEmpty()) View.VISIBLE else View.GONE
+        updateAllButton.isEnabled = !updating && pendingUpdates.isNotEmpty()
+        updateAllButton.setText(if (updating) R.string.installing else R.string.update_all)
+        updateList.removeAllViews()
+        pendingUpdates.forEach { update -> addUpdateRow(update) }
+    }
+
+    /**
+     * The Updates section's data, derived the way Home's notice is
+     * (PluginUpdates.updatesFor over the cached catalogs), refreshed first
+     * when those caches are older than this screen accepts -- the same pass
+     * PluginUpdateCheck runs for Home, so the two screens cannot disagree
+     * about whether updates exist.
+     */
+    private fun refreshUpdates() {
+        val check = PluginUpdateCheck(this)
+        Thread {
+            if (check.catalogsStale()) {
+                check.run { pending -> runOnUiThread { pendingUpdates = pending; render() } }
+            } else {
+                val pending = check.pending()
+                runOnUiThread { pendingUpdates = pending; render() }
+            }
+        }.start()
+    }
+
+    private fun addUpdateRow(update: AvailablePlugin) {
+        val row = layoutInflater.inflate(R.layout.item_plugin_update, updateList, false)
+        row.findViewById<TextView>(R.id.updateTitle).text =
+            EngineNames.engines(update.manifest).joinToString(" · ")
+        row.findViewById<TextView>(R.id.updateMeta).text = getString(
+            R.string.trust_build_line,
+            PluginVersions.display(update.info.pluginVersion),
+            update.origin.removePrefix("https://github.com/"),
+        )
+        val button = row.findViewById<Button>(R.id.updateButton)
+        button.text = getString(R.string.update_to_build, PluginVersions.build(update.info.pluginVersion))
+        button.isEnabled = !updating
+        button.setOnClickListener { view ->
+            // One decision per screen: the row installs its update, and only
+            // a key or origin the line's approval does not cover opens the
+            // one-plugin decision screen, which returns here when decided.
+            view.isEnabled = false
+            PluginInstaller.install(
+                this,
+                update,
+                onError = { message -> runOnUiThread { view.isEnabled = true; toast(message) } },
+                onStatus = { status -> runOnUiThread { button.text = status } },
+                onInstalled = {
+                    runOnUiThread {
+                        pendingUpdates = pendingUpdates.filterNot { pending -> pending.bundleId == update.bundleId }
+                        render()
+                    }
+                },
+            )
+        }
+        updateList.addView(row)
+    }
+
+    /**
+     * Every pending update, installed in one pass. Deliberately
+     * prompt-free: the carry-over rule approves what it covers, and
+     * anything whose key or origin changed appears on this very list as a
+     * decision to make in place -- never as a stack of screens to Back out
+     * of.
+     */
+    private fun updateAll() {
+        if (updating || pendingUpdates.isEmpty()) return
+        updating = true
+        renderUpdates()
+        val updates = pendingUpdates
+        Thread {
+            val failures = updates.mapNotNull { update ->
+                runCatching {
+                    val archive = PluginInstaller.fetch(this, update)
+                    EngineBundleInstaller.install(this, archive, update.manifest)
+                }.exceptionOrNull()?.let { failure -> "${update.manifest.assetName}: ${failure.message}" }
+            }
+            runOnUiThread {
+                updating = false
+                if (failures.isNotEmpty()) toast(failures.joinToString("\n"))
+                refreshUpdates()
+            }
+        }.start()
     }
 
     private fun addPlugin(plugin: InstalledPlugin) {
@@ -108,17 +232,26 @@ class PluginTrustActivity : EnginehostActivity() {
             setOnClickListener {
                 trust.approve(plugin)
                 val pending = PendingPluginLaunchStore(this@PluginTrustActivity).consumeFor(plugin.bundleId)
-                if (pending != null) {
-                    GameRunner.run(this@PluginTrustActivity, java.io.File(pending.gamePath), pending.callerConfig, testing = pending.testing)
-                    finish()
-                } else {
-                    render()
+                when {
+                    pending != null -> {
+                        GameRunner.run(this@PluginTrustActivity, java.io.File(pending.gamePath), pending.callerConfig, testing = pending.testing)
+                        finish()
+                    }
+                    // A decision screen exists to make exactly one decision;
+                    // made, it returns to the Plugins list (or to wherever
+                    // the install came from) instead of leaving a second
+                    // screen to Back out of.
+                    intent.hasExtra(EXTRA_BUNDLE) -> finish()
+                    else -> render()
                 }
             }
         }
         card.findViewById<Button>(R.id.denyButton).apply {
             isEnabled = state != PluginTrustState.DENIED && plugin.signerIdentity.isNotBlank()
-            setOnClickListener { trust.deny(plugin); render() }
+            setOnClickListener {
+                trust.deny(plugin)
+                if (intent.hasExtra(EXTRA_BUNDLE)) finish() else render()
+            }
         }
         card.findViewById<Button>(R.id.uninstallButton).setOnClickListener {
             PluginRegistry.uninstall(this@PluginTrustActivity, plugin.bundleId)
@@ -132,6 +265,8 @@ class PluginTrustActivity : EnginehostActivity() {
         PluginTrustState.APPROVED -> R.string.trust_state_approved
         PluginTrustState.DENIED -> R.string.trust_state_denied
     }
+
+    private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
         const val EXTRA_BUNDLE = "dev.enginehost.trust.BUNDLE"
