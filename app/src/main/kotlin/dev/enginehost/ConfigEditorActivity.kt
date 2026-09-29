@@ -577,8 +577,7 @@ class ConfigEditorActivity : EnginehostActivity() {
             engineContext?.let { "variant: $it" },
             runtimeRequirements?.takeIf { it.length() > 0 }?.let { "runtimes: $it" },
             pluginVersionConstraint?.let { "plugin versions: $it" },
-        ).ifEmpty { listOf(getString(R.string.value_not_set)) }.joinToString("
-")
+        ).ifEmpty { listOf(getString(R.string.value_not_set)) }.joinToString("\n")
         renderOptions()
     }
 
