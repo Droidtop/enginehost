@@ -81,12 +81,9 @@
 
     <TextView
         android:id="@+id/releaseOlderToggle"
+        style="@style/Widget.Enginehost.Link"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:minHeight="@dimen/eh_touch_target"
-        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-        android:textColor="@color/eh_accent"
         android:visibility="gone" />
 
     <LinearLayout

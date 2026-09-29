@@ -130,6 +130,22 @@
         <item name="android:clickable">true</item>
     </style>
 
+    <!--
+        A text link (Details, Advanced): accent text on the row's ground.
+        The ground is the point: the focus idiom lives in each tappable's
+        own drawable, and a link with none showed the pad's ring nothing
+        to land on.
+    -->
+    <style name="Widget.Enginehost.Link" parent="">
+        <item name="android:background">@drawable/eh_row_bg</item>
+        <item name="android:minHeight">@dimen/eh_touch_target</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingLeft">6dp</item>
+        <item name="android:paddingRight">6dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.Enginehost.Caption</item>
+        <item name="android:textColor">@color/eh_accent</item>
+    </style>
+
     <!-- A chip: the engine family on a game card, coloured in code by family. -->
     <style name="Widget.Enginehost.Chip" parent="">
         <item name="android:background">@drawable/eh_chip_bg</item>

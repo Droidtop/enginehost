@@ -208,16 +208,11 @@
 
             <TextView
                 android:id="@+id/advancedToggle"
+                style="@style/Widget.Enginehost.Link"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/eh_space_s"
-                android:minHeight="@dimen/eh_touch_target"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:text="@string/advanced_show"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-                android:textColor="@color/eh_accent" />
+                android:text="@string/advanced_show" />
 
             <TextView
                 android:id="@+id/advancedIds"

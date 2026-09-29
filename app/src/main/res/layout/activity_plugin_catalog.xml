@@ -124,14 +124,11 @@
 
         <TextView
             android:id="@+id/sourcesToggle"
+            style="@style/Widget.Enginehost.Link"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_m"
-            android:minHeight="@dimen/eh_touch_target"
-            android:gravity="center_vertical"
-            android:text="@string/origins_heading"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-            android:textColor="@color/eh_accent" />
+            android:text="@string/origins_heading" />
 
         <LinearLayout
             android:id="@+id/sourcesPanel"
