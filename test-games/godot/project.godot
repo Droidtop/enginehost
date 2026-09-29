@@ -1,0 +1,21 @@
+; Enginehost conformance test game for the godot plugin.
+;
+; MIT licence -- test-games/LICENSE.  Godot 4 script and scene syntax, no
+; imported assets, so the same tree runs both as an unexported project
+; (project.godot, one of the two game shapes the plugin accepts) and as an
+; exported .pck for any of the plugin's 4.x lines.  See
+; docs/conformance-test-games.md.
+
+config_version=5
+
+[application]
+
+config/name="Enginehost conformance test"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.0")
+
+[rendering]
+
+; The compatibility renderer (GLES3) keeps the fixture off Vulkan, which
+; some emulators and older GPUs do not provide.
+renderer/rendering_method="gl_compatibility"
