@@ -54,6 +54,15 @@
             android:text="@string/trust_intro"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
+        <!-- What is installed leads; updates follow it, so the screen opens
+             on the person's own plugins rather than on churn. -->
+        <LinearLayout
+            android:id="@+id/pluginList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:orientation="vertical" />
+
         <LinearLayout
             android:id="@+id/updatesPanel"
             android:layout_width="match_parent"
@@ -61,13 +70,6 @@
             android:layout_marginTop="@dimen/eh_space_m"
             android:orientation="vertical"
             android:visibility="gone" />
-
-        <LinearLayout
-            android:id="@+id/pluginList"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_m"
-            android:orientation="vertical" />
 
         <TextView
             android:id="@+id/emptyState"

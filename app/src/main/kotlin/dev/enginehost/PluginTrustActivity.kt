@@ -15,9 +15,9 @@ import androidx.core.content.ContextCompat
  * that will execute with Enginehost's permissions. Add opens the catalog.
  */
 class PluginTrustActivity : EnginehostActivity() {
-    /** The first update, else the first plugin to decide on; Add when there is none. */
+    /** The first plugin to decide on, else the first update; Add when there is neither. */
     override fun primaryAction(): View? =
-        firstSelectable(findViewById(R.id.updatesPanel)) ?: firstSelectable(findViewById(R.id.pluginList))
+        firstSelectable(findViewById(R.id.pluginList)) ?: firstSelectable(findViewById(R.id.updatesPanel))
             ?: findViewById(R.id.openCatalogButton)
 
     private lateinit var list: ViewGroup
@@ -90,25 +90,29 @@ class PluginTrustActivity : EnginehostActivity() {
         val rows = pending.map { update ->
             val row = layoutInflater.inflate(R.layout.item_release_build, updatesPanel, false)
             val plugin = installed.firstOrNull { it.bundleId == update.bundleId }
-            val name = plugin?.let { EngineNames.family(it.info.engine) } ?: EngineNames.family(update.info.engine)
-            row.findViewById<TextView>(R.id.buildLabel).text =
-                getString(R.string.update_row, name, PluginVersions.build(update.info.pluginVersion))
+            // The line the installed cards above use, then the version this
+            // row installs: "Ren'Py 8.5.x: 1.0.1-2" tells two lines of one
+            // engine apart, where "Ren'Py: build N" did not.
+            row.findViewById<TextView>(R.id.buildLabel).text = getString(
+                R.string.update_row,
+                lineName(plugin?.info ?: update.info),
+                update.info.pluginVersion.toString(),
+            )
             val button = row.findViewById<Button>(R.id.buildInstallButton)
             button.setText(R.string.update)
             buttons += button
             updatesPanel.addView(row)
             update to button
         }
-        // Update all is one more button over the same per-row path, offered once there is a choice to skip.
-        val all = if (pending.size > 1) {
-            (layoutInflater.inflate(R.layout.item_primary_button, updatesPanel, false) as Button).also {
-                it.setText(R.string.update_all)
-                updatesPanel.addView(it)
-                buttons += it
-            }
-        } else null
+        // Update all is one press over the same per-row path, offered whenever
+        // there is anything to update.
+        val all = (layoutInflater.inflate(R.layout.item_primary_button, updatesPanel, false) as Button).also {
+            it.setText(R.string.update_all)
+            updatesPanel.addView(it)
+            buttons += it
+        }
         rows.forEach { (update, button) -> button.setOnClickListener { runUpdates(listOf(update), buttons, button) } }
-        all?.setOnClickListener { runUpdates(pending, buttons, all) }
+        all.setOnClickListener { runUpdates(pending, buttons, all) }
     }
 
     /** Installs [updates] one after another, then redraws; the button pressed says what is happening. */
@@ -148,9 +152,7 @@ class PluginTrustActivity : EnginehostActivity() {
 
         // Named the way the catalog names it: the engine and the versions this
         // build runs ("Ren'Py 7.5.x"), so two lines of one engine tell apart.
-        card.findViewById<TextView>(R.id.pluginTitle).text = EngineNames.compatibility(plugin.info.engine, plugin.info.capabilities)
-            .ifEmpty { listOf(EngineNames.family(plugin.info.engine)) }
-            .joinToString(" · ")
+        card.findViewById<TextView>(R.id.pluginTitle).text = lineName(plugin.info)
         // The repository adds nothing where the badge already says Official.
         card.findViewById<TextView>(R.id.trustBuildLine).text = if (official) {
             PluginVersions.display(plugin.info.pluginVersion)
@@ -230,6 +232,16 @@ class PluginTrustActivity : EnginehostActivity() {
         }
         list.addView(card)
     }
+
+    /**
+     * The one name a plugin's line goes by on this screen, so the installed
+     * cards and their update rows cannot disagree: the compatibility lines the
+     * bundle serves, else its engine family.
+     */
+    private fun lineName(info: PluginInfo): String =
+        EngineNames.compatibility(info.engine, info.capabilities)
+            .ifEmpty { listOf(EngineNames.family(info.engine)) }
+            .joinToString(" · ")
 
     private fun stateLabel(state: PluginTrustState): Int = when (state) {
         PluginTrustState.PENDING -> R.string.trust_state_pending

@@ -77,7 +77,7 @@
     <string name="trust_empty">No plugins installed yet. Use Add to find some.</string>
     <string name="updates_heading">Updates</string>
     <string name="update_all">Update all</string>
-    <string name="update_row">%1$s: build %2$s</string>
+    <string name="update_row">%1$s: %2$s</string>
     <string name="update">Update</string>
     <string name="updating">Updating…</string>
     <string name="updates_done">Updated %1$d, %2$d failed: %3$s</string>

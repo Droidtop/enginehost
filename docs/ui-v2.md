@@ -22,9 +22,13 @@ vocabulary and coverage gaps below.
 ## Landed: the updater rework (Droidtop/tracker#23)
 
 Home > Plugins now opens the installed list (`PluginTrustActivity`, titled Plugins). Add in its
-header opens the catalog (titled Add a plugin), which no longer has a button back to the list. Updates
-found in the cached catalogs sit at the top with one Update per plugin and Update all; they install
-through `PluginInstaller.installQuietly`, the same path the automatic pass uses. An approval carries to
+header opens the catalog (titled Add a plugin), which no longer has a button back to the list. The
+installed list comes first and Updates after it (owner, 2026-09-29: the screen opens on what the
+person has, not on churn); each row names the plugin's line and the version it updates to, the same
+line naming the installed cards use ("Ren'Py 8.5.x: 1.0.1-2", not "Ren'Py: build N"), with one
+Update per row and an Update all that is shown whenever any update exists, pad-reachable like every
+other button. They install through `PluginInstaller.installQuietly`, the same path the automatic
+pass uses. An approval carries to
 an update signed by the same key from the same repository (`PluginTrustStore.carryApproval`); a
 different key, a different repository or a denied build still asks, and the installer still refuses
 anything but a strictly newer build. Each card says whether the plugin runs in a sandbox.
