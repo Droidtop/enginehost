@@ -113,6 +113,8 @@ jobs:
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: repository/${{ inputs.repository-key-document }}
           CHANNEL: ${{ inputs.channel }}
+          # Reads the calling repository's releases to number this build.
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test -n "$ENGINEHOST_SIGNING_KEY_PEM"

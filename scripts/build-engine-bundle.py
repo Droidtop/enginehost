@@ -6,10 +6,10 @@ import base64
 import hashlib
 import io
 import json
-import os
 from pathlib import Path, PurePosixPath
 import stat
 import subprocess
+import sys
 import tarfile
 import tempfile
 
@@ -67,6 +67,51 @@ def tar_member(name: str, data: bytes, mode: int = 0o444) -> tuple[tarfile.TarIn
     return info, io.BytesIO(data)
 
 
+def version_key(version: str) -> tuple:
+    """Order of dev.enginehost.Version: X.Y.Z, then the -N build (bare = 0)."""
+    core, _, build = version.partition("-")
+    return (tuple(int(part) for part in core.split(".")), int(build or 0))
+
+
+def next_build(declared: str, published: list) -> int:
+    highest = 0
+    for version in published:
+        core, dash, build = version.partition("-")
+        if dash and core == declared and build.isdigit():
+            highest = max(highest, int(build))
+    return highest + 1
+
+
+def gh_api(*arguments: str) -> bytes:
+    process = subprocess.run(["gh", "api", *arguments], check=False,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if process.returncode:
+        raise SystemExit("gh api failed: " + process.stderr.decode(errors="replace").strip())
+    return process.stdout
+
+
+def published_versions(repository: str, bundle_id: str) -> list:
+    """pluginVersion of every release envelope of this bundle id in the repository.
+
+    Rolling channels delete and recreate their release, but the newest build
+    of a line always sits in its unstable release, so the highest build is
+    never absent from this listing.
+    """
+    pages = json.loads(gh_api(f"repos/{repository}/releases?per_page=100", "--paginate", "--slurp"))
+    versions = []
+    for release in (item for page in pages for item in page):
+        for asset in release.get("assets", []):
+            if asset["name"] != "enginehost-release.json":
+                continue
+            envelope = json.loads(gh_api("-H", "Accept: application/octet-stream",
+                                         f"repos/{repository}/releases/assets/{asset['id']}"))
+            for entry in envelope.get("bundles", []):
+                manifest = json.loads(base64.b64decode(entry["manifestBase64"]))
+                if manifest.get("bundleId") == bundle_id:
+                    versions.append(str(manifest["pluginVersion"]))
+    return versions
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--metadata", required=True, type=Path)
@@ -75,10 +120,12 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--release-envelope", type=Path)
     parser.add_argument("--public-key-document", type=Path)
-    parser.add_argument("--build-number", type=int,
-                        help="CI build counter; defaults to GITHUB_RUN_NUMBER when set. "
-                             "Becomes pluginVersion's third component so every build of a line "
-                             "is a strictly newer build than the one before it.")
+    parser.add_argument("--release-history-repo", metavar="OWNER/REPO",
+                        help="Repository whose published releases decide the build counter. "
+                             "pluginVersion becomes <declared>-<N>: N is the highest build "
+                             "already published for that declared version on this bundle id, "
+                             "plus one (1 for a version not yet published). Needs the gh CLI "
+                             "and GH_TOKEN. Without it pluginVersion is left as declared.")
     parser.add_argument("--repository-key-document", type=Path,
                         help="Existing certified repository key document to validate and copy")
     args = parser.parse_args()
@@ -96,18 +143,23 @@ def main() -> None:
 
     # pluginVersion is the total order on builds within a bundle id (see
     # docs/engine-bundle-format.md), yet the value in a repository's metadata
-    # is hand-written and rarely touched: every CI build of a line carried the
-    # same "1.0.0", so no build was ever a newer build of another and the
-    # in-app update check had nothing to offer. The CI run counter fixes the
-    # third component: major.minor stay the maintainer's statement of intent,
-    # the patch component becomes "which build", monotonic per repository.
-    build_number = args.build_number
-    if build_number is None and os.environ.get("GITHUB_RUN_NUMBER", "").isdigit():
-        build_number = int(os.environ["GITHUB_RUN_NUMBER"])
-    if build_number is not None:
-        declared = [int(part) for part in str(metadata["pluginVersion"]).split(".")]
-        major_minor = (declared + [0, 0])[:2]
-        metadata["pluginVersion"] = ".".join(str(part) for part in major_minor + [build_number])
+    # is hand-written and rarely touched, so no build was ever a newer build
+    # of another and the in-app update check had nothing to offer. The
+    # maintainer declares X.Y.Z; this appends a per-version build counter
+    # (Droidtop/tracker#126) taken from the repository's own releases, so a
+    # CI rerun never repeats a number and a new declared version restarts at 1.
+    if args.release_history_repo:
+        declared = str(metadata["pluginVersion"])
+        if "-" in declared:
+            raise SystemExit(f"declared pluginVersion must be X.Y.Z, got {declared}")
+        published = published_versions(args.release_history_repo, metadata["bundleId"])
+        build = next_build(declared, published)
+        newest = max(published, key=version_key, default=None)
+        metadata["pluginVersion"] = f"{declared}-{build}"
+        if newest is not None and version_key(metadata["pluginVersion"]) <= version_key(newest):
+            print(f"::warning::{metadata['pluginVersion']} does not order above the already published "
+                  f"{newest}; declare a higher version so this build is offered as an update",
+                  file=sys.stderr)
 
     files = payload_files(args.payload)
     aggregate = hashlib.sha256()

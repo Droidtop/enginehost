@@ -45,9 +45,11 @@ pre-release. Versions published before this (`X.Y.<run>`, the CI run number
 in the third place) still parse and order by their dotted parts, which puts
 `1.0.57` above `1.0.0-99` and below `1.0.57-1`: a repository moving to the
 new form declares a version above its last legacy run number (or a new
-minor) so the first `-1` build is offered as an update. The build script
-that emits this form lives in each plugin repository's plugin-core, not in
-this repository. In a game's `pluginVersions` allowlist a token that is
+minor) so the first `-1` build is offered as an update. The one script
+that emits this form is `scripts/build-engine-bundle.py`, run by the pinned
+`sign-engine-bundle.yml` job: it reads the calling repository's releases and
+numbers the build (highest published `-N` for that declared version on that
+bundle id, plus one), so a CI rerun never repeats a number. In a game's `pluginVersions` allowlist a token that is
 one version (`1.0.0-3`) is exact and a range joins two versions with a dash
 (`1.2.0-1.4.0`). How updates are
 discovered, gated and approved is docs/plugin-catalog.md's Updates section;
