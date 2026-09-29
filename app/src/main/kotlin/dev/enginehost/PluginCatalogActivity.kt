@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.View
@@ -9,6 +10,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import java.io.File
 import java.util.Date
 
@@ -619,14 +621,25 @@ class PluginCatalogActivity : EnginehostActivity() {
             val update = installed.isNotEmpty() &&
                 installed.all { PluginUpdates.isNewerBuildOf(it, plugin.manifest) }
             val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
+            val installedIdle = installed.isNotEmpty() && !update
             val idleLabel = when {
-                installed.isNotEmpty() && !update -> getString(R.string.installed)
+                installedIdle -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
                 update -> getString(R.string.update_to_build, PluginVersions.build(plugin.info.pluginVersion))
                 else -> getString(R.string.install)
             }
             button.text = idleLabel
             button.isEnabled = (installed.isEmpty() || update) && supportedApi
+            if (installedIdle) {
+                // "Installed" is the card's status, not a disabled action,
+                // so it wears its own pairing instead of the disabled
+                // button's: full-strength text on the same neutral fill,
+                // readable on both themes (the 45%-alpha text it replaced
+                // measured about 1.1:1 on light).
+                button.backgroundTintList =
+                    ColorStateList.valueOf(ContextCompat.getColor(this, R.color.eh_installed_container))
+                button.setTextColor(ContextCompat.getColor(this, R.color.eh_on_installed_container))
+            }
             button.setOnClickListener {
                 // Progress belongs on the card being installed, not in a
                 // status line somewhere else on the screen.
