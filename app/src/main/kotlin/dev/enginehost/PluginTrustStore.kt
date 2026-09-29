@@ -17,11 +17,9 @@ class PluginTrustStore(private val context: Context) {
 
     fun state(plugin: InstalledPlugin): PluginTrustState {
         if (plugin.signerIdentity.isBlank()) return PluginTrustState.PENDING
-        return when (preferences.getString(decisionKey(plugin), null)) {
-            "approved" -> PluginTrustState.APPROVED
-            "denied" -> PluginTrustState.DENIED
-            else -> PluginTrustState.PENDING
-        }
+        val stored = preferences.getString(decisionKey(plugin), null)
+        // The origin lookups are only needed when the person has not decided.
+        return effectiveState(stored, official = stored == null && isOfficial(plugin))
     }
 
     fun approve(plugin: InstalledPlugin) = decide(plugin, "approved")
@@ -53,6 +51,22 @@ class PluginTrustStore(private val context: Context) {
     fun isDeveloperDebug(plugin: InstalledPlugin): Boolean {
         val keys = PluginOriginKeyStore(context)
         return plugin.signerFingerprints.any { keys.isDeveloperDebug(it) }
+    }
+
+    companion object {
+        /**
+         * The person's own decision always wins. With none, a bundle signed by
+         * its origin's root-certified key is approved: Enginehost already
+         * verified where it came from to give it the Official badge, so a fresh
+         * install is not a wall of identical Approve prompts (Droidtop/tracker#34).
+         * Third-party, community and developer-key builds stay pending until the
+         * person approves them, exactly as before.
+         */
+        internal fun effectiveState(stored: String?, official: Boolean): PluginTrustState = when (stored) {
+            "approved" -> PluginTrustState.APPROVED
+            "denied" -> PluginTrustState.DENIED
+            else -> if (official) PluginTrustState.APPROVED else PluginTrustState.PENDING
+        }
     }
 
     private fun decide(plugin: InstalledPlugin, decision: String) {

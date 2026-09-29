@@ -192,7 +192,9 @@ purpose for the rigs, so it stays the owner's call.
   the signer must match the origin's pinned key; a same-ID bundle replaces
   another only as a strictly newer build from the same origin.
 - Approval is bound to bundle ID, archive digest and signer, so a
-  replacement arrives unapproved.
+  replacement arrives unapproved, except that a bundle signed by its origin's
+  root-certified key (Official) is approved by default unless the person
+  denied it (2026-09-28, docs/plugin-catalog.md "Provenance").
 - Launch rechecks the manifest signature, the pin, the install record and
   every payload file's stamp (rehashing on any change), and refuses files
   the manifest does not sign, before any bundle code loads. Both runtime

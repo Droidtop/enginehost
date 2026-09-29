@@ -64,11 +64,16 @@ class PluginTrustActivity : EnginehostActivity() {
         card.findViewById<TextView>(R.id.pluginTitle).text = EngineNames.compatibility(plugin.info.engine, plugin.info.capabilities)
             .ifEmpty { listOf(EngineNames.family(plugin.info.engine)) }
             .joinToString(" · ")
-        card.findViewById<TextView>(R.id.trustBuildLine).text = getString(
-            R.string.trust_build_line,
-            PluginVersions.display(plugin.info.pluginVersion),
-            plugin.origin.removePrefix("https://github.com/"),
-        )
+        // The repository adds nothing where the badge already says Official.
+        card.findViewById<TextView>(R.id.trustBuildLine).text = if (official) {
+            PluginVersions.display(plugin.info.pluginVersion)
+        } else {
+            getString(
+                R.string.trust_build_line,
+                PluginVersions.display(plugin.info.pluginVersion),
+                plugin.origin.removePrefix("https://github.com/"),
+            )
+        }
         card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId
         val details = card.findViewById<View>(R.id.trustDetails)
         card.findViewById<TextView>(R.id.trustDetailsToggle).setOnClickListener {

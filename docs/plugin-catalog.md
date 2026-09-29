@@ -261,10 +261,12 @@ all automatic update traffic.
 Optionally ("Install plugin updates automatically", off by default),
 Enginehost downloads and installs such an update itself. This replaces
 bytes, never trust: execution approval is bound to the exact archive digest
-and signer, so an automatically installed update is unapproved until the
-user approves that exact new archive -- the trust prompt appears before it
-runs anything, exactly as for a manual install. Approval is never inherited
-across an update, and there is no path that skips it.
+and signer, so an automatically installed update of a Third party or Community
+bundle is unapproved until the user approves that exact new archive -- the
+trust prompt appears before it runs anything, exactly as for a manual install.
+Approval is never inherited across an update. The one default is Official
+(below): a bundle signed by its origin's root-certified key is approved unless
+the person denied it.
 
 The Enginehost APK itself follows the same pattern one level up: CI
 publishes a rolling `latest` release whose `release-info.json` carries the
@@ -298,7 +300,13 @@ replace another bundle.
 - **Third party** means the person added the origin from droidtop-platforms'
   third-party list, and the bundle is signed by the key that listing names.
 - **Approved** means the user has allowed that exact bundle ID and signing-key
-  identity to execute inside Enginehost's runtime process.
+  identity to execute inside Enginehost's runtime process. Official bundles
+  are approved by default (decided 2026-09-28, Droidtop/tracker#34): the
+  provenance check that earns the badge is the check an approval prompt would
+  repeat, and a fresh install must not open on a wall of identical prompts.
+  A person's own Deny always wins over the default
+  (`PluginTrustStore.effectiveState`). Third party, Community and developer
+  key builds are never approved by default.
 
 A valid signature proves who published bytes; it does not grant those bytes
 Enginehost's permissions.
