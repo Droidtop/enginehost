@@ -39,6 +39,12 @@
                 android:text="@string/trust_title"
                 android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
+            <Button
+                android:id="@+id/openCatalogButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/open_plugin_catalog" />
+
         </LinearLayout>
 
         <TextView
@@ -47,6 +53,14 @@
             android:layout_marginTop="@dimen/eh_space_xs"
             android:text="@string/trust_intro"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        <LinearLayout
+            android:id="@+id/updatesPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m"
+            android:orientation="vertical"
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/pluginList"
@@ -62,14 +76,6 @@
             android:layout_marginTop="@dimen/eh_space_m"
             android:text="@string/trust_empty"
             android:textAppearance="@style/TextAppearance.Enginehost.Body"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/openCatalogButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_m"
-            android:text="@string/open_plugin_catalog"
             android:visibility="gone" />
 
     </LinearLayout>

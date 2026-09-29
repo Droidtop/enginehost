@@ -26,6 +26,18 @@ class PluginTrustStore(private val context: Context) {
     fun deny(plugin: InstalledPlugin) = decide(plugin, "denied")
     fun isApproved(plugin: InstalledPlugin): Boolean = state(plugin) == PluginTrustState.APPROVED
 
+    /**
+     * An update keeps the person's approval when it is signed by the same key
+     * from the same repository as a build they approved (Droidtop/tracker#23):
+     * the installer only ever replaces a build with a newer one from its own
+     * origin, so what is left to check is that the signer did not change. A
+     * different key, or a build the person denied, still asks.
+     */
+    fun carryApproval(previous: List<InstalledPlugin>, updated: InstalledPlugin) {
+        if (updated.signerIdentity.isBlank()) return
+        if (previous.any { shouldCarry(preferences.getString(decisionKey(it), null), it, updated) }) approve(updated)
+    }
+
     /** Signed by its origin's root-certified key, compiled in or learned from the plugins index. */
     fun isOfficial(plugin: InstalledPlugin): Boolean {
         val keys = PluginOriginKeyStore(context)
@@ -54,6 +66,11 @@ class PluginTrustStore(private val context: Context) {
     }
 
     companion object {
+        /** Whether [updated] inherits [previous]'s stored decision. Only an explicit approval carries. */
+        internal fun shouldCarry(stored: String?, previous: InstalledPlugin, updated: InstalledPlugin): Boolean =
+            stored == "approved" && previous.signerIdentity.isNotBlank() &&
+                previous.signerIdentity == updated.signerIdentity && previous.origin == updated.origin
+
         /**
          * The person's own decision always wins. With none, a bundle signed by
          * its origin's root-certified key is approved: Enginehost already

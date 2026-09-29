@@ -50,7 +50,7 @@ class MainActivity : EnginehostActivity() {
             startActivity(Intent(this, EnginehostSettingsActivity::class.java))
         }
         findViewById<Button>(R.id.pluginCatalogButton).setOnClickListener {
-            startActivity(Intent(this, PluginCatalogActivity::class.java))
+            startActivity(Intent(this, PluginTrustActivity::class.java))
         }
         // Y is "play this game" only while a game has focus, so the hint
         // row follows focus.
@@ -86,7 +86,7 @@ class MainActivity : EnginehostActivity() {
                         setOnClickListener {
                             startActivity(
                                 if (pending.isNotEmpty()) {
-                                    Intent(this@MainActivity, PluginCatalogActivity::class.java)
+                                    Intent(this@MainActivity, PluginTrustActivity::class.java)
                                 } else {
                                     Intent(this@MainActivity, EnginehostSettingsActivity::class.java)
                                 },

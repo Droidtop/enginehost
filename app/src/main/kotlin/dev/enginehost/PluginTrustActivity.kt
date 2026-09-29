@@ -7,18 +7,28 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 
-/** First-class approval UI for code that will execute with Enginehost's permissions. */
+/**
+ * Plugins: what is installed, updates for it, and the approval decision for code
+ * that will execute with Enginehost's permissions. Add opens the catalog.
+ */
 class PluginTrustActivity : EnginehostActivity() {
-    /** The first plugin to decide on; the catalog when there is none. */
+    /** The first update, else the first plugin to decide on; Add when there is none. */
     override fun primaryAction(): View? =
-        firstSelectable(findViewById(R.id.pluginList)) ?: findViewById<View>(R.id.openCatalogButton)?.takeIf { it.isShown }
+        firstSelectable(findViewById(R.id.updatesPanel)) ?: firstSelectable(findViewById(R.id.pluginList))
+            ?: findViewById(R.id.openCatalogButton)
 
     private lateinit var list: ViewGroup
     private lateinit var emptyState: TextView
     private lateinit var openCatalogButton: Button
     private lateinit var trust: PluginTrustStore
+    private lateinit var updatesPanel: ViewGroup
+
+    /** Bumped per render so a stale background update lookup cannot redraw the panel. */
+    private var updatesGeneration = 0
+    private var updating = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,6 +39,7 @@ class PluginTrustActivity : EnginehostActivity() {
         list = findViewById(R.id.pluginList)
         emptyState = findViewById(R.id.emptyState)
         openCatalogButton = findViewById(R.id.openCatalogButton)
+        updatesPanel = findViewById(R.id.updatesPanel)
         openCatalogButton.setOnClickListener {
             startActivity(Intent(this, PluginCatalogActivity::class.java))
         }
@@ -45,11 +56,87 @@ class PluginTrustActivity : EnginehostActivity() {
         val plugins = PluginRegistry.discover(this).filter {
             requestedPackage == null || it.bundleId == requestedPackage
         }
-        val empty = plugins.isEmpty()
-        emptyState.visibility = if (empty) View.VISIBLE else View.GONE
-        openCatalogButton.visibility = if (empty) View.VISIBLE else View.GONE
+        emptyState.visibility = if (plugins.isEmpty()) View.VISIBLE else View.GONE
         plugins.sortedWith(compareBy({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId }))
             .forEach { plugin -> addPlugin(plugin) }
+        // Showing one plugin (just installed) is not the place for the updates of the others.
+        if (requestedPackage == null) renderUpdates(plugins) else updatesPanel.visibility = View.GONE
+    }
+
+    /**
+     * Updates come from the catalogs already cached on the device (the same
+     * count Home shows), read off the main thread because reading them
+     * verifies every cached manifest signature.
+     */
+    private fun renderUpdates(installed: List<InstalledPlugin>) {
+        val generation = ++updatesGeneration
+        Thread {
+            val pending = runCatching { PluginUpdateCheck(this).pending() }.getOrDefault(emptyList())
+            runOnUiThread {
+                if (isDestroyed || generation != updatesGeneration) return@runOnUiThread
+                showUpdates(pending, installed)
+            }
+        }.start()
+    }
+
+    private fun showUpdates(pending: List<AvailablePlugin>, installed: List<InstalledPlugin>) {
+        updatesPanel.removeAllViews()
+        updatesPanel.visibility = if (pending.isEmpty()) View.GONE else View.VISIBLE
+        if (pending.isEmpty()) return
+        val heading = layoutInflater.inflate(R.layout.item_group_heading, updatesPanel, false) as TextView
+        heading.setText(R.string.updates_heading)
+        updatesPanel.addView(heading)
+        val buttons = mutableListOf<Button>()
+        val rows = pending.map { update ->
+            val row = layoutInflater.inflate(R.layout.item_release_build, updatesPanel, false)
+            val plugin = installed.firstOrNull { it.bundleId == update.bundleId }
+            val name = plugin?.let { EngineNames.family(it.info.engine) } ?: EngineNames.family(update.info.engine)
+            row.findViewById<TextView>(R.id.buildLabel).text =
+                getString(R.string.update_row, name, PluginVersions.build(update.info.pluginVersion))
+            val button = row.findViewById<Button>(R.id.buildInstallButton)
+            button.setText(R.string.update)
+            buttons += button
+            updatesPanel.addView(row)
+            update to button
+        }
+        // Update all is one more button over the same per-row path, offered once there is a choice to skip.
+        val all = if (pending.size > 1) {
+            (layoutInflater.inflate(R.layout.item_primary_button, updatesPanel, false) as Button).also {
+                it.setText(R.string.update_all)
+                updatesPanel.addView(it)
+                buttons += it
+            }
+        } else null
+        rows.forEach { (update, button) -> button.setOnClickListener { runUpdates(listOf(update), buttons, button) } }
+        all?.setOnClickListener { runUpdates(pending, buttons, all) }
+    }
+
+    /** Installs [updates] one after another, then redraws; the button pressed says what is happening. */
+    private fun runUpdates(updates: List<AvailablePlugin>, buttons: List<Button>, pressed: Button) {
+        if (updating) return
+        updating = true
+        buttons.forEach { it.isEnabled = false }
+        pressed.setText(R.string.updating)
+        Thread {
+            var failed = 0
+            var lastError = ""
+            updates.forEach { update ->
+                runCatching { PluginInstaller.installQuietly(this, update) }.onFailure {
+                    failed++
+                    lastError = it.message.orEmpty()
+                }
+            }
+            runOnUiThread {
+                updating = false
+                if (isDestroyed) return@runOnUiThread
+                if (failed > 0) {
+                    Toast.makeText(
+                        this, getString(R.string.updates_done, updates.size - failed, failed, lastError), Toast.LENGTH_LONG,
+                    ).show()
+                }
+                render()
+            }
+        }.start()
     }
 
     private fun addPlugin(plugin: InstalledPlugin) {
@@ -74,6 +161,8 @@ class PluginTrustActivity : EnginehostActivity() {
                 plugin.origin.removePrefix("https://github.com/"),
             )
         }
+        card.findViewById<TextView>(R.id.sandboxLine)
+            .setText(if (plugin.isolatable) R.string.sandbox_yes else R.string.sandbox_no)
         card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId
         val details = card.findViewById<View>(R.id.trustDetails)
         card.findViewById<TextView>(R.id.trustDetailsToggle).setOnClickListener {

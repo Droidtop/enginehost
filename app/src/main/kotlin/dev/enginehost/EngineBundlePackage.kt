@@ -221,10 +221,10 @@ object EngineBundleInstaller {
             existing.forEach { previous ->
                 require(previous.archiveSha256 != archiveSha) { "Bundle ${manifest.bundleId} is already installed" }
                 // Same line, different bytes: only a strictly newer build from
-                // the same origin may replace what is there. The replacement
-                // arrives unapproved -- trust decisions bind the exact archive
-                // digest and signer, so the user re-approves the new build
-                // before it ever executes.
+                // the same origin may replace what is there. It keeps an
+                // approval only when signed by the same key as the approved
+                // build (PluginTrustStore.carryApproval below); any other
+                // replacement is re-approved before it ever executes.
                 require(PluginUpdates.isNewerBuildOf(previous, manifest)) {
                     "Bundle ${manifest.bundleId} build ${previous.info.pluginVersion} is already installed; " +
                         "only a newer build from the same repository can replace it"
@@ -279,7 +279,9 @@ object EngineBundleInstaller {
             runCatching {
                 BundleStamps(context).write(destination, InstalledBundleVerifier.stampAll(destination, manifest.files))
             }
-            return PluginRegistry.readRecord(destination)
+            return PluginRegistry.readRecord(destination).also { installed ->
+                PluginTrustStore(context).carryApproval(existing, installed)
+            }
         } catch (error: Throwable) {
             forceDeleteRecursively(staging)
             throw error

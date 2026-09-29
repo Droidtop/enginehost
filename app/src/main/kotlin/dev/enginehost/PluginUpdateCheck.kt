@@ -127,10 +127,7 @@ class PluginUpdateCheck(private val context: Context) {
             ).values
             onPending(
                 updates.filterNot { update ->
-                    installAutomatically && runCatching {
-                        val archive = PluginInstaller.fetch(context, update)
-                        EngineBundleInstaller.install(context, archive, update.manifest)
-                    }.isSuccess
+                    installAutomatically && runCatching { PluginInstaller.installQuietly(context, update) }.isSuccess
                 },
             )
         }.start()

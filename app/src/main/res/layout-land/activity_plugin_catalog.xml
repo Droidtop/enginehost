@@ -62,12 +62,6 @@
             android:textAppearance="@style/TextAppearance.Enginehost.Caption"
             android:textColor="@color/eh_accent" />
 
-        <Button
-            android:id="@+id/installedPluginsButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/eh_space_s"
-            android:text="@string/manage_plugin_trust" />
 
         <Button
             android:id="@+id/refreshButton"

@@ -24,7 +24,6 @@
     <string name="game_row_unavailable">%1$s (unavailable)</string>
     <string name="controller_settings">Controller</string>
     <string name="enginehost_settings">Settings</string>
-    <string name="manage_plugin_trust">Installed plugins</string>
     <string name="browse_plugins">Plugins</string>
     <string name="needs_native_access">Launching needs folder access; game setup still works without it</string>
     <string name="game_folder_unavailable">That game folder is not available right now</string>
@@ -71,10 +70,18 @@
     <string name="installing">Installing…</string>
 
     <!-- Plugin trust -->
-    <string name="trust_title">Installed plugins</string>
+    <string name="trust_title">Plugins</string>
     <string name="trust_intro">Plugins run inside Enginehost with its file access. Approve the ones you trust.</string>
-    <string name="trust_empty">No plugins installed yet.</string>
-    <string name="open_plugin_catalog">Browse plugins</string>
+    <string name="trust_empty">No plugins installed yet. Use Add to find some.</string>
+    <string name="updates_heading">Updates</string>
+    <string name="update_all">Update all</string>
+    <string name="update_row">%1$s: build %2$s</string>
+    <string name="update">Update</string>
+    <string name="updating">Updating…</string>
+    <string name="updates_done">Updated %1$d, %2$d failed: %3$s</string>
+    <string name="sandbox_yes">Runs in a sandbox</string>
+    <string name="sandbox_no">Runs without a sandbox</string>
+    <string name="open_plugin_catalog">Add</string>
     <string name="badge_official">Official</string>
     <string name="badge_ultimate">Ultimate</string>
     <string name="badge_community">Community</string>
@@ -94,7 +101,7 @@
     <string name="uninstall">Uninstall</string>
 
     <!-- Plugin catalog -->
-    <string name="catalog_title">Plugins</string>
+    <string name="catalog_title">Add a plugin</string>
     <string name="catalog_intro">One plugin per engine. Install what your games need.</string>
     <string name="origin_url_hint">https://github.com/owner/plugin-repo</string>
     <string name="add_custom_origin">Add</string>

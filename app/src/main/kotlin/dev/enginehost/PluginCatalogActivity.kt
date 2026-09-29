@@ -80,9 +80,6 @@ class PluginCatalogActivity : EnginehostActivity() {
 
         findViewById<View>(R.id.catalogStreamRow).setOnClickListener { pickStream() }
         refreshButton.setOnClickListener { refresh() }
-        findViewById<Button>(R.id.installedPluginsButton).setOnClickListener {
-            startActivity(Intent(this, PluginTrustActivity::class.java))
-        }
         sourcesPanel = findViewById(R.id.sourcesPanel)
         sourcesToggle = findViewById(R.id.sourcesToggle)
         sourcesToggle.setOnClickListener {

@@ -19,8 +19,7 @@ object PluginInstaller {
     ) {
         Thread {
             runCatching {
-                val archive = download(activity, plugin, onStatus)
-                val installed = EngineBundleInstaller.install(activity, archive, plugin.manifest)
+                val installed = installQuietly(activity, plugin, onStatus)
                 PendingPluginLaunchStore(activity).peek()?.let {
                     PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
                 }
@@ -65,8 +64,15 @@ object PluginInstaller {
         }.start()
     }
 
-    /** Download (or reuse the cached copy of) a catalog entry's archive, quietly. */
-    fun fetch(context: Context, plugin: AvailablePlugin): File = download(context, plugin, null)
+    /**
+     * Download and install a catalog entry with no screen of its own: the
+     * shared path of a single install, the automatic pass and Update all.
+     */
+    fun installQuietly(
+        context: Context,
+        plugin: AvailablePlugin,
+        onStatus: ((String) -> Unit)? = null,
+    ): InstalledPlugin = EngineBundleInstaller.install(context, download(context, plugin, onStatus), plugin.manifest)
 
     private fun copyIn(activity: Activity, uri: Uri): File {
         val directory = File(activity.cacheDir, "engine-bundle-downloads").apply { mkdirs() }

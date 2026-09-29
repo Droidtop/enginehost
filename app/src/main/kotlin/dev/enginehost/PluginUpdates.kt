@@ -16,10 +16,10 @@ object PluginUpdates {
      * a line, `pluginVersion` is the wrapper build number -- `runtimeVersion`
      * never changes inside a bundle ID, so it plays no part here.
      *
-     * Replacing a bundle never inherits its approval: the trust store binds
-     * a decision to the exact archive digest and signer (see
-     * PluginTrustStore), so the replacement is unapproved until the user
-     * approves that exact new archive.
+     * The trust store binds a decision to the exact archive digest and
+     * signer, so a replacement is a new archive; it inherits the person's
+     * approval only when signed by the same key (PluginTrustStore.carryApproval),
+     * and otherwise waits for approval.
      */
     fun isNewerBuildOf(installed: InstalledPlugin, manifest: EngineBundleManifest): Boolean =
         manifest.bundleId == installed.bundleId &&
