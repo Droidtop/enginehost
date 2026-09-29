@@ -215,6 +215,15 @@
                 android:enabled="false"
                 android:text="@string/report_copy" />
 
+            <Button
+                android:id="@+id/showIncludedButton"
+                style="@style/Widget.Enginehost.Button.Tonal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/eh_space_s"
+                android:enabled="false"
+                android:text="@string/report_what_is_included" />
+
         </LinearLayout>
 
     </LinearLayout>

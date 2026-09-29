@@ -96,8 +96,11 @@ object EngineConfigReader {
      * Game setup's Test started runs on the testing configuration with the
      * same authority, while the working enginehost.json stays untouched
      * (see [TestingConfigStore]).
+     *
+     * Records "config loaded" host event for bug reporting.
      */
     fun resolve(gameFolder: File, inlineJson: String?, testingJson: String? = null): EngineConfig {
+        HostEventTracker.get().record("config loaded", "${gameFolder?.name ?: "none"}")
         val configFile = File(gameFolder, CONFIG_FILE_NAME)
         val folderJson = testingJson?.let { parseObject(it, "testing configuration") }
             ?: configFile.takeIf { it.isFile }?.let { parseObject(it.readText(), CONFIG_FILE_NAME) }

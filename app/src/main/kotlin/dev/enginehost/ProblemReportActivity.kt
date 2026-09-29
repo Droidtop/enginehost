@@ -24,6 +24,8 @@ import java.io.File
  * (or just "Enginehost" for a report about the host itself) when there is
  * no game to name, so a person can always just press Send. Sending opens
  * the project's form with these values already in it.
+ *
+ * Bug reports include device details, host events, logcat, and tombstones.
  */
 class ProblemReportActivity : EnginehostActivity() {
     /** The report is never blocked on the game field -- see [fill] -- so Send is always where the pad starts. */
@@ -31,6 +33,7 @@ class ProblemReportActivity : EnginehostActivity() {
 
     private var log: String = ""
     private var symptom: String = ""
+    private var report: ProblemReport? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,12 +71,15 @@ class ProblemReportActivity : EnginehostActivity() {
         }
         findViewById<Button>(R.id.sendReportButton).setOnClickListener { send() }
         findViewById<Button>(R.id.copyReportButton).setOnClickListener { copy() }
+        findViewById<Button>(R.id.showIncludedButton).setOnClickListener { showWhatIsIncluded() }
 
         Thread {
-            val report = ProblemReport.gather(this, gameFolder)
+            val includeLogs = false // Will be checked from UI when sending
+            val gathered = ProblemReport.gather(this, gameFolder, includeLogs)
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
-                fill(report)
+                report = gathered
+                fill(gathered)
             }
         }.start()
     }
@@ -104,6 +110,23 @@ class ProblemReportActivity : EnginehostActivity() {
         findViewById<Button>(R.id.copyReportButton).isEnabled = true
     }
 
+    private fun showWhatIsIncluded() {
+        report?.let { r ->
+            Sheet(this)
+                .title("What is included")
+                .message(
+                    buildString {
+                        appendLine("Game: ").appendLine(r.gameName.ifBlank { "Enginehost" })
+                        appendLine("Engine: ${r.engineLine} ${r.engineVersion}")
+                        appendLine()
+                        appendLine("Environment:")
+                        append(r.environment())
+                    }.trim()
+                )
+                .show()
+        }
+    }
+
     private fun field(id: Int): EditText = findViewById(id)
 
     private fun text(id: Int): String = field(id).text.toString().trim()
@@ -114,13 +137,15 @@ class ProblemReportActivity : EnginehostActivity() {
         // Every field is optional: the person only has to press Send. The
         // game field is prefilled (see fill()) but editable, never required.
         val game = text(R.id.reportGame)
+        val gameFolder = intent.getStringExtra(EXTRA_PATH)?.let(::File)
+        val reportCopy = ProblemReport.gather(this, gameFolder, includeLog())
         val url = ProblemReport.formUrl(
             game = game,
             engine = text(R.id.reportEngine),
             symptom = symptom,
             details = text(R.id.reportDetails),
-            environment = text(R.id.reportEnvironment),
-            log = if (includeLog()) text(R.id.reportLog) else "",
+            environment = reportCopy.environment(),
+            log = reportCopy.fullLog(),
         )
         startActivity(
             Intent(this, ProblemReportFormActivity::class.java)
@@ -129,6 +154,7 @@ class ProblemReportActivity : EnginehostActivity() {
     }
 
     private fun copy() {
+        val r = report ?: return
         val text = buildString {
             appendLine("Game: ${text(R.id.reportGame)}")
             appendLine("Engine: ${text(R.id.reportEngine)}")

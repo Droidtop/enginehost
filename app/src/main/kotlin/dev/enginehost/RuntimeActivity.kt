@@ -69,6 +69,7 @@ class RuntimeActivity : FragmentActivity() {
             this, config.engine, config.engineContext, config.engineVersion,
             config.runtimeRequirements, config.pluginVersionConstraint,
         ) ?: return failAndFinish("The selected plugin is no longer compatible or installed")
+        HostEventTracker.get().record("plugin loaded", "${resolved.plugin.bundleId}")
         if (resolved.plugin.bundleId != expectedBundle) {
             return failAndFinish("Plugin resolution changed before runtime startup; retry the launch")
         }

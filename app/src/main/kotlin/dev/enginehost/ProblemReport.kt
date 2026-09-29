@@ -16,6 +16,9 @@ import java.io.File
  * device underneath. All of it is a starting point the person can correct in
  * [ProblemReportActivity] before any of it moves; paths are reduced to the
  * names a reader needs, so a report does not carry someone's storage layout.
+ *
+ * Bug reports include: device details, a ring buffer of recent host events,
+ * logcat, and native tombstones, all scrubbed of private data before inclusion.
  */
 data class ProblemReport(
     val gameName: String,
@@ -26,17 +29,54 @@ data class ProblemReport(
     val host: String,
     val device: String,
     val log: String,
+    // Device details added for troubleshooting
+    val deviceInfo: String = "",
+    // Recent host events for context
+    val hostEvents: String = "",
+    // Conditional logcat capture
+    val logcat: String = "",
+    // Native crash tombstones
+    val tombstone: String = "",
 ) {
     /** The part of the report Enginehost fills in about the machine and the plugin. */
     fun environment(): String = buildString {
         appendLine("Plugin: $plugin")
         appendLine("Enginehost: $host")
-        append("Device: $device")
+        if (deviceInfo.isNotBlank()) {
+            appendLine("Device: $deviceInfo")
+        } else {
+            appendLine("Device: $device")
+        }
+        if (hostEvents.isNotBlank()) {
+            appendLine()
+            appendLine("Host Events (last 30):")
+            append(hostEvents)
+        }
+        if (tombstone.isNotBlank()) {
+            appendLine()
+            appendLine("Native Crash Tombstone:")
+            append(tombstone)
+        }
         if (config.isNotBlank()) {
             appendLine()
             appendLine()
             appendLine("enginehost.json:")
             append(config)
+        }
+    }
+
+    /**
+     * The full report, as it will be passed to the form. The log field
+     * combines the log capture and logcat (when enabled).
+     */
+    fun fullLog(): String = buildString {
+        if (log.isNotBlank()) {
+            appendLine(log)
+        }
+        if (logcat.isNotBlank()) {
+            if (log.isNotBlank()) appendLine()
+            appendLine("Logcat (last 300 lines):")
+            append(logcat)
         }
     }
 
@@ -48,7 +88,12 @@ data class ProblemReport(
          * game in question. Reading the config and the registry touches disk;
          * call this off the main thread.
          */
-        fun gather(context: Context, gameFolder: File?): ProblemReport {
+        fun gather(context: Context, gameFolder: File?, includeLogs: Boolean): ProblemReport {
+            val deviceInfo = DeviceInfo.get(context)
+            val hostEvents = HostEventTracker.get().dump()
+            val logcat = LogcatCapture.capture(context, count = 300, includeLogs)
+            val tombstone = TombstoneSummary.gather(context)
+            
             val config = gameFolder?.let { folder ->
                 runCatching { EngineConfigReader.resolve(folder, null) }.getOrNull()
             }
@@ -81,6 +126,20 @@ data class ProblemReport(
                     "(build ${AppUpdate.installedVersionCode(context)})",
                 device = "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} " +
                     "(API ${Build.VERSION.SDK_INT}, ${Build.SUPPORTED_ABIS.firstOrNull()})",
+                deviceInfo = buildString {
+                    appendLine("Model: ${deviceInfo.model}")
+                    appendLine("SoC: ${deviceInfo.soc}")
+                    appendLine("GPU Renderer: ${deviceInfo.gpuRenderer}")
+                    appendLine("GPU Driver: ${deviceInfo.gpuDriverVersion}")
+                    appendLine("Android: ${deviceInfo.androidVersion}")
+                    appendLine("ABI: ${deviceInfo.runningAbi}")
+                    appendLine("RAM: ${deviceInfo.totalRamMb}")
+                    appendLine("Display: ${deviceInfo.displaySize}")
+                    appendLine("Refresh Rate: ${deviceInfo.refreshRate}")
+                },
+                hostEvents = hostEvents,
+                logcat = logcat,
+                tombstone = tombstone,
                 log = tail(context, gameFolder),
             )
         }

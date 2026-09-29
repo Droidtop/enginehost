@@ -399,6 +399,7 @@
     <string name="report_send">Open the form</string>
     <string name="report_copy">Copy</string>
     <string name="report_copied">Report copied</string>
+    <string name="report_what_is_included">What is included</string>
     <string name="report_form_title">Report a problem</string>
     <string name="report_open_in_browser">Browser</string>
     <string name="action_report">Report a problem</string>
