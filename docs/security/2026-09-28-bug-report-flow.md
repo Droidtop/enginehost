@@ -76,6 +76,47 @@ plugin's origin, signer identity, and whether it is running sandboxed
   happening to contain one that was never Enginehost's to have, not
   evidence one normally would be.
 
+## Second pass, 2026-09-28: account-free, nothing in a URL, more facts
+
+Droidtop/tracker#37, #22, and the privacy review's findings on the first pass.
+
+- **One payload, built at send time.** `ProblemReport.compose` builds the text
+  that leaves the device from the fields as they stand and redacts it once more
+  there, so edits made after the fill are covered. Share, Copy and the GitHub
+  button all use it. The game field is prefilled but editable; when the person
+  clears it, the folder's name is also blanked out of the details, environment
+  and log. The log switch still covers the log, recent events and crash data.
+- **No report content in an address.** The GitHub form's address carries the
+  template, a title and the engine and symptom labels only. The game, details,
+  environment (which holds the config) and log go by the clipboard, and the
+  person pastes them into the description. Nothing is loaded into the WebView
+  until they press the GitHub button.
+- **Account-free route first.** "Share report" hands the text to any app the
+  person picks (email, a message, a note); "Copy report" is labelled as the
+  plain copy; "Report on GitHub" says it needs an account. Share is where the
+  pad starts.
+- **Redaction.** A storage or app path is removed whole (the earlier scrub left
+  everything after its first component), and `password=`, `token:`, `secret`,
+  `api_key` and `authorization` values go with the token shapes already handled.
+  The game folder and any name in the hide list become `<game>`. IPv4 scrubbing
+  is off for the environment block, where a version such as 4.2.1.0 is not an
+  address. Tests use sentinel paths, names, emails, addresses and token shapes
+  (`ProblemReportTest`). `GameRunner.run` no longer logs the game folder name.
+- **More facts.** The device block now carries the chipset (and SoC model where
+  the OS names it), total memory, screen size, density and refresh rate, and the
+  graphics stack: GPU renderer, vendor and GL version read from a throwaway
+  GLES context, plus the declared Vulkan level. The Enginehost line names the
+  engine registry snapshot. `HostEvents` keeps the last 60 one-line events
+  (launch requested and by whom, the plan's outcome, the runtime starting and how
+  it ended) in a file that survives the process dying, written off the calling
+  thread. The report adds a trimmed copy of the app's own system log (warnings
+  and worse, plus Enginehost's, the runtime's and the graphics stack's tags).
+
+Still not covered: a native tombstone summary, the person's non-default
+settings, and events from inside the engine (surface created, audio started),
+which need the plugin side to report them; the engine's own log tail is the
+substitute today.
+
 ## What is not covered here (recorded, not built this pass)
 
 The owner's fuller ask (GPU renderer/driver, RAM, refresh rate, launch

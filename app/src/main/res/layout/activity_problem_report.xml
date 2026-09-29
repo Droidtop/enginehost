@@ -191,31 +191,46 @@
             android:scrollbars="vertical"
             android:textAppearance="@style/TextAppearance.Enginehost.Mono" />
 
-        <LinearLayout
+        <Button
+            android:id="@+id/shareReportButton"
+            style="@style/Widget.Enginehost.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_m"
-            android:orientation="horizontal">
+            android:enabled="false"
+            android:text="@string/report_share" />
 
-            <Button
-                android:id="@+id/sendReportButton"
-                style="@style/Widget.Enginehost.Button"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:enabled="false"
-                android:text="@string/report_send" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/report_share_note"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <Button
-                android:id="@+id/copyReportButton"
-                style="@style/Widget.Enginehost.Button.Tonal"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/eh_space_s"
-                android:enabled="false"
-                android:text="@string/report_copy" />
+        <Button
+            android:id="@+id/copyReportButton"
+            style="@style/Widget.Enginehost.Button.Tonal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:enabled="false"
+            android:text="@string/report_copy" />
 
-        </LinearLayout>
+        <Button
+            android:id="@+id/sendReportButton"
+            style="@style/Widget.Enginehost.Button.Tonal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:enabled="false"
+            android:text="@string/report_send" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:text="@string/report_send_note"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
     </LinearLayout>
 </ScrollView>

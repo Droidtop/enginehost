@@ -26,11 +26,14 @@ import java.io.File
  * the project's form with these values already in it.
  */
 class ProblemReportActivity : EnginehostActivity() {
-    /** The report is never blocked on the game field -- see [fill] -- so Send is always where the pad starts. */
-    override fun primaryAction(): View? = findViewById(R.id.sendReportButton)
+    /** The report is never blocked on the game field -- see [fill] -- so Share is always where the pad starts. */
+    override fun primaryAction(): View? = findViewById(R.id.shareReportButton)
 
     private var log: String = ""
     private var symptom: String = ""
+
+    /** The game folder's own name, blanked out of the report when the person clears the game field. */
+    private var folderName: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,6 +42,7 @@ class ProblemReportActivity : EnginehostActivity() {
         wireBackButton()
 
         val gameFolder = intent.getStringExtra(EXTRA_PATH)?.let(::File)
+        folderName = gameFolder?.name.orEmpty()
         val symptoms = resources.getStringArray(R.array.report_symptoms)
         // A runtime that died after starting closed; one that died before its
         // first frame never started. The person can still change it.
@@ -66,8 +70,9 @@ class ProblemReportActivity : EnginehostActivity() {
                 ContextCompat.getColor(this, if (checked) R.color.eh_text_secondary else R.color.eh_caution),
             )
         }
-        findViewById<Button>(R.id.sendReportButton).setOnClickListener { send() }
-        findViewById<Button>(R.id.copyReportButton).setOnClickListener { copy() }
+        findViewById<Button>(R.id.shareReportButton).setOnClickListener { share() }
+        findViewById<Button>(R.id.copyReportButton).setOnClickListener { copy(); toast(R.string.report_copied) }
+        findViewById<Button>(R.id.sendReportButton).setOnClickListener { sendToGithub() }
 
         Thread {
             val report = ProblemReport.gather(this, gameFolder)
@@ -97,11 +102,14 @@ class ProblemReportActivity : EnginehostActivity() {
                 }
             }
         }
-        val combined = listOfNotNull(crash, report.log.takeIf { it.isNotBlank() }).joinToString(BLANK_LINE)
+        val combined = report.logSections(crash) { section ->
+            getString(if (section == ProblemReport.Section.EVENTS) R.string.report_events_heading else R.string.report_system_log_heading)
+        }
         field(R.id.reportLog).setText(combined)
         log = combined
-        findViewById<Button>(R.id.sendReportButton).isEnabled = true
+        findViewById<Button>(R.id.shareReportButton).isEnabled = true
         findViewById<Button>(R.id.copyReportButton).isEnabled = true
+        findViewById<Button>(R.id.sendReportButton).isEnabled = true
     }
 
     private fun field(id: Int): EditText = findViewById(id)
@@ -110,41 +118,56 @@ class ProblemReportActivity : EnginehostActivity() {
 
     private fun includeLog(): Boolean = findViewById<SwitchCompat>(R.id.includeLogSwitch).isChecked
 
-    private fun send() {
-        // Every field is optional: the person only has to press Send. The
-        // game field is prefilled (see fill()) but editable, never required.
+    private fun toast(message: Int) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+    /**
+     * The report as it leaves the device: the one place its text is built, for
+     * Share, Copy and the GitHub form alike. Every field is optional and the
+     * person only has to press a button; the game field is prefilled (see
+     * fill()) but editable, and its folder name is blanked from the rest of the
+     * report when it is cleared.
+     */
+    private fun buildReport(): String {
         val game = text(R.id.reportGame)
-        val url = ProblemReport.formUrl(
+        return ProblemReport.compose(
             game = game,
             engine = text(R.id.reportEngine),
+            symptomHeading = getString(R.string.report_symptom_label),
             symptom = symptom,
             details = text(R.id.reportDetails),
             environment = text(R.id.reportEnvironment),
+            logHeading = getString(R.string.report_log_heading),
             log = if (includeLog()) text(R.id.reportLog) else "",
-        )
-        startActivity(
-            Intent(this, ProblemReportFormActivity::class.java)
-                .putExtra(ProblemReportFormActivity.EXTRA_URL, url),
+            hide = if (game.isBlank()) listOf(folderName) else emptyList(),
         )
     }
 
+    /** Account-free: hand the report to any app the person picks (email, a message, a note). */
+    private fun share() {
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_SUBJECT, getString(R.string.report_share_subject, text(R.id.reportGame).ifBlank { getString(R.string.app_name) }))
+            .putExtra(Intent.EXTRA_TEXT, buildReport())
+        runCatching { startActivity(Intent.createChooser(send, getString(R.string.report_share))) }
+            .onFailure { toast(R.string.report_share_failed) }
+    }
+
     private fun copy() {
-        val text = buildString {
-            appendLine("Game: ${text(R.id.reportGame)}")
-            appendLine("Engine: ${text(R.id.reportEngine)}")
-            appendLine("${getString(R.string.report_symptom_label)}: $symptom")
-            text(R.id.reportDetails).takeIf { it.isNotBlank() }?.let { appendLine(it) }
-            appendLine()
-            appendLine(text(R.id.reportEnvironment))
-            text(R.id.reportLog).takeIf { includeLog() && it.isNotBlank() }?.let {
-                appendLine()
-                appendLine(getString(R.string.report_log_heading))
-                append(it)
-            }
-        }
         (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-            .setPrimaryClip(ClipData.newPlainText(getString(R.string.report_title), text))
-        Toast.makeText(this, R.string.report_copied, Toast.LENGTH_SHORT).show()
+            .setPrimaryClip(ClipData.newPlainText(getString(R.string.report_title), buildReport()))
+    }
+
+    /**
+     * Needs a GitHub account. The form's address carries no report content, so
+     * the report is put on the clipboard for the person to paste into it.
+     */
+    private fun sendToGithub() {
+        copy()
+        Toast.makeText(this, R.string.report_copied_paste, Toast.LENGTH_LONG).show()
+        startActivity(
+            Intent(this, ProblemReportFormActivity::class.java)
+                .putExtra(ProblemReportFormActivity.EXTRA_URL, ProblemReport.formUrl(text(R.id.reportEngine), symptom)),
+        )
     }
 
     companion object {
@@ -152,7 +175,6 @@ class ProblemReportActivity : EnginehostActivity() {
         private const val EXTRA_CRASH_REASON = "crashReason"
         private const val EXTRA_CRASH_TRACE = "crashTrace"
         private const val EXTRA_CRASH_BEFORE_START = "crashBeforeStart"
-        private val BLANK_LINE = System.lineSeparator() + System.lineSeparator()
 
         /**
          * Report a game, or Enginehost itself when [gameFolder] is null --

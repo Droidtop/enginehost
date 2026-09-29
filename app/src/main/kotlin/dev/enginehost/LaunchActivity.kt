@@ -122,6 +122,7 @@ class LaunchActivity : EnginehostActivity() {
         val callerKey = intent.getStringExtra(EXTRA_CALLER_KEY)
         if (callerKey == null) {
             accessCleared = true
+            HostEvents.record(this, "launch requested")
             return true
         }
         // Recorded regardless of the decision below, so
@@ -133,15 +134,18 @@ class LaunchActivity : EnginehostActivity() {
         return when (val access = EffectiveAccess.forCaller(CallerAccessStore(this), packageManager, callerKey)) {
             EffectiveAccess.Allow -> {
                 accessCleared = true
+                HostEvents.record(this, "launch requested by $callerKey: allowed")
                 true
             }
             EffectiveAccess.Ask -> {
+                HostEvents.record(this, "launch requested by $callerKey: asking")
                 showTitle(null)
                 showStarting()
                 offerCallerAccessPrompt(callerKey)
                 false
             }
             is EffectiveAccess.Block -> {
+                HostEvents.record(this, "launch requested by $callerKey: blocked")
                 showTitle(null)
                 showStarting()
                 showCallerBlocked(callerKey, access.reason)
@@ -178,16 +182,23 @@ class LaunchActivity : EnginehostActivity() {
     private fun applyPlan(plan: GameRunner.Plan, waitedForRuntime: Boolean) {
         when (plan) {
             is GameRunner.Plan.Detour -> {
+                HostEvents.record(this, "plan: went to ${plan.intent.component?.shortClassName ?: "another screen"} first")
                 plan.notice?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
                 startActivity(plan.intent)
                 finish()
             }
             is GameRunner.Plan.Failure -> {
+                HostEvents.record(this, "plan: failed: ${plan.message}")
                 Log.e(TAG, plan.message)
                 showTitle(null)
                 showFailure(plan.message, retry = plan.retry)
             }
             is GameRunner.Plan.Runtime -> {
+                HostEvents.record(
+                    this,
+                    "plan: ${plan.resolved.plugin.bundleId} runs ${plan.config.engine} ${plan.config.engineVersion}" +
+                        if (plan.resolved.plugin.isolatable) " sandboxed" else " not sandboxed",
+                )
                 showTitle(plan)
                 showStarting()
                 plan.earlierSaves?.takeUnless { earlierSavesAnswered }?.let {
@@ -235,10 +246,12 @@ class LaunchActivity : EnginehostActivity() {
                 .message(getString(R.string.caller_access_ask_message, label, gameFolder.name))
                 .choice(R.string.cancel) { cancel() }
                 .choice(R.string.caller_access_always_allow) {
+                    HostEvents.record(this, "caller $callerKey: always allowed")
                     CallerAccessStore(this).setDecision(callerKey, CallerDecision.ALLOW)
                     launch()
                 }
                 .choice(R.string.caller_access_block, tone = Sheet.Tone.DANGER) {
+                    HostEvents.record(this, "caller $callerKey: blocked")
                     CallerAccessStore(this).setDecision(callerKey, CallerDecision.BLOCK)
                     cancel()
                 }
@@ -324,6 +337,7 @@ class LaunchActivity : EnginehostActivity() {
                 return
             }
         runtimeStarted = true
+        HostEvents.record(this, "runtime started")
         RunningGame.folder = gameFolder
         // The home screen is the library of every game played here,
         // whichever front door started it: a launch from droidtop
@@ -465,12 +479,14 @@ class LaunchActivity : EnginehostActivity() {
             // exit and not a crash: plan the launch again, from this same
             // intent, once the old runtime process has gone.
             restartArguments = data?.getStringArrayExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS)
+            HostEvents.record(this, "runtime ended: the engine asked to restart")
             showStarting()
             launchWhenRuntimeGone()
             return
         }
         val reported = data?.getStringExtra(RuntimeActivity.EXTRA_ERROR)
         if (reported != null) {
+            HostEvents.record(this, "runtime ended: reported an error: $reported")
             // The runtime knew what went wrong and said so. That sentence beats
             // anything a crash record could add.
             showFailure(reported, retry = true)
@@ -495,13 +511,20 @@ class LaunchActivity : EnginehostActivity() {
         val crash = CrashWatch.consume(this)
         when {
             crash != null -> {
+                HostEvents.record(this, "runtime ended: crashed: ${crash.reason}")
                 lastCrash = crash
                 showFailure(getString(R.string.launch_crashed, crash.reason), retry = true)
             }
-            runtimeCovered -> finish()
+            runtimeCovered -> {
+                HostEvents.record(this, "runtime ended: the game closed")
+                finish()
+            }
             // Ended before drawing anything, with nothing said and no crash on
             // record: the runtime never got going.
-            else -> showFailure(getString(R.string.launch_runtime_died, runtimePlugin ?: ""), retry = true)
+            else -> {
+                HostEvents.record(this, "runtime ended: died before drawing")
+                showFailure(getString(R.string.launch_runtime_died, runtimePlugin ?: ""), retry = true)
+            }
         }
     }
 
