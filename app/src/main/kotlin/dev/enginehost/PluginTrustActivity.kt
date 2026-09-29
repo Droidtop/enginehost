@@ -180,6 +180,16 @@ class PluginTrustActivity : EnginehostActivity() {
         badge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, container))
         badge.setTextColor(ContextCompat.getColor(this, onContainer))
 
+        val sandboxBadge = card.findViewById<TextView>(R.id.sandboxBadge)
+        val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.isolatable) {
+            Triple(R.string.badge_sandboxed, R.color.eh_official_container, R.color.eh_on_official_container)
+        } else {
+            Triple(R.string.badge_unsandboxed, R.color.eh_caution_container, R.color.eh_on_caution_container)
+        }
+        sandboxBadge.setText(sandboxLabel)
+        sandboxBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, sandboxContainer))
+        sandboxBadge.setTextColor(ContextCompat.getColor(this, sandboxOnContainer))
+
         card.findViewById<TextView>(R.id.originValue).text = "${getString(R.string.origin_label)}: " + if (thirdParty != null) {
             getString(R.string.origin_verified_third_party, plugin.origin, thirdParty.maintainerName)
         } else {

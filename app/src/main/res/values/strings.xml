@@ -88,6 +88,8 @@
     <string name="badge_ultimate">Ultimate</string>
     <string name="badge_community">Community</string>
     <string name="badge_third_party">Third party</string>
+    <string name="badge_sandboxed">Sandboxed</string>
+    <string name="badge_unsandboxed">Unsandboxed</string>
     <string name="trust_build_line">%1$s · %2$s</string>
     <string name="trust_state_label">Trust</string>
     <string name="trust_state_pending">Waiting for your approval</string>
