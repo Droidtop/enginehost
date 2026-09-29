@@ -57,6 +57,7 @@ class ConfigEditorActivity : EnginehostActivity() {
     private lateinit var versionField: EditText
     private lateinit var runtimesButton: Button
     private lateinit var pluginVersionButton: Button
+    private lateinit var advancedIds: TextView
     private lateinit var execFileButton: Button
     private lateinit var optionsList: LinearLayout
     private lateinit var editorFields: View
@@ -73,6 +74,12 @@ class ConfigEditorActivity : EnginehostActivity() {
         versionField = findViewById(R.id.engineVersionField)
         runtimesButton = findViewById(R.id.runtimesButton)
         pluginVersionButton = findViewById(R.id.pluginVersionButton)
+        advancedIds = findViewById(R.id.advancedIds)
+        findViewById<TextView>(R.id.advancedToggle).setOnClickListener { toggle ->
+            val open = advancedIds.visibility != View.VISIBLE
+            advancedIds.visibility = if (open) View.VISIBLE else View.GONE
+            (toggle as TextView).setText(if (open) R.string.advanced_hide else R.string.advanced_show)
+        }
         execFileButton = findViewById(R.id.execFileButton)
         optionsList = findViewById(R.id.optionsList)
         editorFields = findViewById(R.id.editorFields)
@@ -564,6 +571,14 @@ class ConfigEditorActivity : EnginehostActivity() {
             ?: getString(R.string.runtime_none)
         pluginVersionButton.text = pluginVersionConstraint ?: getString(R.string.any_version)
         execFileButton.text = execFile ?: getString(R.string.exec_clear)
+        // The raw ids, for someone who needs to match them against enginehost.json or a report.
+        advancedIds.text = listOfNotNull(
+            engine?.let { "engine: $it" },
+            engineContext?.let { "variant: $it" },
+            runtimeRequirements?.takeIf { it.length() > 0 }?.let { "runtimes: $it" },
+            pluginVersionConstraint?.let { "plugin versions: $it" },
+        ).ifEmpty { listOf(getString(R.string.value_not_set)) }.joinToString("
+")
         renderOptions()
     }
 
