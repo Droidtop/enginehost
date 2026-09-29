@@ -22,6 +22,8 @@
     <color name="eh_community">#A0A8B2</color>
     <color name="eh_community_container">#262C34</color>
     <color name="eh_on_community_container">#CDD3DA</color>
+    <color name="eh_installed_container">@color/eh_surface_variant</color>
+    <color name="eh_on_installed_container">@color/eh_text_primary</color>
 
     <color name="eh_engine_renpy">#B39DF0</color>
     <color name="eh_engine_rpgmaker">#5FD2B0</color>

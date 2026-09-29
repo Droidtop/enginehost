@@ -37,6 +37,16 @@
     <color name="eh_community_container">#E6E9ED</color>
     <color name="eh_on_community_container">#2E353D</color>
 
+    <!--
+        The Installed status on a plugin card: a status sitting in the
+        action position, not a disabled control, so it wears the neutral
+        ground family and says it in the card's own text colour. The
+        generic disabled button's white at 45% on this fill is about
+        1.1:1 on the light theme, unreadable.
+    -->
+    <color name="eh_installed_container">@color/eh_surface_variant</color>
+    <color name="eh_on_installed_container">@color/eh_text_primary</color>
+
     <!-- Engine families. Chips draw the hue as text over the hue at low alpha. -->
     <color name="eh_engine_renpy">#6A4BC7</color>
     <color name="eh_engine_rpgmaker">#0F8A6A</color>
