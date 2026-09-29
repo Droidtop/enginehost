@@ -25,6 +25,7 @@ object CrashWatch {
     private const val TAG = "enginehost"
     private const val NOTE = "runtime-session.json"
     private const val TRACE_CHARACTERS = 4000
+    private const val TOMBSTONE_LINES = 30
     private const val SIGKILL = 9
     private const val SIGTERM = 15
 
@@ -44,6 +45,7 @@ object CrashWatch {
             .put("startedAt", System.currentTimeMillis())
         runCatching { file(context).writeText(note.toString()) }
             .onFailure { Log.w(TAG, "Could not record the runtime session", it) }
+        HostEvents.clear(context, HostEvents.ENGINE_FILE)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching {
@@ -149,10 +151,34 @@ object CrashWatch {
         else -> " (signal $status)"
     }
 
-    /** The tombstone or ANR trace Android kept, when it kept one. */
-    private fun exitTrace(exit: ApplicationExitInfo): String = runCatching {
-        exit.traceInputStream?.bufferedReader()?.use { it.readText().take(TRACE_CHARACTERS) }
-    }.getOrNull().orEmpty().ifBlank { exit.description.orEmpty() }
+    /**
+     * What Android kept about the exit. A native crash's tombstone is
+     * summarised ([summarizeNative]); an ANR trace is text and is kept as is.
+     */
+    private fun exitTrace(exit: ApplicationExitInfo): String {
+        val bytes = runCatching { exit.traceInputStream?.use { it.readBytes() } }.getOrNull()
+        if (exit.reason == ApplicationExitInfo.REASON_CRASH_NATIVE) {
+            return summarizeNative(exit.description, bytes ?: ByteArray(0))
+        }
+        return bytes?.toString(Charsets.UTF_8)?.take(TRACE_CHARACTERS).orEmpty().ifBlank { exit.description.orEmpty() }
+    }
+
+    private val PRINTABLE_RUN = Regex("[\\x20-\\x7e]{5,}")
+    private val TOMBSTONE_MARKER = Regex("""\.so\b|Abort message|Fatal signal|\bSIG[A-Z]+|>>> |\bcode -?\d+|fault addr""")
+
+    /**
+     * A native crash in the few lines a reader needs: what Android says the
+     * signal was, then the lines of the tombstone that name a library, the
+     * signal, the abort message or the crashed process. Android 12 and later
+     * keep the tombstone as a binary protocol buffer, whose text is still
+     * there as printable runs, so the same filter reads both forms. Internal
+     * for tests, which feed it a text and a binary sample.
+     */
+    internal fun summarizeNative(description: String?, trace: ByteArray): String {
+        val runs = PRINTABLE_RUN.findAll(String(trace, Charsets.ISO_8859_1)).map { it.value.trim() }
+        val kept = runs.filter { TOMBSTONE_MARKER.containsMatchIn(it) }.distinct().take(TOMBSTONE_LINES).toList()
+        return (listOfNotNull(description?.takeIf { it.isNotBlank() }) + kept).joinToString("\n").take(TRACE_CHARACTERS)
+    }
 
     private fun file(context: Context): File = File(context.filesDir, NOTE)
 }

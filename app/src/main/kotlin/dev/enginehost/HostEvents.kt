@@ -20,6 +20,12 @@ import java.util.concurrent.Executors
  */
 object HostEvents {
     private const val FILE = "host-events.log"
+
+    /**
+     * What the engine itself said, kept apart from the host's own events: the
+     * runtime process is its only writer, so two processes never share a file.
+     */
+    const val ENGINE_FILE = "engine-events.log"
     private const val MAX_LINES = 60
     private const val MAX_LINE_CHARACTERS = 200
 
@@ -29,8 +35,8 @@ object HostEvents {
     }
 
     /** Append one event; returns at once. */
-    fun record(context: Context, event: String) {
-        val file = File(context.applicationContext.filesDir, FILE)
+    fun record(context: Context, event: String, name: String = FILE) {
+        val file = File(context.applicationContext.filesDir, name)
         val line = format(Date(), event)
         worker.execute {
             runCatching {
@@ -40,8 +46,41 @@ object HostEvents {
     }
 
     /** The recorded events, oldest first. Reads the file: not for the main thread. */
-    fun recent(context: Context): List<String> =
-        synchronized(lock) { read(File(context.applicationContext.filesDir, FILE)) }
+    fun recent(context: Context, name: String = FILE): List<String> =
+        synchronized(lock) { read(File(context.applicationContext.filesDir, name)) }
+
+    /** Forget the ring [name]: a new game session starts a new story. */
+    fun clear(context: Context, name: String) {
+        val file = File(context.applicationContext.filesDir, name)
+        worker.execute { runCatching { synchronized(lock) { file.delete() } } }
+    }
+
+    /**
+     * The line an engine's own log call adds to the engine ring, or null when
+     * it is not worth a slot: only warnings and worse, one line, and never the
+     * same line twice running. [previous] is the last line kept.
+     */
+    internal fun engineLine(priority: Int, tag: String, message: String, previous: String?): String? {
+        if (priority < android.util.Log.WARN) return null
+        val level = when (priority) {
+            android.util.Log.WARN -> "warn"
+            android.util.Log.ERROR -> "error"
+            else -> "fatal"
+        }
+        val first = message.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().trim()
+        val text = "$level $tag: $first".take(MAX_LINE_CHARACTERS)
+        return text.takeIf { it != previous }
+    }
+
+    private var lastEngineLine: String? = null
+
+    /** Record an engine log call in the engine ring if it earns a line (see [engineLine]). */
+    fun recordEngine(context: Context, priority: Int, tag: String, message: String) {
+        val line = synchronized(lock) {
+            engineLine(priority, tag, message, lastEngineLine)?.also { lastEngineLine = it }
+        } ?: return
+        record(context, line, ENGINE_FILE)
+    }
 
     /** The ring after adding [line]: the newest [max] lines. */
     internal fun trimmed(existing: List<String>, line: String, max: Int): List<String> = (existing + line).takeLast(max)

@@ -742,6 +742,7 @@ private class HostFileBroker(private val root: File, private val readOnly: Boole
 private class HostRuntimeCallback(private val activity: RuntimeActivity) : IEngineRuntimeCallback.Stub() {
     override fun log(priority: Int, tag: String, message: String) {
         Log.println(priority, "enginehost/$tag", message)
+        HostEvents.recordEngine(activity, priority, tag, message)
     }
 
     override fun rumbleController(deviceId: Int, durationMs: Long, amplitude: Int): Boolean {

@@ -43,12 +43,22 @@ data class ProblemReport(
     val events: String = "",
     /** Enginehost's own recent system log lines, trimmed to what says something. */
     val systemLog: String = "",
+    /** Warnings and errors the engine itself logged this session, oldest first. */
+    val engineEvents: String = "",
+    /** Settings that differ from their defaults; what a person changed can explain a game that only fails for them. */
+    val settings: String = "",
 ) {
     /** The part of the report Enginehost fills in about the machine and the plugin. */
     fun environment(): String = buildString {
         appendLine("Plugin: $plugin")
         appendLine("Enginehost: $host")
         append(device)
+        if (settings.isNotBlank()) {
+            appendLine()
+            appendLine()
+            appendLine("Settings changed from default:")
+            append(settings)
+        }
         if (config.isNotBlank()) {
             appendLine()
             appendLine()
@@ -61,12 +71,13 @@ data class ProblemReport(
     fun logSections(crash: String?, heading: (Section) -> String): String =
         listOfNotNull(
             crash,
+            engineEvents.takeIf { it.isNotBlank() }?.let { heading(Section.ENGINE) + "\n" + it },
             events.takeIf { it.isNotBlank() }?.let { heading(Section.EVENTS) + "\n" + it },
             systemLog.takeIf { it.isNotBlank() }?.let { heading(Section.SYSTEM_LOG) + "\n" + it },
             log.takeIf { it.isNotBlank() },
         ).joinToString(BLANK_LINE)
 
-    enum class Section { EVENTS, SYSTEM_LOG }
+    enum class Section { ENGINE, EVENTS, SYSTEM_LOG }
 
     companion object {
         private const val LOG_CHARACTERS = 3000
@@ -115,8 +126,30 @@ data class ProblemReport(
                 log = tail(context, gameFolder),
                 events = scrub(HostEvents.recent(context).joinToString("\n"), gameFolder),
                 systemLog = scrub(trimSystemLog(readSystemLog()), gameFolder),
+                engineEvents = scrub(HostEvents.recent(context, HostEvents.ENGINE_FILE).joinToString("\n"), gameFolder),
+                settings = nonDefaultSettings(context),
             )
         }
+
+        /**
+         * The settings a person changed, one line each; empty when none are.
+         * Only whether and how a setting differs, never a folder or an app's name.
+         */
+        private fun nonDefaultSettings(context: Context): String = runCatching {
+            val updates = PluginUpdateCheck(context)
+            val saves = SaveLocationStore(context)
+            val callers = CallerAccessStore(context).all().values
+            listOfNotNull(
+                updates.frequency.takeIf { it != PluginUpdateCheck.Frequency.DAILY }?.let { "Plugin update checks: ${it.name.lowercase()}" },
+                "Plugin updates install automatically".takeIf { updates.installAutomatically },
+                updates.stream.takeIf { it != PluginStream.STABLE }?.let { "Plugin releases: ${it.name.lowercase()}" },
+                "Plugin checks skip metered connections".takeIf { updates.unmeteredOnly },
+                "Saves go to a folder the person chose".takeIf { saves.root() != saves.defaultRoot() },
+                saves.overrides().size.takeIf { it > 0 }?.let { "$it engines keep saves in their own folder" },
+                callers.count { it == CallerDecision.ALLOW }.takeIf { it > 0 }?.let { "$it apps always allowed to launch games" },
+                callers.count { it == CallerDecision.BLOCK }.takeIf { it > 0 }?.let { "$it apps blocked from launching games" },
+            ).joinToString("\n")
+        }.getOrDefault("")
 
         /**
          * The device the game runs on, in the lines a compatibility reader

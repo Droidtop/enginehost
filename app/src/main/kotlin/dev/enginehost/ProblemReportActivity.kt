@@ -103,7 +103,13 @@ class ProblemReportActivity : EnginehostActivity() {
             }
         }
         val combined = report.logSections(crash) { section ->
-            getString(if (section == ProblemReport.Section.EVENTS) R.string.report_events_heading else R.string.report_system_log_heading)
+            getString(
+                when (section) {
+                    ProblemReport.Section.ENGINE -> R.string.report_engine_heading
+                    ProblemReport.Section.EVENTS -> R.string.report_events_heading
+                    ProblemReport.Section.SYSTEM_LOG -> R.string.report_system_log_heading
+                },
+            )
         }
         field(R.id.reportLog).setText(combined)
         log = combined

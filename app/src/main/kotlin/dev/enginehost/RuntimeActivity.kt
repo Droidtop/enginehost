@@ -379,6 +379,7 @@ private class RuntimeHost(
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {
         val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()
         Log.println(priority, "enginehost/$tag", message + detail)
+        HostEvents.recordEngine(activity, priority, tag, message)
     }
     override fun rumbleController(deviceId: Int, durationMs: Long, amplitude: Int): Boolean {
         val vibrator = InputDevice.getDevice(deviceId)?.vibrator ?: return false

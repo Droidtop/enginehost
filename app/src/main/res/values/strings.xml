@@ -418,6 +418,7 @@
     <string name="report_copy">Copy report</string>
     <string name="report_copied">Report copied</string>
     <string name="report_copied_paste">Report copied. Paste it into the description.</string>
+    <string name="report_engine_heading">What the game engine reported</string>
     <string name="report_events_heading">What Enginehost did just before</string>
     <string name="report_system_log_heading">Recent system log</string>
     <string name="report_form_title">Report a problem</string>
