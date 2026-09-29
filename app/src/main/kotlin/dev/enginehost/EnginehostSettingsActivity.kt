@@ -97,12 +97,25 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             R.string.app_version_line,
             packageManager.getPackageInfo(packageName, 0).versionName,
             AppUpdate.installedVersionCode(this),
-            // Which droidtop-platforms commit the bundled engine registry is,
-            // so a classification argument between the two apps can be settled
-            // by reading the two snapshots rather than guessing.
-            PlatformSnapshot.shortCommit(this) ?: getString(R.string.platform_snapshot_unrecorded),
         )
         findViewById<View>(R.id.appVersionRow).setOnClickListener { checkAppUpdate() }
+        // Which droidtop-platforms commit the bundled engine registry is, so a
+        // classification argument between the two apps can be settled by reading
+        // the two snapshots rather than guessing. Only for whoever asks: holding
+        // the row down (Droidtop/tracker#35). Bug reports carry it too.
+        findViewById<View>(R.id.appVersionRow).setOnLongClickListener {
+            Sheet(this)
+                .title(R.string.build_details_title)
+                .message(
+                    getString(
+                        R.string.build_details_message,
+                        PlatformSnapshot.shortCommit(this) ?: getString(R.string.platform_snapshot_unrecorded),
+                    ),
+                )
+                .choice(R.string.ok) {}
+                .show()
+            true
+        }
         findViewById<View>(R.id.launchAccessRow).setOnClickListener {
             startActivity(Intent(this, CallerAccessSettingsActivity::class.java))
         }

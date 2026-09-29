@@ -267,6 +267,7 @@
     <string name="engine_version_help">The engine version the game shipped with, read from the game files when possible.</string>
     <string name="label_runtimes">Script engine the game carries</string>
     <string name="variant_standard">Standard</string>
+    <string name="game_folder_line">Folder: %1$s · show location</string>
     <string name="label_plugin_versions">Plugin builds</string>
     <string name="label_exec_file">Entry file</string>
     <string name="label_options">Options</string>
@@ -365,7 +366,9 @@
     <string name="github_token_masked">%1$s (masked)</string>
     <string name="github_token_paste_hint">Paste your GitHub personal access token</string>
     <string name="platform_snapshot_unrecorded">unrecorded</string>
-    <string name="app_version_line">Enginehost %1$s (build %2$d), engine registry snapshot %3$s</string>
+    <string name="app_version_line">Enginehost %1$s (build %2$d)</string>
+    <string name="build_details_title">Build details</string>
+    <string name="build_details_message">Engine registry snapshot: %1$s</string>
     <string name="app_update_available">Enginehost %1$s is available</string>
     <string name="app_update_checking">Checking…</string>
     <string name="app_update_none">This is the newest build</string>

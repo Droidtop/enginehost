@@ -38,7 +38,7 @@ class GameActivity : EnginehostActivity() {
         folder = File(path)
         setContentView(R.layout.activity_game)
         wireBackButton()
-        findViewById<TextView>(R.id.gamePath).text = folder.absolutePath
+        wireFolderLine(findViewById(R.id.gamePath))
         findViewById<Button>(R.id.playButton).setOnClickListener { play() }
         findViewById<Button>(R.id.setupButton).setOnClickListener {
             startActivity(
@@ -50,6 +50,26 @@ class GameActivity : EnginehostActivity() {
             startActivity(ProblemReportActivity.intent(this, folder))
         }
         findViewById<Button>(R.id.removeButton).setOnClickListener { confirmRemove() }
+    }
+
+    /**
+     * The folder is named the way the person knows it; the full location (a raw
+     * mount path on some devices) is one press away, not the first thing read
+     * (Droidtop/tracker#36).
+     */
+    private fun wireFolderLine(view: TextView) {
+        var expanded = false
+        fun render() {
+            view.text = if (expanded) folder.absolutePath else getString(R.string.game_folder_line, folder.name.ifBlank { folder.absolutePath })
+        }
+        view.isClickable = true
+        view.isFocusable = true
+        view.setBackgroundResource(R.drawable.eh_row_bg)
+        view.setOnClickListener {
+            expanded = !expanded
+            render()
+        }
+        render()
     }
 
     /** Setup may have changed while this screen was covered, so the state is read again. */
