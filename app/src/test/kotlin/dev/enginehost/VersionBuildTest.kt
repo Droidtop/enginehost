@@ -1,0 +1,71 @@
+package dev.enginehost
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class VersionBuildTest {
+    private fun v(raw: String) = Version.parse(raw)
+
+    @Test
+    fun parsesTheBuildCounter() {
+        assertEquals(listOf(1, 0, 0), v("1.0.0-57").parts)
+        assertEquals(57, v("1.0.0-57").build)
+        assertNull(v("1.0.0").build)
+        assertEquals("1.0.0-57", v("1.0.0-57").toString())
+    }
+
+    @Test
+    fun ordersByDeclaredVersionThenBuild() {
+        assertTrue(v("1.0.0-2") > v("1.0.0-1"))
+        assertTrue(v("1.0.0-10") > v("1.0.0-9"))
+        assertTrue(v("1.0.1-1") > v("1.0.0-99"))
+        assertTrue(v("1.1.0-1") > v("1.0.9-500"))
+    }
+
+    @Test
+    fun aBuildOfAVersionIsNotBelowThatVersion() {
+        assertTrue(v("1.0.0-1") >= v("1.0.0"))
+        assertTrue(v("1.0.0-1") > v("1.0"))
+        assertEquals(v("1.0.5"), v("1.0.5-0"))
+    }
+
+    @Test
+    fun legacyRunNumberVersionsStayComparable() {
+        assertTrue(v("1.0.57") > v("1.0.0-99"))
+        assertTrue(v("1.0.57-1") > v("1.0.57"))
+        assertTrue(v("1.0.58") > v("1.0.57"))
+        assertTrue(v("1.1.0-1") > v("1.0.57"))
+    }
+
+    @Test
+    fun rejectsMalformedBuilds() {
+        for (bad in listOf("1.0.0-", "1.0.0-a", "1.0.0--1", "-1", "1.0.0-1-2", "1.0.0-1.2")) {
+            assertFalse(bad, runCatching { v(bad) }.isSuccess)
+        }
+    }
+
+    @Test
+    fun constraintsKeepRangesAndAcceptBuilds() {
+        val c = VersionConstraint.parse("1.0.0,1.2.0-1.4.0,2.0.0-3")
+        assertTrue(c.matches(v("1.0.0")))
+        assertTrue(c.matches(v("1.3.5")))
+        assertTrue(c.matches(v("2.0.0-3")))
+        assertFalse(c.matches(v("2.0.0-4")))
+        assertFalse(c.matches(v("1.5.0")))
+        val builds = VersionConstraint.parse("1.0.0-3-1.0.0-9")
+        assertTrue(builds.matches(v("1.0.0-5")))
+        assertFalse(builds.matches(v("1.0.0-10")))
+    }
+
+    @Test
+    fun displaysTheBuildNumber() {
+        assertEquals("1.0 · build 57", PluginVersions.display(v("1.0.0-57")))
+        assertEquals("1.2.1 · build 3", PluginVersions.display(v("1.2.1-3")))
+        assertEquals("1.0 · build 21", PluginVersions.display(v("1.0.21")))
+        assertEquals("57", PluginVersions.build(v("1.0.0-57")))
+        assertEquals("21", PluginVersions.build(v("1.0.21")))
+    }
+}

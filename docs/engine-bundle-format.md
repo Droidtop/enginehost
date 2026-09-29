@@ -35,13 +35,21 @@ SHA-256 digest.
 Within one `bundleId`, `pluginVersion` is the total order on builds: a
 release with the same ID from the same origin and a strictly higher
 `pluginVersion` is an update and replaces the older build in place, while a
-new ID (a new series, or a deliberate `-vN` bump) coexists. The repository's
-metadata declares only the major and minor components as a statement of
-intent; `build-engine-bundle.py` sets the third component to the CI run
-counter (`GITHUB_RUN_NUMBER`, or `--build-number`), so every build of a line
-is a strictly newer build than the one before it without anyone editing a
-file. A hand-written third component is therefore replaced in CI, and a
-deliberate bump is expressed in major or minor. How updates are
+new ID (a new series, or a deliberate `-vN` bump) coexists. `pluginVersion` is `X.Y.Z-N`
+(decided 2026-09-28, Droidtop/tracker#126): the version the repository
+declares, then N, a per-version build counter -- the first published build of
+a declared version is `-1`, the next `-2`, and a new declared version starts
+again at `-1`. `dev.enginehost.Version` orders by X.Y.Z, then by N; a version
+with no `-N` compares as build 0, so `1.0.0-N` is the 1.0.0 release and not a
+pre-release. Versions published before this (`X.Y.<run>`, the CI run number
+in the third place) still parse and order by their dotted parts, which puts
+`1.0.57` above `1.0.0-99` and below `1.0.57-1`: a repository moving to the
+new form declares a version above its last legacy run number (or a new
+minor) so the first `-1` build is offered as an update. The build script
+that emits this form lives in each plugin repository's plugin-core, not in
+this repository. In a game's `pluginVersions` allowlist a token that is
+one version (`1.0.0-3`) is exact and a range joins two versions with a dash
+(`1.2.0-1.4.0`). How updates are
 discovered, gated and approved is docs/plugin-catalog.md's Updates section;
 the invariant that matters here is that replacing bytes never carries over
 approval, which is bound to the exact archive digest and signer.
