@@ -417,7 +417,8 @@
     <string name="report_share_failed">No app could take the report. Use Copy report instead.</string>
     <string name="report_send">Report on GitHub</string>
     <string name="report_send_note">Needs a GitHub account. The report is copied first: paste it into the description.</string>
-    <string name="report_copy">Copy report</string>
+    <string name="report_copy">Copy report (no account needed)</string>
+    <string name="report_copy_explanation">Report on GitHub needs an account. Copy report works without one: paste it wherever you can reach us.</string>
     <string name="report_copied">Report copied</string>
     <string name="report_copied_paste">Report copied. Paste it into the description.</string>
     <string name="report_engine_heading">What the game engine reported</string>

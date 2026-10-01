@@ -232,5 +232,12 @@
             android:text="@string/report_send_note"
             android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/report_copy_explanation"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
     </LinearLayout>
 </ScrollView>
