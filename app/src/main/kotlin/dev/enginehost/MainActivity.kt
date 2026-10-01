@@ -82,6 +82,7 @@ class MainActivity : EnginehostActivity() {
     override fun onResume() {
         super.onResume()
         if (::browser.isInitialized) {
+            browser.forgetSupport()
             browser.reload()
             classifyWaitingGames()
         }

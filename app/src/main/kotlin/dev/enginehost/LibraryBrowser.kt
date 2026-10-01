@@ -85,6 +85,11 @@ class LibraryBrowser(
         })
     }
 
+    /** Runs [block] on the worker thread; once the screen is gone there is no worker and nothing to do. */
+    private fun background(block: () -> Unit) {
+        runCatching { worker.execute { block() } }
+    }
+
     fun destroy() {
         generation.incrementAndGet()
         main.removeCallbacksAndMessages(null)
@@ -106,12 +111,12 @@ class LibraryBrowser(
         val gen = generation.incrementAndGet()
         val query = filter
         lastReload = System.currentTimeMillis()
-        worker.execute {
-            if (gen != generation.get()) return@execute
+        background {
+            if (gen != generation.get()) return@background
             val result = runCatching {
                 val all = library.query(query)
                 val total = library.count(query.scope, query.root)
-                val resolver = SupportResolver(activity)
+                val resolver = supportResolver()
                 val supports = all.map { resolver.of(it) }
                 if (query.support == null) {
                     Loaded(all, supports, total)
@@ -119,8 +124,8 @@ class LibraryBrowser(
                     val keep = all.indices.filter { supports[it] == query.support }
                     Loaded(keep.map { all[it] }, keep.map { supports[it] }, total)
                 }
-            }.getOrNull() ?: return@execute
-            if (gen != generation.get()) return@execute
+            }.getOrNull() ?: return@background
+            if (gen != generation.get()) return@background
             activity.runOnUiThread {
                 if (gen != generation.get() || activity.isDestroyed) return@runOnUiThread
                 render(result)
@@ -140,6 +145,28 @@ class LibraryBrowser(
                 reload()
             }, wait)
         }
+    }
+
+    /** Plugin discovery reads the disk, so a resolver is reused across the reloads a running scan causes. */
+    @Volatile
+    private var resolver: SupportResolver? = null
+
+    @Volatile
+    private var resolverAt = 0L
+
+    private fun supportResolver(): SupportResolver {
+        val now = System.currentTimeMillis()
+        val current = resolver
+        if (current != null && now - resolverAt < RESOLVER_MAX_AGE_MS) return current
+        return SupportResolver(activity).also {
+            resolver = it
+            resolverAt = now
+        }
+    }
+
+    /** Installed plugins may have changed (the person came back from the plugin screens): look again on the next load. */
+    fun forgetSupport() {
+        resolverAt = 0L
     }
 
     private class Loaded(val rows: List<GameRow>, val supports: List<Support>, val total: Int)
@@ -219,7 +246,7 @@ class LibraryBrowser(
     private fun pickEngine() {
         val scope = filter.scope
         val root = filter.root
-        worker.execute {
+        background {
             val counts = runCatching { library.engineCounts(scope, root) }.getOrDefault(emptyList())
             activity.runOnUiThread {
                 if (activity.isDestroyed) return@runOnUiThread
@@ -272,7 +299,7 @@ class LibraryBrowser(
     private fun pickFolder() {
         val scope = filter.scope
         val root = filter.root
-        worker.execute {
+        background {
             val folders = runCatching { library.folderCounts(scope, root) }.getOrDefault(emptyList())
             activity.runOnUiThread {
                 if (activity.isDestroyed) return@runOnUiThread
@@ -429,5 +456,6 @@ class LibraryBrowser(
     companion object {
         private const val SEARCH_DELAY_MS = 250L
         private const val RELOAD_INTERVAL_MS = 1500L
+        private const val RESOLVER_MAX_AGE_MS = 15_000L
     }
 }

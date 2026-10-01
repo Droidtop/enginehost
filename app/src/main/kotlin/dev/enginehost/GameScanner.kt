@@ -157,7 +157,7 @@ class GameScanner(
         val outstanding = AtomicInteger()
         val stopped = AtomicBoolean()
         val done = CountDownLatch(1)
-        val seen: MutableSet<String> = ConcurrentHashMap.newKeySet()
+        val seen: MutableSet<String> = ConcurrentHashMap.newKeySet<String>()
         val archives = ConcurrentLinkedQueue<PendingArchive>()
         val gameKeys = ConcurrentHashMap<String, MutableSet<String>>()
 
@@ -185,7 +185,7 @@ class GameScanner(
 
         fun noteGameFolder(dir: File) {
             val parent = dir.parent ?: return
-            gameKeys.computeIfAbsent(parent) { ConcurrentHashMap.newKeySet() }.add(ArchiveFiles.releaseKey(dir.name))
+            gameKeys.computeIfAbsent(parent) { ConcurrentHashMap.newKeySet<String>() }.add(ArchiveFiles.releaseKey(dir.name))
         }
 
         fun collectArchives(dir: File, entries: List<DirEntry>) {
