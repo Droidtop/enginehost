@@ -33,34 +33,12 @@ private fun ByteArray.indexOf(pattern: ByteArray, from: Int = 0): Int {
  * The machine a native executable or library is built for, from its own
  * header: the COFF `Machine` field of a PE image, or `e_machine` of an ELF
  * file. Named the way Android names ABIs, since that is the question it
- * answers: whether this device could load it.
+ * answers: whether this device could load it. The header reading is
+ * [ExecutableProbe]'s, shared with the library scan.
  */
 internal object ExecutableArchitecture {
-    fun of(tree: GameTree, path: String): String? {
-        val head = tree.readHead(path, 20)
-        if (head.size >= 2 && head[0] == 'M'.code.toByte() && head[1] == 'Z'.code.toByte()) {
-            val image = PeImage.parse { offset, size -> tree.read(path, offset, size) } ?: return null
-            return when (image.machine) {
-                0x8664 -> "x86_64"
-                0x014c -> "x86"
-                0xAA64 -> "arm64"
-                0x01c4 -> "arm"
-                else -> null
-            }
-        }
-        if (head.size >= 20 && head[0] == 0x7f.toByte() && String(head, 1, 3, Charsets.US_ASCII) == "ELF") {
-            // EI_DATA 1 is little-endian, the only order these targets use.
-            if (head[5].toInt() != 1) return null
-            return when (little(head).getShort(18).toInt() and 0xffff) {
-                62 -> "x86_64"
-                3 -> "x86"
-                183 -> "arm64"
-                40 -> "arm"
-                else -> null
-            }
-        }
-        return null
-    }
+    fun of(tree: GameTree, path: String): String? =
+        ExecutableProbe.probe({ offset, size -> tree.read(path, offset, size) }, path)?.architecture
 }
 
 /**
