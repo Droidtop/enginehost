@@ -68,8 +68,6 @@ class LibraryBrowser(
     init {
         grid.adapter = adapter
         grid.onItemClickListener = AdapterView.OnItemClickListener { _, _, position, _ -> adapter.rowAt(position)?.let(onOpen) }
-        // A on a selected row, which the activity delivers as a click on the grid itself.
-        grid.setOnClickListener { selectedRow()?.let(onOpen) }
         filterButton.setOnClickListener { showFilters() }
         searchField.setText(initial.text)
         searchField.addTextChangedListener(object : TextWatcher {
