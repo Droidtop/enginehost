@@ -124,7 +124,8 @@ object ScanController {
                 )
             }
             summary = state.summary
-            runCatching { measure(library, rootPath, summary) }
+            // A stopped scan does not go on to measure sizes.
+            if (!stopRequested) runCatching { measure(library, rootPath, summary) }
             synchronized(this) { scanner = null }
             publish(State(Phase.IDLE, rootPath, state.directoriesExamined, state.found, state.measured, summary))
         }.apply {
