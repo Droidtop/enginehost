@@ -12,7 +12,8 @@ import java.io.File
  * no engine evidence at all.
  */
 class RegistryScreen(rows: List<EngineRow>) {
-    private val names = HashSet<String>()
+    private val fileNames = HashSet<String>()
+    private val directoryNames = HashSet<String>()
     private val extensions = HashSet<String>()
     private val contains = ArrayList<String>()
     private val prefixes = ArrayList<String>()
@@ -30,17 +31,17 @@ class RegistryScreen(rows: List<EngineRow>) {
 
     private fun pick(rule: DetectRule) {
         val conditions = rule.all
-        conditions.filterIsInstance<DetectCondition.AnyFileNameIn>().firstOrNull()?.let { names += it.values; return }
-        conditions.filterIsInstance<DetectCondition.FileExists>().firstOrNull { '/' !in it.path }?.let { names += top(it.path); return }
+        conditions.filterIsInstance<DetectCondition.AnyFileNameIn>().firstOrNull()?.let { fileNames += it.values; return }
+        conditions.filterIsInstance<DetectCondition.FileExists>().firstOrNull { '/' !in it.path }?.let { fileNames += top(it.path); return }
         conditions.filterIsInstance<DetectCondition.AnyFileExtension>().firstOrNull()?.let { extensions += it.value; return }
         conditions.filterIsInstance<DetectCondition.AnyFileNameContains>().firstOrNull()?.let { contains += it.value; return }
         conditions.filterIsInstance<DetectCondition.DirNamePrefixCount>().firstOrNull()?.let { prefixes += it.prefix; return }
-        conditions.filterIsInstance<DetectCondition.FileHeadRegex>().firstOrNull { '/' !in it.path }?.let { names += top(it.path); return }
+        conditions.filterIsInstance<DetectCondition.FileHeadRegex>().firstOrNull { '/' !in it.path }?.let { fileNames += top(it.path); return }
         conditions.filterIsInstance<DetectCondition.Builtin>().firstOrNull()?.let { builtin(it.name); return }
-        conditions.filterIsInstance<DetectCondition.DirExists>().firstOrNull { '/' !in it.path }?.let { names += top(it.path); return }
-        conditions.filterIsInstance<DetectCondition.FileExists>().firstOrNull()?.let { names += top(it.path); return }
-        conditions.filterIsInstance<DetectCondition.FileHeadRegex>().firstOrNull()?.let { names += top(it.path); return }
-        conditions.filterIsInstance<DetectCondition.DirExists>().firstOrNull()?.let { names += top(it.path); return }
+        conditions.filterIsInstance<DetectCondition.DirExists>().firstOrNull { '/' !in it.path }?.let { directoryNames += top(it.path); return }
+        conditions.filterIsInstance<DetectCondition.FileExists>().firstOrNull()?.let { directoryNames += top(it.path); return }
+        conditions.filterIsInstance<DetectCondition.FileHeadRegex>().firstOrNull()?.let { directoryNames += top(it.path); return }
+        conditions.filterIsInstance<DetectCondition.DirExists>().firstOrNull()?.let { directoryNames += top(it.path); return }
         if (conditions.any { it is DetectCondition.AnyFileExtensionDeep }) {
             conditions.filterIsInstance<DetectCondition.AnyFileExtensionDeep>().forEach { extensions += it.value }
             deepRules = true
@@ -57,7 +58,7 @@ class RegistryScreen(rows: List<EngineRow>) {
             }
             "html" -> extensions += listOf("html", "htm")
             "unity" -> {
-                names += listOf("unityplayer.dll", "unityplayer.so", "unityplayer.dylib")
+                fileNames += listOf("unityplayer.dll", "unityplayer.so", "unityplayer.dylib")
                 directorySuffixes += "_data"
             }
             "swf" -> extensions += "swf"
@@ -68,10 +69,10 @@ class RegistryScreen(rows: List<EngineRow>) {
         for (entry in entries) {
             val lower = entry.name.lowercase()
             if (entry.isDirectory) {
-                if (lower in names || prefixes.any { lower.startsWith(it) } || directorySuffixes.any { lower.endsWith(it) }) return true
+                if (lower in directoryNames || prefixes.any { lower.startsWith(it) } || directorySuffixes.any { lower.endsWith(it) }) return true
                 if (deepRules && lower in CONVENTIONAL_DIRECTORIES) return true
             } else {
-                if (lower in names || contains.any { lower.contains(it) }) return true
+                if (lower in fileNames || contains.any { lower.contains(it) }) return true
                 val dot = lower.lastIndexOf('.')
                 if (dot >= 0 && lower.substring(dot + 1) in extensions) return true
                 if (bareBinaries && dot < 0 && entry.size >= BARE_BINARY_BYTES) return true

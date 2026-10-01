@@ -211,14 +211,14 @@ class GameScannerTest {
     @Test
     fun `hidden folders and the app data tree at the top of storage are skipped`() {
         val root = tempRoot()
-        godot(File(root, ".hidden/Game"))
-        godot(File(root, "Android/Game"))
-        godot(File(root, "Shelf/Android/Game"))
-        godot(File(root, "\$RECYCLE.BIN/Game"))
+        godot(File(root, ".hidden/Adventure"))
+        godot(File(root, "Android/Adventure"))
+        godot(File(root, "Shelf/Android/Adventure"))
+        godot(File(root, "\$RECYCLE.BIN/Adventure"))
 
         val collector = scan(root)
 
-        assertEquals(listOf(canonical(File(root, "Shelf/Android/Game"))), collector.folders())
+        assertEquals(listOf(canonical(File(root, "Shelf/Android/Adventure"))), collector.folders())
     }
 
     @Test
