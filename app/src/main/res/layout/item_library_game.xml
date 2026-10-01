@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape library card, sized for one weighted column of the two column
-    GridLayout that replaces the list, so a 1920px wide screen shows two
-    games per row.
+    One game in a library list: its name, one line of state (builds, what
+    this device can do with it, size), the engine as a coloured chip, and a
+    chevron, or a word on the right when the row is acting on a choice (the
+    scan's Add). The row itself is not a focus target: the list selects it,
+    and the selection draws the same ring a focused card does.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    style="@style/Widget.Enginehost.Card.Focusable"
-    android:layout_width="0dp"
+    style="@style/Widget.Enginehost.Card"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_columnWeight="1"
-    android:layout_gravity="fill_horizontal"
-    android:layout_marginEnd="@dimen/eh_column_gap"
-    android:layout_marginBottom="@dimen/eh_space_s"
+    android:background="@drawable/eh_card_selectable_bg"
     android:gravity="center_vertical"
     android:minHeight="@dimen/eh_touch_target"
     android:orientation="horizontal">
@@ -27,18 +26,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:maxLines="1"
+            android:maxLines="2"
             android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
-
-        <TextView
-            android:id="@+id/gamePath"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:ellipsize="start"
-            android:maxLines="1"
-            android:textAppearance="@style/TextAppearance.Enginehost.Mono"
-            android:visibility="gone" />
 
         <TextView
             android:id="@+id/gameStatus"
@@ -47,8 +36,7 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="2"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-            android:visibility="gone" />
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
     </LinearLayout>
 
@@ -58,9 +46,20 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="@dimen/eh_space_s"
+        android:ellipsize="end"
+        android:maxWidth="160dp" />
+
+    <TextView
+        android:id="@+id/gameMark"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/eh_space_s"
+        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle"
+        android:textColor="@color/eh_accent"
         android:visibility="gone" />
 
     <ImageView
+        android:id="@+id/gameChevron"
         android:layout_width="@dimen/eh_icon"
         android:layout_height="@dimen/eh_icon"
         android:layout_marginStart="@dimen/eh_space_s"

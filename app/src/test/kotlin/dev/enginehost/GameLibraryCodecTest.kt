@@ -5,9 +5,11 @@ import org.junit.Test
 
 class GameLibraryCodecTest {
     @Test
-    fun `round trips ordered paths and removes duplicates`() {
-        val encoded = GameLibraryCodec.encode(listOf("/games/A", "/games/B", "/games/A"))
-        assertEquals(listOf("/games/A", "/games/B"), GameLibraryCodec.decode(encoded))
+    fun `an earlier library keeps its order and drops duplicates`() {
+        assertEquals(
+            listOf("/games/A", "/games/B"),
+            GameLibraryCodec.decode("[\"/games/A\",\"/games/B\",\"/games/A\"]"),
+        )
     }
 
     @Test

@@ -158,9 +158,13 @@ path. Because native interpreters traverse the live tree through filesystem
 paths, Android 11 and newer also require the per-app native-file-access grant.
 
 The home screen is the library: every game added there, found by a scan, or
-started through either front door, most recent first. Home has one way to
-add games, **Add games**, which offers one game (by its folder; it starts
-once added) or a folder of games (a scan, adding the ones chosen). A game's
+started through either front door, filterable by engine, platform, status,
+folder and text and sortable by name, date added, recent play and size (most
+recently played first by default). Home has one way to add games, **Add
+games**, which offers one game (by its folder; it starts once added) or a
+folder of games (a scan that also finds Windows and Linux builds and archives,
+tags them by platform, and adds the ones chosen; see docs/enginehost.md, "The
+library, the scanner and its filters"). A game's
 card opens that game's own screen, and that screen opens with the thing: a
 cover plate fills the freed space between the header and the actions. The
 plate holds the game's own art when it has any, and the same plate with its
@@ -168,7 +172,7 @@ name and engine line when it does not. The actions are Play, Game setup (the
 config creator for that folder), Report a problem, and Remove from list.
 Game setup is reached
 only from a game, because it is always about one; `dev.enginehost.CONFIGURE`
-remains its programmatic door. Y on a card plays it without opening it.
+remains its programmatic door. Y on a card plays it without opening it; X opens the filters.
 
 Controller settings provide global remapping for D-pad, face and shoulder
 buttons, sticks, triggers, VN actions such as skip/auto/history and quick

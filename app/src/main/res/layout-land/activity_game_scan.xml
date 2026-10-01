@@ -51,7 +51,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/eh_space_s"
-            android:text="@string/scan_add_all"
             android:visibility="gone" />
 
         <Button
@@ -84,20 +83,49 @@
         android:textAppearance="@style/TextAppearance.Enginehost.Mono"
         android:visibility="gone" />
 
-    <ScrollView
+    <ProgressBar
+        android:id="@+id/scanProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
+    <include
+        layout="@layout/view_library_filters"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s" />
+
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="@dimen/eh_space_s"
-        android:scrollbars="none">
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:layout_weight="1">
 
-        <GridLayout
-            android:id="@+id/resultList"
+        <GridView
+            android:id="@+id/gameGrid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:fastScrollEnabled="true"
+            android:horizontalSpacing="@dimen/eh_column_gap"
+            android:listSelector="@android:color/transparent"
+            android:nextFocusUp="@id/gameGrid"
+            android:numColumns="2"
+            android:scrollbars="vertical"
+            android:stretchMode="columnWidth"
+            android:verticalSpacing="@dimen/eh_space_s" />
+
+        <TextView
+            android:id="@+id/gameEmpty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:columnCount="2"
-            android:orientation="horizontal" />
+            android:padding="@dimen/eh_space_s"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body"
+            android:visibility="gone" />
 
-    </ScrollView>
+    </FrameLayout>
 
 </LinearLayout>

@@ -1,111 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    Scan: the header, status and progress stay put; what the scan found is
+    the shared filterable library list beneath them.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:scrollbars="none">
+    android:orientation="vertical"
+    android:paddingLeft="@dimen/eh_screen_padding_h"
+    android:paddingRight="@dimen/eh_screen_padding_h"
+    android:paddingTop="@dimen/eh_screen_padding_v"
+    android:paddingBottom="@dimen/eh_screen_padding_v">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingLeft="@dimen/eh_screen_padding_h"
-        android:paddingRight="@dimen/eh_screen_padding_h"
-        android:paddingTop="@dimen/eh_screen_padding_v"
-        android:paddingBottom="@dimen/eh_screen_padding_v">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:id="@+id/backButton"
-                android:layout_width="@dimen/eh_touch_target"
-                android:layout_height="@dimen/eh_touch_target"
-                android:layout_marginEnd="@dimen/eh_space_xs"
-                android:background="@drawable/eh_row_bg"
-                android:clickable="true"
-                android:contentDescription="@string/back"
-                android:focusable="true"
-                android:padding="13dp"
-                android:src="@drawable/ic_back"
-                android:tint="@color/eh_text_primary" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/scan_title"
-                android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
-
-            <Button
-                android:id="@+id/chooseScanFolderButton"
-                style="@style/Widget.Enginehost.Button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:drawableStart="@drawable/ic_folder"
-                android:text="@string/scan_choose" />
-
-        </LinearLayout>
+        <ImageView
+            android:id="@+id/backButton"
+            android:layout_width="@dimen/eh_touch_target"
+            android:layout_height="@dimen/eh_touch_target"
+            android:layout_marginEnd="@dimen/eh_space_xs"
+            android:background="@drawable/eh_row_bg"
+            android:clickable="true"
+            android:contentDescription="@string/back"
+            android:focusable="true"
+            android:padding="13dp"
+            android:src="@drawable/ic_back"
+            android:tint="@color/eh_text_primary" />
 
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_xs"
-            android:text="@string/scan_intro"
-            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+            android:layout_weight="1"
+            android:text="@string/scan_title"
+            android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
-        <TextView
-            android:id="@+id/scanRoot"
-            android:layout_width="match_parent"
+        <Button
+            android:id="@+id/chooseScanFolderButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_m"
-            android:background="@drawable/eh_card_bg"
-            android:padding="@dimen/eh_space_s"
-            android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+            android:drawableStart="@drawable/ic_folder"
+            android:text="@string/scan_choose" />
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:text="@string/scan_intro"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+    <TextView
+        android:id="@+id/scanRoot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:background="@drawable/eh_card_bg"
+        android:padding="@dimen/eh_space_s"
+        android:textAppearance="@style/TextAppearance.Enginehost.Mono"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/scanStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:textAppearance="@style/TextAppearance.Enginehost.Body"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/scanProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/addAllButton"
+            style="@style/Widget.Enginehost.Button.Tonal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:visibility="gone" />
 
+        <Button
+            android:id="@+id/cancelScanButton"
+            style="@style/Widget.Enginehost.Button.Danger"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:text="@string/scan_cancel"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <include
+        layout="@layout/view_library_filters"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_s" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/eh_space_s"
+        android:layout_weight="1">
+
+        <GridView
+            android:id="@+id/gameGrid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:fastScrollEnabled="true"
+            android:horizontalSpacing="@dimen/eh_column_gap"
+            android:listSelector="@android:color/transparent"
+            android:nextFocusUp="@id/gameGrid"
+            android:numColumns="1"
+            android:scrollbars="vertical"
+            android:stretchMode="columnWidth"
+            android:verticalSpacing="@dimen/eh_space_s" />
+
         <TextView
-            android:id="@+id/scanStatus"
+            android:id="@+id/gameEmpty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
+            android:padding="@dimen/eh_space_s"
             android:textAppearance="@style/TextAppearance.Enginehost.Body"
             android:visibility="gone" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:orientation="horizontal">
+    </FrameLayout>
 
-            <Button
-                android:id="@+id/addAllButton"
-                style="@style/Widget.Enginehost.Button.Tonal"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/scan_add_all"
-                android:visibility="gone" />
-
-            <Button
-                android:id="@+id/cancelScanButton"
-                style="@style/Widget.Enginehost.Button.Danger"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/eh_space_s"
-                android:text="@string/scan_cancel"
-                android:visibility="gone" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/resultList"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_m"
-            android:orientation="vertical" />
-
-    </LinearLayout>
-</ScrollView>
+</LinearLayout>

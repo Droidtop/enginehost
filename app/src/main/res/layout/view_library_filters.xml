@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The library's search and filter controls, shared by Home and the scan
+    screen. Neither control is a stop for the D-pad (the pad reaches them
+    through X, which opens the filter sheet); both answer touch.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/gameSearch"
+            style="@style/Widget.Enginehost.EditText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="@string/search_hint"
+            android:imeOptions="actionSearch"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="1" />
+
+        <Button
+            android:id="@+id/gameFilterButton"
+            style="@style/Widget.Enginehost.Button.Tonal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:focusable="false"
+            android:text="@string/filter_button" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/gameSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+        android:visibility="gone" />
+
+</LinearLayout>

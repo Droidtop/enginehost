@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A card inside a list that selects its rows itself (the library grid):
+    the same look as eh_card_focusable_bg, keyed on the selected state the
+    list gives its current row while the pad is in use.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/eh_surface_variant" />
+            <stroke android:width="1dp" android:color="@color/eh_accent" />
+            <corners android:radius="@dimen/eh_corner" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/eh_focus_fill" />
+            <stroke android:width="@dimen/eh_focus_stroke" android:color="@color/eh_focus_ring" />
+            <corners android:radius="@dimen/eh_corner" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/eh_surface" />
+            <stroke android:width="1dp" android:color="@color/eh_outline" />
+            <corners android:radius="@dimen/eh_corner" />
+        </shape>
+    </item>
+</selector>

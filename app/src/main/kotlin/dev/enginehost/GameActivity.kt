@@ -152,8 +152,11 @@ class GameActivity : EnginehostActivity() {
             .title(R.string.remove_game_title)
             .message(R.string.remove_game_message)
             .choice(R.string.remove, Sheet.Tone.DANGER) {
-                GameLibraryStore(this).forget(folder)
-                finish()
+                val library = GameLibraryStore(applicationContext)
+                Thread {
+                    library.forget(folder)
+                    runOnUiThread { finish() }
+                }.apply { isDaemon = true }.start()
             }
             .show()
     }

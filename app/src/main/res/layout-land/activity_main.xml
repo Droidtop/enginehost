@@ -54,31 +54,40 @@
             android:layout_weight="2"
             android:orientation="vertical">
 
-            <EditText
-                android:id="@+id/gameSearch"
+            <include
+                layout="@layout/view_library_filters"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/search_hint"
-                android:importantForAutofill="no"
-                android:inputType="text"
-                android:maxLines="1"
-                android:visibility="gone" />
+                android:layout_height="wrap_content" />
 
-            <ScrollView
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1"
                 android:layout_marginTop="@dimen/eh_space_xs"
-                android:scrollbars="none">
+                android:layout_weight="1">
 
-                <GridLayout
-                    android:id="@+id/gameLibraryList"
+                <GridView
+                    android:id="@+id/gameGrid"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:fastScrollEnabled="true"
+                    android:horizontalSpacing="@dimen/eh_column_gap"
+                    android:listSelector="@android:color/transparent"
+                    android:nextFocusUp="@id/gameGrid"
+                    android:numColumns="2"
+                    android:scrollbars="vertical"
+                    android:stretchMode="columnWidth"
+                    android:verticalSpacing="@dimen/eh_space_s" />
+
+                <TextView
+                    android:id="@+id/gameEmpty"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:columnCount="2"
-                    android:orientation="horizontal" />
+                    android:padding="@dimen/eh_space_s"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Body"
+                    android:visibility="gone" />
 
-            </ScrollView>
+            </FrameLayout>
 
         </LinearLayout>
 

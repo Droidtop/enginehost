@@ -23,7 +23,6 @@
     <string name="hint_play">Play</string>
     <string name="open_game_description">%1$s: open this game</string>
     <string name="games_empty">Games you add or play appear here.</string>
-    <string name="game_row_unavailable">%1$s (unavailable)</string>
     <string name="controller_settings">Controller</string>
     <string name="enginehost_settings">Settings</string>
     <string name="browse_plugins">Plugins</string>
@@ -53,18 +52,70 @@
 
     <!-- Game scanning -->
     <string name="scan_title">Scan for games</string>
-    <string name="scan_intro">Finds games inside a folder you choose. Nothing is added until you say so.</string>
+    <string name="scan_intro">Finds games, and archives still to unpack, inside a folder you choose. Nothing is added until you say so. A rescan only looks again at folders that changed.</string>
     <string name="scan_choose">Choose a folder</string>
     <string name="scan_running">Scanning… %1$d folders, %2$d games so far.</string>
+    <string name="scan_measuring">Measuring sizes… %1$d done.</string>
     <string name="scan_cancel">Stop</string>
     <string name="scan_finished">Done. %1$d folders, %2$d games.</string>
+    <string name="scan_finished_unchanged">Done. %1$d folders, %2$d games, %3$d unchanged since the last scan.</string>
     <string name="scan_finished_skipped">Done. %1$d folders, %2$d games. %3$d entries could not be read.</string>
     <string name="scan_stopped">Stopped. %1$d folders, %2$d games so far.</string>
-    <string name="scan_empty">No games found here. Games are recognised by their engine files, not folder names.</string>
+    <string name="scan_empty">Nothing found yet. Choose a folder; games are recognised by their engine and executable files, not by folder names.</string>
     <string name="scan_add">Add</string>
     <string name="scan_added">Added</string>
-    <string name="scan_add_all">Add all</string>
-    <string name="scan_needs_config">Engine version not detected; finish in Game setup after adding.</string>
+    <string name="scan_add_shown">Add all shown (%1$d)</string>
+    <plurals name="scan_added_count">
+        <item quantity="one">Added %d game</item>
+        <item quantity="other">Added %d games</item>
+    </plurals>
+    <string name="scan_menu_title">Scan</string>
+    <string name="scan_menu_choose">Choose a folder</string>
+    <string name="scan_menu_rescan">Rescan changed folders</string>
+    <string name="scan_menu_rescan_detail">Only folders that changed since the last scan are looked at again.</string>
+    <string name="scan_menu_rescan_all">Rescan everything</string>
+    <string name="scan_menu_rescan_all_detail">Look at every folder again, changed or not.</string>
+    <string name="archive_needs_unpack">That is an archive. Unpack it, then scan again.</string>
+    <string name="hint_scan_menu">Scan</string>
+
+    <!-- Library list: filters, sorting and what a row says -->
+    <string name="hint_filters">Filters</string>
+    <string name="filter_button">Filters</string>
+    <string name="filter_button_active">Filters (on)</string>
+    <string name="filter_title">Filter and sort</string>
+    <string name="filter_search">Search</string>
+    <string name="filter_apply">Search</string>
+    <string name="filter_clear_search">Clear the search</string>
+    <string name="filter_engine">Engine</string>
+    <string name="filter_platform">Platform</string>
+    <string name="filter_status">Status</string>
+    <string name="filter_folder">Folder</string>
+    <string name="filter_sort">Sort by</string>
+    <string name="filter_all">All</string>
+    <string name="filter_clear">Clear filters</string>
+    <string name="engine_none">No engine recognised</string>
+    <string name="platform_portable">Android-runnable</string>
+    <string name="platform_windows">Windows</string>
+    <string name="platform_linux">Linux</string>
+    <string name="platform_web">Web</string>
+    <string name="platform_archive">Archive</string>
+    <string name="platform_unknown">Not recognised</string>
+    <string name="support_runs">Runs here</string>
+    <string name="support_plugin">Needs a plugin</string>
+    <string name="support_none">Not supported here</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_added">Recently added</string>
+    <string name="sort_played">Recently played</string>
+    <string name="sort_size">Size</string>
+    <string name="library_summary">%1$d of %2$d games</string>
+    <string name="library_summary_all">%1$d games</string>
+    <string name="unconfirmed">unconfirmed</string>
+    <string name="arch_64">64-bit</string>
+    <string name="arch_32">32-bit</string>
+    <string name="arch_arm64">ARM64</string>
+    <string name="arch_arm">ARM</string>
+    <string name="arch_dos">DOS</string>
+    <string name="arch_dotnet">.NET</string>
 
     <!-- Plugin install progress -->
     <string name="downloading_progress">Downloading… %2$d of %3$d MB</string>

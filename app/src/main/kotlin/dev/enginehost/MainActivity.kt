@@ -2,45 +2,52 @@ package dev.enginehost
 
 import android.content.Intent
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.GridView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
  * Home: the library of every game played here, the one way to add more,
- * and the app's destinations. A game's card opens that game's own screen
- * ([GameActivity]); Y on a card plays it straight away.
+ * and the app's destinations. The library is the shared filterable list
+ * ([LibraryBrowser]); a game's card opens that game's own screen
+ * ([GameActivity]), Y on a card plays it straight away, and X opens the
+ * filters.
  */
 class MainActivity : EnginehostActivity() {
     /** The first game in the library; adding games while there is none. */
     override fun primaryAction(): View? =
-        firstSelectable(findViewById(R.id.gameLibraryList)) ?: findViewById(R.id.addGamesButton)
+        findViewById<View>(R.id.gameGrid)?.takeIf { ::browser.isInitialized && browser.shownRows().isNotEmpty() }
+            ?: findViewById(R.id.addGamesButton)
 
     private lateinit var library: GameLibraryStore
-    private lateinit var gameList: ViewGroup
-    private lateinit var gameSearch: EditText
-
-    /** Bumped per render so a stale background status pass cannot touch new rows. */
-    private var renderGeneration = 0
+    private lateinit var browser: LibraryBrowser
+    private lateinit var grid: GridView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         library = GameLibraryStore(this)
-        gameList = findViewById(R.id.gameLibraryList)
-        gameSearch = findViewById(R.id.gameSearch)
-        gameSearch.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) = renderLibrary()
-        })
+        grid = findViewById(R.id.gameGrid)
+        browser = LibraryBrowser(
+            activity = this,
+            library = library,
+            grid = grid,
+            searchField = findViewById<EditText>(R.id.gameSearch),
+            filterButton = findViewById<Button>(R.id.gameFilterButton),
+            summary = findViewById<TextView>(R.id.gameSummary),
+            empty = findViewById<TextView>(R.id.gameEmpty),
+            initial = LibraryFilter(sort = SortOrder.RECENTLY_PLAYED),
+            emptyText = R.string.games_empty,
+            onLoaded = {
+                selectPrimaryAction()
+                refreshHints()
+            },
+            onOpen = { row -> startActivity(GameActivity.intent(this, File(row.path))) },
+        )
 
         findViewById<Button>(R.id.addGamesButton).setOnClickListener { chooseHowToAdd() }
         findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
@@ -55,18 +62,29 @@ class MainActivity : EnginehostActivity() {
         // Y is "play this game" only while a game has focus, so the hint
         // row follows focus.
         window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> refreshHints() }
-        renderLibrary()
+    }
+
+    override fun onDestroy() {
+        if (::browser.isInitialized) browser.destroy()
+        super.onDestroy()
     }
 
     override fun hints(): List<Hint> {
-        val focusedGame = currentFocus?.tag as? File ?: return super.hints()
+        // The base class draws the hint row while the content is being set, before the list exists.
+        if (!::browser.isInitialized) return super.hints()
+        val hints = super.hints() + Hint("X", R.string.hint_filters) { browser.showFilters() }
+        val focusedGame = browser.takeIf { currentFocus === grid }?.selectedRow()?.takeIf { it.kind == FindingKind.FOLDER }
+            ?: return hints
         // A opens the game's own screen; Y skips it and plays.
-        return super.hints() + Hint("Y", R.string.hint_play) { launchGame(focusedGame) }
+        return hints + Hint("Y", R.string.hint_play) { launchGame(File(focusedGame.path)) }
     }
 
     override fun onResume() {
         super.onResume()
-        if (::library.isInitialized) renderLibrary()
+        if (::browser.isInitialized) {
+            browser.reload()
+            classifyWaitingGames()
+        }
         val check = PluginUpdateCheck(this)
         check.maybeRun { pending ->
             runOnUiThread {
@@ -98,6 +116,13 @@ class MainActivity : EnginehostActivity() {
         }
     }
 
+    /** Games added by hand have no scan behind them; read each folder once, off the main thread, and redraw. */
+    private fun classifyWaitingGames() {
+        Thread {
+            if (LibraryClassifier.classifyPending(applicationContext)) runOnUiThread { if (!isDestroyed) browser.reload() }
+        }.apply { isDaemon = true }.start()
+    }
+
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -120,9 +145,14 @@ class MainActivity : EnginehostActivity() {
             Toast.makeText(this, R.string.choose_shared_storage_folder, Toast.LENGTH_LONG).show()
             return
         }
-        library.remember(folder)
-        renderLibrary()
-        launchGame(folder)
+        Thread {
+            library.remember(folder)
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                browser.reload()
+                launchGame(folder)
+            }
+        }.apply { isDaemon = true }.start()
     }
 
     /**
@@ -154,77 +184,6 @@ class MainActivity : EnginehostActivity() {
         GameBrowserStartStore(this).initialUri(),
     )
 
-    private fun renderLibrary() {
-        val generation = ++renderGeneration
-        // Rendering again (on every return to Home) replaces the rows, so the
-        // game the pad was on is found again among the new ones.
-        val selectedGame = (currentFocus?.tag as? File)?.path
-        gameList.removeAllViews()
-        val allGames = library.games()
-        gameSearch.visibility = if (allGames.size > SEARCH_THRESHOLD) View.VISIBLE else View.GONE
-        val query = gameSearch.text.toString().trim()
-        val games = if (query.isEmpty() || gameSearch.visibility != View.VISIBLE) allGames
-        else allGames.filter { it.name.contains(query, ignoreCase = true) }
-        if (games.isEmpty()) {
-            val empty = layoutInflater.inflate(R.layout.item_hint, gameList, false) as TextView
-            empty.setText(if (allGames.isEmpty()) R.string.games_empty else R.string.search_no_matches)
-            gameList.addView(empty)
-            return
-        }
-        val rows = mutableMapOf<String, View>()
-        games.forEach { folder ->
-            val row = layoutInflater.inflate(R.layout.item_game, gameList, false)
-            val title = folder.name.ifBlank { folder.absolutePath }
-            row.findViewById<TextView>(R.id.gameTitle).text =
-                if (folder.isDirectory) title else getString(R.string.game_row_unavailable, title)
-            row.findViewById<TextView>(R.id.gamePath).text = folder.absolutePath
-            rows[folder.path] = row
-            row.tag = folder
-            row.contentDescription = getString(R.string.open_game_description, title)
-            row.setOnClickListener { startActivity(GameActivity.intent(this, folder)) }
-            gameList.addView(row)
-        }
-        selectedGame?.let { rows[it] ?: primaryAction() }?.requestFocus()
-        resolveStatuses(generation, games, rows)
-    }
-
-    /**
-     * Resolution touches disk and the plugin registry, so it runs off the UI
-     * thread and each row fills in when its answer is known.
-     */
-    private fun resolveStatuses(generation: Int, games: List<File>, rows: Map<String, View>) {
-        Thread {
-            games.forEach { folder ->
-                if (generation != renderGeneration) return@Thread
-                val status = GameStatus.of(this, folder)
-                runOnUiThread {
-                    if (generation != renderGeneration) return@runOnUiThread
-                    val row = rows[folder.path] ?: return@runOnUiThread
-                    row.findViewById<TextView>(R.id.gameStatus).apply {
-                        text = status.text
-                        setTextColor(
-                            ContextCompat.getColor(
-                                this@MainActivity,
-                                if (status.ok) R.color.eh_text_secondary else R.color.eh_caution,
-                            ),
-                        )
-                        visibility = View.VISIBLE
-                    }
-                    // The engine as a coloured chip, once the config has said which it is.
-                    row.findViewById<TextView>(R.id.gameEngine).apply {
-                        if (status.engine == null) {
-                            visibility = View.GONE
-                        } else {
-                            text = status.chip
-                            EngineHues.paintChip(this, status.engine)
-                            visibility = View.VISIBLE
-                        }
-                    }
-                }
-            }
-        }.start()
-    }
-
     private fun launchGame(folder: File) {
         if (!folder.isDirectory) {
             Toast.makeText(this, R.string.game_folder_unavailable, Toast.LENGTH_LONG).show()
@@ -233,9 +192,8 @@ class MainActivity : EnginehostActivity() {
         GameRunner.run(this, folder)
     }
 
-    companion object {
-        private const val REQUEST_GAME_FOLDER = 10
-        private const val REQUEST_NATIVE_FILES = 11
-        private const val SEARCH_THRESHOLD = 8
+    private companion object {
+        const val REQUEST_GAME_FOLDER = 10
+        const val REQUEST_NATIVE_FILES = 11
     }
 }
