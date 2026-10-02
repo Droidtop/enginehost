@@ -138,6 +138,8 @@
     -->
     <style name="Widget.Enginehost.Link" parent="">
         <item name="android:background">@drawable/eh_row_bg</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
         <item name="android:minHeight">@dimen/eh_touch_target</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:paddingLeft">6dp</item>
