@@ -2,19 +2,34 @@ package dev.enginehost
 
 import android.app.Activity
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.InputDevice
 import android.view.ActionMode
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.KeyboardShortcutGroup
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
+import android.view.PixelCopy
 import android.view.SearchEvent
+import android.view.SurfaceView
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
+import java.io.File
+import java.util.WeakHashMap
 
 /**
  * The host's first look at controller input, in both plugin shapes.
@@ -83,6 +98,14 @@ class RuntimeInputTap(private val activity: Activity) {
      * @return the event to hand on, or null when the host has taken it.
      */
     fun key(event: KeyEvent, forward: (KeyEvent) -> Unit): KeyEvent? {
+        // Back is the host's in every engine (Droidtop/tracker#289): SDL and
+        // other engines swallow it, which left Home as the only way out. It
+        // opens the in-game menu (Resume, Controller settings, Quit), and
+        // the engine never sees half of a press.
+        if (HostBack.owns(event.keyCode)) {
+            if (HostBack.opensMenu(event.keyCode, event.action, event.isCanceled)) HostMenu.show(activity)
+            return null
+        }
         if (!event.isControllerInput()) return event
         val corrected = profile(event.deviceId).apply(event)
         val verdict = when (corrected.action) {
@@ -167,13 +190,140 @@ private class HostWindowCallback(
 }
 
 /**
+ * Whether a copied corner of a surface is still black: every pixel's
+ * channels below a threshold dither could not cross. Pure, so the rule that
+ * ends [RuntimeLoadingNotice] is testable without a device.
+ */
+internal fun isBlankFrame(pixels: IntArray): Boolean = pixels.all { p ->
+    ((p shr 16) and 0xFF) < BLANK_CHANNEL && ((p shr 8) and 0xFF) < BLANK_CHANNEL && (p and 0xFF) < BLANK_CHANNEL
+}
+
+private const val BLANK_CHANNEL = 12
+
+/**
+ * "Loading <game>" over a game's window until its engine draws something.
+ *
+ * The launch screen stops showing the moment the runtime's window is up,
+ * and a heavy RPG Maker game then sat on a black window for about a minute
+ * with nothing to say it was working (Droidtop/tracker#289). The notice is
+ * a small bar at the bottom, not a cover, so a game that starts on a black
+ * intro is never hidden by it; it goes when the first non-black frame
+ * reaches the surface, when no surface can be watched for a while, or after
+ * [GIVE_UP_MS] whatever happens. Never takes touches.
+ */
+internal class RuntimeLoadingNotice(private val activity: Activity) {
+    private val handler = Handler(Looper.getMainLooper())
+    private val startedAt = SystemClock.uptimeMillis()
+    private val sample = Bitmap.createBitmap(SAMPLE, SAMPLE, Bitmap.Config.ARGB_8888)
+    private val pixels = IntArray(SAMPLE * SAMPLE)
+    private var done = false
+    private val bar: View = buildBar()
+
+    fun start() {
+        handler.post(::poll)
+    }
+
+    private fun buildBar(): View {
+        val density = activity.resources.displayMetrics.density
+        val pad = (12 * density).toInt()
+        val size = (22 * density).toInt()
+        val name = activity.intent?.getStringExtra(RuntimeActivity.EXTRA_PATH)?.let { File(it).name }.orEmpty()
+        return LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(pad, pad / 2, pad, pad / 2)
+            setBackgroundColor(0xB0000000.toInt())
+            addView(ProgressBar(activity).apply { isIndeterminate = true }, LinearLayout.LayoutParams(size, size))
+            addView(
+                TextView(activity).apply {
+                    text = activity.getString(R.string.runtime_loading, name)
+                    setTextColor(Color.WHITE)
+                    textSize = 14f
+                    setPadding(pad / 2, 0, 0, 0)
+                },
+            )
+        }
+    }
+
+    private fun poll() {
+        if (done) return
+        if (activity.isFinishing || activity.isDestroyed) return finish()
+        val elapsed = SystemClock.uptimeMillis() - startedAt
+        if (elapsed > GIVE_UP_MS) return finish()
+        // An Activity that set its content after this started cleared the bar.
+        if (bar.parent == null) {
+            activity.addContentView(
+                bar,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                ).apply { bottomMargin = (24 * activity.resources.displayMetrics.density).toInt() },
+            )
+        }
+        val surface = findSurface(activity.window.decorView)
+        when {
+            surface == null -> if (elapsed > NO_SURFACE_MS) finish() else again()
+            !surface.holder.surface.isValid -> again()
+            else -> look(surface)
+        }
+    }
+
+    private fun look(surface: SurfaceView) {
+        try {
+            PixelCopy.request(
+                surface, sample,
+                PixelCopy.OnPixelCopyFinishedListener { result ->
+                    val drawn = result == PixelCopy.SUCCESS && run {
+                        sample.getPixels(pixels, 0, SAMPLE, 0, 0, SAMPLE, SAMPLE)
+                        !isBlankFrame(pixels)
+                    }
+                    if (drawn) finish() else again()
+                },
+                handler,
+            )
+        } catch (e: IllegalArgumentException) {
+            again()
+        }
+    }
+
+    private fun again() {
+        if (!done) handler.postDelayed(::poll, POLL_MS)
+    }
+
+    private fun finish() {
+        done = true
+        handler.removeCallbacksAndMessages(null)
+        (bar.parent as? ViewGroup)?.removeView(bar)
+        sample.recycle()
+    }
+
+    private fun findSurface(view: View): SurfaceView? {
+        if (view is SurfaceView) return view
+        if (view !is ViewGroup) return null
+        for (i in 0 until view.childCount) findSurface(view.getChildAt(i))?.let { return it }
+        return null
+    }
+
+    private companion object {
+        const val SAMPLE = 16
+        const val POLL_MS = 750L
+        const val NO_SURFACE_MS = 20_000L
+        const val GIVE_UP_MS = 180_000L
+    }
+}
+
+/**
  * Installs the tap on every Activity the `:runtime` process shows for a
  * game. Registered by [EnginehostApplication] in that process only; the
  * host's own screens are not games and have nothing to intercept.
  */
 object RuntimeInputInstaller : Application.ActivityLifecycleCallbacks {
+    private val noticed = WeakHashMap<Activity, Boolean>()
+
+    private fun isGame(activity: Activity) = activity.intent?.hasExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE) == true
+
     private fun install(activity: Activity) {
-        if (activity.intent?.hasExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE) != true) return
+        if (!isGame(activity)) return
         val window = activity.window ?: return
         val current = window.callback ?: return
         if (current is HostWindowCallback) return
@@ -184,7 +334,12 @@ object RuntimeInputInstaller : Application.ActivityLifecycleCallbacks {
     // their own callback during onCreate (AppCompat does), and is a no-op
     // once the wrapper is in place.
     override fun onActivityCreated(activity: Activity, state: Bundle?) = install(activity)
-    override fun onActivityStarted(activity: Activity) = install(activity)
+    // Started rather than created for the notice: an Activity's own
+    // setContentView clears the content, and runs after Created.
+    override fun onActivityStarted(activity: Activity) {
+        install(activity)
+        if (isGame(activity) && noticed.put(activity, true) == null) RuntimeLoadingNotice(activity).start()
+    }
     override fun onActivityResumed(activity: Activity) = Unit
     override fun onActivityPaused(activity: Activity) = Unit
     override fun onActivityStopped(activity: Activity) = Unit

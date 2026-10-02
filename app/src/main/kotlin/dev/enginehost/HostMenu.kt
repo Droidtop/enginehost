@@ -109,6 +109,19 @@ class HostMenuCombo(private val combo: Set<Int>) {
 }
 
 /**
+ * What Back does during a game: opens [HostMenu] on its release. Pure, so
+ * the rule is testable without a device. Select + Start ([HostMenuCombo])
+ * stays the pad's shortcut; Back is the one that works on a handheld whose
+ * engine reads every pad button for itself.
+ */
+object HostBack {
+    fun owns(keyCode: Int): Boolean = keyCode == KeyEvent.KEYCODE_BACK
+
+    fun opensMenu(keyCode: Int, action: Int, cancelled: Boolean): Boolean =
+        owns(keyCode) && action == KeyEvent.ACTION_UP && !cancelled
+}
+
+/**
  * Enginehost's in-game menu: the one screen of ours a person can reach
  * without leaving the game, drawn as a [Sheet] over the running engine in
  * the `:runtime` process.

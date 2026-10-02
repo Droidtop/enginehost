@@ -440,6 +440,8 @@
     <string name="app_update_failed">Update failed</string>
     <!-- Launch screen: shown from the tap until the engine draws its first frame. -->
     <string name="launch_starting">Starting…</string>
+    <!-- Over a game's window until its engine draws something. -->
+    <string name="runtime_loading">Loading %1$s</string>
     <string name="launch_engine_line">%1$s %2$s</string>
     <string name="launch_runtime_line">%1$s · runtime %2$s</string>
     <string name="launch_runtime_died">The %1$s runtime stopped before it drew anything.</string>

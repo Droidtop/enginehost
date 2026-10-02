@@ -2,6 +2,7 @@ package dev.enginehost
 
 import android.view.KeyEvent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -82,6 +83,23 @@ class HostMenuComboTest {
         val opened = combo.down(select)
         assertTrue(opened is HostMenuCombo.Verdict.Open)
         assertEquals(emptySet<Int>(), (opened as HostMenuCombo.Verdict.Open).stuck)
+    }
+
+    @Test
+    fun `back opens the host menu on release only`() {
+        val back = KeyEvent.KEYCODE_BACK
+        assertTrue(HostBack.opensMenu(back, KeyEvent.ACTION_UP, cancelled = false))
+        assertFalse(HostBack.opensMenu(back, KeyEvent.ACTION_DOWN, cancelled = false))
+        assertFalse(HostBack.opensMenu(back, KeyEvent.ACTION_UP, cancelled = true))
+        assertFalse(HostBack.opensMenu(a, KeyEvent.ACTION_UP, cancelled = false))
+    }
+
+    @Test
+    fun `a frame that is all black is blank and one lit pixel is not`() {
+        val black = IntArray(256) { 0xFF000000.toInt() }
+        assertTrue(isBlankFrame(black))
+        val lit = black.copyOf().also { it[17] = 0xFF204080.toInt() }
+        assertFalse(isBlankFrame(lit))
     }
 
     @Test
