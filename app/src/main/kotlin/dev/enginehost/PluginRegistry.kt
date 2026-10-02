@@ -48,6 +48,41 @@ data class InstalledPlugin(
 
 data class ResolvedPlugin(val plugin: InstalledPlugin, val capability: EngineCapability)
 
+/** A detected engine line and the installed alternatives that can run it. */
+data class PluginLineSelection(
+    val detectedLine: VersionSeries?,
+    val selectedLine: VersionSeries?,
+    val alternatives: List<VersionSeries>,
+    val reason: String,
+)
+
+/**
+ * Decide whether detection names an installed line. Missing or malformed
+ * detection deliberately has no automatic selection: a nearby line is an
+ * option to show the person, not a safe compatibility assumption.
+ */
+object PluginLineSelector {
+    fun select(detectedVersion: String?, installedLines: Collection<VersionSeries>): PluginLineSelection {
+        val installed = installedLines.distinct().sortedWith(compareBy { Version.parse(it.toString()) })
+        val detected = detectedVersion?.let { raw ->
+            runCatching { VersionSeries.parse(raw) }.getOrNull()?.takeIf { it.parts.size >= 2 }
+                ?.let { VersionSeries(it.parts.take(2)) }
+        }
+        if (detected == null) {
+            return PluginLineSelection(null, null, installed, "Detection is missing or ambiguous")
+        }
+        if (detected in installed) {
+            return PluginLineSelection(detected, detected, emptyList(), "Detected game version")
+        }
+        val target = Version.parse(detected.toString())
+        val nearest = installed.sortedWith(
+            compareBy<VersionSeries> { Version.parse(it.toString()).distanceTo(target) }
+                .thenBy { it.parts.joinToString(".") },
+        )
+        return PluginLineSelection(detected, null, nearest, "Detected line is not installed")
+    }
+}
+
 object PluginResolver {
     /**
      * [trustOf] decides whether trust is even considered: callers with no
