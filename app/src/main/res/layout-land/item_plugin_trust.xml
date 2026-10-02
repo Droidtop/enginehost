@@ -66,13 +66,10 @@
 
     <TextView
         android:id="@+id/trustDetailsToggle"
+        style="@style/Widget.Enginehost.Link"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:minHeight="@dimen/eh_touch_target"
-        android:gravity="center_vertical"
-        android:text="@string/details"
-        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-        android:textColor="@color/eh_accent" />
+        android:text="@string/details" />
 
     <LinearLayout
         android:id="@+id/trustDetails"
