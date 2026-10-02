@@ -45,6 +45,18 @@ pre-release. Versions published before this (`X.Y.<run>`, the CI run number
 in the third place) are read as `X.Y.0-<run>` (`Version.parsePlugin`, decided 2026-09-29,
 Droidtop/tracker#126): `1.0.57` is `1.0.0-57`, so a line's next patch bump
 (`1.0.1-1`, `0.9.1-1`) orders above every legacy build and is offered as an update.
+Every revision of a plugin's code bumps its declared version (owner,
+2026-10-01: "We need to update the version string with every revision from
+now on", after a crash could not be pinned to a build of the "v1.0" plugin):
+a patch at minimum. The app shows the whole string (`1.0.1-3`) wherever it
+names a plugin build. The `version` job of `sign-engine-bundle.yml` enforces
+the rule for every plugin repository that calls it:
+`scripts/check-declared-version.py` finds the newest release already
+published for the bundle id and fails the build when the declared version is
+below it, or equal to it while any file outside documentation and CI wiring
+(`.github/`, `docs/`, `*.md`, `LICENSE`, the key and origin documents)
+differs from the commit that release was built from. A re-run of the published
+commit, and a declared version above everything published, pass.
 Only plugin bundle versions and the `pluginVersions` allowlist use this reading;
 engine and runtime versions do not. The one script
 that emits this form is `scripts/build-engine-bundle.py`, run by the pinned

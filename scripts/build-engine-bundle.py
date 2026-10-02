@@ -13,6 +13,8 @@ import sys
 import tarfile
 import tempfile
 
+from release_history import next_build, published_versions, version_key
+
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest().upper()
@@ -65,51 +67,6 @@ def tar_member(name: str, data: bytes, mode: int = 0o444) -> tuple[tarfile.TarIn
     info.uid = info.gid = 0
     info.uname = info.gname = ""
     return info, io.BytesIO(data)
-
-
-def version_key(version: str) -> tuple:
-    """Order of dev.enginehost.Version: X.Y.Z, then the -N build (bare = 0)."""
-    core, _, build = version.partition("-")
-    return (tuple(int(part) for part in core.split(".")), int(build or 0))
-
-
-def next_build(declared: str, published: list) -> int:
-    highest = 0
-    for version in published:
-        core, dash, build = version.partition("-")
-        if dash and core == declared and build.isdigit():
-            highest = max(highest, int(build))
-    return highest + 1
-
-
-def gh_api(*arguments: str) -> bytes:
-    process = subprocess.run(["gh", "api", *arguments], check=False,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if process.returncode:
-        raise SystemExit("gh api failed: " + process.stderr.decode(errors="replace").strip())
-    return process.stdout
-
-
-def published_versions(repository: str, bundle_id: str) -> list:
-    """pluginVersion of every release envelope of this bundle id in the repository.
-
-    Rolling channels delete and recreate their release, but the newest build
-    of a line always sits in its unstable release, so the highest build is
-    never absent from this listing.
-    """
-    pages = json.loads(gh_api(f"repos/{repository}/releases?per_page=100", "--paginate", "--slurp"))
-    versions = []
-    for release in (item for page in pages for item in page):
-        for asset in release.get("assets", []):
-            if asset["name"] != "enginehost-release.json":
-                continue
-            envelope = json.loads(gh_api("-H", "Accept: application/octet-stream",
-                                         f"repos/{repository}/releases/assets/{asset['id']}"))
-            for entry in envelope.get("bundles", []):
-                manifest = json.loads(base64.b64decode(entry["manifestBase64"]))
-                if manifest.get("bundleId") == bundle_id:
-                    versions.append(str(manifest["pluginVersion"]))
-    return versions
 
 
 def main() -> None:

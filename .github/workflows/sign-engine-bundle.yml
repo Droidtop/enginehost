@@ -71,7 +71,53 @@ permissions:
   contents: read
 
 jobs:
+  version:
+    # Owner rule (2026-10-01, Droidtop/tracker#126): every revision of a
+    # plugin's code bumps its declared version. Fails the build when the
+    # sources changed since the newest published build of the declared
+    # version. No secret reaches this job; it only reads the repository's
+    # commits and releases (scripts/check-declared-version.py).
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check the inputs
+        env:
+          TOOLING_SHA: ${{ inputs.tooling-sha }}
+        run: |
+          set -euo pipefail
+          [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
+      - name: Check out the repository history (commits and trees only)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: repository
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+          sparse-checkout: ${{ inputs.repository-key-document }}
+          sparse-checkout-cone-mode: false
+      - name: Check out the version tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: Droidtop/enginehost
+          ref: ${{ inputs.tooling-sha }}
+          path: enginehost-tooling
+          persist-credentials: false
+          sparse-checkout: scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ inputs.unsigned-artifact }}
+          path: unsigned-download
+      - name: The declared version moves with the code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p unsigned
+          tar -xpf unsigned-download/unsigned.tar -C unsigned --no-same-owner bundle-metadata.json
+          python3 enginehost-tooling/scripts/check-declared-version.py \
+            --metadata unsigned/bundle-metadata.json \
+            --repository "$GITHUB_REPOSITORY" --checkout repository
   sign:
+    needs: version
     runs-on: ubuntu-24.04
     steps:
       - name: Check the inputs
