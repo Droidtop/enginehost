@@ -53,6 +53,14 @@ class PluginCatalogActivity : EnginehostActivity() {
     /** What the last refresh did, per origin, so the screen can say why it shows what it shows. */
     private var lastOutcomes: Map<String, OriginOutcome> = emptyMap()
 
+    /**
+     * Bundles whose install was started from this screen and has not shown
+     * up in [PluginRegistry] yet. A card is drawn from this and the
+     * registry, never from the button it was last left in, so coming back
+     * from the trust screen redraws it as installed (Droidtop/tracker#286).
+     */
+    private val installing = mutableSetOf<String>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = getString(R.string.catalog_title)
@@ -98,6 +106,16 @@ class PluginCatalogActivity : EnginehostActivity() {
         }
         addOriginButton.setOnClickListener { addCustomOrigin() }
         render()
+    }
+
+    /**
+     * Back from the screen an install opens (the trust screen) or from
+     * anywhere else: what is installed may have changed while this screen
+     * was stopped, so the cards are drawn again from the registry.
+     */
+    override fun onRestart() {
+        super.onRestart()
+        if (!refreshing) render()
     }
 
     private fun addCustomOrigin() {
@@ -648,9 +666,18 @@ class PluginCatalogActivity : EnginehostActivity() {
                     ColorStateList.valueOf(ContextCompat.getColor(this, R.color.eh_installed_container))
                 button.setTextColor(ContextCompat.getColor(this, R.color.eh_on_installed_container))
             }
+            // The registry is the truth: once the bundle is there, its
+            // install from this screen is over, whatever the button said.
+            if (installed.isNotEmpty() && !update) installing.remove(plugin.bundleId)
+            if (plugin.bundleId in installing) {
+                button.isEnabled = false
+                button.setText(R.string.installing)
+                progress.visibility = View.VISIBLE
+            }
             button.setOnClickListener {
                 // Progress belongs on the card being installed, not in a
                 // status line somewhere else on the screen.
+                installing += plugin.bundleId
                 button.isEnabled = false
                 button.setText(R.string.installing)
                 progress.visibility = View.VISIBLE
@@ -659,6 +686,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                     plugin,
                     onError = { message ->
                         runOnUiThread {
+                            installing.remove(plugin.bundleId)
                             progress.visibility = View.GONE
                             button.isEnabled = true
                             button.text = idleLabel
