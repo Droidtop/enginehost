@@ -125,6 +125,7 @@ object PluginResolver {
                 compareByDescending<ResolvedPlugin> { trustOf(it.plugin) == PluginTrustState.APPROVED }
                     .thenByDescending { it.capability.runtimeVersion == engineVersion }
                     .thenBy { it.capability.specificityFor(engineVersion) }
+                    .thenBy { it.capability.unrequestedComponents(runtimeRequirements) }
                     .thenByDescending { it.plugin.info.pluginVersion }
                     .thenBy { it.plugin.bundleId }
                     .thenBy { it.capability.id },

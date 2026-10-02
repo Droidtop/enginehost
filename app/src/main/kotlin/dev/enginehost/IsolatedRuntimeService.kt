@@ -75,6 +75,8 @@ class IsolatedRuntimeService : Service() {
             optionsJson: String?,
             runtimeRequirementKeys: Array<String>,
             runtimeRequirementValues: Array<String>,
+            runtimeComponentKeys: Array<String>,
+            runtimeComponentValues: Array<String>,
             restartArguments: Array<String>,
             gameBroker: IEngineFileBroker?,
             saveBroker: IEngineFileBroker?,
@@ -117,6 +119,7 @@ class IsolatedRuntimeService : Service() {
                     dexFds, entrypointClass, nativeLibraryNames, nativeLibraryFds,
                     engine, engineContext, engineVersion, runtimeVersion, capabilityId,
                     execFile, optionsJson, runtimeRequirementKeys, runtimeRequirementValues,
+                    runtimeComponentKeys, runtimeComponentValues,
                     restartArguments, gameBroker, saveBroker, audioBuffer, audioSampleRate, callback,
                 )
             } catch (e: SecurityException) {
@@ -147,6 +150,8 @@ class IsolatedRuntimeService : Service() {
             optionsJson: String?,
             runtimeRequirementKeys: Array<String>,
             runtimeRequirementValues: Array<String>,
+            runtimeComponentKeys: Array<String>,
+            runtimeComponentValues: Array<String>,
             restartArguments: Array<String>,
             gameBroker: IEngineFileBroker?,
             saveBroker: IEngineFileBroker?,
@@ -161,6 +166,9 @@ class IsolatedRuntimeService : Service() {
             audioBuffer?.let { heldFds += it }
             val runtimeRequirements = runtimeRequirementKeys.indices.associate {
                 runtimeRequirementKeys[it] to runtimeRequirementValues[it]
+            }
+            val runtimeComponents = runtimeComponentKeys.indices.associate {
+                runtimeComponentKeys[it] to runtimeComponentValues[it]
             }
             val host = IsolatedEngineHost(
                 this@IsolatedRuntimeService, callback, this@IsolatedRuntimeService.restartArguments,
@@ -225,7 +233,7 @@ class IsolatedRuntimeService : Service() {
                 // scope, same as resourceApks below.
                 NO_BUNDLE_DIRECTORY, /* display = */ null, host, /* gamePath = */ "", engine,
                 engineContext, engineVersion, runtimeVersion, capabilityId, execFile, optionsJson,
-                runtimeRequirements,
+                runtimeRequirements, runtimeComponents,
             )
             loaded.plugin.onCreate(session)
             // Sandbox layer 2's original (CatSystem2/CMVS) shape requires

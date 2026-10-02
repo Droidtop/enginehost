@@ -91,6 +91,7 @@ class RuntimeActivity : FragmentActivity() {
                     resolved.capability.runtimeVersion.toString(), resolved.capability.id,
                     config.execFile, config.options?.toString(),
                     config.runtimeRequirements.mapValues { it.value.toString() },
+                    resolved.capability.runtimeComponents.mapValues { it.value.toString() },
                 ),
             )
             check(verifiedManifest.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION)
@@ -169,6 +170,7 @@ class RuntimeActivity : FragmentActivity() {
             config.execFile,
             config.options?.toString(),
             config.runtimeRequirements.mapValues { it.value.toString() },
+            resolved.capability.runtimeComponents.mapValues { it.value.toString() },
             intent.getStringArrayExtra(EXTRA_RESTART_ARGUMENTS) ?: emptyArray(),
             gameFolder,
             saveFolder,

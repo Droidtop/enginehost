@@ -127,4 +127,53 @@ class PluginResolverTest {
         // pluginVersion wins, exactly as before this change.
         assertEquals("godot-b", resolved?.plugin?.bundleId)
     }
+
+    private fun capability(id: String, components: Map<String, String>) = EngineCapability(
+        id = id,
+        engineContext = DEFAULT_ENGINE_CONTEXT,
+        runtimeVersion = Version.parse("4.5.1"),
+        supportedVersions = emptySet(),
+        supportedSeries = setOf(VersionSeries.parse("4.5")),
+        supportedRanges = emptyList(),
+        runtimeComponents = components.mapValues { Version.parse(it.value) },
+    )
+
+    /** One bundle, one stock engine, one capability per component combination. */
+    private val componentBundle = InstalledPlugin(
+        info = PluginInfo(
+            engine = "godot",
+            pluginVersion = Version.parse("1.0"),
+            capabilities = listOf(
+                // Listed so the ids sort the wrong way round: selection must
+                // not fall back on id order.
+                capability("a-spine-4.1", mapOf("spine-godot" to "4.1")),
+                capability("b-spine-4.2", mapOf("spine-godot" to "4.2")),
+                capability("c-stock", emptyMap()),
+            ),
+        ),
+        bundleId = "godot-components",
+        entrypointClass = "dev.example.Entry",
+        signerFingerprints = setOf("A".repeat(64)),
+    )
+
+    private fun resolveComponents(requirements: Map<String, String>): ResolvedPlugin? = PluginResolver.resolve(
+        listOf(componentBundle), "godot", null, Version.parse("4.5.1"),
+        requirements.mapValues { Version.parse(it.value) }, null,
+    )
+
+    @Test
+    fun `a game that needs no component gets the capability that loads none`() {
+        assertEquals("c-stock", resolveComponents(emptyMap())?.capability?.id)
+    }
+
+    @Test
+    fun `a component requirement selects the capability carrying that exact version`() {
+        assertEquals("b-spine-4.2", resolveComponents(mapOf("spine-godot" to "4.2"))?.capability?.id)
+        assertEquals("a-spine-4.1", resolveComponents(mapOf("spine-godot" to "4.1"))?.capability?.id)
+    }
+
+    @Test
+    fun `a component version nobody carries resolves to nothing`() {
+        assertNull(resolveComponents(mapOf("spine-godot" to "4.3")))
+    }
 }

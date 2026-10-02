@@ -52,6 +52,7 @@ interface IEngineRuntimeService {
               String engine, String engineContext, String engineVersion, String runtimeVersion,
               String capabilityId, String execFile, String optionsJson,
               in String[] runtimeRequirementKeys, in String[] runtimeRequirementValues,
+              in String[] runtimeComponentKeys, in String[] runtimeComponentValues,
               in String[] restartArguments,
               IEngineFileBroker gameBroker, IEngineFileBroker saveBroker,
               in ParcelFileDescriptor audioBuffer, int audioSampleRate,

@@ -249,6 +249,7 @@ object AvailablePluginResolver {
             .sortedWith(
                 compareByDescending<Pair<AvailablePlugin, EngineCapability>> { it.second.runtimeVersion == engineVersion }
                     .thenBy { it.second.specificityFor(engineVersion) }
+                    .thenBy { it.second.unrequestedComponents(runtimeRequirements) }
                     .thenByDescending { it.first.info.pluginVersion }
                     .thenBy { it.first.bundleId },
             )

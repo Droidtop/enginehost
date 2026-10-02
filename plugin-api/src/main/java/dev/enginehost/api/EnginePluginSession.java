@@ -21,6 +21,7 @@ public final class EnginePluginSession {
     private final String execFile;
     private final String optionsJson;
     private final Map<String, String> runtimeRequirements;
+    private final Map<String, String> runtimeComponents;
 
     public EnginePluginSession(
             File bundleDirectory,
@@ -34,7 +35,8 @@ public final class EnginePluginSession {
             String capabilityId,
             String execFile,
             String optionsJson,
-            Map<String, String> runtimeRequirements) {
+            Map<String, String> runtimeRequirements,
+            Map<String, String> runtimeComponents) {
         this.bundleDirectory = Objects.requireNonNull(bundleDirectory);
         // Null under an isolated runtime, which owns no window of its own
         // (docs/engine-sandbox.md "Layer 2"); see EngineStepDriven.
@@ -49,6 +51,7 @@ public final class EnginePluginSession {
         this.execFile = execFile;
         this.optionsJson = optionsJson;
         this.runtimeRequirements = Collections.unmodifiableMap(new LinkedHashMap<>(runtimeRequirements));
+        this.runtimeComponents = Collections.unmodifiableMap(new LinkedHashMap<>(runtimeComponents));
     }
 
     /** Read-only root containing this engine bundle's dex, native libraries, assets and notices. */
@@ -70,4 +73,15 @@ public final class EnginePluginSession {
     public String execFile() { return execFile; }
     public String optionsJson() { return optionsJson; }
     public Map<String, String> runtimeRequirements() { return runtimeRequirements; }
+    /**
+     * The runtime components (name to version) the selected capability
+     * declares in its {@code runtimeComponents}: what this launch loads
+     * beside the engine. It covers every name in {@link #runtimeRequirements()},
+     * which says only what the game asked for. A plugin carrying loadable
+     * components loads exactly these (docs/engine-bundle-format.md, "Runtime
+     * components (subplugins)"). Added after apiVersion 1 shipped: a plugin
+     * that may run on an older Enginehost catches {@code NoSuchMethodError}
+     * and falls back to its own table keyed by {@link #capabilityId()}.
+     */
+    public Map<String, String> runtimeComponents() { return runtimeComponents; }
 }

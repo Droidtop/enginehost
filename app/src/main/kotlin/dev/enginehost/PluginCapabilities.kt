@@ -63,6 +63,16 @@ data class EngineCapability(
 
     fun satisfies(requirements: Map<String, Version>): Boolean =
         requirements.all { (name, version) -> runtimeComponents[name] == version }
+
+    /**
+     * How many components this capability would load that [requirements]
+     * did not ask for. One bundle declares one capability per combination
+     * of components it can serve (docs/engine-bundle-format.md, "The version
+     * matrix"), so a game needing none satisfies every one of them; it gets
+     * the capability that loads the least, not whichever sorts first.
+     */
+    fun unrequestedComponents(requirements: Map<String, Version>): Int =
+        runtimeComponents.keys.count { it !in requirements }
 }
 
 /**
