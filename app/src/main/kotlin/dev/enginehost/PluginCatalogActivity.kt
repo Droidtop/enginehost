@@ -633,7 +633,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             val idleLabel = when {
                 installedIdle -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
-                update -> getString(R.string.update_to_build, PluginVersions.build(plugin.info.pluginVersion))
+                update -> getString(R.string.update_to_build, PluginVersions.display(plugin.info.pluginVersion))
                 else -> getString(R.string.install)
             }
             button.text = idleLabel

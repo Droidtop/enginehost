@@ -87,11 +87,10 @@ class VersionBuildTest {
     }
 
     @Test
-    fun displaysTheBuildNumber() {
-        assertEquals("1.0 · build 57", PluginVersions.display(v("1.0.0-57")))
-        assertEquals("1.2.1 · build 3", PluginVersions.display(v("1.2.1-3")))
-        assertEquals("1.0 · build 21", PluginVersions.display(Version.parsePlugin("1.0.21")))
-        assertEquals("57", PluginVersions.build(v("1.0.0-57")))
-        assertEquals("21", PluginVersions.build(Version.parsePlugin("1.0.21")))
+    fun displaysTheFullVersionString() {
+        assertEquals("1.0.0-57", PluginVersions.display(v("1.0.0-57")))
+        assertEquals("1.2.1-3", PluginVersions.display(v("1.2.1-3")))
+        assertEquals("1.0.0-21", PluginVersions.display(Version.parsePlugin("1.0.21")))
+        assertEquals("1.0.1", PluginVersions.display(v("1.0.1")))
     }
 }
