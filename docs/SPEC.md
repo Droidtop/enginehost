@@ -176,7 +176,9 @@ From 840dp wide (`SizeClass.EXPANDED_MIN_DP`) Home shows the library column and 
 pane for the selected game's page. Choosing a game (tap, A, a shelf card) moves the
 pane and puts the pad on its Play button; nothing is pushed, and before a choice the
 pane says to choose one. The pane and the narrow window's `GameActivity` are the same
-`GamePage` filling different view trees (`view_game_pane` is the page without its back
-button), so a game's page is one piece of code. The pane's game survives a rotation.
+`GamePage` filling different view trees, and they inflate the same one layout
+(`activity_game`; the pane hides its back button), so a game's page is one piece of code
+and one layout, with no landscape fork: it is a single scrolling column whose cover plate takes the
+height that is free (`eh_plate_min` floor), in the pane or full width. The pane's game survives a rotation.
 Narrower windows keep opening the page as its own screen. Cores, Settings and the
 controller screen keep their single column.

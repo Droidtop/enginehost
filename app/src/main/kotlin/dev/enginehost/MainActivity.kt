@@ -92,7 +92,9 @@ class MainActivity : EnginehostActivity() {
     private fun setUpPane(savedInstanceState: Bundle?) {
         val pane = findViewById<FrameLayout>(R.id.gamePane)
         pane.visibility = View.VISIBLE
-        val view = layoutInflater.inflate(R.layout.view_game_pane, pane, false)
+        val view = layoutInflater.inflate(R.layout.activity_game, pane, false)
+        // The list is still on screen, so the page needs no way back.
+        view.findViewById<View>(R.id.backButton).visibility = View.GONE
         view.visibility = View.GONE
         pane.addView(view)
         pageView = view
