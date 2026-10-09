@@ -28,3 +28,18 @@ nothing extra. In the catalog's older-builds list a build that is not newer
 than the installed one is disabled and reads "Installed" or "Older than
 installed", because the installer refuses a downgrade and a press that can only
 fail is not offered.
+
+## Layout follows the window, and Home keeps its place
+
+A layout decision reads the window's own width and height in dp through
+`SizeClass`, never the device kind and not orientation alone: compact under
+600dp, medium to 839dp, expanded from 840dp; a window under 480dp tall is
+short. The library grid fits as many columns of at least `eh_card_min_width`
+(320dp) as the width it really has allows, redrawn on every layout change
+(`LibraryBrowser`), so a phone upright shows one, a handheld two and a tablet
+more, and a split-screen half behaves as the narrow window it is.
+
+Turning the device or resizing the window recreates Home. The search text,
+filters, sort and the place in the list are saved with the instance state and
+put back (`LibraryBrowser.saveState` / `restoreState`); nothing a person set up
+on Home is lost to a rotation.

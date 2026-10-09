@@ -48,6 +48,7 @@ class MainActivity : EnginehostActivity() {
             },
             onOpen = { row -> startActivity(GameActivity.intent(this, File(row.path))) },
         )
+        savedInstanceState?.let { browser.restoreState(it) }
 
         findViewById<Button>(R.id.addGamesButton).setOnClickListener { chooseHowToAdd() }
         findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
@@ -62,6 +63,12 @@ class MainActivity : EnginehostActivity() {
         // Y is "play this game" only while a game has focus, so the hint
         // row follows focus.
         window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> refreshHints() }
+    }
+
+    /** Turning the device or resizing the window recreates Home; the search, filters, sort and place in the list stay. */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if (::browser.isInitialized) browser.saveState(outState)
     }
 
     override fun onDestroy() {

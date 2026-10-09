@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import android.app.Activity
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
@@ -65,8 +66,19 @@ class LibraryBrowser(
     private val defaultSort = initial.sort
     private val reloadNow = Runnable { reload() }
 
+    /** The row the list was scrolled to before the screen was recreated, applied once the first list is drawn. */
+    private var pendingFirst: Int? = null
+
     init {
         grid.adapter = adapter
+        // Columns follow the width the grid really has, now and after every resize or rotation.
+        val minColumn = activity.resources.getDimensionPixelSize(R.dimen.eh_card_min_width)
+        val gap = activity.resources.getDimensionPixelSize(R.dimen.eh_column_gap)
+        grid.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left == oldRight - oldLeft) return@addOnLayoutChangeListener
+            val columns = SizeClass.columns(right - left - grid.paddingLeft - grid.paddingRight, minColumn, gap)
+            if (columns != grid.numColumns) grid.numColumns = columns
+        }
         grid.onItemClickListener = AdapterView.OnItemClickListener { _, _, position, _ -> adapter.rowAt(position)?.let(onOpen) }
         filterButton.setOnClickListener { showFilters() }
         searchField.setText(initial.text)
@@ -92,6 +104,31 @@ class LibraryBrowser(
         generation.incrementAndGet()
         main.removeCallbacksAndMessages(null)
         worker.shutdownNow()
+    }
+
+    /** What a rotation or a window resize must not lose: the filters, the sort and the place in the list. */
+    fun saveState(out: Bundle) {
+        out.putString(STATE_ENGINE, filter.engine)
+        out.putString(STATE_PLATFORM, filter.platform?.name)
+        out.putString(STATE_SUPPORT, filter.support?.name)
+        out.putString(STATE_FOLDER, filter.folder)
+        out.putString(STATE_TEXT, filter.text)
+        out.putString(STATE_SORT, filter.sort.name)
+        out.putInt(STATE_FIRST, grid.firstVisiblePosition)
+    }
+
+    /** Puts back what [saveState] kept; call before the first [reload]. */
+    fun restoreState(state: Bundle) {
+        filter = filter.copy(
+            engine = state.getString(STATE_ENGINE),
+            platform = state.getString(STATE_PLATFORM)?.let { name -> BuildPlatform.entries.firstOrNull { it.name == name } },
+            support = state.getString(STATE_SUPPORT)?.let { name -> Support.entries.firstOrNull { it.name == name } },
+            folder = state.getString(STATE_FOLDER),
+            text = state.getString(STATE_TEXT).orEmpty(),
+            sort = state.getString(STATE_SORT)?.let { name -> SortOrder.entries.firstOrNull { it.name == name } } ?: filter.sort,
+        )
+        setSearchText(filter.text)
+        pendingFirst = state.getInt(STATE_FIRST, -1).takeIf { it > 0 }
     }
 
     /** The scanned folder this list shows, for the scan screen. */
@@ -186,7 +223,13 @@ class LibraryBrowser(
         empty.setText(if (loaded.total == 0) emptyText else R.string.search_no_matches)
         filterButton.setText(if (filter.unfiltered && filter.sort == defaultSort) R.string.filter_button else R.string.filter_button_active)
         val index = keep?.let { path -> loaded.rows.indexOfFirst { it.path == path } } ?: -1
-        if (index >= 0) grid.setSelection(index)
+        val restored = pendingFirst
+        pendingFirst = null
+        if (restored != null && loaded.rows.isNotEmpty()) {
+            grid.setSelection(restored.coerceAtMost(loaded.rows.size - 1))
+        } else if (index >= 0) {
+            grid.setSelection(index)
+        }
         onLoaded()
     }
 
@@ -452,6 +495,13 @@ class LibraryBrowser(
     }
 
     companion object {
+        private const val STATE_ENGINE = "library.engine"
+        private const val STATE_PLATFORM = "library.platform"
+        private const val STATE_SUPPORT = "library.support"
+        private const val STATE_FOLDER = "library.folder"
+        private const val STATE_TEXT = "library.text"
+        private const val STATE_SORT = "library.sort"
+        private const val STATE_FIRST = "library.first"
         private const val SEARCH_DELAY_MS = 250L
         private const val RELOAD_INTERVAL_MS = 1500L
         private const val RESOLVER_MAX_AGE_MS = 15_000L

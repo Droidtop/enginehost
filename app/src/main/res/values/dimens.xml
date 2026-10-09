@@ -22,6 +22,8 @@
     <dimen name="eh_card_padding_h">16dp</dimen>
     <dimen name="eh_card_padding_v">14dp</dimen>
 
+    <!-- The narrowest a game card in the library grid is drawn; the grid fits as many columns as that allows. -->
+    <dimen name="eh_card_min_width">320dp</dimen>
     <!-- Gap between side by side panes and between grid columns. -->
     <dimen name="eh_column_gap">16dp</dimen>
     <!-- A landscape sheet's width: a share of the window, never narrower or wider than these. -->
