@@ -21,9 +21,10 @@ import java.io.File
 class MainActivity : EnginehostActivity() {
     override val destination = Destination.LIBRARY
 
-    /** The first game in the library; adding games while there is none. */
+    /** The first game in the library; the first step while there is none. */
     override fun primaryAction(): View? =
         findViewById<View>(R.id.gameGrid)?.takeIf { ::browser.isInitialized && browser.shownRows().isNotEmpty() }
+            ?: findViewById<View>(R.id.emptyAddFolderButton)?.takeIf { it.isShown }
             ?: findViewById(R.id.addGamesButton)
 
     private lateinit var library: GameLibraryStore
@@ -46,6 +47,7 @@ class MainActivity : EnginehostActivity() {
             initial = LibraryFilter(sort = SortOrder.RECENTLY_PLAYED),
             emptyText = R.string.games_empty,
             onLoaded = {
+                showEmptyState()
                 selectPrimaryAction()
                 refreshHints()
             },
@@ -54,6 +56,12 @@ class MainActivity : EnginehostActivity() {
         savedInstanceState?.let { browser.restoreState(it) }
 
         findViewById<Button>(R.id.addGamesButton).setOnClickListener { chooseHowToAdd() }
+        findViewById<Button>(R.id.emptyAddFolderButton).setOnClickListener {
+            startActivity(Intent(this, GameScanActivity::class.java))
+        }
+        findViewById<Button>(R.id.emptyInstallCoreButton).setOnClickListener {
+            startActivity(Intent(this, PluginCatalogActivity::class.java))
+        }
         // Y is "play this game" only while a game has focus, so the hint
         // row follows focus.
         window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> refreshHints() }
@@ -116,6 +124,35 @@ class MainActivity : EnginehostActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * A library with no games at all leads to the next step instead of a blank list (tracker#241):
+     * add a folder of games, and install a core when none is installed. The installed cores are
+     * read off the main thread, so the line and the second button appear a moment after the first.
+     */
+    private fun showEmptyState() {
+        val firstRun = browser.total == 0
+        findViewById<View>(R.id.emptyActions).visibility = if (firstRun) View.VISIBLE else View.GONE
+        val coresLine = findViewById<TextView>(R.id.emptyCoresLine)
+        if (!firstRun) {
+            coresLine.visibility = View.GONE
+            findViewById<View>(R.id.emptyInstallCoreButton).visibility = View.GONE
+            return
+        }
+        Thread {
+            val cores = runCatching { PluginRegistry.discover(applicationContext).size }.getOrDefault(0)
+            runOnUiThread {
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                coresLine.visibility = View.VISIBLE
+                coresLine.text = if (cores == 0) {
+                    getString(R.string.empty_no_cores)
+                } else {
+                    resources.getQuantityString(R.plurals.empty_cores_installed, cores, cores)
+                }
+                findViewById<View>(R.id.emptyInstallCoreButton).visibility = if (cores == 0) View.VISIBLE else View.GONE
+            }
+        }.apply { isDaemon = true }.start()
     }
 
     /** Games added by hand have no scan behind them; read each folder once, off the main thread, and redraw. */

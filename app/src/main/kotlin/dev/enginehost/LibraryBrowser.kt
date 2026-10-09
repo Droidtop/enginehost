@@ -54,6 +54,10 @@ class LibraryBrowser(
     var filter: LibraryFilter = initial
         private set
 
+    /** How many games the scope holds before any filter; zero means the list is empty because there is nothing, not because nothing matched. */
+    var total: Int = -1
+        private set
+
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "enginehost-library").apply { isDaemon = true }
@@ -208,6 +212,7 @@ class LibraryBrowser(
 
     private fun render(loaded: Loaded) {
         val keep = selectedRow()?.path
+        total = loaded.total
         adapter.submit(loaded.rows, loaded.supports)
         if (loaded.total == 0) {
             summary.visibility = View.GONE

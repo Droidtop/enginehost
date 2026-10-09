@@ -64,3 +64,12 @@ Library. "Cores" is the destination's name and its heading, with the line that
 cores are the plugins that run a game engine; trust, update and error text keep
 "plugin" for the signed bundle. A Cores screen showing one just-installed plugin
 (`EXTRA_BUNDLE`) is opened inside a flow and draws no bar.
+
+## An empty library leads to a next step
+
+A library with no games at all (not a filter that matches none) says so and
+offers what to do: "Add a folder of games" opens the scan flow, and the line
+under it says how many cores are installed, with an "Install a core" button
+when there are none (`MainActivity.showEmptyState`; the installed cores are read
+off the main thread). With games but none matching, only "No games match." shows.
+The first-run step is the pad's first selection.

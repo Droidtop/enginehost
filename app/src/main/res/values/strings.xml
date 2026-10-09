@@ -22,7 +22,13 @@
     <string name="add_folder_of_games_detail">Look inside a folder and choose which of the games found there to add.</string>
     <string name="hint_play">Play</string>
     <string name="open_game_description">%1$s: open this game</string>
-    <string name="games_empty">Games you add or play appear here.</string>
+    <string name="games_empty">No games yet. Add a folder with your games and Enginehost finds them for you.</string>
+    <string name="install_a_core">Install a core</string>
+    <string name="empty_no_cores">No cores installed yet. A core runs one kind of game engine, so install the ones your games need.</string>
+    <plurals name="empty_cores_installed">
+        <item quantity="one">%d core installed. A game that needs another says so on its page.</item>
+        <item quantity="other">%d cores installed. A game that needs another says so on its page.</item>
+    </plurals>
     <string name="controller_settings">Controller</string>
     <string name="controller_settings_detail">Buttons, profiles and the in-game menu button</string>
     <string name="controls_section">Controls</string>
