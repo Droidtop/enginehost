@@ -586,8 +586,8 @@ object ControllerActions {
  * engines"; ids that exist only under one engine have no global row at all
  * and resolve straight to their default.
  */
-class ControllerBindingStore(
-    context: Context,
+class ControllerBindingStore internal constructor(
+    private val file: BindingStorage,
     private val engine: String? = null,
     /**
      * A game's path, for the scope that is one game's own (Droidtop/tracker#239). Its
@@ -596,7 +596,8 @@ class ControllerBindingStore(
      */
     private val game: String? = null,
 ) {
-    private val file = ControllerBindingFile.of(context)
+    constructor(context: Context, engine: String? = null, game: String? = null) :
+        this(ControllerBindingFile.of(context), engine, game)
 
     private fun scopedKey(action: ControllerAction): String? =
         engine?.lowercase()?.let { "engine.$it.${action.id}" }
@@ -730,7 +731,7 @@ class ControllerBindingStore(
  *
  * One instance per process, because one observer and one cache are enough.
  */
-internal class ControllerBindingFile private constructor(directory: File) {
+internal class ControllerBindingFile private constructor(directory: File) : BindingStorage {
     private val file = File(directory, NAME)
     private val temporary = File(directory, "$NAME.new")
     private val guard = File(directory, "$NAME.lock")
@@ -757,14 +758,14 @@ internal class ControllerBindingFile private constructor(directory: File) {
         return json.keys().asSequence().associateWith(json::get)
     }
 
-    fun binding(key: String): JSONObject? = values()[key] as? JSONObject
+    override fun binding(key: String): JSONObject? = values()[key] as? JSONObject
 
-    fun flag(key: String, fallback: Boolean): Boolean = values()[key] as? Boolean ?: fallback
+    override fun flag(key: String, fallback: Boolean): Boolean = values()[key] as? Boolean ?: fallback
 
-    fun contains(key: String): Boolean = values().containsKey(key)
+    override fun contains(key: String): Boolean = values().containsKey(key)
 
     /** [change] applied to the current map and written back, for every process. */
-    fun edit(change: (MutableMap<String, Any>) -> Unit) {
+    override fun edit(change: (MutableMap<String, Any>) -> Unit) {
         synchronized(writing) {
             RandomAccessFile(guard, "rw").use { handle ->
                 handle.channel.lock().use {
@@ -817,6 +818,20 @@ internal class ControllerBindingFile private constructor(directory: File) {
             legacy.edit().clear().apply()
         }
     }
+}
+
+/**
+ * Where a [ControllerBindingStore] keeps its keys. The real one is the shared file
+ * ([ControllerBindingFile]); a test gives the store a map in memory, so the resolution
+ * order is checked on the JVM.
+ */
+internal interface BindingStorage {
+    fun binding(key: String): JSONObject?
+    fun flag(key: String, fallback: Boolean): Boolean
+    fun contains(key: String): Boolean
+
+    /** [change] applied to the current map and written back. */
+    fun edit(change: (MutableMap<String, Any>) -> Unit)
 }
 
 /**
