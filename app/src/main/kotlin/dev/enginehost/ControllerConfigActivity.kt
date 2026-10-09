@@ -45,6 +45,15 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
     /** null = the global map every engine inherits from. */
     private var scope: String? = null
 
+    /** The game this screen was opened for, when it was (its page, the in-game menu): "This game" is then a scope to edit. */
+    private var gamePath: String? = null
+
+    /** The engine scope of that game, which its own map sits on top of. */
+    private var gameScope: String? = null
+
+    /** True while the map being edited is the game's own. */
+    private var editingGame = false
+
     /**
      * The scopes worth offering: one per compatibility line an installed
      * bundle serves, because RPG Maker's three runtimes are three engines
@@ -93,7 +102,10 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
         // is running, so the screen opens on the engine the person is
         // actually playing rather than on the global map.
         scope = intent.getStringExtra(EXTRA_SCOPE)
-        store = ControllerBindingStore(this, scope)
+        gamePath = intent.getStringExtra(EXTRA_GAME_PATH)
+        gameScope = scope
+        editingGame = gamePath != null && intent.getBooleanExtra(EXTRA_EDIT_GAME, false)
+        store = ControllerBindingStore(this, scope, gamePath.takeIf { editingGame })
         hotkeys = HostMenuHotkeyStore(this)
         profiles = ControllerProfileStore(this)
         setContentView(R.layout.activity_controller_config)
@@ -174,6 +186,7 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
         )
 
         scopeList.removeAllViews()
+        if (gamePath != null) addScopeButton(gameScope, getString(R.string.this_game), game = true)
         addScopeButton(null, getString(R.string.all_engines))
         installedScopes.forEach { (id, label) -> addScopeButton(id, label) }
 
@@ -181,7 +194,7 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
         // at all, so the rows below are shown as what they would be rather
         // than as what is in force, and are not editable until the toggle
         // is off. That is the whole contract in one control.
-        val offersBypass = ControllerActions.offersBypass(scope)
+        val offersBypass = !editingGame && ControllerActions.offersBypass(scope)
         val bypassed = offersBypass && store.isBypassed()
         bypassButton.visibility = if (offersBypass) View.VISIBLE else View.GONE
         bypassButton.text =
@@ -208,6 +221,7 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
             )
         } ?: target?.let { getString(R.string.capture_prompt, it.title) }
             ?: when {
+                editingGame -> getString(R.string.game_map_hint)
                 scope == null -> getString(R.string.global_map_hint)
                 bypassed -> getString(R.string.bypass_hint, scope)
                 scope in nativeInputScopes -> getString(R.string.native_engine_hint, scope)
@@ -223,12 +237,12 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
             val label = store.get(action).label(this)
             button.text = buildString {
                 append(getString(R.string.binding_row, action.title, label))
-                if (scope != null && !overridden) append("  ").append(getString(R.string.marker_inherited))
+                if ((scope != null || editingGame) && !overridden) append("  ").append(sourceMarker(store.sourceOf(action)))
             }
             button.isEnabled = !bypassed
             button.setOnClickListener { capturing = action; render() }
             button.setOnLongClickListener {
-                if (scope != null && overridden) {
+                if ((scope != null || editingGame) && overridden) {
                     store.clearOverride(action)
                     capturing = null
                     render()
@@ -237,27 +251,39 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
             }
             bindingList.addView(button)
         }
-        resetButton.text = scope.let { engine ->
-            if (engine == null) getString(R.string.reset_all) else getString(R.string.reset_scope, engine)
+        resetButton.text = when {
+            editingGame -> getString(R.string.reset_game)
+            scope == null -> getString(R.string.reset_all)
+            else -> getString(R.string.reset_scope, scope)
         }
     }
 
-    private fun addScopeButton(engine: String?, label: String) {
+    /** The line that says where a binding this scope does not set itself comes from: the first level with one wins. */
+    private fun sourceMarker(source: ControllerBindingStore.Source): String = getString(
+        when (source) {
+            ControllerBindingStore.Source.ENGINE -> R.string.marker_from_engine
+            ControllerBindingStore.Source.EVERYWHERE -> R.string.marker_from_everywhere
+            else -> R.string.marker_from_default
+        },
+    )
+
+    private fun addScopeButton(engine: String?, label: String, game: Boolean = false) {
         val button = layoutInflater.inflate(R.layout.item_action_button, scopeList, false) as Button
         button.text = buildString {
             append(label)
-            if (engine != null && engine in nativeInputScopes) {
+            if (!game && engine != null && engine in nativeInputScopes) {
                 append("  ").append(getString(R.string.marker_native))
             }
-            if (scope == engine) append("  ").append(getString(R.string.marker_editing))
+            if (if (game) editingGame else !editingGame && scope == engine) append("  ").append(getString(R.string.marker_editing))
         }
-        button.setOnClickListener { switchScope(engine) }
+        button.setOnClickListener { switchScope(engine, game) }
         scopeList.addView(button)
     }
 
-    private fun switchScope(engine: String?) {
+    private fun switchScope(engine: String?, game: Boolean = false) {
         scope = engine
-        store = ControllerBindingStore(this, engine)
+        editingGame = game
+        store = ControllerBindingStore(this, engine, gamePath.takeIf { game })
         capturing = null
         hotkeyCapture = null
         hotkeyHeld.clear()
@@ -345,9 +371,19 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
         /** The [ControllerScope] to open on; absent means the global map. */
         const val EXTRA_SCOPE = "dev.enginehost.controller.SCOPE"
 
-        fun intent(context: Context, scope: String?): Intent =
+        /** A game's path: "This game" is then offered as a map to edit. */
+        const val EXTRA_GAME_PATH = "dev.enginehost.controller.GAME_PATH"
+
+        /** Open on the game's own map rather than its engine's. */
+        const val EXTRA_EDIT_GAME = "dev.enginehost.controller.EDIT_GAME"
+
+        fun intent(context: Context, scope: String?, gamePath: String? = null, editGame: Boolean = false): Intent =
             Intent(context, ControllerConfigActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                .apply { scope?.let { putExtra(EXTRA_SCOPE, it) } }
+                .apply {
+                    scope?.let { putExtra(EXTRA_SCOPE, it) }
+                    gamePath?.let { putExtra(EXTRA_GAME_PATH, it) }
+                    if (editGame) putExtra(EXTRA_EDIT_GAME, true)
+                }
     }
 }

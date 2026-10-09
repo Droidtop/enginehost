@@ -32,6 +32,7 @@ class GameSectionsView(
         sections.core?.let { addCore(sections, it) }
         sections.update?.let { addUpdate(it, sections.core) }
         sections.options.forEach { addOption(it) }
+        if (sections.core != null) addControls(sections)
         sections.saves?.let { addSaves(it) }
         addHistory(sections.history)
     }
@@ -166,6 +167,19 @@ class GameSectionsView(
             sheet.choice(activity.getString(R.string.option_reset), tone = Sheet.Tone.DANGER) { setOverride(key, null) }
         }
         sheet.show()
+    }
+
+    // ---- Controls ---------------------------------------------------------------
+
+    private fun addControls(sections: GameSections) {
+        row(
+            activity.getString(R.string.section_controls),
+            activity.getString(if (sections.ownControls) R.string.controls_own else R.string.controls_follow),
+        ) {
+            activity.startActivity(
+                ControllerConfigActivity.intent(activity, sections.controlsScope, folder.absolutePath, editGame = true),
+            )
+        }
     }
 
     // ---- Saves and history ------------------------------------------------------

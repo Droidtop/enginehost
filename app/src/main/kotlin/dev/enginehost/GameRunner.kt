@@ -178,7 +178,7 @@ object GameRunner {
             // A bypassed engine reads the pad itself, and the absence of
             // this extra is how it is told so: no map, no host bindings,
             // the engine's own handling and nothing beside it.
-            ControllerBindingStore(context, ControllerScope.of(config.engine, config.engineContext))
+            ControllerBindingStore(context, ControllerScope.of(config.engine, config.engineContext), gameFolder.absolutePath)
                 .takeUnless { it.isBypassed() }
                 ?.let { putExtra(RuntimeActivity.EXTRA_CONTROLLER_BINDINGS, it.exportJson().toString()) }
             config.execFile?.let { putExtra(RuntimeActivity.EXTRA_EXEC_FILE, it) }

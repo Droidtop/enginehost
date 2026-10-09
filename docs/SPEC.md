@@ -154,3 +154,18 @@ written by the launch screen: a start counts a launch; the session's length is
 added when the runtime ends, unless it lasted under five seconds (a start that failed);
 a clean close, a crash and a runtime that never drew are told apart. Time played is also a
 sort order on Home.
+
+## Controls have a per-game scope, and every level says where a button comes from
+
+A game can have buttons of its own (Droidtop/tracker#239). The controller screen
+offers "This game" first when it was opened for a game (from the game page's Controls
+row, or from the in-game menu); its map sits on top of the engine's. A binding resolves
+game, then engine, then all engines, then the action's default
+(`ControllerBindingStore`; game keys are `game|<path>|<action>` in the same bindings
+file, so the runtime reads them the way it reads the rest and a change applies at
+once). The actions on offer are always the engine's own. Every row that the edited
+scope does not set itself says where its button comes from: "(from the engine)",
+"(from all engines)" or "(default)", so the first level that has one wins visibly;
+a long press on a row the scope does set takes it back, and "Reset this game" clears
+the game's level only. Bypass stays an engine-level choice. The game page's Controls row
+says whether the game has its own buttons or follows the engine's.

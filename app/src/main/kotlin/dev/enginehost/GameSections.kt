@@ -34,6 +34,9 @@ class GameSections(
     val options: List<OptionRow>,
     val saves: SavesInfo?,
     val history: PlayHistory,
+    /** The game's engine scope for the controller screen, and whether this game has buttons of its own. */
+    val controlsScope: String? = null,
+    val ownControls: Boolean = false,
 )
 
 object GameSectionsLoader {
@@ -49,6 +52,7 @@ object GameSectionsLoader {
         val pinned = GameOverrides.valueOf(overrides, "pluginVersion")?.toString()
         val core = status.core
         val compatible = runCatching { PluginRegistry.compatible(context, config) }.getOrDefault(emptyList())
+        val controlsScope = ControllerScope.of(config.engine, config.engineContext)
         return GameSections(
             core = core,
             pinned = pinned,
@@ -57,6 +61,10 @@ object GameSectionsLoader {
             options = optionRows(context, folder, config, core, overrides),
             saves = runCatching { savesOf(context, folder, config) }.getOrNull(),
             history = history,
+            controlsScope = controlsScope,
+            ownControls = runCatching {
+                ControllerBindingStore(context, controlsScope, folder.absolutePath).hasGameBindings()
+            }.getOrDefault(false),
         )
     }
 

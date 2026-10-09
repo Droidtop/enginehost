@@ -586,11 +586,36 @@ object ControllerActions {
  * engines"; ids that exist only under one engine have no global row at all
  * and resolve straight to their default.
  */
-class ControllerBindingStore(context: Context, private val engine: String? = null) {
+class ControllerBindingStore(
+    context: Context,
+    private val engine: String? = null,
+    /**
+     * A game's path, for the scope that is one game's own (Droidtop/tracker#239). Its
+     * bindings sit above the engine's: game, then engine, then everywhere, then the
+     * action's default. The engine scope still decides which actions exist.
+     */
+    private val game: String? = null,
+) {
     private val file = ControllerBindingFile.of(context)
 
     private fun scopedKey(action: ControllerAction): String? =
         engine?.lowercase()?.let { "engine.$it.${action.id}" }
+
+    private fun gameKey(action: ControllerAction): String? = game?.let { "game|$it|${action.id}" }
+
+    /** Which level a binding comes from, outermost last. */
+    enum class Source { THIS_GAME, ENGINE, EVERYWHERE, DEFAULT }
+
+    /** Where [action]'s binding in force comes from, so a screen can say so. */
+    fun sourceOf(action: ControllerAction): Source = when {
+        gameKey(action)?.let(file::contains) == true -> Source.THIS_GAME
+        scopedKey(action)?.let(file::contains) == true -> Source.ENGINE
+        file.contains(action.id) -> Source.EVERYWHERE
+        else -> Source.DEFAULT
+    }
+
+    /** Whether this game has any buttons of its own. */
+    fun hasGameBindings(): Boolean = game != null && actions().any { gameKey(it)?.let(file::contains) == true }
 
     private fun bypassKey(): String? = engine?.lowercase()?.let { "bypass.$it" }
 
@@ -601,13 +626,14 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
     fun actions(): List<ControllerAction> = ControllerActions.forEngine(engine)
 
     fun get(action: ControllerAction): ControllerBinding =
-        scopedKey(action)?.let(::read)
+        gameKey(action)?.let(::read)
+            ?: scopedKey(action)?.let(::read)
             ?: read(action.id)
             ?: action.default
 
-    /** True when this engine overrides [action] rather than inheriting it. */
+    /** True when the scope being edited (this game, else this engine) overrides [action] rather than inheriting it. */
     fun isOverridden(action: ControllerAction): Boolean =
-        scopedKey(action)?.let(file::contains) == true
+        (gameKey(action) ?: scopedKey(action))?.let(file::contains) == true
 
     /**
      * Whether the engine handles the controller itself for this scope. On
@@ -623,7 +649,7 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
     }
 
     fun set(action: ControllerAction, binding: ControllerBinding) {
-        val key = scopedKey(action) ?: action.id
+        val key = gameKey(action) ?: scopedKey(action) ?: action.id
         file.edit { it[key] = encode(binding) }
     }
 
@@ -633,7 +659,7 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
      * above to inherit from.
      */
     fun clearOverride(action: ControllerAction) {
-        scopedKey(action)?.let { key -> file.edit { it.remove(key) } }
+        (gameKey(action) ?: scopedKey(action))?.let { key -> file.edit { it.remove(key) } }
     }
 
     /**
@@ -652,6 +678,11 @@ class ControllerBindingStore(context: Context, private val engine: String? = nul
 
     /** Clears this scope only; the global map survives an engine reset. */
     fun reset() {
+        if (game != null) {
+            val prefix = "game|$game|"
+            file.edit { values -> values.keys.filter { it.startsWith(prefix) }.forEach { values.remove(it) } }
+            return
+        }
         if (engine == null) {
             file.edit { it.clear() }
             return
@@ -803,9 +834,10 @@ internal class ControllerBindingFile private constructor(directory: File) {
 class RuntimeControllerRouter(
     context: Context,
     engine: String? = null,
+    game: String? = null,
     private val plugin: () -> EnginePlugin?,
 ) {
-    private val bindings = ControllerBindingStore(context, engine)
+    private val bindings = ControllerBindingStore(context, engine, game)
 
     /** Fixed for the session: the set is the scope's, and the scope is the game's. */
     private val actions = bindings.actions()

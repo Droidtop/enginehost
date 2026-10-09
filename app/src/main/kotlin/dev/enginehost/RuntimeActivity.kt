@@ -44,6 +44,7 @@ class RuntimeActivity : FragmentActivity() {
         RuntimeControllerRouter(
             this,
             ControllerScope.of(intent.getStringExtra(EXTRA_ENGINE), intent.getStringExtra(EXTRA_ENGINE_CONTEXT)),
+            intent.getStringExtra(EXTRA_PATH),
         ) { plugin }
     }
 

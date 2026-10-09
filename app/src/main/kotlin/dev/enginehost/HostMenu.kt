@@ -144,7 +144,7 @@ object HostMenu {
             .title(R.string.host_menu_title)
             .choice(R.string.host_menu_resume) {}
             .choice(R.string.host_menu_controller) {
-                activity.startActivity(ControllerConfigActivity.intent(activity, scope))
+                activity.startActivity(ControllerConfigActivity.intent(activity, scope, gameOf(activity)))
             }
             .choice(R.string.host_menu_save_location) {
                 info(activity, R.string.host_menu_save_location, saveLocation(activity))
@@ -219,6 +219,9 @@ object HostMenu {
     private fun closed() {
         if (open?.isShowing != true) open = null
     }
+
+    /** The game this session is playing, as the controller screen names it ("This game"). */
+    fun gameOf(activity: Activity): String? = activity.intent.getStringExtra(RuntimeActivity.EXTRA_PATH)
 
     /** The scope this session is playing under; the same one settings shows. */
     fun scopeOf(activity: Activity): String? = ControllerScope.of(

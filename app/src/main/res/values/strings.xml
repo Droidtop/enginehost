@@ -324,7 +324,15 @@
     <string name="all_engines">All engines</string>
     <string name="marker_editing">(editing)</string>
     <string name="marker_native">(handles its own controller)</string>
-    <string name="marker_inherited">(inherited)</string>
+    <string name="marker_from_engine">(from the engine)</string>
+    <string name="marker_from_everywhere">(from all engines)</string>
+    <string name="marker_from_default">(default)</string>
+    <string name="this_game">This game</string>
+    <string name="game_map_hint">Buttons for this game only. Any you leave alone follow the engine\'s map, then all engines, then the default.</string>
+    <string name="reset_game">Reset this game</string>
+    <string name="section_controls">Controls</string>
+    <string name="controls_own">This game has its own buttons</string>
+    <string name="controls_follow">Follows the engine\'s buttons</string>
     <string name="capture_prompt">Press a button or move a stick for %1$s.</string>
     <string name="global_map_hint">The map every engine starts from.</string>
     <string name="native_engine_hint">%1$s reads the controller itself; set it up inside the game.</string>

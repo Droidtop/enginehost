@@ -65,7 +65,7 @@ class RuntimeInputTap(private val activity: Activity) {
     private val profiles = ControllerProfileStore(activity)
     private val cache = mutableMapOf<Int, ControllerProfile>()
 
-    private val bindings = ControllerBindingStore(activity, HostMenu.scopeOf(activity))
+    private val bindings = ControllerBindingStore(activity, HostMenu.scopeOf(activity), HostMenu.gameOf(activity))
 
     /**
      * Whether this session corrects the pad at all.
