@@ -106,7 +106,22 @@ object PluginResolver {
         runtimeRequirements: Map<String, Version>,
         pluginVersionAllowlist: VersionConstraint?,
         trustOf: (InstalledPlugin) -> PluginTrustState = { PluginTrustState.APPROVED },
-    ): ResolvedPlugin? {
+    ): ResolvedPlugin? =
+        ranked(plugins, engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist, trustOf).firstOrNull()
+
+    /**
+     * Every installed build that could run the game, best first: the order [resolve] picks from.
+     * With no allowlist this is the list the game's Change core offers.
+     */
+    fun ranked(
+        plugins: List<InstalledPlugin>,
+        engine: String,
+        engineContext: String?,
+        engineVersion: Version,
+        runtimeRequirements: Map<String, Version>,
+        pluginVersionAllowlist: VersionConstraint?,
+        trustOf: (InstalledPlugin) -> PluginTrustState = { PluginTrustState.APPROVED },
+    ): Sequence<ResolvedPlugin> {
         val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
         return plugins.asSequence()
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }
@@ -130,7 +145,6 @@ object PluginResolver {
                     .thenBy { it.plugin.bundleId }
                     .thenBy { it.capability.id },
             )
-            .firstOrNull()
     }
 }
 
@@ -239,6 +253,15 @@ object PluginRegistry {
                 plugin.directory.deleteRecursively().also { BundleStamps(context).forget(plugin.directory) }
             }
             .all { it }
+    }
+
+    /** Every installed build that could run [config], best first, one entry per bundle build. */
+    fun compatible(context: Context, config: EngineConfig): List<InstalledPlugin> {
+        val trustStore = PluginTrustStore(context)
+        return PluginResolver.ranked(
+            discover(context), config.engine, config.engineContext, config.engineVersion, config.runtimeRequirements, null,
+            trustOf = trustStore::state,
+        ).map { it.plugin }.distinctBy { it.bundleId to it.info.pluginVersion }.toList()
     }
 
     fun resolve(

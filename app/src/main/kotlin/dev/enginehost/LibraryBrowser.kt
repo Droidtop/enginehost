@@ -435,6 +435,7 @@ class LibraryBrowser(
             SortOrder.RECENTLY_ADDED -> R.string.sort_added
             SortOrder.RECENTLY_PLAYED -> R.string.sort_played
             SortOrder.SIZE -> R.string.sort_size
+            SortOrder.PLAYTIME -> R.string.sort_playtime
         },
     )
 

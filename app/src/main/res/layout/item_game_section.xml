@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One section of a game's page: what it is, what it is set to, a chevron. A tap opens its choices. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.Enginehost.Row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/sectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+        <TextView
+            android:id="@+id/sectionValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/sectionChevron"
+        android:layout_width="@dimen/eh_icon"
+        android:layout_height="@dimen/eh_icon"
+        android:layout_marginStart="@dimen/eh_space_s"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_chevron"
+        android:tint="@color/eh_text_secondary" />
+
+</LinearLayout>

@@ -50,6 +50,9 @@ internal class LibraryDb private constructor(private val appContext: Context) :
                 added_at INTEGER NOT NULL DEFAULT 0,
                 played_at INTEGER NOT NULL DEFAULT 0,
                 favourite INTEGER NOT NULL DEFAULT 0,
+                launches INTEGER NOT NULL DEFAULT 0,
+                play_ms INTEGER NOT NULL DEFAULT 0,
+                last_exit INTEGER NOT NULL DEFAULT 0,
                 found_at INTEGER NOT NULL DEFAULT 0,
                 classified INTEGER NOT NULL DEFAULT 0,
                 sig INTEGER,
@@ -76,6 +79,12 @@ internal class LibraryDb private constructor(private val appContext: Context) :
         if (oldVersion < 2) db.execSQL("ALTER TABLE games ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0")
         // Version 3: the person's per-game choices (Droidtop/tracker#235).
         if (oldVersion < 3) db.execSQL(OVERRIDES_TABLE)
+        // Version 4: play history (Droidtop/tracker#237).
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE games ADD COLUMN launches INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE games ADD COLUMN play_ms INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE games ADD COLUMN last_exit INTEGER NOT NULL DEFAULT 0")
+        }
     }
 
     /** The earlier library was a JSON list of paths, newest first, in preferences. */
@@ -102,7 +111,7 @@ internal class LibraryDb private constructor(private val appContext: Context) :
 
     companion object {
         private const val NAME = "game-library.db"
-        private const val VERSION = 3
+        private const val VERSION = 4
 
         /** One JSON object per game, keyed by its path: config keys the person set for this game, layered over the folder's file. */
         private const val OVERRIDES_TABLE = "CREATE TABLE IF NOT EXISTS game_overrides (path TEXT PRIMARY KEY NOT NULL, json TEXT NOT NULL)"
@@ -179,17 +188,39 @@ class GameLibraryStore(context: Context) : ScanStore {
         try {
             val known = linkedSetOf(folder.path, canonical).map { path ->
                 val marked = markAdded(db, path, now)
-                if (marked) db.execSQL("UPDATE games SET played_at = ? WHERE path = ?", arrayOf<Any>(now, path))
+                if (marked) db.execSQL("UPDATE games SET played_at = ?, launches = launches + 1 WHERE path = ?", arrayOf<Any>(now, path))
                 marked
             }.any { it }
             if (!known) {
                 insertBare(db, canonical, now)
-                db.execSQL("UPDATE games SET played_at = ? WHERE path = ?", arrayOf<Any>(now, canonical))
+                db.execSQL("UPDATE games SET played_at = ?, launches = launches + 1 WHERE path = ?", arrayOf<Any>(now, canonical))
             }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
         }
+    }
+
+    /** A session of [folder] ended after [playedMs], one of [PlayHistory] exit codes: adds the time and remembers how it ended. */
+    fun sessionEnded(folder: File, playedMs: Long, exit: Int) {
+        val canonical = runCatching { folder.canonicalPath }.getOrDefault(folder.absolutePath)
+        val db = helper.writableDatabase
+        for (path in setOf(canonical, folder.path)) {
+            db.execSQL(
+                "UPDATE games SET play_ms = play_ms + ?, last_exit = ? WHERE path = ?",
+                arrayOf<Any>(playedMs.coerceAtLeast(0), exit, path),
+            )
+        }
+    }
+
+    /** What this game's play history shows: launches, time played, the last start, and how the last session ended. */
+    fun historyOf(folder: File): PlayHistory {
+        val canonical = runCatching { folder.canonicalPath }.getOrDefault(folder.absolutePath)
+        return helper.readableDatabase
+            .rawQuery("SELECT launches, play_ms, played_at, last_exit FROM games WHERE path IN (?, ?) LIMIT 1", arrayOf(canonical, folder.path))
+            .use {
+                if (it.moveToFirst()) PlayHistory(it.getInt(0), it.getLong(1), it.getLong(2), it.getInt(3)) else PlayHistory()
+            }
     }
 
     /** Takes [folder] off Home. What a scan learned about it stays; a game only ever added by hand is forgotten. */

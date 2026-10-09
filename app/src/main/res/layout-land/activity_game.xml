@@ -80,14 +80,6 @@
 
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/gameCore"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-                android:visibility="gone" />
-
 
             <TextView
                 android:id="@+id/gamePath"
@@ -180,6 +172,15 @@
                 android:layout_marginTop="0dp"
                 android:drawableStart="@drawable/ic_play"
                 android:text="@string/action_launch" />
+
+            <!-- Core, options, saves and history; filled by GameActivity once they are read. -->
+            <LinearLayout
+                android:id="@+id/gameSections"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_m"
+                android:orientation="vertical" />
+
 
             <Button
                 android:id="@+id/setupButton"

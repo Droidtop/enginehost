@@ -52,6 +52,9 @@ class LaunchActivity : EnginehostActivity() {
     private var runtimeCovered = false
     private var runtimePlugin: String? = null
     private var lastCrash: CrashWatch.Crash? = null
+
+    /** When the runtime in progress was started, for the game's play history; 0 when none is. */
+    private var sessionStartedAt = 0L
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +68,7 @@ class LaunchActivity : EnginehostActivity() {
         runtimeCovered = savedInstanceState?.getBoolean(STATE_COVERED) ?: false
         runtimeStarted = savedInstanceState?.getBoolean(STATE_STARTED) ?: false
         runtimePlugin = savedInstanceState?.getString(STATE_PLUGIN)
+        sessionStartedAt = savedInstanceState?.getLong(STATE_SESSION_AT) ?: 0L
         setContentView(R.layout.activity_launch)
         findViewById<Button>(R.id.cancelButton).setOnClickListener { cancel() }
         findViewById<Button>(R.id.retryButton).setOnClickListener { launch() }
@@ -84,6 +88,7 @@ class LaunchActivity : EnginehostActivity() {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STATE_COVERED, runtimeCovered)
         outState.putBoolean(STATE_STARTED, runtimeStarted)
+        outState.putLong(STATE_SESSION_AT, sessionStartedAt)
         outState.putString(STATE_PLUGIN, runtimePlugin)
     }
 
@@ -337,6 +342,7 @@ class LaunchActivity : EnginehostActivity() {
                 return
             }
         runtimeStarted = true
+        sessionStartedAt = System.currentTimeMillis()
         HostEvents.record(this, "runtime started")
         RunningGame.folder = gameFolder
         // The home screen is the library of every game played here,
@@ -475,6 +481,12 @@ class LaunchActivity : EnginehostActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_RUNTIME) return
         RunningGame.ended(gameFolder)
+        val reportedError = data?.getStringExtra(RuntimeActivity.EXTRA_ERROR)
+        if (data?.getBooleanExtra(RuntimeActivity.EXTRA_RESTART, false) == true) {
+            recordSession(PlayHistory.EXIT_CLEAN)
+        } else if (reportedError != null) {
+            recordSession(PlayHistory.EXIT_FAILED)
+        }
         if (data?.getBooleanExtra(RuntimeActivity.EXTRA_RESTART, false) == true) {
             // The engine asked to be restarted (EngineHost.restart). Not an
             // exit and not a crash: plan the launch again, from this same
@@ -510,6 +522,13 @@ class LaunchActivity : EnginehostActivity() {
             return
         }
         val crash = CrashWatch.consume(this)
+        recordSession(
+            when {
+                crash != null -> PlayHistory.EXIT_CRASHED
+                runtimeCovered -> PlayHistory.EXIT_CLEAN
+                else -> PlayHistory.EXIT_FAILED
+            },
+        )
         when {
             crash != null -> {
                 HostEvents.record(this, "runtime ended: crashed: ${crash.reason}")
@@ -552,6 +571,16 @@ class LaunchActivity : EnginehostActivity() {
         launch(waitedForRuntime = true)
     }
 
+    /** Adds the session that just ended to the game's play history, once; off the main thread. */
+    private fun recordSession(exit: Int) {
+        val started = sessionStartedAt
+        sessionStartedAt = 0L
+        if (started == 0L) return
+        val playedMs = PlayHistory.countedMs(started, System.currentTimeMillis())
+        val library = GameLibraryStore(applicationContext)
+        Thread { runCatching { library.sessionEnded(gameFolder, playedMs, exit) } }.apply { isDaemon = true }.start()
+    }
+
     /** This screen classifies its own runtime's exit (see onActivityResult). */
     override val reportsRuntimeCrashes = false
 
@@ -564,6 +593,7 @@ class LaunchActivity : EnginehostActivity() {
 
     companion object {
         private const val TAG = "enginehost"
+        private const val STATE_SESSION_AT = "sessionStartedAt"
         private const val REQUEST_RUNTIME = 41
         private const val EXIT_RECORD_DELAY_MS = 400L
         /** With the delay above, about six seconds before giving up on a record. */

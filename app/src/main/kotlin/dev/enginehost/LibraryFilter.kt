@@ -1,7 +1,7 @@
 package dev.enginehost
 
 /** How the library is ordered; every order is served by an index. */
-enum class SortOrder { NAME, RECENTLY_ADDED, RECENTLY_PLAYED, SIZE }
+enum class SortOrder { NAME, RECENTLY_ADDED, RECENTLY_PLAYED, SIZE, PLAYTIME }
 
 /** Which rows a list draws from: the games on Home, or everything the scanner found under a folder. */
 enum class LibraryScope { ADDED, UNDER_ROOT }
@@ -113,6 +113,7 @@ object LibraryQuery {
             SortOrder.RECENTLY_ADDED -> "added_at DESC, name_key ASC, path ASC"
             SortOrder.RECENTLY_PLAYED -> "played_at DESC, name_key ASC, path ASC"
             SortOrder.SIZE -> "size_bytes DESC, name_key ASC, path ASC"
+            SortOrder.PLAYTIME -> "play_ms DESC, name_key ASC, path ASC"
         }
         return Sql(clauses.joinToString(" AND "), args, order)
     }

@@ -101,6 +101,11 @@ class GameActivity : EnginehostActivity() {
     override fun onResume() {
         super.onResume()
         if (!::folder.isInitialized) return
+        refresh()
+    }
+
+    /** Reads the game's state and its sections again; a choice made on this page runs it so the page shows the result. */
+    private fun refresh() {
         showTestingRow()
         showTitle(null)
         Thread {
@@ -119,17 +124,6 @@ class GameActivity : EnginehostActivity() {
                     setText(status.primary.label)
                     isEnabled = status.primary.enabled
                 }
-                findViewById<TextView>(R.id.gameCore).apply {
-                    val core = status.core
-                    visibility = if (core == null) View.GONE else View.VISIBLE
-                    if (core != null) {
-                        text = getString(
-                            R.string.game_core_line,
-                            PluginVersions.display(core.info.pluginVersion),
-                            getString(if (core.isolatable) R.string.badge_sandboxed else R.string.badge_unsandboxed),
-                        )
-                    }
-                }
                 findViewById<TextView>(R.id.gameStatus).apply {
                     text = status.text
                     setTextColor(
@@ -146,8 +140,21 @@ class GameActivity : EnginehostActivity() {
                     }
                 }
                 showPlate(art, status)
+                loadSections(status)
             }
         }.start()
+    }
+
+    private val sectionsView by lazy {
+        GameSectionsView(this, findViewById(R.id.gameSections), folder) { refresh() }
+    }
+
+    /** The sections read the plugin catalogs and the save folder, so they come a moment after the page, off the main thread. */
+    private fun loadSections(status: GameStatus) {
+        Thread {
+            val sections = runCatching { GameSectionsLoader.load(applicationContext, folder, status) }.getOrNull() ?: return@Thread
+            runOnUiThread { if (!isDestroyed && !isFinishing) sectionsView.show(sections) }
+        }.apply { isDaemon = true }.start()
     }
 
     /** A pending testing configuration from Game setup, with Keep and Discard one press away. */
