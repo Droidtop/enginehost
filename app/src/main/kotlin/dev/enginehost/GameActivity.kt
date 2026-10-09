@@ -28,6 +28,9 @@ class GameActivity : EnginehostActivity() {
 
     private lateinit var folder: File
 
+    /** What the primary button does; Play until the state has been read. */
+    private var primary = GamePrimary.PLAY
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val path = intent.getStringExtra(EXTRA_PATH)
@@ -39,17 +42,23 @@ class GameActivity : EnginehostActivity() {
         setContentView(R.layout.activity_game)
         wireBackButton()
         wireFolderLine(findViewById(R.id.gamePath))
-        findViewById<Button>(R.id.playButton).setOnClickListener { play() }
-        findViewById<Button>(R.id.setupButton).setOnClickListener {
-            startActivity(
-                Intent(this, ConfigEditorActivity::class.java)
-                    .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
-            )
+        findViewById<Button>(R.id.playButton).setOnClickListener {
+            // Play, Get the core and Approve the core are all the launch: its plan sends the person
+            // to the catalog or the trust screen when that is the next step.
+            if (primary == GamePrimary.SET_UP) openSetup() else play()
         }
+        findViewById<Button>(R.id.setupButton).setOnClickListener { openSetup() }
         findViewById<Button>(R.id.reportButton).setOnClickListener {
             startActivity(ProblemReportActivity.intent(this, folder))
         }
         findViewById<Button>(R.id.removeButton).setOnClickListener { confirmRemove() }
+    }
+
+    private fun openSetup() {
+        startActivity(
+            Intent(this, ConfigEditorActivity::class.java)
+                .putExtra(ConfigEditorActivity.EXTRA_PATH, folder.absolutePath),
+        )
     }
 
     /**
@@ -87,6 +96,22 @@ class GameActivity : EnginehostActivity() {
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 showTitle(status.title)
+                primary = status.primary
+                findViewById<Button>(R.id.playButton).apply {
+                    setText(status.primary.label)
+                    isEnabled = status.primary.enabled
+                }
+                findViewById<TextView>(R.id.gameCore).apply {
+                    val core = status.core
+                    visibility = if (core == null) View.GONE else View.VISIBLE
+                    if (core != null) {
+                        text = getString(
+                            R.string.game_core_line,
+                            PluginVersions.display(core.info.pluginVersion),
+                            getString(if (core.isolatable) R.string.badge_sandboxed else R.string.badge_unsandboxed),
+                        )
+                    }
+                }
                 findViewById<TextView>(R.id.gameStatus).apply {
                     text = status.text
                     setTextColor(

@@ -76,6 +76,15 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/gameCore"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_xs"
+            android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+            android:visibility="gone" />
+
+
+        <TextView
             android:id="@+id/gamePath"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

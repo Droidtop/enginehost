@@ -46,7 +46,7 @@
     <string name="search_hint">Search</string>
     <string name="search_no_matches">No games match.</string>
     <string name="status_missing">Folder not available. Reconnect its storage or remove this entry.</string>
-    <string name="status_no_config">Not set up yet. Play detects the engine.</string>
+    <string name="status_no_config">Not set up yet. Play runs it on what Enginehost detects.</string>
     <string name="status_bad_config">Configuration problem: %1$s</string>
     <string name="action_launch">Play</string>
     <string name="action_edit_config">Game setup</string>
@@ -248,7 +248,15 @@
     <string name="stream_testing_desc">Testing · runs games, still being lived with</string>
     <string name="stream_unstable_desc">Unstable · every green build</string>
     <string name="status_ready_short">Ready</string>
-    <string name="status_no_plugin_short">Needs a plugin. Play offers one to install.</string>
+    <string name="status_no_plugin_short">Needs a core that is not installed yet.</string>
+    <string name="status_needs_approval">The core for this game is installed and waiting for your approval.</string>
+    <string name="status_needs_setup">Needs a few answers before it can start.</string>
+    <string name="action_get_core">Get the core</string>
+    <string name="action_approve_core">Approve the core</string>
+    <string name="action_set_up">Set up</string>
+    <string name="action_folder_missing">Folder not available</string>
+    <string name="action_not_supported">Not supported here</string>
+    <string name="game_core_line">Core %1$s · %2$s</string>
     <string name="settings_title">Settings</string>
     <string name="save_location">Saves</string>
     <string name="choose_folder">Choose folder</string>

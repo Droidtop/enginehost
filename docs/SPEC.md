@@ -73,3 +73,15 @@ under it says how many cores are installed, with an "Install a core" button
 when there are none (`MainActivity.showEmptyState`; the installed cores are read
 off the main thread). With games but none matching, only "No games match." shows.
 The first-run step is the pad's first selection.
+
+## The game page has one state-aware primary button
+
+A game's screen has one primary button, and the game's state picks it
+(`GamePrimary`, decided off the main thread by `GameStatus.of`): Play; Get the
+core when no installed core fits; Approve the core when one fits but is not
+approved; Set up when detection left a question open or the game's own config is
+unusable; and, disabled with the reason as the label, Folder not available and
+Not supported here. Get the core and Approve the core run the same launch as
+Play, because its plan already detours to the catalog or the trust screen, so
+there is one path to each. Under the status line a game that has a core says which
+build will run it and whether it is sandboxed ("Core 1.0.1-2 · Sandboxed").
