@@ -1,6 +1,8 @@
 package dev.enginehost
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -22,6 +24,14 @@ class PluginTrustCarryTest {
     fun aDifferentKeyOrOriginStillAsks() {
         assertFalse(PluginTrustStore.shouldCarry("approved", plugin("k1"), plugin("k2")))
         assertFalse(PluginTrustStore.shouldCarry("approved", plugin("k1"), plugin("k1", "https://github.com/c/d")))
+    }
+
+    @Test
+    fun aBuildSaysWhetherTheKeyOrTheRepositoryIsWhatChanged() {
+        assertEquals(TrustChange.SIGNER, PluginTrustStore.changeSince(setOf("k1"), "https://github.com/a/b", plugin("k2")))
+        assertEquals(TrustChange.ORIGIN, PluginTrustStore.changeSince(setOf("k1"), "https://github.com/a/b", plugin("k1", "https://github.com/c/d")))
+        assertNull(PluginTrustStore.changeSince(emptySet(), null, plugin("k1")))
+        assertNull(PluginTrustStore.changeSince(setOf("k1"), "https://github.com/a/b", plugin("k1")))
     }
 
     @Test

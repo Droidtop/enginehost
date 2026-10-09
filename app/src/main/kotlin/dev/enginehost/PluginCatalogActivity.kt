@@ -592,6 +592,8 @@ class PluginCatalogActivity : EnginehostActivity() {
             )
         }
         val progress = card.findViewById<View>(R.id.releaseProgress)
+        // Read once for this card: the older builds and the primary button both depend on it.
+        val installed = PluginRegistry.discover(this).filter { it.bundleId == plugin.bundleId }
         val olderList = card.findViewById<LinearLayout>(R.id.releaseOlderList)
         card.findViewById<TextView>(R.id.releaseOlderToggle).apply {
             visibility = if (older.isEmpty()) View.GONE else View.VISIBLE
@@ -607,7 +609,15 @@ class PluginCatalogActivity : EnginehostActivity() {
                 val row = layoutInflater.inflate(R.layout.item_release_build, olderList, false)
                 row.findViewById<TextView>(R.id.buildLabel).text =
                     getString(R.string.release_build_line, PluginVersions.display(build.info.pluginVersion), streamName(build.stream))
-                row.findViewById<Button>(R.id.buildInstallButton).setOnClickListener { view ->
+                val installButton = row.findViewById<Button>(R.id.buildInstallButton)
+                // The installer only replaces a build with a newer one; a build that is not newer than
+                // what is installed says so here instead of failing after the press (tracker#23).
+                if (installed.isNotEmpty() && installed.none { PluginUpdates.isNewerBuildOf(it, build.manifest) }) {
+                    val same = installed.any { it.info.pluginVersion == build.info.pluginVersion }
+                    installButton.setText(if (same) R.string.installed else R.string.release_build_older_than_installed)
+                    installButton.isEnabled = false
+                }
+                installButton.setOnClickListener { view ->
                     view.isEnabled = false
                     PluginInstaller.install(
                         this@PluginCatalogActivity,
@@ -640,7 +650,6 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
         } else {
             val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
-            val installed = PluginRegistry.discover(this).filter { it.bundleId == plugin.bundleId }
             // A strictly newer build of an installed bundle is an update; the
             // installer replaces in place and the trust prompt re-appears for
             // the new archive before it can run.

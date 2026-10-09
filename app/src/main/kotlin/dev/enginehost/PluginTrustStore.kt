@@ -8,6 +8,9 @@ enum class PluginTrustState {
     DENIED,
 }
 
+/** What differs from the build a person approved earlier, when an update was not carried over. */
+enum class TrustChange { SIGNER, ORIGIN }
+
 /**
  * Trust is local security state, deliberately outside enginehost.json and caller data.
  * Approval binds a bundle ID and exact archive digest to its repository signing identity.
@@ -36,6 +39,21 @@ class PluginTrustStore(private val context: Context) {
     fun carryApproval(previous: List<InstalledPlugin>, updated: InstalledPlugin) {
         if (updated.signerIdentity.isBlank()) return
         if (previous.any { shouldCarry(preferences.getString(decisionKey(it), null), it, updated) }) approve(updated)
+    }
+
+    /**
+     * Why a build waiting for approval was not carried over from one the person
+     * approved before (Droidtop/tracker#23): the key that signed it, or the
+     * repository it came from, is not the one they trusted. Null when nothing
+     * was ever approved for this bundle, so a first install says nothing extra.
+     */
+    fun changeSinceApproval(plugin: InstalledPlugin): TrustChange? {
+        if (state(plugin) != PluginTrustState.PENDING) return null
+        val prefix = "decision:${plugin.bundleId}:"
+        val approvedSigners = preferences.all
+            .filter { (key, value) -> value == "approved" && key.startsWith(prefix) }
+            .keys.map { it.removePrefix(prefix).substringAfter(':') }.toSet()
+        return changeSince(approvedSigners, preferences.getString(originKey(plugin.bundleId), null), plugin)
     }
 
     /** Signed by its origin's root-certified key, compiled in or learned from the plugins index. */
@@ -71,6 +89,13 @@ class PluginTrustStore(private val context: Context) {
             stored == "approved" && previous.signerIdentity.isNotBlank() &&
                 previous.signerIdentity == updated.signerIdentity && previous.origin == updated.origin
 
+        /** The signer of every earlier approval and the origin of the last one, against [plugin]. */
+        internal fun changeSince(approvedSigners: Set<String>, approvedOrigin: String?, plugin: InstalledPlugin): TrustChange? = when {
+            approvedSigners.isNotEmpty() && plugin.signerIdentity !in approvedSigners -> TrustChange.SIGNER
+            approvedOrigin != null && approvedOrigin != plugin.origin -> TrustChange.ORIGIN
+            else -> null
+        }
+
         /**
          * The person's own decision always wins. With none, a bundle signed by
          * its origin's root-certified key is approved: Enginehost already
@@ -88,10 +113,13 @@ class PluginTrustStore(private val context: Context) {
 
     private fun decide(plugin: InstalledPlugin, decision: String) {
         require(plugin.signerIdentity.isNotBlank()) { "A plugin without a verified signer cannot be trusted" }
-        preferences.edit()
-            .putString(decisionKey(plugin), decision)
-            .apply()
+        val edit = preferences.edit().putString(decisionKey(plugin), decision)
+        // Which repository the person last approved, so a later build from another one can say so.
+        if (decision == "approved") edit.putString(originKey(plugin.bundleId), plugin.origin)
+        edit.apply()
     }
+
+    private fun originKey(bundleId: String) = "approved-origin:$bundleId"
 
     private fun decisionKey(plugin: InstalledPlugin) =
         "decision:${plugin.bundleId}:${plugin.archiveSha256}:${plugin.signerIdentity}"

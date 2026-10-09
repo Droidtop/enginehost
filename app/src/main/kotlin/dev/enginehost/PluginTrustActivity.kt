@@ -199,8 +199,9 @@ class PluginTrustActivity : EnginehostActivity() {
         }
         card.findViewById<TextView>(R.id.signerValue).text =
             "${getString(R.string.signer_label)}: ${plugin.signerIdentity}"
+        val change = trust.changeSinceApproval(plugin)
         card.findViewById<TextView>(R.id.trustState).text =
-            "${getString(R.string.trust_state_label)}: ${getString(stateLabel(state))}"
+            "${getString(R.string.trust_state_label)}: ${getString(stateLabel(state, change))}"
 
         if (ultimateBuild) {
             // The primary developer's key proves origin more strongly than any
@@ -243,8 +244,12 @@ class PluginTrustActivity : EnginehostActivity() {
             .ifEmpty { listOf(EngineNames.family(info.engine)) }
             .joinToString(" · ")
 
-    private fun stateLabel(state: PluginTrustState): Int = when (state) {
-        PluginTrustState.PENDING -> R.string.trust_state_pending
+    private fun stateLabel(state: PluginTrustState, change: TrustChange?): Int = when (state) {
+        PluginTrustState.PENDING -> when (change) {
+            TrustChange.SIGNER -> R.string.trust_state_signer_changed
+            TrustChange.ORIGIN -> R.string.trust_state_origin_changed
+            null -> R.string.trust_state_pending
+        }
         PluginTrustState.APPROVED -> R.string.trust_state_approved
         PluginTrustState.DENIED -> R.string.trust_state_denied
     }
