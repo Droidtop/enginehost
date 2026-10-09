@@ -46,9 +46,24 @@ class PluginCatalogActivity : EnginehostActivity() {
     private var staleRefreshAttempted = false
     private var requestedConfig: EngineConfig? = null
 
-    /** The last fetched plugins index, read once per refresh rather than on every redraw. */
-    private var listedIndex: PluginsIndex? = null
-    private var listedIndexRead = false
+    /**
+     * Everything a redraw needs from disk, read together on a worker thread and then drawn from. Reading
+     * the stored catalogs verifies every cached manifest's signature, so doing it while the screen opens
+     * held the main thread for seconds and the screen ANRed (rig, Enginehost dev-289).
+     */
+    private class Snapshot(
+        val catalogAll: List<AvailablePlugin>,
+        val index: PluginsIndex?,
+        val installed: List<InstalledPlugin>,
+        val described: Map<String, OriginIdentity?>,
+        val fetched: Set<String>,
+        val stale: Set<String>,
+    )
+
+    private var snapshot: Snapshot? = null
+
+    /** Bumped per redraw, so a snapshot read for an older one is dropped. */
+    private var renderGeneration = 0
 
     /** What the last refresh did, per origin, so the screen can say why it shows what it shows. */
     private var lastOutcomes: Map<String, OriginOutcome> = emptyMap()
@@ -145,10 +160,31 @@ class PluginCatalogActivity : EnginehostActivity() {
         refreshButton.setText(if (refreshing) R.string.refreshing else R.string.refresh_all)
         refreshButton.isEnabled = !refreshing
         catalogStreamValue.text = streamName(updateCheck.stream)
-        renderOrigins()
-        renderQuickAdd()
-        renderSourcesToggle()
-        renderReleases()
+        val generation = ++renderGeneration
+        Thread {
+            val read = runCatching { readSnapshot() }.getOrNull() ?: return@Thread
+            runOnUiThread {
+                if (isDestroyed || isFinishing || generation != renderGeneration) return@runOnUiThread
+                snapshot = read
+                renderOrigins()
+                renderQuickAdd()
+                renderSourcesToggle()
+                renderReleases()
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    private fun readSnapshot(): Snapshot {
+        val all = origins.all()
+        return Snapshot(
+            catalogAll = cache.loadAll(all)
+                .sortedWith(compareBy<AvailablePlugin>({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId })),
+            index = PluginCatalogIndex.cached(this),
+            installed = PluginRegistry.discover(this),
+            described = all.associateWith { directory.describe(it) },
+            fetched = all.filter(cache::hasFetched).toSet(),
+            stale = all.filter { cache.isStale(it, PluginUpdateCheck.CATALOG_MAX_AGE_MS) }.toSet(),
+        )
     }
 
     /**
@@ -331,13 +367,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         render(getString(R.string.custom_origin_removed))
     }
 
-    private fun cachedIndex(): PluginsIndex? {
-        if (!listedIndexRead) {
-            listedIndex = PluginCatalogIndex.cached(this)
-            listedIndexRead = true
-        }
-        return listedIndex
-    }
+    private fun cachedIndex(): PluginsIndex? = snapshot?.index
 
     /** "550B FFFA E00F ..." -- a fingerprint a person can compare by eye. */
     private fun groupedFingerprint(fingerprint: String): String = fingerprint.chunked(4).joinToString(" ")
@@ -358,7 +388,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             // A bare URL says nothing about what the user is trusting, so lead
             // with the repository's own name and description and keep the URL
             // underneath as the identity that actually matters.
-            val described = directory.describe(origin)
+            val described = snapshot?.described?.get(origin)
             card.findViewById<TextView>(R.id.originName).text =
                 described?.implementationName?.takeIf { it.isNotBlank() } ?: origin.substringAfterLast('/')
             val meta = card.findViewById<TextView>(R.id.originMeta)
@@ -409,8 +439,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         // Every stream a repository publishes is cached (see CatalogRefresh);
         // catalogAll is that whole store, and allAvailable is what the
         // chosen stream actually offers from it.
-        val catalogAll = cache.loadAll(allOrigins)
-            .sortedWith(compareBy<AvailablePlugin>({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId }))
+        val catalogAll = snapshot?.catalogAll.orEmpty()
         val allAvailable = catalogAll.filter { it.stream.offeredTo(updateCheck.stream) }
         val matches = requestedConfig?.let { config ->
             AvailablePluginResolver.compatible(
@@ -443,7 +472,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             val failure = lastOutcomes.values.filterIsInstance<OriginOutcome.Failed>().firstOrNull()
             releasesEmptyState.text = when {
                 failure != null -> getString(R.string.releases_unavailable, failureText(failure.reason))
-                !allOrigins.any(cache::hasFetched) -> getString(R.string.releases_not_loaded)
+                !allOrigins.any { it in snapshot?.fetched.orEmpty() } -> getString(R.string.releases_not_loaded)
                 moreAdventurous.isNotEmpty() -> streamEmptyMessage(moreAdventurous)
                 else -> getString(R.string.releases_none_published)
             }
@@ -462,7 +491,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         // A catalog stored a while ago may describe builds that have since
         // been replaced; installing from it would fetch the old one by its
         // old checksum. Refresh first, once, and come back here afterwards.
-        if (!staleRefreshAttempted && !refreshing && allOrigins.any { cache.isStale(it, PluginUpdateCheck.CATALOG_MAX_AGE_MS) }) {
+        if (!staleRefreshAttempted && !refreshing && allOrigins.any { it in snapshot?.stale.orEmpty() }) {
             staleRefreshAttempted = true
             refresh()
             return
@@ -494,7 +523,7 @@ class PluginCatalogActivity : EnginehostActivity() {
     private fun unmetComponentNote(config: EngineConfig, available: List<AvailablePlugin>): String? {
         if (config.runtimeRequirements.isEmpty()) return null
         val capabilities = available.flatMap { it.info.capabilities } +
-            PluginRegistry.discover(this).flatMap { it.info.capabilities }
+            snapshot?.installed.orEmpty().flatMap { it.info.capabilities }
         val unmet = RuntimeRequirementReport.unmet(config.runtimeRequirements, capabilities)
         if (unmet.isEmpty()) return null
         val needed = unmet.keys.sorted().joinToString(", ") { "$it ${config.runtimeRequirements[it]}" }
@@ -593,7 +622,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         }
         val progress = card.findViewById<View>(R.id.releaseProgress)
         // Read once for this card: the older builds and the primary button both depend on it.
-        val installed = PluginRegistry.discover(this).filter { it.bundleId == plugin.bundleId }
+        val installed = snapshot?.installed.orEmpty().filter { it.bundleId == plugin.bundleId }
         val olderList = card.findViewById<LinearLayout>(R.id.releaseOlderList)
         card.findViewById<TextView>(R.id.releaseOlderToggle).apply {
             visibility = if (older.isEmpty()) View.GONE else View.VISIBLE
@@ -731,7 +760,6 @@ class PluginCatalogActivity : EnginehostActivity() {
             val pending = runCatching { updateCheck.pending().size }.getOrDefault(0)
             runOnUiThread {
                 refreshing = false
-                listedIndexRead = false
                 lastOutcomes = outcomes
                 render(refreshSummary(outcomes, pending))
             }
@@ -781,7 +809,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         is CatalogFailure.Other -> failure.message
     }
 
-    private fun isInstalled(bundleId: String): Boolean = PluginRegistry.discover(this).any { it.bundleId == bundleId }
+    private fun isInstalled(bundleId: String): Boolean = snapshot?.installed.orEmpty().any { it.bundleId == bundleId }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)

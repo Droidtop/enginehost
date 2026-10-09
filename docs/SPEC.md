@@ -182,3 +182,14 @@ and one layout, with no landscape fork: it is a single scrolling column whose co
 height that is free (`eh_plate_min` floor), in the pane or full width. The pane's game survives a rotation.
 Narrower windows keep opening the page as its own screen. Cores, Settings and the
 controller screen keep their single column.
+
+## The Add-a-plugin screen reads its data off the main thread
+
+`PluginCatalogActivity.render` draws what it has at once and reads everything else together on
+a worker (`readSnapshot`): the stored catalogs, the plugins index, the installed bundles, each
+repository's description and which catalogs exist or are stale. Reading the stored catalogs
+verifies every cached manifest's signature, and the screen did that on the main thread while
+opening, per redraw and once more per card for the installed bundles, which ANRed it on every
+open (rig, Enginehost dev-289: input dispatching timed out waiting for the focus event; the ANR
+is filed against the screen that was in front, PluginTrustActivity, because the new window had
+not taken focus yet). A newer redraw drops an older read.
