@@ -209,6 +209,8 @@
             android:noHistory="true">
             <intent-filter>
                 <action android:name="dev.enginehost.LAUNCH" />
+                <!-- Ends the running game; answered only to droidtop, see LaunchEntryActivity. -->
+                <action android:name="dev.enginehost.END_GAME" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

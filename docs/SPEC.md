@@ -98,3 +98,17 @@ the list. A shelf is a saved query plus a limit, not a second taxonomy: Favourit
 is the `favourite` column (database version 2) that a game's screen toggles, and
 the Filters sheet can show only favourites. Engine shelves are the existing engine
 filter; there is no separate list of them.
+
+## Ending the running game: `dev.enginehost.END_GAME`
+
+droidtop's Kill cannot confirm that an Enginehost game ended when Shizuku is not
+running, so Enginehost ends it itself. The action is a second action on the one
+exported door, `LaunchEntryActivity`, next to `dev.enginehost.LAUNCH`; there is no
+second mechanism. It is answered to droidtop alone, checked by package and
+signing certificate (`TrustedCallers.isDroidtop`, never by the intent's own
+referrer extras), because LAUNCH is open to any app by design but ending a game
+someone is playing is not. The caller starts it with `startActivityForResult`
+(the calling package is then Android's own record); the result is RESULT_OK with
+boolean extra `ended` (true: a game was running and its runtime process was ended,
+without a crash report; false: none was running), or RESULT_CANCELED with string
+extra `error` = `untrusted_caller`, touching nothing. It takes no other extras.

@@ -197,3 +197,15 @@ installed alongside:
 6. A caller resolved as a browser is still blocked by default and an
    ordinary unrecognized app still gets Ask, confirming the `<queries>`
    visibility fix did not also widen who gets Allow.
+
+## `dev.enginehost.END_GAME`
+
+A second action on the same exported door ends the running game and, unlike
+LAUNCH, is answered only to droidtop (package plus signing certificate,
+`TrustedCallers.isDroidtop`; an intent that supplies its own referrer extras is
+untrusted). Any other caller gets RESULT_CANCELED with `error=untrusted_caller`
+and nothing is touched. See docs/SPEC.md "Ending the running game".
+
+Needs a rig check: from droidtop with a game running, Kill: the game ends, droidtop
+reads `ended=true`. With no game running: `ended=false`. `adb shell am start -a
+dev.enginehost.END_GAME` (no trusted caller) leaves a running game alone.

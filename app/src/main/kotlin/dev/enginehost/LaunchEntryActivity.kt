@@ -27,6 +27,11 @@ import java.io.File
 class LaunchEntryActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent.action == ACTION_END_GAME) {
+            endGame()
+            finish()
+            return
+        }
         intent.getStringExtra(LaunchActivity.EXTRA_PATH)?.let { path ->
             GameRunner.run(
                 this,
@@ -37,6 +42,29 @@ class LaunchEntryActivity : Activity() {
             )
         }
         finish()
+    }
+
+    /**
+     * `dev.enginehost.END_GAME`: ends the running game, for droidtop's Kill when it cannot do so
+     * itself. Unlike LAUNCH it is answered to droidtop alone, by signature ([TrustedCallers]):
+     * ending a game someone is playing is not something any app may do. The answer comes back as the
+     * activity result when the caller used startActivityForResult: RESULT_OK with `ended` true when a
+     * game was running and is now gone, false when none was running; RESULT_CANCELED with `error`
+     * "untrusted_caller" for anyone else, in which case nothing is touched.
+     */
+    private fun endGame() {
+        val caller = callingPackage ?: referrer?.host
+        val trusted = !intent.hasExtra(Intent.EXTRA_REFERRER) && !intent.hasExtra(Intent.EXTRA_REFERRER_NAME) &&
+            caller != null && TrustedCallers.isDroidtop(packageManager, caller)
+        if (!trusted) {
+            setResult(RESULT_CANCELED, Intent().putExtra(EXTRA_ERROR, ERROR_UNTRUSTED_CALLER))
+            return
+        }
+        val wasRunning = RuntimeProcess.alive(this)
+        // Disarmed first, as the in-game Quit does, so ending on purpose is never offered back as a crash.
+        CrashWatch.disarm(this)
+        RuntimeProcess.kill(this)
+        setResult(RESULT_OK, Intent().putExtra(EXTRA_ENDED, wasRunning))
     }
 
     /**
@@ -60,5 +88,12 @@ class LaunchEntryActivity : Activity() {
         } else {
             LaunchCaller.App(callerPackage)
         }
+    }
+
+    companion object {
+        const val ACTION_END_GAME = "dev.enginehost.END_GAME"
+        const val EXTRA_ENDED = "ended"
+        const val EXTRA_ERROR = "error"
+        const val ERROR_UNTRUSTED_CALLER = "untrusted_caller"
     }
 }
