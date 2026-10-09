@@ -122,6 +122,21 @@ repositories itself; what a holder of the token could do with that, and with
 the third-party list beside the index, is
 `2026-09-25-third-party-catalog.md` (T1, T2).
 
+## Publishing is one reusable workflow too (2026-10-08, Droidtop/tracker#196)
+
+The publish jobs that followed `sign` in every plugin repository (promote to a
+channel, the build's permanent history release, the reindex dispatch) were a
+copy of one job in eleven repositories. They are now
+`.github/workflows/publish-engine-bundle.yml`, called by the plugin
+repositories pinned to a full Enginehost commit like `sign-engine-bundle.yml`,
+with the release logic in `scripts/publish-engine-release.sh` at the same
+commit. The boundary is unchanged: the signing key is given to the sign
+workflow only; the publish workflow receives an already signed artifact and the
+repository's `contents: write` token, runs no build code, and takes
+`PLATFORMS_DISPATCH_TOKEN` as its only secret. The old per-repository
+`build-scripts/publish-history-release.sh` is deleted by the same change, and
+`check-declared-version.py` treats its removal as CI wiring.
+
 ## Where things stand
 
 Per-repository status, with the commit that fixed each, is kept in the table

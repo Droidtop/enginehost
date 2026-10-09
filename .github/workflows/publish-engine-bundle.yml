@@ -1,0 +1,115 @@
+name: Publish engine bundle
+
+# The one place a plugin repository's signed bundle becomes a release
+# (Droidtop/tracker#196). A plugin repository's own workflow builds the bundle,
+# calls sign-engine-bundle.yml, then calls this, both pinned by the same
+# commit:
+#
+#   publish:
+#     needs: sign
+#     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+#     permissions:
+#       contents: write
+#     uses: Droidtop/enginehost/.github/workflows/publish-engine-bundle.yml@<sha>
+#     with:
+#       tooling-sha: <the same sha>
+#       artifact-name: <the artifact the sign job uploaded>
+#       channel: ${{ github.event_name == 'push' && 'unstable' || inputs.channel }}
+#       tag: ${{ inputs.tag }}
+#     secrets:
+#       PLATFORMS_DISPATCH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
+#
+# It publishes the channel release (a rolling pointer for unstable and
+# testing, a kept tag for stable), the build's permanent history release, and
+# asks droidtop-platforms to reindex. No signing key reaches it: the bundle
+# arrives already signed. The release logic is scripts/publish-engine-release.sh
+# at the pinned commit.
+on:
+  workflow_call:
+    inputs:
+      tooling-sha:
+        description: >-
+          Full commit SHA of Droidtop/enginehost whose scripts/ publish the
+          bundle. Use the same commit this workflow is pinned to.
+        type: string
+        required: true
+      artifact-name:
+        description: The artifact the sign job uploaded (the signed bundle, envelope and key document).
+        type: string
+        required: true
+      channel:
+        description: "Release channel: stable, testing or unstable"
+        type: string
+        required: true
+      tag:
+        description: "Release tag for the channel release (default: derived from the bundle id; testing and unstable add their suffix)"
+        type: string
+        default: ""
+    secrets:
+      PLATFORMS_DISPATCH_TOKEN:
+        description: >-
+          A token that may dispatch events to Droidtop/droidtop-platforms. Without
+          it the reindex is skipped and the plugins index picks the release up on
+          its schedule.
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check the inputs
+        env:
+          TOOLING_SHA: ${{ inputs.tooling-sha }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          # A branch or tag name here would let whoever can move it choose the
+          # code that holds the release token; only a commit is a pin.
+          [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
+          [[ "$CHANNEL" =~ ^(stable|testing|unstable)$ ]] || { echo "bad channel '$CHANNEL'" >&2; exit 1; }
+      - name: Check out the publishing tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: Droidtop/enginehost
+          ref: ${{ inputs.tooling-sha }}
+          path: enginehost-tooling
+          persist-credentials: false
+          sparse-checkout: scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: release
+      - name: Publish the channel release and this build's history release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+          CHANNEL: ${{ inputs.channel }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+          RELEASE_DIR: release
+        run: bash enginehost-tooling/scripts/publish-engine-release.sh
+      - name: Ask droidtop-platforms to reindex
+        env:
+          # Enginehost reads droidtop-platforms' plugins/index.json before it
+          # asks GitHub's API anything, so a release is only offered once that
+          # index knows about it. A cross-repository dispatch needs a token of
+          # its own; this job's GITHUB_TOKEN cannot reach another repository.
+          # See droidtop-platforms plugins/README.md.
+          GH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "No PLATFORMS_DISPATCH_TOKEN; the plugins index picks this release up on its schedule."
+            exit 0
+          fi
+          gh api repos/Droidtop/droidtop-platforms/dispatches \
+            -f event_type=plugin-published \
+            -f "client_payload[repo]=$GH_REPO"

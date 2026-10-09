@@ -61,6 +61,10 @@ class Judge(unittest.TestCase):
         self.assertTrue(self.check("1.0.0", builds("1.0.0-3"),
                                    [".github/workflows/x.yml", "CHANGELOG.md", "docs/a.txt"])[0])
 
+    def test_dropping_the_old_release_script_is_ci_wiring(self):
+        self.assertTrue(self.check("1.0.0", builds("1.0.0-3"),
+                                   ["build-scripts/publish-history-release.sh"])[0])
+
     def test_rerun_of_the_published_commit_passes(self):
         self.assertTrue(judge("1.0.0", builds("1.0.0-3", commit=HEAD), HEAD, lambda c: ["x"])[0])
 

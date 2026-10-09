@@ -31,8 +31,12 @@ from release_history import declared_core, published_builds, version_key
 
 # Paths whose change is not a revision of the plugin's code: documentation,
 # changelogs, licences, CI wiring (a re-pin of the signing job), the key document.
+# build-scripts/publish-history-release.sh is the copy of the release script that
+# plugin repositories carried before publish-engine-bundle.yml replaced it
+# (Droidtop/tracker#196): deleting it is CI wiring, not a revision of the code.
 IGNORED_PREFIXES = (".github/", "docs/")
-IGNORED_NAMES = {"LICENSE", "enginehost-public-key.json", "enginehost-origin.json"}
+IGNORED_NAMES = {"LICENSE", "enginehost-public-key.json", "enginehost-origin.json",
+                 "build-scripts/publish-history-release.sh"}
 IGNORED_SUFFIXES = (".md",)
 
 
