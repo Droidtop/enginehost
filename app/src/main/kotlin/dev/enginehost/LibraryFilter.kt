@@ -32,6 +32,8 @@ data class GameRow(
     val addedAt: Long,
     val playedAt: Long,
     val classified: Boolean,
+    /** Marked by the person; the Favourites shelf and filter list these. */
+    val favourite: Boolean = false,
 )
 
 data class LibraryFilter(
@@ -47,10 +49,12 @@ data class LibraryFilter(
     val folder: String? = null,
     val text: String = "",
     val sort: SortOrder = SortOrder.NAME,
+    /** Only the games the person marked as favourites. */
+    val favourites: Boolean = false,
 ) {
     /** True when nothing narrows the list. */
     val unfiltered: Boolean
-        get() = engine == null && platform == null && support == null && folder == null && text.isBlank()
+        get() = engine == null && platform == null && support == null && folder == null && text.isBlank() && !favourites
 
     companion object {
         const val NO_ENGINE = "\u0000none"
@@ -99,6 +103,7 @@ object LibraryQuery {
             clauses += "parent = ?"
             args += it
         }
+        if (filter.favourites) clauses += "favourite = 1"
         for (word in filter.text.lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }) {
             clauses += "name_key LIKE ? ESCAPE '\\'"
             args += "%" + escapeLike(word) + "%"

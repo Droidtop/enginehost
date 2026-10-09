@@ -118,6 +118,7 @@ class LibraryBrowser(
         out.putString(STATE_FOLDER, filter.folder)
         out.putString(STATE_TEXT, filter.text)
         out.putString(STATE_SORT, filter.sort.name)
+        out.putBoolean(STATE_FAVOURITES, filter.favourites)
         out.putInt(STATE_FIRST, grid.firstVisiblePosition)
     }
 
@@ -128,6 +129,7 @@ class LibraryBrowser(
             platform = state.getString(STATE_PLATFORM)?.let { name -> BuildPlatform.entries.firstOrNull { it.name == name } },
             support = state.getString(STATE_SUPPORT)?.let { name -> Support.entries.firstOrNull { it.name == name } },
             folder = state.getString(STATE_FOLDER),
+            favourites = state.getBoolean(STATE_FAVOURITES),
             text = state.getString(STATE_TEXT).orEmpty(),
             sort = state.getString(STATE_SORT)?.let { name -> SortOrder.entries.firstOrNull { it.name == name } } ?: filter.sort,
         )
@@ -169,6 +171,22 @@ class LibraryBrowser(
                 if (gen != generation.get() || activity.isDestroyed) return@runOnUiThread
                 render(result)
             }
+        }
+    }
+
+    /** The few games each of Home's shelves shows: the ones played last, and the ones marked as favourites. */
+    class Shelves(val continuePlaying: List<GameRow>, val favourites: List<GameRow>)
+
+    /** Reads the shelves on the worker thread and hands them to [onResult] on the main thread. */
+    fun loadShelves(onResult: (Shelves) -> Unit) {
+        background {
+            val shelves = runCatching {
+                Shelves(
+                    continuePlaying = library.query(LibraryFilter(sort = SortOrder.RECENTLY_PLAYED), SHELF_SIZE).filter { it.playedAt > 0 },
+                    favourites = library.query(LibraryFilter(favourites = true, sort = SortOrder.RECENTLY_PLAYED), SHELF_SIZE),
+                )
+            }.getOrNull() ?: return@background
+            activity.runOnUiThread { if (!activity.isDestroyed) onResult(shelves) }
         }
     }
 
@@ -249,9 +267,18 @@ class LibraryBrowser(
         sheet.choice(activity.getString(R.string.filter_status), f.support?.let { supportName(it) }) { pickSupport() }
         sheet.choice(activity.getString(R.string.filter_folder), f.folder?.let { folderName(it) }) { pickFolder() }
         sheet.choice(activity.getString(R.string.filter_sort), sortName(f.sort)) { pickSort() }
+        if (f.scope == LibraryScope.ADDED) {
+            sheet.choice(
+                activity.getString(R.string.filter_favourites),
+                activity.getString(if (f.favourites) R.string.filter_favourites_only else R.string.filter_favourites_all),
+            ) {
+                filter = filter.copy(favourites = !filter.favourites)
+                reload()
+            }
+        }
         if (!f.unfiltered) {
             sheet.choice(activity.getString(R.string.filter_clear)) {
-                filter = filter.copy(engine = null, platform = null, support = null, folder = null, text = "")
+                filter = filter.copy(engine = null, platform = null, support = null, folder = null, text = "", favourites = false)
                 setSearchText("")
                 reload()
             }
@@ -506,6 +533,8 @@ class LibraryBrowser(
         private const val STATE_FOLDER = "library.folder"
         private const val STATE_TEXT = "library.text"
         private const val STATE_SORT = "library.sort"
+        private const val STATE_FAVOURITES = "library.favourites"
+        const val SHELF_SIZE = 6
         private const val STATE_FIRST = "library.first"
         private const val SEARCH_DELAY_MS = 250L
         private const val RELOAD_INTERVAL_MS = 1500L

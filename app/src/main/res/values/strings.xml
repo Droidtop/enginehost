@@ -23,6 +23,13 @@
     <string name="hint_play">Play</string>
     <string name="open_game_description">%1$s: open this game</string>
     <string name="games_empty">No games yet. Add a folder with your games and Enginehost finds them for you.</string>
+    <string name="shelf_continue">Continue playing</string>
+    <string name="shelf_favourites">Favourites</string>
+    <string name="filter_favourites">Favourites</string>
+    <string name="filter_favourites_all">All games</string>
+    <string name="filter_favourites_only">Only favourites</string>
+    <string name="action_add_favourite">Add to favourites</string>
+    <string name="action_remove_favourite">Remove from favourites</string>
     <string name="install_a_core">Install a core</string>
     <string name="empty_no_cores">No cores installed yet. A core runs one kind of game engine, so install the ones your games need.</string>
     <plurals name="empty_cores_installed">

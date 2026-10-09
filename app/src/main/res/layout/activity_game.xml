@@ -170,6 +170,15 @@
             android:text="@string/action_edit_config" />
 
         <Button
+            android:id="@+id/favouriteButton"
+            style="@style/Widget.Enginehost.Button.Nav"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:text="@string/action_add_favourite" />
+
+
+        <Button
             android:id="@+id/reportButton"
             style="@style/Widget.Enginehost.Button.Nav"
             android:layout_width="match_parent"

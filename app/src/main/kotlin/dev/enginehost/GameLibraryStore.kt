@@ -49,6 +49,7 @@ internal class LibraryDb private constructor(private val appContext: Context) :
                 added INTEGER NOT NULL DEFAULT 0,
                 added_at INTEGER NOT NULL DEFAULT 0,
                 played_at INTEGER NOT NULL DEFAULT 0,
+                favourite INTEGER NOT NULL DEFAULT 0,
                 found_at INTEGER NOT NULL DEFAULT 0,
                 classified INTEGER NOT NULL DEFAULT 0,
                 sig INTEGER,
@@ -69,7 +70,10 @@ internal class LibraryDb private constructor(private val appContext: Context) :
         importLegacyList(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        // Version 2: games can be marked as favourites (Droidtop/tracker#236).
+        if (oldVersion < 2) db.execSQL("ALTER TABLE games ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0")
+    }
 
     /** The earlier library was a JSON list of paths, newest first, in preferences. */
     private fun importLegacyList(db: SQLiteDatabase) {
@@ -95,7 +99,7 @@ internal class LibraryDb private constructor(private val appContext: Context) :
 
     companion object {
         private const val NAME = "game-library.db"
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val LEGACY_PREFERENCES = "game-library-v1"
         private const val LEGACY_KEY = "paths"
 
@@ -209,11 +213,12 @@ class GameLibraryStore(context: Context) : ScanStore {
 
     // ---- Listing ----------------------------------------------------------------
 
-    fun query(filter: LibraryFilter): List<GameRow> {
+    /** The rows [filter] shows; [limit] keeps only the first few, for a shelf. */
+    fun query(filter: LibraryFilter, limit: Int? = null): List<GameRow> {
         val sql = LibraryQuery.build(filter)
         val result = ArrayList<GameRow>()
         helper.readableDatabase.rawQuery(
-            "SELECT $COLUMNS FROM games WHERE ${sql.where} ORDER BY ${sql.orderBy}",
+            "SELECT $COLUMNS FROM games WHERE ${sql.where} ORDER BY ${sql.orderBy}" + (limit?.let { " LIMIT $it" } ?: ""),
             sql.args.toTypedArray(),
         ).use { cursor ->
             while (cursor.moveToNext()) result += row(cursor)
@@ -273,7 +278,24 @@ class GameLibraryStore(context: Context) : ScanStore {
         addedAt = cursor.getLong(15),
         playedAt = cursor.getLong(16),
         classified = cursor.getInt(17) == 1,
+        favourite = cursor.getInt(18) == 1,
     )
+
+    /** Marks or unmarks [folder] as a favourite. The folder is found under the path as given or as resolved. */
+    fun setFavourite(folder: File, favourite: Boolean) {
+        val canonical = runCatching { folder.canonicalPath }.getOrDefault(folder.absolutePath)
+        val db = helper.writableDatabase
+        for (path in setOf(canonical, folder.path)) {
+            db.execSQL("UPDATE games SET favourite = ? WHERE path = ?", arrayOf<Any>(if (favourite) 1 else 0, path))
+        }
+    }
+
+    fun isFavourite(folder: File): Boolean {
+        val canonical = runCatching { folder.canonicalPath }.getOrDefault(folder.absolutePath)
+        return helper.readableDatabase
+            .rawQuery("SELECT 1 FROM games WHERE favourite = 1 AND path IN (?, ?)", arrayOf(canonical, folder.path))
+            .use { it.moveToFirst() }
+    }
 
     // ---- Facts for games added by hand and sizes ---------------------------------
 
@@ -444,7 +466,7 @@ class GameLibraryStore(context: Context) : ScanStore {
         private const val SQL_CHUNK = 400
         private const val COLUMNS =
             "path, name, kind, engine, engine_context, version, requirements, hosted, platforms, confidence, " +
-                "launch, arch, dotnet, size_bytes, added, added_at, played_at, classified"
+                "launch, arch, dotnet, size_bytes, added, added_at, played_at, classified, favourite"
     }
 }
 

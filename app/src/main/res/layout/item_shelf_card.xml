@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One game on a Home shelf (Continue playing, Favourites): its name and its
+    engine as the library row's chip. A focus target of its own, because the
+    shelf is a row the pad moves along; A opens the game's screen as a library
+    row does.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.Enginehost.Card.Focusable"
+    android:layout_width="@dimen/eh_shelf_card_width"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="@dimen/eh_space_s"
+    android:minHeight="@dimen/eh_touch_target"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/shelfTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle" />
+
+    <TextView
+        android:id="@+id/shelfEngine"
+        style="@style/Widget.Enginehost.Chip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/eh_space_xs" />
+
+</LinearLayout>

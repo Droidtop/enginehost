@@ -3,9 +3,12 @@ package dev.enginehost
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.GridView
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
@@ -48,6 +51,7 @@ class MainActivity : EnginehostActivity() {
             emptyText = R.string.games_empty,
             onLoaded = {
                 showEmptyState()
+                showShelves()
                 selectPrimaryAction()
                 refreshHints()
             },
@@ -82,6 +86,8 @@ class MainActivity : EnginehostActivity() {
         // The base class draws the hint row while the content is being set, before the list exists.
         if (!::browser.isInitialized) return super.hints()
         val hints = super.hints() + Hint("X", R.string.hint_filters) { browser.showFilters() }
+        // A game on a shelf takes Y as a library row does.
+        (currentFocus?.tag as? ShelfGame)?.let { shelf -> return hints + Hint("Y", R.string.hint_play) { launchGame(File(shelf.path)) } }
         val focusedGame = browser.takeIf { currentFocus === grid }?.selectedRow()?.takeIf { it.kind == FindingKind.FOLDER }
             ?: return hints
         // A opens the game's own screen; Y skips it and plays.
@@ -124,6 +130,71 @@ class MainActivity : EnginehostActivity() {
                 }
             }
         }
+    }
+
+    /** The game a shelf card stands for, held as the card's tag so Y can play it. */
+    private class ShelfGame(val path: String)
+
+    /**
+     * Home's shelves (tracker#236): Continue playing, the games played last, and Favourites, above
+     * the list while nothing narrows it. A window under 480dp tall (a handheld held sideways) has
+     * room for one, so it shows the first that has games. The pad reaches a shelf by pressing up
+     * from the list.
+     */
+    private fun showShelves() {
+        if (!browser.filter.unfiltered || browser.total <= 0) {
+            drawShelves(null)
+            return
+        }
+        browser.loadShelves { loaded -> drawShelves(loaded) }
+    }
+
+    private fun drawShelves(loaded: LibraryBrowser.Shelves?) {
+        val container = findViewById<LinearLayout>(R.id.shelves)
+        container.removeAllViews()
+        grid.nextFocusUpId = R.id.gameGrid
+        if (loaded == null || !browser.filter.unfiltered) {
+            container.visibility = View.GONE
+            return
+        }
+        val short = resources.configuration.screenHeightDp < SizeClass.SHORT_HEIGHT_DP
+        val shelves = listOf(R.string.shelf_continue to loaded.continuePlaying, R.string.shelf_favourites to loaded.favourites)
+            .filter { it.second.isNotEmpty() }
+            .let { if (short) it.take(1) else it }
+        shelves.forEach { (title, games) ->
+            container.addView(
+                (layoutInflater.inflate(R.layout.item_group_heading, container, false) as TextView).apply { setText(title) },
+            )
+            val strip = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            games.forEach { game -> strip.addView(shelfCard(game, strip)) }
+            container.addView(
+                HorizontalScrollView(this).apply {
+                    isHorizontalScrollBarEnabled = false
+                    addView(strip)
+                },
+            )
+            // Up from the list lands on the last shelf's first card.
+            grid.nextFocusUpId = strip.getChildAt(0).id
+        }
+        container.visibility = if (shelves.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    private fun shelfCard(game: GameRow, parent: ViewGroup): View {
+        val card = layoutInflater.inflate(R.layout.item_shelf_card, parent, false)
+        card.id = View.generateViewId()
+        card.tag = ShelfGame(game.path)
+        card.contentDescription = getString(R.string.open_game_description, game.name)
+        card.findViewById<TextView>(R.id.shelfTitle).text = game.name
+        card.findViewById<TextView>(R.id.shelfEngine).apply {
+            val engine = game.engine
+            visibility = if (engine == null) View.GONE else View.VISIBLE
+            if (engine != null) {
+                text = EngineNames.line(engine, game.engineContext)
+                EngineHues.paintChip(this, engine)
+            }
+        }
+        card.setOnClickListener { startActivity(GameActivity.intent(this, File(game.path))) }
+        return card
     }
 
     /**

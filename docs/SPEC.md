@@ -85,3 +85,16 @@ Not supported here. Get the core and Approve the core run the same launch as
 Play, because its plan already detours to the catalog or the trust screen, so
 there is one path to each. Under the status line a game that has a core says which
 build will run it and whether it is sandboxed ("Core 1.0.1-2 · Sandboxed").
+
+## Home shelves and favourites
+
+While nothing narrows the list, Home shows two shelves above it: Continue
+playing (the games played last, from `played_at`) and Favourites. Each is a row of
+at most `LibraryBrowser.SHELF_SIZE` game cards; a shelf with no games is not
+drawn, and a window under 480dp tall shows only the first that has games, so a
+handheld held sideways keeps its list. A card opens the game's screen as a
+library row does, Y plays it, and the pad reaches the shelves by pressing up from
+the list. A shelf is a saved query plus a limit, not a second taxonomy: Favourites
+is the `favourite` column (database version 2) that a game's screen toggles, and
+the Filters sheet can show only favourites. Engine shelves are the existing engine
+filter; there is no separate list of them.

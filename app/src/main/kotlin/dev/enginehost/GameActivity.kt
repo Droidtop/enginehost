@@ -48,10 +48,26 @@ class GameActivity : EnginehostActivity() {
             if (primary == GamePrimary.SET_UP) openSetup() else play()
         }
         findViewById<Button>(R.id.setupButton).setOnClickListener { openSetup() }
+        findViewById<Button>(R.id.favouriteButton).setOnClickListener { toggleFavourite() }
         findViewById<Button>(R.id.reportButton).setOnClickListener {
             startActivity(ProblemReportActivity.intent(this, folder))
         }
         findViewById<Button>(R.id.removeButton).setOnClickListener { confirmRemove() }
+    }
+
+    private var favourite = false
+
+    /** Marks or unmarks this game as a favourite; the database is written off the main thread. */
+    private fun toggleFavourite() {
+        val mark = !favourite
+        showFavourite(mark)
+        val library = GameLibraryStore(applicationContext)
+        Thread { library.setFavourite(folder, mark) }.apply { isDaemon = true }.start()
+    }
+
+    private fun showFavourite(on: Boolean) {
+        favourite = on
+        findViewById<Button>(R.id.favouriteButton).setText(if (on) R.string.action_remove_favourite else R.string.action_add_favourite)
     }
 
     private fun openSetup() {
@@ -88,6 +104,7 @@ class GameActivity : EnginehostActivity() {
         showTestingRow()
         showTitle(null)
         Thread {
+            val isFavourite = runCatching { GameLibraryStore(applicationContext).isFavourite(folder) }.getOrDefault(false)
             val status = GameStatus.of(this, folder)
             // The art is the game's own icon (GameIcon), read from the same
             // config the status just resolved. The executable can sit on
@@ -96,6 +113,7 @@ class GameActivity : EnginehostActivity() {
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 showTitle(status.title)
+                showFavourite(isFavourite)
                 primary = status.primary
                 findViewById<Button>(R.id.playButton).apply {
                     setText(status.primary.label)
