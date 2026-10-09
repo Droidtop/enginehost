@@ -47,11 +47,27 @@ abstract class EnginehostActivity : AppCompatActivity() {
      */
     protected abstract fun primaryAction(): View?
 
+    /**
+     * Which of the app's three destinations this screen is, or null for a screen opened inside
+     * one. A destination screen gets the [DestinationBar] and answers L1 and R1 by moving to the
+     * previous and next destination.
+     */
+    protected open val destination: Destination? = null
+
     /** This screen's buttons, A first. A screen with a button of its own adds it. */
-    protected open fun hints(): List<Hint> = listOf(
+    protected open fun hints(): List<Hint> = listOfNotNull(
         Hint("A", R.string.hint_select) { selection()?.let(::press) },
         Hint("B", R.string.back) { onBackPressedDispatcher.onBackPressed() },
+        // The row names L1/R1 only where it has the room; the buttons answer on every screen that has a bar.
+        Hint("L1/R1", R.string.hint_sections) { step(1) }
+            .takeIf { destination != null && resources.configuration.screenWidthDp >= HINT_SECTIONS_MIN_DP },
     )
+
+    /** Moves [steps] destinations along from this one (L1 is -1, R1 is +1). */
+    private fun step(steps: Int) {
+        val here = destination ?: return
+        Destinations.open(this, here, Destinations.neighbour(here, steps))
+    }
 
     /** Redraws the row, for a screen whose buttons depend on what is focused. */
     protected fun refreshHints() {
@@ -172,8 +188,11 @@ abstract class EnginehostActivity : AppCompatActivity() {
         super.setContentView(withHintRow(view))
     }
 
+    private fun owns(keyCode: Int): Boolean =
+        keyCode in OWNED_BUTTONS || (destination != null && keyCode in SECTION_BUTTONS)
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode !in OWNED_BUTTONS) return super.onKeyDown(keyCode, event)
+        if (!owns(keyCode)) return super.onKeyDown(keyCode, event)
         if (keyCode == KeyEvent.KEYCODE_BUTTON_A && event.repeatCount == 0) {
             pressing = selection()?.also { it.isPressed = true }
         }
@@ -181,7 +200,11 @@ abstract class EnginehostActivity : AppCompatActivity() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode !in OWNED_BUTTONS) return super.onKeyUp(keyCode, event)
+        if (!owns(keyCode)) return super.onKeyUp(keyCode, event)
+        if (keyCode in SECTION_BUTTONS) {
+            if (!event.isCanceled) step(if (keyCode == KeyEvent.KEYCODE_BUTTON_R1) 1 else -1)
+            return true
+        }
         if (keyCode == KeyEvent.KEYCODE_BUTTON_A) {
             val target = pressing
             pressing = null
@@ -212,21 +235,41 @@ abstract class EnginehostActivity : AppCompatActivity() {
     }
 
     private fun withHintRow(content: View): View {
+        val background = ContextCompat.getColor(this, R.color.eh_background)
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(ContextCompat.getColor(context, R.color.eh_background))
+            setBackgroundColor(background)
         }
         column.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val here = destination
+        val rail = here != null && SizeClass.usesRail(this)
+        // A bar sits between the content and the hint row; a rail stands beside both.
+        val chrome = here?.let { DestinationBar.create(this, it, rail) { to -> Destinations.open(this, it, to) } }
+        if (chrome != null && !rail) {
+            column.addView(chrome, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
         val row = HintRow.create(this)
         column.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         hintRow = row
         fill(row)
-        return column
+        if (chrome == null || !rail) return column
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(background)
+            addView(chrome, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            addView(column, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        }
     }
 
     private fun fill(row: LinearLayout) = HintRow.fill(row, hints())
 
     private companion object {
         val OWNED_BUTTONS = setOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y)
+
+        /** Taken only by a destination screen, where they move between destinations. */
+        val SECTION_BUTTONS = setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1)
+
+        /** Under this width the hint row has no room to name L1/R1. */
+        const val HINT_SECTIONS_MIN_DP = 480
     }
 }

@@ -15,6 +15,10 @@ import androidx.core.content.ContextCompat
  * that will execute with Enginehost's permissions. Add opens the catalog.
  */
 class PluginTrustActivity : EnginehostActivity() {
+    /** The Cores destination, except when it shows one plugin that was just installed. */
+    override val destination: Destination?
+        get() = if (intent.hasExtra(EXTRA_BUNDLE)) null else Destination.CORES
+
     /** The first plugin to decide on, else the first update; Add when there is neither. */
     override fun primaryAction(): View? =
         firstSelectable(findViewById(R.id.pluginList)) ?: firstSelectable(findViewById(R.id.updatesPanel))

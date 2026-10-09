@@ -19,6 +19,8 @@ import java.io.File
  * the choices in a [Sheet], so the screen reads as settings, not as a form.
  */
 class EnginehostSettingsActivity : EnginehostActivity() {
+    override val destination = Destination.SETTINGS
+
     /** The first setting. */
     override fun primaryAction(): View? =
         findViewById(R.id.saveRootRow)
@@ -115,6 +117,9 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 .choice(R.string.ok) {}
                 .show()
             true
+        }
+        findViewById<View>(R.id.controllerRow).setOnClickListener {
+            startActivity(Intent(this, ControllerConfigActivity::class.java))
         }
         findViewById<View>(R.id.launchAccessRow).setOnClickListener {
             startActivity(Intent(this, CallerAccessSettingsActivity::class.java))

@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Home. The library is the screen: a filterable list that scrolls on its
-    own, with the one way to add games and the three destinations docked
-    beneath it. No explanatory copy: the game cards say what state each game
-    is in.
+    Home, the Library destination. The library is the screen: a filterable
+    list that scrolls on its own, with the one way to add games in the header.
+    The other destinations are the bar or rail the activity draws around this
+    ([DestinationBar]), so one layout serves every window; the grid fits its
+    columns to the width it gets. No explanatory copy: the game cards say what
+    state each game is in.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -14,11 +16,28 @@
     android:paddingTop="@dimen/eh_screen_padding_v"
     android:paddingBottom="@dimen/eh_screen_padding_v">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/app_name"
+            android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+        <Button
+            android:id="@+id/addGamesButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_add"
+            android:text="@string/add_games" />
+
+    </LinearLayout>
 
     <TextView
         android:id="@+id/updateNotice"
@@ -66,57 +85,4 @@
 
     </FrameLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_s"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/addGamesButton"
-            style="@style/Widget.Enginehost.Button"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:drawableStart="@drawable/ic_add"
-            android:text="@string/add_games" />
-
-        <Button
-            android:id="@+id/pluginCatalogButton"
-            style="@style/Widget.Enginehost.Button.Nav"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/eh_space_s"
-            android:layout_weight="1"
-            android:drawableStart="@drawable/ic_plugins"
-            android:text="@string/browse_plugins" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_s"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/controllerConfigButton"
-            style="@style/Widget.Enginehost.Button.Nav"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:drawableStart="@drawable/ic_controller"
-            android:text="@string/controller_settings" />
-
-        <Button
-            android:id="@+id/enginehostSettingsButton"
-            style="@style/Widget.Enginehost.Button.Nav"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/eh_space_s"
-            android:layout_weight="1"
-            android:drawableStart="@drawable/ic_settings"
-            android:text="@string/enginehost_settings" />
-
-    </LinearLayout>
 </LinearLayout>

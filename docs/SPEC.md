@@ -43,3 +43,24 @@ Turning the device or resizing the window recreates Home. The search text,
 filters, sort and the place in the list are saved with the instance state and
 put back (`LibraryBrowser.saveState` / `restoreState`); nothing a person set up
 on Home is lost to a rotation.
+
+## Three destinations: Library, Cores, Settings
+
+The app is organised around three destinations, always the same three
+(`Destination`): the Library (Home), Cores (the installed plugins, with
+updates and Add) and Settings (which now also holds Controller). Adding games
+is the Library's one primary action, in its header, not a place. The Library,
+Cores and Settings screens draw a `DestinationBar` around their content: a bar
+along the bottom of a narrow window, a rail at the left edge of a wide (600dp and
+up) or short (under 480dp) one (`SizeClass.usesRail`). Home has one layout for
+every window; the old landscape fork with its button sidebar is gone.
+
+The pad changes destination with L1 and R1 (previous and next, wrapping); no
+destination item takes focus, so the D-pad only ever moves within a screen's
+content. The hint row names L1/R1 where it has the room (windows 480dp wide and
+up) and the buttons answer everywhere a bar is drawn. Opening another destination
+from Cores or Settings replaces that screen, so back always lands on the
+Library. "Cores" is the destination's name and its heading, with the line that
+cores are the plugins that run a game engine; trust, update and error text keep
+"plugin" for the signed bundle. A Cores screen showing one just-installed plugin
+(`EXTRA_BUNDLE`) is opened inside a flow and draws no bar.

@@ -11,13 +11,16 @@ import android.widget.Toast
 import java.io.File
 
 /**
- * Home: the library of every game played here, the one way to add more,
- * and the app's destinations. The library is the shared filterable list
+ * Home, the Library destination: every game played here and the one way to
+ * add more. The other destinations are the bar or rail ([DestinationBar]).
+ * The library is the shared filterable list
  * ([LibraryBrowser]); a game's card opens that game's own screen
  * ([GameActivity]), Y on a card plays it straight away, and X opens the
  * filters.
  */
 class MainActivity : EnginehostActivity() {
+    override val destination = Destination.LIBRARY
+
     /** The first game in the library; adding games while there is none. */
     override fun primaryAction(): View? =
         findViewById<View>(R.id.gameGrid)?.takeIf { ::browser.isInitialized && browser.shownRows().isNotEmpty() }
@@ -51,15 +54,6 @@ class MainActivity : EnginehostActivity() {
         savedInstanceState?.let { browser.restoreState(it) }
 
         findViewById<Button>(R.id.addGamesButton).setOnClickListener { chooseHowToAdd() }
-        findViewById<Button>(R.id.controllerConfigButton).setOnClickListener {
-            startActivity(Intent(this, ControllerConfigActivity::class.java))
-        }
-        findViewById<Button>(R.id.enginehostSettingsButton).setOnClickListener {
-            startActivity(Intent(this, EnginehostSettingsActivity::class.java))
-        }
-        findViewById<Button>(R.id.pluginCatalogButton).setOnClickListener {
-            startActivity(Intent(this, PluginTrustActivity::class.java))
-        }
         // Y is "play this game" only while a game has focus, so the hint
         // row follows focus.
         window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> refreshHints() }
