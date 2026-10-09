@@ -49,96 +49,136 @@
         android:textColor="@color/eh_accent"
         android:visibility="gone" />
 
-    <include
-        layout="@layout/view_library_filters"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_m" />
-
-    <!-- Continue playing and Favourites; filled by MainActivity while nothing narrows the list. -->
     <LinearLayout
-        android:id="@+id/shelves"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone" />
-
-    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="@dimen/eh_space_s"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
 
-        <GridView
-            android:id="@+id/gameGrid"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:fastScrollEnabled="true"
-            android:horizontalSpacing="@dimen/eh_column_gap"
-            android:listSelector="@android:color/transparent"
-            android:nextFocusUp="@id/gameGrid"
-            android:numColumns="1"
-            android:scrollbars="vertical"
-            android:stretchMode="columnWidth"
-            android:verticalSpacing="@dimen/eh_space_s" />
-
-        <!--
-            What an empty list says and what to do about it. On a library with no games at
-            all it also says which cores are installed and offers the two next steps; with
-            games but none matching, only the line.
-        -->
         <LinearLayout
+            android:id="@+id/libraryColumn"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+        <include
+            layout="@layout/view_library_filters"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_m" />
+
+        <!-- Continue playing and Favourites; filled by MainActivity while nothing narrows the list. -->
+        <LinearLayout
+            android:id="@+id/shelves"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/eh_space_s">
+            android:visibility="gone" />
 
-            <TextView
-                android:id="@+id/gameEmpty"
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:layout_weight="1">
+
+            <GridView
+                android:id="@+id/gameGrid"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Enginehost.Body"
-                android:visibility="gone" />
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:fastScrollEnabled="true"
+                android:horizontalSpacing="@dimen/eh_column_gap"
+                android:listSelector="@android:color/transparent"
+                android:nextFocusUp="@id/gameGrid"
+                android:numColumns="1"
+                android:scrollbars="vertical"
+                android:stretchMode="columnWidth"
+                android:verticalSpacing="@dimen/eh_space_s" />
 
-            <TextView
-                android:id="@+id/emptyCoresLine"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_s"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption"
-                android:visibility="gone" />
-
+            <!--
+                What an empty list says and what to do about it. On a library with no games at
+                all it also says which cores are installed and offers the two next steps; with
+                games but none matching, only the line.
+            -->
             <LinearLayout
-                android:id="@+id/emptyActions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_m"
                 android:orientation="vertical"
-                android:visibility="gone">
+                android:padding="@dimen/eh_space_s">
 
-                <Button
-                    android:id="@+id/emptyAddFolderButton"
-                    style="@style/Widget.Enginehost.Button"
+                <TextView
+                    android:id="@+id/gameEmpty"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:drawableStart="@drawable/ic_folder"
-                    android:text="@string/add_folder_of_games" />
+                    android:textAppearance="@style/TextAppearance.Enginehost.Body"
+                    android:visibility="gone" />
 
-                <Button
-                    android:id="@+id/emptyInstallCoreButton"
-                    style="@style/Widget.Enginehost.Button.Nav"
+                <TextView
+                    android:id="@+id/emptyCoresLine"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_s"
-                    android:drawableStart="@drawable/ic_plugins"
-                    android:text="@string/install_a_core"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption"
                     android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/emptyActions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_m"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <Button
+                        android:id="@+id/emptyAddFolderButton"
+                        style="@style/Widget.Enginehost.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:drawableStart="@drawable/ic_folder"
+                        android:text="@string/add_folder_of_games" />
+
+                    <Button
+                        android:id="@+id/emptyInstallCoreButton"
+                        style="@style/Widget.Enginehost.Button.Nav"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/eh_space_s"
+                        android:drawableStart="@drawable/ic_plugins"
+                        android:text="@string/install_a_core"
+                        android:visibility="gone" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
+        </FrameLayout>
+
         </LinearLayout>
 
-    </FrameLayout>
+        <!-- The selected game's page on a wide window (MainActivity); gone on a narrow one. -->
+        <FrameLayout
+            android:id="@+id/gamePane"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="@dimen/eh_column_gap"
+            android:layout_weight="1"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/gamePaneEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:padding="@dimen/eh_space_l"
+                android:text="@string/pane_choose_game"
+                android:textAppearance="@style/TextAppearance.Enginehost.Body"
+                android:textColor="@color/eh_text_secondary" />
+
+        </FrameLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

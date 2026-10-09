@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.GridView
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
@@ -34,6 +35,10 @@ class MainActivity : EnginehostActivity() {
     private lateinit var browser: LibraryBrowser
     private lateinit var grid: GridView
 
+    /** The game page in the pane beside the list, on a window wide enough for both; null on a narrow one. */
+    private var page: GamePage? = null
+    private var pageView: View? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -55,9 +60,10 @@ class MainActivity : EnginehostActivity() {
                 selectPrimaryAction()
                 refreshHints()
             },
-            onOpen = { row -> startActivity(GameActivity.intent(this, File(row.path))) },
+            onOpen = { row -> openGame(File(row.path)) },
         )
         savedInstanceState?.let { browser.restoreState(it) }
+        if (resources.configuration.screenWidthDp >= SizeClass.EXPANDED_MIN_DP) setUpPane(savedInstanceState)
 
         findViewById<Button>(R.id.addGamesButton).setOnClickListener { chooseHowToAdd() }
         findViewById<Button>(R.id.emptyAddFolderButton).setOnClickListener {
@@ -75,6 +81,45 @@ class MainActivity : EnginehostActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         if (::browser.isInitialized) browser.saveState(outState)
+        page?.game?.let { outState.putString(STATE_PANE_GAME, it.absolutePath) }
+    }
+
+    /**
+     * From 840dp wide the list and the selected game's page sit side by side (tracker#234): choosing a
+     * game moves the pane instead of pushing a screen. The pane is the same [GamePage] the narrow
+     * window opens as [GameActivity].
+     */
+    private fun setUpPane(savedInstanceState: Bundle?) {
+        val pane = findViewById<FrameLayout>(R.id.gamePane)
+        pane.visibility = View.VISIBLE
+        val view = layoutInflater.inflate(R.layout.view_game_pane, pane, false)
+        view.visibility = View.GONE
+        pane.addView(view)
+        pageView = view
+        page = GamePage(this, view, onRemoved = {
+            closePane()
+            browser.reload()
+        })
+        savedInstanceState?.getString(STATE_PANE_GAME)?.let { showInPane(File(it), focus = false) }
+    }
+
+    private fun showInPane(game: File, focus: Boolean) {
+        val shown = page ?: return
+        shown.show(game)
+        pageView?.visibility = View.VISIBLE
+        findViewById<View>(R.id.gamePaneEmpty).visibility = View.GONE
+        if (focus) shown.playButton.post { shown.playButton.requestFocus() }
+    }
+
+    private fun closePane() {
+        page?.clear()
+        pageView?.visibility = View.GONE
+        findViewById<View>(R.id.gamePaneEmpty).visibility = View.VISIBLE
+    }
+
+    /** A game chosen from the list or a shelf: its page in the pane when there is one, else its own screen. */
+    private fun openGame(game: File) {
+        if (page != null) showInPane(game, focus = true) else startActivity(GameActivity.intent(this, game))
     }
 
     override fun onDestroy() {
@@ -96,6 +141,7 @@ class MainActivity : EnginehostActivity() {
 
     override fun onResume() {
         super.onResume()
+        page?.refresh()
         if (::browser.isInitialized) {
             browser.forgetSupport()
             browser.reload()
@@ -193,7 +239,7 @@ class MainActivity : EnginehostActivity() {
                 EngineHues.paintChip(this, engine)
             }
         }
-        card.setOnClickListener { startActivity(GameActivity.intent(this, File(game.path))) }
+        card.setOnClickListener { openGame(File(game.path)) }
         return card
     }
 
@@ -303,6 +349,7 @@ class MainActivity : EnginehostActivity() {
     }
 
     private companion object {
+        const val STATE_PANE_GAME = "pane.game"
         const val REQUEST_GAME_FOLDER = 10
         const val REQUEST_NATIVE_FILES = 11
     }

@@ -169,3 +169,14 @@ scope does not set itself says where its button comes from: "(from the engine)",
 a long press on a row the scope does set takes it back, and "Reset this game" clears
 the game's level only. Bypass stays an engine-level choice. The game page's Controls row
 says whether the game has its own buttons or follows the engine's.
+
+## Wide windows: Home's list and the game page side by side
+
+From 840dp wide (`SizeClass.EXPANDED_MIN_DP`) Home shows the library column and a
+pane for the selected game's page. Choosing a game (tap, A, a shelf card) moves the
+pane and puts the pad on its Play button; nothing is pushed, and before a choice the
+pane says to choose one. The pane and the narrow window's `GameActivity` are the same
+`GamePage` filling different view trees (`view_game_pane` is the page without its back
+button), so a game's page is one piece of code. The pane's game survives a rotation.
+Narrower windows keep opening the page as its own screen. Cores, Settings and the
+controller screen keep their single column.

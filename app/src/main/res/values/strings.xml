@@ -263,6 +263,7 @@
     <string name="action_set_up">Set up</string>
     <string name="action_folder_missing">Folder not available</string>
     <string name="action_not_supported">Not supported here</string>
+    <string name="pane_choose_game">Choose a game to see its page here.</string>
     <string name="section_core">Core</string>
     <string name="section_core_update">Update the core</string>
     <string name="section_saves">Saves</string>
