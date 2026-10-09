@@ -67,8 +67,9 @@ class GameStatus(
             if (!folder.isDirectory) {
                 return GameStatus(false, context.getString(R.string.status_missing), primary = GamePrimary.FOLDER_MISSING)
             }
+            val overrides = runCatching { GameLibraryStore(context).overridesFor(folder) }.getOrNull()
             val config = try {
-                EngineConfigReader.resolve(folder, null)
+                EngineConfigReader.resolve(folder, null, null, overrides)
             } catch (e: InvalidEngineConfigException) {
                 if (File(folder, CONFIG_FILE_NAME).isFile) {
                     return GameStatus(false, context.getString(R.string.status_bad_config, e.message), primary = GamePrimary.SET_UP)

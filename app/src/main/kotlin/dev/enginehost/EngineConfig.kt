@@ -96,19 +96,31 @@ object EngineConfigReader {
      * Game setup's Test started runs on the testing configuration with the
      * same authority, while the working enginehost.json stays untouched
      * (see [TestingConfigStore]).
+     *
+     * [overridesJson] is the person's own per-game choices, kept in Enginehost's library
+     * database and never written into the game folder (Droidtop/tracker#235). They sit
+     * above everything else: a value the person set for this game on this device wins over the
+     * folder's file, which stays exactly as its author left it.
      */
-    fun resolve(gameFolder: File, inlineJson: String?, testingJson: String? = null): EngineConfig {
+    fun resolve(
+        gameFolder: File,
+        inlineJson: String?,
+        testingJson: String? = null,
+        overridesJson: String? = null,
+    ): EngineConfig {
         val configFile = File(gameFolder, CONFIG_FILE_NAME)
         val folderJson = testingJson?.let { parseObject(it, "testing configuration") }
             ?: configFile.takeIf { it.isFile }?.let { parseObject(it.readText(), CONFIG_FILE_NAME) }
         val callerJson = inlineJson?.let { parseObject(it, "inline config") }
-        val config = when {
-            folderJson != null -> parse(mergeAuthoritative(folderJson, callerJson))
-            callerJson != null -> parse(callerJson)
+        val layered = when {
+            folderJson != null -> mergeAuthoritative(folderJson, callerJson)
+            callerJson != null -> callerJson
             else -> throw InvalidEngineConfigException(
                 "No $CONFIG_FILE_NAME in ${gameFolder.absolutePath} and no inline config was passed",
             )
         }
+        val overrides = overridesJson?.let { parseObject(it, "game overrides") }
+        val config = parse(if (overrides == null) layered else mergeAuthoritative(overrides, layered))
         return withDefaultSaveFolder(withDetectedRequirements(config, gameFolder), gameFolder)
     }
 

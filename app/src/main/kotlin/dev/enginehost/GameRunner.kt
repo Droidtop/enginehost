@@ -112,8 +112,10 @@ object GameRunner {
                 )
             }
         }
+        // The person's own choices for this game, from the library database; layered over the folder's file.
+        val overridesJson = runCatching { GameLibraryStore(context).overridesFor(gameFolder) }.getOrNull()
         val config = try {
-            EngineConfigReader.resolve(gameFolder, launchJson, testingJson)
+            EngineConfigReader.resolve(gameFolder, launchJson, testingJson, overridesJson)
         } catch (e: InvalidEngineConfigException) {
             return Plan.Failure(e.message ?: "Invalid $CONFIG_FILE_NAME")
         }
@@ -183,6 +185,7 @@ object GameRunner {
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
             launchJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
             testingJson?.let { putExtra(RuntimeActivity.EXTRA_TESTING_CONFIG, it) }
+            overridesJson?.let { putExtra(RuntimeActivity.EXTRA_OVERRIDES, it) }
         }
         return Plan.Runtime(intent, config, resolved, saves.earlierSavesFor(config, gameFolder))
     }

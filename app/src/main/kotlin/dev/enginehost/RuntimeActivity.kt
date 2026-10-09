@@ -61,6 +61,7 @@ class RuntimeActivity : FragmentActivity() {
         val config = try {
             EngineConfigReader.resolve(
                 gameFolder, intent.getStringExtra(EXTRA_CALLER_CONFIG), intent.getStringExtra(EXTRA_TESTING_CONFIG),
+                intent.getStringExtra(EXTRA_OVERRIDES),
             )
         } catch (e: InvalidEngineConfigException) {
             return failAndFinish(e.message ?: "Invalid $CONFIG_FILE_NAME")
@@ -316,6 +317,9 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
         /** Game setup's Test: the testing configuration standing in for the folder's (see TestingConfigStore). */
         const val EXTRA_TESTING_CONFIG = "dev.enginehost.runtime.TESTING_CONFIG"
+
+        /** The person's per-game choices, resolved by the planner and layered over everything else by the runtime too. */
+        const val EXTRA_OVERRIDES = "dev.enginehost.runtime.OVERRIDES"
         const val EXTRA_SAVE_PATH = "dev.enginehost.runtime.SAVE_PATH"
         const val EXTRA_ENGINE = "dev.enginehost.runtime.ENGINE"
         const val EXTRA_ENGINE_CONTEXT = "dev.enginehost.runtime.ENGINE_CONTEXT"

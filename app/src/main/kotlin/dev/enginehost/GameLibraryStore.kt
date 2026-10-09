@@ -65,6 +65,7 @@ internal class LibraryDb private constructor(private val appContext: Context) :
         db.execSQL("CREATE INDEX games_size ON games (size_bytes)")
         db.execSQL("CREATE INDEX games_unclassified ON games (classified)")
         // Folders a scan looked at and found not to be games, so they are not analysed again while unchanged.
+        db.execSQL(OVERRIDES_TABLE)
         db.execSQL("CREATE TABLE scan_negatives (path TEXT PRIMARY KEY NOT NULL, sig INTEGER NOT NULL, seen_run INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE scan_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, root TEXT NOT NULL, started INTEGER NOT NULL, finished INTEGER, complete INTEGER NOT NULL DEFAULT 0)")
         importLegacyList(db)
@@ -73,6 +74,8 @@ internal class LibraryDb private constructor(private val appContext: Context) :
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         // Version 2: games can be marked as favourites (Droidtop/tracker#236).
         if (oldVersion < 2) db.execSQL("ALTER TABLE games ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0")
+        // Version 3: the person's per-game choices (Droidtop/tracker#235).
+        if (oldVersion < 3) db.execSQL(OVERRIDES_TABLE)
     }
 
     /** The earlier library was a JSON list of paths, newest first, in preferences. */
@@ -99,7 +102,10 @@ internal class LibraryDb private constructor(private val appContext: Context) :
 
     companion object {
         private const val NAME = "game-library.db"
-        private const val VERSION = 2
+        private const val VERSION = 3
+
+        /** One JSON object per game, keyed by its path: config keys the person set for this game, layered over the folder's file. */
+        private const val OVERRIDES_TABLE = "CREATE TABLE IF NOT EXISTS game_overrides (path TEXT PRIMARY KEY NOT NULL, json TEXT NOT NULL)"
         private const val LEGACY_PREFERENCES = "game-library-v1"
         private const val LEGACY_KEY = "paths"
 
@@ -280,6 +286,32 @@ class GameLibraryStore(context: Context) : ScanStore {
         classified = cursor.getInt(17) == 1,
         favourite = cursor.getInt(18) == 1,
     )
+
+    // ---- Per-game choices -------------------------------------------------------
+
+    /** The person's choices for [folder] as a JSON document, or null when there are none. */
+    fun overridesFor(folder: File): String? {
+        val canonical = runCatching { folder.canonicalPath }.getOrDefault(folder.absolutePath)
+        return helper.readableDatabase
+            .rawQuery("SELECT json FROM game_overrides WHERE path IN (?, ?) LIMIT 1", arrayOf(canonical, folder.path))
+            .use { if (it.moveToFirst()) it.getString(0) else null }
+    }
+
+    /**
+     * Sets [key] (a top-level config key, or `options.<name>` for one option) to [value] for
+     * [folder]; a null value takes the choice back. An empty set removes the row.
+     */
+    fun setOverride(folder: File, key: String, value: Any?) {
+        val canonical = runCatching { folder.canonicalPath }.getOrDefault(folder.absolutePath)
+        val updated = GameOverrides.with(overridesFor(folder), key, value)
+        val db = helper.writableDatabase
+        if (updated == null) {
+            db.execSQL("DELETE FROM game_overrides WHERE path IN (?, ?)", arrayOf<Any>(canonical, folder.path))
+        } else {
+            db.execSQL("DELETE FROM game_overrides WHERE path = ?", arrayOf<Any>(folder.path))
+            db.execSQL("INSERT OR REPLACE INTO game_overrides (path, json) VALUES (?, ?)", arrayOf<Any>(canonical, updated))
+        }
+    }
 
     /** Marks or unmarks [folder] as a favourite. The folder is found under the path as given or as resolved. */
     fun setFavourite(folder: File, favourite: Boolean) {

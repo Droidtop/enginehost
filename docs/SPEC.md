@@ -112,3 +112,15 @@ someone is playing is not. The caller starts it with `startActivityForResult`
 boolean extra `ended` (true: a game was running and its runtime process was ended,
 without a crash report; false: none was running), or RESULT_CANCELED with string
 extra `error` = `untrusted_caller`, touching nothing. It takes no other extras.
+
+## Per-game choices live in the library database
+
+What a person sets for one game on this device (the core it runs on, an engine
+option) is kept in Enginehost's library database, one JSON document per game keyed
+by its path (`game_overrides`, `GameLibraryStore.overridesFor` / `setOverride`,
+`GameOverrides`), never as a file in the game folder (decided 2026-10-09,
+tracker#235). `EngineConfigReader.resolve` layers it above everything else: the
+folder's `enginehost.json` stays the game author's own file, and the person's value
+for this game wins over it, nested `options` merged key by key. The planner
+resolves it once and hands it to the runtime as an extra
+(`RuntimeActivity.EXTRA_OVERRIDES`) so both resolve the same config.
