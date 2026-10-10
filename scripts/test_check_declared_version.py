@@ -65,6 +65,13 @@ class Judge(unittest.TestCase):
         self.assertTrue(self.check("1.0.0", builds("1.0.0-3"),
                                    ["build-scripts/publish-history-release.sh"])[0])
 
+    def test_line_composition_bookkeeping_is_not_a_revision(self):
+        self.assertTrue(self.check("1.0.0", builds("1.0.0-3"),
+                                   ["enginehost/line.json", "enginehost/lines/4.6/line.json"])[0])
+        self.assertFalse(self.check("1.0.0", builds("1.0.0-3"),
+                                    ["enginehost/lines/4.6/root/enginehost/runtime.json",
+                                     "enginehost/runtime.json"])[0])
+
     def test_rerun_of_the_published_commit_passes(self):
         self.assertTrue(judge("1.0.0", builds("1.0.0-3", commit=HEAD), HEAD, lambda c: ["x"])[0])
 

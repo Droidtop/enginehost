@@ -34,9 +34,13 @@ from release_history import declared_core, published_builds, version_key
 # build-scripts/publish-history-release.sh is the copy of the release script that
 # plugin repositories carried before publish-engine-bundle.yml replaced it
 # (Droidtop/tracker#196): deleting it is CI wiring, not a revision of the code.
-IGNORED_PREFIXES = (".github/", "docs/")
+# enginehost/line.json pins the commits a line is composed from and
+# enginehost/lines/ declares every line of the repository (droidtop-platforms
+# tools/plugin_line.py, Droidtop/tracker#324): bookkeeping that every line
+# carries, so declaring a new line must not count as a revision of the others.
+IGNORED_PREFIXES = (".github/", "docs/", "enginehost/lines/")
 IGNORED_NAMES = {"LICENSE", "enginehost-public-key.json", "enginehost-origin.json",
-                 "build-scripts/publish-history-release.sh"}
+                 "build-scripts/publish-history-release.sh", "enginehost/line.json"}
 IGNORED_SUFFIXES = (".md",)
 
 
