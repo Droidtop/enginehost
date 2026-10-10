@@ -532,6 +532,15 @@ route, revisit whether the chmod fix is still pulling its weight for
 anything, and remove it if not: two mechanisms for the one job is not
 something this project keeps once one of them is proven unnecessary.
 
+**Removed (2026-10-10).** The descriptor route has carried every isolated
+launch since dq-sandbox-03 (InMemoryDexClassLoader for the dex,
+`android_dlopen_ext` with `ANDROID_DLEXT_USE_LIBRARY_FD` for native code),
+and the isolated process never opens a bundle path. The world-readable
+chmod of isolatable bundles and the world-executable registry ancestors
+were only ever widening access, so `EngineBundleInstaller` now leaves every
+bundle owner-only and `PluginRegistry.root()` no longer touches the
+directories above it.
+
 ### First milestone
 
 Target: **CatSystem2** (`enginehost-catsystem2-plugin`, branch
