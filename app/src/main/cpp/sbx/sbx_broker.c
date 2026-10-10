@@ -199,38 +199,73 @@ static int rewrite_proc(char *path, pid_t pid, pid_t tid) {
 }
 
 /*
- * The path as the kernel would resolve it: the parent through realpath(),
- * then the final name, followed only when follow_last and only when it is
- * a symlink. readlink() answers EINVAL for anything else without the stat
- * that realpath() would make, which SELinux can refuse where access() and
- * open() are allowed (libhidl's access() of /system/bin/hwservicemanager).
+ * The path as the kernel would resolve it, from a normalised absolute
+ * path: each component that is a symlink is replaced by its target, the
+ * final one only when follow_last. Links are found with readlink() alone,
+ * which answers EINVAL for anything else, never with stat(): SELinux can
+ * refuse a stat where the call itself is allowed (getattr on /linkerconfig,
+ * on /system/bin/hwservicemanager, which libhidl only access()es), and the
+ * broker must not fail a call the confined process could have made. A
+ * missing final component is fine (a create); a missing directory is not.
  */
 static int resolve(const char *path, int follow_last, char *out) {
-    if (strcmp(path, "/") == 0) {
-        strcpy(out, "/");
-        return 0;
+    char pending[SBX_PATH_MAX * 2];
+    char resolved[SBX_PATH_MAX];
+    size_t resolved_len = 0;
+    int links = 0;
+    snprintf(pending, sizeof(pending), "%s", path);
+    char *cursor = pending;
+    for (;;) {
+        while (*cursor == '/') cursor++;
+        if (!*cursor) break;
+        char *end = cursor;
+        while (*end && *end != '/') end++;
+        size_t part = (size_t) (end - cursor);
+        const char *rest = end;
+        while (*rest == '/') rest++;
+        int last = *rest == '\0';
+        if (part == 1 && cursor[0] == '.') { cursor = end; continue; }
+        if (part == 2 && cursor[0] == '.' && cursor[1] == '.') {
+            while (resolved_len > 0 && resolved[resolved_len - 1] != '/') resolved_len--;
+            if (resolved_len > 0) resolved_len--;
+            resolved[resolved_len] = '\0';
+            cursor = end;
+            continue;
+        }
+        if (resolved_len + 1 + part >= SBX_PATH_MAX) return -ENAMETOOLONG;
+        char candidate[SBX_PATH_MAX];
+        memcpy(candidate, resolved, resolved_len);
+        candidate[resolved_len] = '/';
+        memcpy(candidate + resolved_len + 1, cursor, part);
+        candidate[resolved_len + 1 + part] = '\0';
+        if (last && !follow_last) {
+            snprintf(resolved, sizeof(resolved), "%s", candidate);
+            resolved_len = strlen(resolved);
+            break;
+        }
+        char target[SBX_PATH_MAX];
+        ssize_t n = readlink(candidate, target, sizeof(target) - 1);
+        if (n < 0) {
+            if (errno == EINVAL || (errno == ENOENT && last)) {
+                snprintf(resolved, sizeof(resolved), "%s", candidate);
+                resolved_len = strlen(resolved);
+                cursor = end;
+                continue;
+            }
+            return -errno;
+        }
+        target[n] = '\0';
+        if (++links > 40) return -ELOOP;
+        char next[SBX_PATH_MAX * 2];
+        if ((size_t) n + 1 + strlen(rest) >= sizeof(next)) return -ENAMETOOLONG;
+        snprintf(next, sizeof(next), "%s/%s", target, rest);
+        snprintf(pending, sizeof(pending), "%s", next);
+        cursor = pending;
+        if (target[0] == '/') resolved_len = 0;
+        resolved[resolved_len] = '\0';
     }
-    const char *slash = strrchr(path, '/');
-    char parent[SBX_PATH_MAX];
-    size_t parent_len = (size_t) (slash - path);
-    if (parent_len == 0) {
-        strcpy(parent, "/");
-    } else {
-        memcpy(parent, path, parent_len);
-        parent[parent_len] = '\0';
-    }
-    char real_parent[PATH_MAX];
-    if (!realpath(parent, real_parent)) return -errno;
-    const char *name = slash + 1;
-    if (strlen(real_parent) + 1 + strlen(name) >= SBX_PATH_MAX) return -ENAMETOOLONG;
-    if (strcmp(real_parent, "/") == 0) snprintf(out, SBX_PATH_MAX, "/%s", name);
-    else snprintf(out, SBX_PATH_MAX, "%s/%s", real_parent, name);
-    if (!follow_last) return 0;
-    char target[SBX_PATH_MAX];
-    if (readlink(out, target, sizeof(target)) < 0) return 0;
-    char linked[PATH_MAX];
-    if (!realpath(out, linked)) return -errno;
-    snprintf(out, SBX_PATH_MAX, "%s", linked);
+    if (resolved_len == 0) strcpy(out, "/");
+    else snprintf(out, SBX_PATH_MAX, "%s", resolved);
     return 0;
 }
 

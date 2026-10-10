@@ -2132,7 +2132,17 @@ is `app/src/main/cpp/sbx/`, general rather than Enginehost-specific
   resolves it, and an open again on what the new descriptor names, so `..`
   and symlinks cannot leave a rule. `/proc/self` is the sender's own,
   by the kernel's `SCM_CREDENTIALS`; other processes' `/proc` entries are
-  refused. Every refusal is logged under `EnginehostSandbox`.
+  refused. Every refusal is logged under `EnginehostSandbox`. It finds
+  symlinks with `readlink()` only, never `stat()`, because SELinux
+  refuses the broker a stat where the call itself is allowed
+  (`/system/bin/hwservicemanager`, which libhidl only `access()`es).
+- Some devices cannot be brokered: the kernel ties the open file to the
+  process that opened it, so a broker-opened `/dev/hwbinder` fails to map
+  ("Mmapping /dev/hwbinder failed: Invalid argument", emulator-5560). The
+  process opens those itself just before the lockdown (`/dev/hwbinder`,
+  `/dev/vndbinder`, and the GPU nodes that keep per-process state:
+  `/dev/kgsl-3d0`, `/dev/mali0`, `/dev/dri/renderD128`), and the handler
+  answers a later open of exactly that path with a duplicate.
 - The policy (`RuntimeSandbox.policy`): the game folder (read-only unless
   `writesGameFolder`), the save folder, the bundle, the system's code and
   data (`/system`, `/vendor`, `/apex`, the APK, ...), `/proc` and `/sys`

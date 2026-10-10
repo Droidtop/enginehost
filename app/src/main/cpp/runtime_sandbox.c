@@ -111,10 +111,26 @@ Java_dev_enginehost_RuntimeSandbox_denyInternet(JNIEnv *env, jclass clazz) {
 
 /* Process lockdown (sbx/sbx.h): the :runtime side. Takes ownership of fd. */
 JNIEXPORT jint JNICALL
-Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd) {
-    (void) env;
+Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd, jobjectArray own_opens) {
     (void) clazz;
-    int result = sbx_lockdown(fd);
+    jsize count = (*env)->GetArrayLength(env, own_opens);
+    if (count > 8) count = 8;
+    char paths[8][128];
+    const char *list[9];
+    jsize used = 0;
+    for (jsize i = 0; i < count; i++) {
+        jstring path = (jstring) (*env)->GetObjectArrayElement(env, own_opens, i);
+        const char *chars = (*env)->GetStringUTFChars(env, path, NULL);
+        if (chars && strlen(chars) < sizeof(paths[0])) {
+            strcpy(paths[used], chars);
+            list[used] = paths[used];
+            used++;
+        }
+        if (chars) (*env)->ReleaseStringUTFChars(env, path, chars);
+        (*env)->DeleteLocalRef(env, path);
+    }
+    list[used] = NULL;
+    int result = sbx_lockdown(fd, list);
     if (result != 0) close(fd);
     return result;
 }

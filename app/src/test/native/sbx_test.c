@@ -53,7 +53,10 @@ static void *thread_open(void *argument) {
 }
 
 static void confined(int broker) {
-    int locked = sbx_lockdown(broker);
+    char own_path[400];
+    snprintf(own_path, sizeof(own_path), "%s/own", secret);
+    const char *own[] = {own_path, NULL};
+    int locked = sbx_lockdown(broker, own);
     errno = -locked;
     EXPECT(locked == 0, "lockdown installed on every thread");
     if (locked != 0) return;
@@ -94,6 +97,9 @@ static void confined(int broker) {
     snprintf(path, sizeof(path), "%s/alias/data.txt", root);
     fd = open(path, O_RDONLY);
     EXPECT(fd >= 0, "an alias of an allowed folder (as /sdcard is of /storage/emulated/0)");
+    if (fd >= 0) close(fd);
+    fd = open(own_path, O_RDWR);
+    EXPECT(fd >= 0, "a device the process opened for itself before lockdown");
     if (fd >= 0) close(fd);
     snprintf(path, sizeof(path), "%s/key", secret);
     EXPECT(refused(open(path, O_RDONLY)), "file outside the policy refused");
@@ -168,6 +174,9 @@ int main(void) {
     write_file(path, "hello");
     snprintf(path, sizeof(path), "%s/key", secret);
     write_file(path, "secret");
+    char own_file[400];
+    snprintf(own_file, sizeof(own_file), "%s/own", secret);
+    write_file(own_file, "own");
     char link[400];
     snprintf(link, sizeof(link), "%s/escape", game);
     if (symlink(path, link) != 0) { perror("symlink"); return 2; }
