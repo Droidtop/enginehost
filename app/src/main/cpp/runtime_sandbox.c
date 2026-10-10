@@ -34,7 +34,10 @@
 #include <linux/seccomp.h>
 
 #ifdef __ANDROID__
+#include <android/log.h>
 #include <jni.h>
+#include <string.h>
+#include "sbx/sbx.h"
 #endif
 
 #ifndef __NR_io_uring_setup
@@ -104,5 +107,51 @@ Java_dev_enginehost_RuntimeSandbox_denyInternet(JNIEnv *env, jclass clazz) {
     (void) env;
     (void) clazz;
     return enginehost_deny_internet();
+}
+
+/* Process lockdown (sbx/sbx.h): the :runtime side. Takes ownership of fd. */
+JNIEXPORT jint JNICALL
+Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd) {
+    (void) env;
+    (void) clazz;
+    int result = sbx_lockdown(fd);
+    if (result != 0) close(fd);
+    return result;
+}
+
+static void log_refusal(const char *op, const char *asked, const char *resolved, int error) {
+    __android_log_print(ANDROID_LOG_WARN, "EnginehostSandbox", "refused %s %s (%s): %s", op, asked, resolved,
+                        strerror(error));
+}
+
+/*
+ * Process lockdown: the broker side, in the main process. paths[i] gets
+ * modes[i] (SBX_READ, SBX_WRITE). Takes ownership of fd; serves it on its
+ * own thread until the runtime process closes it or dies.
+ */
+JNIEXPORT jint JNICALL
+Java_dev_enginehost_RuntimeSandbox_serve0(JNIEnv *env, jclass clazz, jint fd, jobjectArray paths, jintArray modes) {
+    (void) clazz;
+    sbx_set_log(log_refusal);
+    struct sbx_policy *policy = sbx_policy_new();
+    if (!policy) { close(fd); return -ENOMEM; }
+    jsize count = (*env)->GetArrayLength(env, paths);
+    jint *mode = (*env)->GetIntArrayElements(env, modes, NULL);
+    for (jsize i = 0; i < count && mode; i++) {
+        jstring path = (jstring) (*env)->GetObjectArrayElement(env, paths, i);
+        const char *chars = (*env)->GetStringUTFChars(env, path, NULL);
+        if (chars) {
+            sbx_policy_add(policy, chars, (unsigned) mode[i]);
+            (*env)->ReleaseStringUTFChars(env, path, chars);
+        }
+        (*env)->DeleteLocalRef(env, path);
+    }
+    if (mode) (*env)->ReleaseIntArrayElements(env, modes, mode, JNI_ABORT);
+    int result = sbx_broker_start(policy, fd);
+    if (result != 0) {
+        sbx_policy_free(policy);
+        close(fd);
+    }
+    return result;
 }
 #endif

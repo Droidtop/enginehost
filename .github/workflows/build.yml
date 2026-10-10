@@ -46,7 +46,7 @@ jobs:
       # The isolated file layer (docs/engine-sandbox.md "Files by path"),
       # end to end on the runner's own libc: the same --wrap list every
       # plugin links with, against a broker over temporary directories.
-      - name: Test the isolated file layer
+      - name: Test the native sandbox layers
         run: sh app/src/test/native/run.sh "$RUNNER_TEMP/enginehost-vfs-test"
 
       - name: Restore official Enginehost APK signing subkey

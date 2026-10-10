@@ -2105,6 +2105,50 @@ Consequences, decided here:
   already runs in Chromium's own sandboxed renderer process; whether that
   counts as their sandbox is part of the same decision.
 
+#### Process lockdown: seccomp and a file broker (prototype, 2026-10-10)
+
+The owner's answer to the above: "we can sandbox the code ourselves, we
+don't have to have android do it". The engine stays in `:runtime`, so it
+keeps the GPU, the window and audio, and the process confines itself before
+any plugin code loads, after Chromium's Linux broker
+(`sandbox/linux/syscall_broker`) and minijail's seccomp policies. The code
+is `app/src/main/cpp/sbx/`, general rather than Enginehost-specific
+(`sbx.h` is the whole interface), so the shared sandbox design
+(Droidtop/tracker#26, #53) can take it as is.
+
+- `sbx_lockdown()` installs a seccomp filter on every thread (TSYNC; a
+  lockdown that misses a thread fails instead). Every system call that names
+  a path traps; the SIGSYS handler sends it over a `SOCK_SEQPACKET` socket,
+  with a socketpair of its own for the answer, to the broker, and returns
+  the broker's result (and descriptor, by `SCM_RIGHTS`) as the call's.
+  `socket`, `bind`, `connect`, `execve`, `ptrace`, `process_vm_*`,
+  `pidfd_getfd`, `bpf`, `perf_event_open`, `io_uring`, `chdir`, links,
+  `chmod`/`chown`, path xattrs and file handles are refused; `statx` and
+  `openat2` answer ENOSYS so callers fall back. Calls on descriptors are
+  untouched: the GPU driver keeps working on its device node.
+- The broker (`sbx_broker.c`) runs in the main process
+  (`SandboxBrokerProvider`, one session per calling process, this app's
+  own processes only) and checks each path as asked and as the kernel
+  resolves it, and an open again on what the new descriptor names, so `..`
+  and symlinks cannot leave a rule. `/proc/self` is the sender's own,
+  by the kernel's `SCM_CREDENTIALS`; other processes' `/proc` entries are
+  refused. Every refusal is logged under `EnginehostSandbox`.
+- The policy (`RuntimeSandbox.policy`): the game folder (read-only unless
+  `writesGameFolder`), the save folder, the bundle, the system's code and
+  data (`/system`, `/vendor`, `/apex`, the APK, ...), `/proc` and `/sys`
+  read-only, the device nodes a GPU driver, ART and audio open later, and
+  the app's cache directories. The rest of the app's private data (trust
+  store, tokens, library) and all other shared storage are refused.
+- What it does not close: Binder. The process keeps `/dev/binder` with
+  Enginehost's UID, so native code can still ask system services for what
+  Enginehost may have (MediaProvider, an intent with a URL). A same-UID
+  sandbox cannot close that; the isolated runtime (another UID) can.
+
+It is off unless `debug.enginehost.lockdown` is 1 (`adb shell setprop`)
+and applies only to plugin-api launches that are not isolatable, while the
+shared design is agreed. `app/src/test/native/sbx_test.c` runs it on the
+build host's kernel in CI.
+
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
 The static-method-contract finding above (`nativeSetupJNI`'s `cls` parameter)
