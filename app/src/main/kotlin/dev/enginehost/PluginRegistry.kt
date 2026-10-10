@@ -40,6 +40,14 @@ data class InstalledPlugin(
      * docs/engine-sandbox.md for why).
      */
     val isolatable: Boolean = false,
+    /**
+     * Whether the engine writes into the game folder itself (saves or
+     * settings beside the game, as the original does on its desktop
+     * platform). Only an isolated launch consults it: the game folder's
+     * broker is read-only otherwise (docs/engine-sandbox.md "Saves beside
+     * the game").
+     */
+    val writesGameFolder: Boolean = false,
 ) {
     /** Compatibility alias while callers migrate from package terminology. */
     val packageName: String get() = bundleId
@@ -223,6 +231,7 @@ object PluginRegistry {
                 require(it == RUNTIME_TRANSPORT_PLUGIN || it == RUNTIME_TRANSPORT_ACTIVITY)
             },
             json.optBoolean("isolatable", false),
+            writesGameFolder = json.optBoolean("writesGameFolder", false),
         )
     }
 

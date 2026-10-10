@@ -25,21 +25,38 @@ internal object IsolatedNativeBridge {
         .isSuccess
 
     /**
-     * `true` when the plugin's own native methods are now bound to
-     * [pluginClass] and safe to call; `false` when the library (opened
-     * from [libraryFd], an already-open descriptor this process itself
-     * holds -- no path, no second `open()`) or its
-     * `enginehost_register_natives` entry point could not be found, in
-     * which case the plugin's own native methods remain unbound and any
-     * call into them will fail with the ordinary
-     * [UnsatisfiedLinkError] that implies.
+     * Loads every one of the plugin's libraries from its already-open
+     * descriptor ([libraryFds], by the name System.loadLibrary would use)
+     * and binds the plugin's native methods to [pluginClass] from
+     * whichever library exports `enginehost_register_natives`. A library
+     * whose dependency is another of the plugin's own libraries fails
+     * until that one is loaded, so failures are retried for as long as
+     * each round loads something. Answers whether the plugin's native
+     * methods were bound.
      */
-    fun registerPluginNatives(libraryFd: Int, pluginClass: Class<*>): Boolean {
+    fun loadPluginLibraries(libraryFds: Map<String, Int>, pluginClass: Class<*>): Boolean {
         if (!ready) return false
-        return runCatching { registerPluginNatives0(libraryFd, pluginClass) }
-            .onFailure { Log.w(TAG, "could not register $pluginClass's native methods from fd $libraryFd", it) }
-            .getOrDefault(false)
+        var pending = libraryFds.toList()
+        var bound = false
+        while (pending.isNotEmpty()) {
+            val failed = pending.filter { (name, fd) ->
+                val status = runCatching { loadPluginLibrary0(fd, name, pluginClass) }
+                    .onFailure { Log.w(TAG, "could not load lib$name.so from fd $fd", it) }
+                    .getOrDefault(NOT_LOADED)
+                if (status == LOADED_WITH_NATIVES) bound = true
+                status == NOT_LOADED
+            }
+            if (failed.size == pending.size) {
+                Log.e(TAG, "could not load ${failed.joinToString { "lib${it.first}.so" }}")
+                break
+            }
+            pending = failed
+        }
+        return bound
     }
 
-    @JvmStatic private external fun registerPluginNatives0(libraryFd: Int, pluginClass: Class<*>): Boolean
+    private const val LOADED_WITH_NATIVES = 0
+    private const val NOT_LOADED = -1
+
+    @JvmStatic private external fun loadPluginLibrary0(libraryFd: Int, libraryName: String, pluginClass: Class<*>): Int
 }

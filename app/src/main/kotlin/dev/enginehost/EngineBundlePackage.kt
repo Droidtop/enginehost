@@ -45,6 +45,8 @@ data class EngineBundleManifest(
      * says nothing, the host derives the list from its capabilities.
      */
     val engines: List<String> = emptyList(),
+    /** See InstalledPlugin.writesGameFolder (docs/engine-sandbox.md "Saves beside the game"). */
+    val writesGameFolder: Boolean = false,
 ) {
     /**
      * The ABIs this bundle's signed payload carries native libraries for:
@@ -74,6 +76,7 @@ data class EngineBundleManifest(
         .put("resourceApks", JSONArray(resourceApks))
         .put("runtimeTransport", runtimeTransport)
         .put("isolatable", isolatable)
+        .put("writesGameFolder", writesGameFolder)
         .put("capabilities", JSONArray().apply { info.capabilities.forEach { put(it.toJson()) } })
 }
 
@@ -164,6 +167,7 @@ object EngineBundleManifestReader {
             json.requiredSha256("payloadSha256"),
             files,
             engines = engines,
+            writesGameFolder = json.optBoolean("writesGameFolder", false),
         )
     }
 

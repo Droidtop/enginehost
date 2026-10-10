@@ -118,7 +118,7 @@ internal fun loadEnginePluginFromInMemoryDex(
     // found for the dex) -- IsolatedNativeBridge uses
     // android_dlopen_ext/ANDROID_DLEXT_USE_LIBRARY_FD on the fd directly
     // instead, needing no second open() at all.
-    nativeLibraryFds.values.forEach { fd -> IsolatedNativeBridge.registerPluginNatives(fd, entrypoint) }
+    IsolatedNativeBridge.loadPluginLibraries(nativeLibraryFds, entrypoint)
     val plugin = entrypoint.getDeclaredConstructor().newInstance() as EnginePlugin
     return LoadedPlugin(plugin, emptyList())
 }

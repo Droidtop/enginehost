@@ -39,30 +39,68 @@
  * reasoning IsolatedRuntimeService.kt already applies to the dex
  * itself, applied here to the one remaining path-based open in this
  * whole launch sequence.
+ *
+ * Each library is loaded under its own name ("lib<name>.so"), so a
+ * plugin that ships its engine in more than one library (an engine
+ * linked against a separate libSDL2.so) can have the second one's
+ * DT_NEEDED entry satisfied by the first, already loaded under that
+ * soname; IsolatedNativeBridge retries libraries whose dependencies were
+ * not loaded yet. Every library that carries the isolated file layer's
+ * forwarder (plugin-native/enginehost_vfs_forward.c) is bound to the
+ * host's table (isolated_vfs.c) as it loads.
  */
 #include <android/dlext.h>
+#include <android/log.h>
 #include <dlfcn.h>
 #include <jni.h>
+#include <stdio.h>
 #include <string.h>
 
-typedef void (*enginehost_register_natives_fn)(JNIEnv *, jclass);
+#include "isolated_vfs.h"
 
-JNIEXPORT jboolean JNICALL
-Java_dev_enginehost_IsolatedNativeBridge_registerPluginNatives0(
-        JNIEnv *env, jclass type, jint library_fd, jclass plugin_class) {
+typedef void (*enginehost_register_natives_fn)(JNIEnv *, jclass);
+typedef void (*enginehost_vfs_bind_fn)(const struct enginehost_vfs_table *);
+
+#define LOADED_WITH_NATIVES 0
+#define LOADED 1
+#define NOT_LOADED (-1)
+
+JNIEXPORT jint JNICALL
+Java_dev_enginehost_IsolatedNativeBridge_loadPluginLibrary0(
+        JNIEnv *env, jclass type, jint library_fd, jstring library_name, jclass plugin_class) {
     (void) type;
+    const char *name = (*env)->GetStringUTFChars(env, library_name, NULL);
+    if (name == NULL) return NOT_LOADED;
+    char soname[256];
+    snprintf(soname, sizeof soname, "lib%s.so", name);
+    (*env)->ReleaseStringUTFChars(env, library_name, name);
     android_dlextinfo info;
     memset(&info, 0, sizeof info);
     info.flags = ANDROID_DLEXT_USE_LIBRARY_FD;
     info.library_fd = (int) library_fd;
-    /* A descriptive name only -- android_dlopen_ext never opens this path
-       when ANDROID_DLEXT_USE_LIBRARY_FD is set; every byte comes from
-       info.library_fd instead. */
-    void *handle = android_dlopen_ext("enginehost-isolated-plugin.so", RTLD_NOW, &info);
-    if (handle == NULL) return JNI_FALSE;
-    void *symbol = dlsym(handle, "enginehost_register_natives");
-    if (symbol == NULL) return JNI_FALSE;
-    enginehost_register_natives_fn entry = (enginehost_register_natives_fn) symbol;
+    /* The name is the library's identity for DT_NEEDED matching only;
+       every byte comes from info.library_fd, never from a path. */
+    void *handle = android_dlopen_ext(soname, RTLD_NOW, &info);
+    if (handle == NULL) {
+        const char *error = dlerror();
+        __android_log_print(ANDROID_LOG_INFO, "enginehost-isolated-runtime", "%s not loaded yet: %s",
+                            soname, error != NULL ? error : "unknown error");
+        return NOT_LOADED;
+    }
+    enginehost_vfs_bind_fn bind = (enginehost_vfs_bind_fn) dlsym(handle, "enginehost_vfs_bind");
+    if (bind != NULL) {
+        bind(ehvfs_table());
+        __android_log_print(ANDROID_LOG_INFO, "enginehost-isolated-runtime",
+                            "%s reaches game and save files through the host", soname);
+    }
+    enginehost_register_natives_fn entry =
+        (enginehost_register_natives_fn) dlsym(handle, "enginehost_register_natives");
+    if (entry == NULL) return LOADED;
     entry(env, plugin_class);
-    return (*env)->ExceptionCheck(env) ? JNI_FALSE : JNI_TRUE;
+    if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        return LOADED;
+    }
+    return LOADED_WITH_NATIVES;
 }

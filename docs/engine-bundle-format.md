@@ -707,6 +707,15 @@ field, when it lands, matches the shape decided in `docs/engine-sandbox.md`
 rather than being improvised in the same change that adds it.
 
 
+## `writesGameFolder` (2026-10-10)
+
+Optional, boolean, default `false`, beside `isolatable`. `true` says the
+engine writes into the game folder itself, as its desktop original does
+(saves or settings beside the game). It only matters to an isolated launch:
+the game folder's broker is writable for such a bundle and read-only for
+every other (`docs/engine-sandbox.md`, "Saves beside the game"). An in-process
+launch, and a host older than this field, ignore it.
+
 ## `runtimeTransport: android-activity` is deprecated for official plugins (2026-09-27)
 
 Sandbox layer 2 (`docs/engine-sandbox.md`, "Single transport") only fits

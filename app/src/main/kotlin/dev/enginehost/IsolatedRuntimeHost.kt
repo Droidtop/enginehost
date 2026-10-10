@@ -31,6 +31,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import dev.enginehost.runtime.BrokerListing
 import dev.enginehost.runtime.IEngineFileBroker
 import dev.enginehost.runtime.IEngineRuntimeCallback
 import dev.enginehost.runtime.IEngineRuntimeService
@@ -150,8 +151,9 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                                 runtimeRequirements.keys.toTypedArray(), runtimeRequirements.values.toTypedArray(),
                                 runtimeComponents.keys.toTypedArray(), runtimeComponents.values.toTypedArray(),
                                 restartArguments,
-                                HostFileBroker(gameFolder, readOnly = true),
+                                HostFileBroker(gameFolder, readOnly = !installed.writesGameFolder),
                                 HostFileBroker(saveFolder, readOnly = false),
+                                gameFolder.absolutePath, installed.writesGameFolder, saveFolder.absolutePath,
                                 bridge?.pluginSideBuffer(), bridge?.sampleRate ?: 0,
                                 HostRuntimeCallback(activity),
                             )
@@ -665,6 +667,38 @@ private class HostFileBroker(private val root: File, private val readOnly: Boole
         return resolveWithinRoot(root, relativePath).delete()
     }
 
+    override fun listEntries(relativePath: String): BrokerListing? {
+        val directory = resolveWithinRoot(root, relativePath)
+        val children = directory.listFiles() ?: return null
+        // A write still waiting for commitWrite is not an entry yet.
+        val visible = children.filterNot { it.name.endsWith(PENDING_SUFFIX) }
+        val info = LongArray(visible.size * 3)
+        visible.forEachIndexed { i, child ->
+            val isDirectory = child.isDirectory
+            info[3 * i] = if (isDirectory) BrokerListing.KIND_DIRECTORY else BrokerListing.KIND_FILE
+            info[3 * i + 1] = if (isDirectory) 0 else child.length()
+            info[3 * i + 2] = child.lastModified()
+        }
+        return BrokerListing(visible.map { it.name }.toTypedArray(), info)
+    }
+
+    override fun makeDirectory(relativePath: String): Boolean {
+        check(!readOnly) { "the game folder is read-only" }
+        return resolveWithinRoot(root, relativePath).mkdir()
+    }
+
+    override fun rename(fromPath: String, toPath: String): Boolean {
+        check(!readOnly) { "the game folder is read-only" }
+        val from = resolveWithinRoot(root, fromPath)
+        val to = resolveWithinRoot(root, toPath)
+        if (!from.exists()) return false
+        // File.renameTo does not replace an existing file on every
+        // filesystem shared storage sits on; a save written as "write a
+        // temporary, rename it over the old one" must still land.
+        if (to.isFile && from.isFile) to.delete()
+        return from.renameTo(to)
+    }
+
     /**
      * A fresh file beside [target]'s eventual name: nothing appears under
      * that name until [commitWrite] renames it there, matching
@@ -672,9 +706,10 @@ private class HostFileBroker(private val root: File, private val readOnly: Boole
      * partial write). Not a per-write random name: at most one write per
      * relativePath is ever open at a time, by contract.
      */
-    private fun pendingWritePath(target: File): File = File(target.parentFile, "${target.name}.isolated-write")
+    private fun pendingWritePath(target: File): File = File(target.parentFile, "${target.name}$PENDING_SUFFIX")
 
     companion object {
+        private const val PENDING_SUFFIX = ".isolated-write"
         private const val WRITE_MODE =
             ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_TRUNCATE
     }

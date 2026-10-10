@@ -39,6 +39,10 @@ interface IEngineRuntimeService {
      * audioSampleRate -- an isolated process cannot reach AudioFlinger to
      * open its own output (docs/engine-sandbox.md "Audio"), which is why
      * this is a buffer the host itself reads rather than a real device.
+     * gamePath and savePath are the folders' real absolute paths, the ones
+     * an in-process launch hands its plugin: the isolated side mounts them
+     * onto gameBroker and saveBroker (IsolatedVfs), the game folder
+     * writable only when gameWritable (the bundle's writesGameFolder).
      */
     void init(in ParcelFileDescriptor[] dexFds, String entrypointClass,
               in String[] nativeLibraryNames, in ParcelFileDescriptor[] nativeLibraryFds,
@@ -48,6 +52,7 @@ interface IEngineRuntimeService {
               in String[] runtimeComponentKeys, in String[] runtimeComponentValues,
               in String[] restartArguments,
               IEngineFileBroker gameBroker, IEngineFileBroker saveBroker,
+              String gamePath, boolean gameWritable, String savePath,
               in ParcelFileDescriptor audioBuffer, int audioSampleRate,
               IEngineRuntimeCallback callback);
 

@@ -1,8 +1,14 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(enginehost_sandbox C)
 
-# The :runtime process's network filter (runtime_sandbox.c) and the
-# isolated launch's dex/native-library seam (isolated_native_bridge.c);
-# both are small enough to share one library rather than adding a
-# second one just to keep them apart.
-add_library(enginehost_sandbox SHARED runtime_sandbox.c isolated_native_bridge.c)
+# The :runtime process's network filter (runtime_sandbox.c), the
+# isolated launch's native-library seam (isolated_native_bridge.c) and its
+# file layer (isolated_vfs.c, isolated_vfs_jni.c): one library, loaded by
+# both runtime processes.
+add_library(enginehost_sandbox SHARED
+    runtime_sandbox.c isolated_native_bridge.c isolated_vfs.c isolated_vfs_jni.c)
+# The isolated file layer's table (isolated_vfs.c) is declared in the header
+# plugins copy (plugin-native/enginehost_vfs.h); the host builds against the
+# same file.
+target_include_directories(enginehost_sandbox PRIVATE ../../../../plugin-native)
+target_link_libraries(enginehost_sandbox PRIVATE log)

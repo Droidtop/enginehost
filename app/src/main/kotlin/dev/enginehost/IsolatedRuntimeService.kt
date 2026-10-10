@@ -79,6 +79,9 @@ class IsolatedRuntimeService : Service() {
             restartArguments: Array<String>,
             gameBroker: IEngineFileBroker?,
             saveBroker: IEngineFileBroker?,
+            gamePath: String,
+            gameWritable: Boolean,
+            savePath: String,
             audioBuffer: ParcelFileDescriptor?,
             audioSampleRate: Int,
             callback: IEngineRuntimeCallback,
@@ -119,7 +122,8 @@ class IsolatedRuntimeService : Service() {
                     engine, engineContext, engineVersion, runtimeVersion, capabilityId,
                     execFile, optionsJson, runtimeRequirementKeys, runtimeRequirementValues,
                     runtimeComponentKeys, runtimeComponentValues,
-                    restartArguments, gameBroker, saveBroker, audioBuffer, audioSampleRate, callback,
+                    restartArguments, gameBroker, saveBroker, gamePath, gameWritable, savePath,
+                    audioBuffer, audioSampleRate, callback,
                 )
             } catch (e: SecurityException) {
                 throw e
@@ -154,6 +158,9 @@ class IsolatedRuntimeService : Service() {
             restartArguments: Array<String>,
             gameBroker: IEngineFileBroker?,
             saveBroker: IEngineFileBroker?,
+            gamePath: String,
+            gameWritable: Boolean,
+            savePath: String,
             audioBuffer: ParcelFileDescriptor?,
             audioSampleRate: Int,
             callback: IEngineRuntimeCallback,
@@ -172,8 +179,12 @@ class IsolatedRuntimeService : Service() {
             val host = IsolatedEngineHost(
                 this@IsolatedRuntimeService, callback, this@IsolatedRuntimeService.restartArguments,
                 gameBroker?.let(::AidlFileBrokerAdapter), saveBroker?.let(::AidlFileBrokerAdapter),
-                audioBuffer, audioSampleRate,
+                audioBuffer, audioSampleRate, File(savePath),
             )
+            // Before any plugin library loads: each one is bound to the file
+            // layer as it loads (IsolatedNativeBridge), and its engine may
+            // open files from its own initialisers.
+            IsolatedVfs.install(gamePath, gameBroker, gameWritable, savePath, saveBroker)
             // dq-sandbox-09: Android 14's "safer dynamic code loading"
             // refuses ANY path-based dex file this process could itself
             // have written, seal or no seal -- confirmed directly (a
@@ -230,7 +241,7 @@ class IsolatedRuntimeService : Service() {
                 // that needs to read its OWN other bundled assets at
                 // runtime -- none does yet -- is out of this milestone's
                 // scope, same as resourceApks below.
-                NO_BUNDLE_DIRECTORY, /* display = */ null, host, /* gamePath = */ "", engine,
+                NO_BUNDLE_DIRECTORY, /* display = */ null, host, gamePath, engine,
                 engineContext, engineVersion, runtimeVersion, capabilityId, execFile, optionsJson,
                 runtimeRequirements, runtimeComponents,
             )
@@ -495,18 +506,17 @@ private class IsolatedEngineHost(
     private val saveBrokerImpl: EngineFileBroker?,
     private val audioBufferImpl: ParcelFileDescriptor?,
     private val audioSampleRateImpl: Int,
+    private val saveFolder: File,
 ) : EngineHost {
     override fun context(): android.content.Context = ctx
 
-    // Neither is meaningful in isolated mode: the isolated UID has no
-    // shared storage of its own to resolve saveDirectory() into, and
-    // fileSystem() is the in-process stream API that gameBroker()/
-    // saveBroker() exist to replace (docs/engine-sandbox.md). A plugin
-    // that implements EngineStepDriven is expected to check
-    // gameBroker()/saveBroker() instead, as CatSystem2Plugin does.
-    override fun saveDirectory(): File = throw UnsupportedOperationException(
-        "isolated runtime: use EngineHost.saveBroker(), not saveDirectory()",
-    )
+    // The real save folder's path. Native code linked with the file layer
+    // (plugin-native/enginehost_vfs_forward.c) opens files under it like
+    // any other path, and IsolatedVfs routes them to the save broker;
+    // java.io.File cannot reach it from this UID, so Java code uses
+    // saveBroker(). fileSystem() is the in-process stream API the brokers
+    // replace (docs/engine-sandbox.md).
+    override fun saveDirectory(): File = saveFolder
     override fun fileSystem(): EngineFileSystem = throw UnsupportedOperationException(
         "isolated runtime: use EngineHost.gameBroker()/saveBroker(), not fileSystem()",
     )

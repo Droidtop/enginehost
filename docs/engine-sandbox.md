@@ -414,6 +414,79 @@ which is the entire point.
   exists per-engine in embryonic form (a single files-abstraction module),
   it just currently opens real paths instead of asking a callback.
 
+#### Files by path: one host VFS for every native engine (2026-10-10)
+
+The per-engine seam above held for CatSystem2 and CMVS, whose file access
+already ran through one small module each. It does not hold for the rest:
+CPython (Ren'Py), Godot's `FileAccessUnix`/`DirAccessUnix`, KiriKiri (about
+fifteen files call `fopen` outside its storage layer), onscripter (23 files),
+OpenBGI (`chdir` into the game folder, then relative `fopen`/`opendir`/`stat`
+throughout) and EasyRPG all open files by path from many places. A seam per
+engine would be a broker port per engine, each reviewed and kept in step
+separately. So the seam moves down to where every one of them meets the
+platform, without the objections above:
+
+- **Link time, not load time.** An engine library is linked with
+  `plugin-native/enginehost_vfs_forward.c` and `-Wl,--wrap=<name>` for the
+  libc file calls (`plugin-native/enginehost_vfs.cmake`: `open`, `openat`,
+  their `64` and FORTIFY `__open_2` forms, `fopen`, `fclose`, `close`,
+  `stat`/`lstat`/`fstatat`, `access`, `opendir`/`readdir`/`scandir`,
+  `mkdir`, `unlink`, `rename`, `chdir`, `getcwd`, `realpath`). `--wrap`
+  rewrites the library's own undefined references, static archives linked
+  into it included, so vendored decoders are covered; nothing depends on
+  the dynamic linker, `LD_PRELOAD` or patching an import table. It is
+  visible in each plugin's build file.
+- **One implementation, in the host.** The forwarder only forwards: to
+  Enginehost's table when one is bound, to libc when not (an in-process
+  launch, or an older host). The table is `app/src/main/cpp/isolated_vfs.c`
+  in `libenginehost_sandbox.so`, bound into each plugin library as the
+  isolated runtime loads it (`isolated_native_bridge.c` calls the library's
+  `enginehost_vfs_bind`). Fixing it fixes every engine at once.
+- **Same paths as in-process.** The isolated runtime is now given the game
+  and save folders' real paths (`IEngineRuntimeService.init`'s `gamePath`,
+  `savePath`; `EngineHost.saveDirectory()` answers the save path) and
+  mounts them on their brokers (`IsolatedVfs`). An engine is handed the
+  same strings it gets in-process and opens files under them as it always
+  did. Paths outside the two folders go to libc and meet the isolated UID's
+  real permissions.
+- **What the engine sees under a folder.** Names resolve case-insensitively
+  when the exact name is absent (as on Android's shared storage and the
+  Windows filesystems these games target). Reads are the host's read-only
+  descriptor, seekable and mmap-able. Writes go to a fresh file that
+  replaces the real one when the engine closes it; an update without
+  `O_TRUNC` copies the old bytes in first. Listings are fetched once
+  (`IEngineFileBroker.listEntries`, names with kind, size and modified time
+  in one transaction) and cached; changes made through the layer drop the
+  listings they touch. `chdir` into a folder is remembered by the layer,
+  since the isolated process cannot enter it.
+- **Limits.** Calls made from inside another shared library are not
+  wrapped: an engine that uses one (`libc++_shared.so`, a separately loaded
+  SDL) links it statically into the wrapped library. Java code in the
+  plugin cannot use `java.io.File` on these folders from the isolated UID;
+  it uses `gameBroker()`/`saveBroker()`. A C++ static initialiser that opens
+  a game file while the library is still loading runs before the bind.
+- **Tested.** `app/src/test/native/run.sh` builds the layer exactly as it is
+  split on a device (the table in an unwrapped shared library, an "engine"
+  linked with the forwarder and the same `--wrap` list) and runs it against
+  a broker over temporary directories, in CI before the Gradle build.
+
+CatSystem2's and CMVS's own broker seams (`cs2_broker`, `cmvs_broker`) do
+the same job by hand and become a second mechanism once those plugins link
+the forwarder; they are to be replaced by it and deleted, not kept beside it.
+
+#### Saves beside the game (2026-10-10)
+
+The save rule (CLAUDE.md: Enginehost
+does not change an engine's save logic; engines that save beside the game
+keep doing so) collides with a read-only game folder: OpenBGI writes
+`BGI.gdb` and its save data there, as do RPG Maker 2000/2003, XP/VX/Ace,
+KiriKiri and onscripter on their desktop originals. A bundle that declares
+`writesGameFolder: true` (docs/engine-bundle-format.md) gets a writable game
+folder broker; every other bundle's stays read-only. The scope is still the
+one game folder of the one launch.
+
+#### The bundle's own files
+
 **The bundle's own files (built, twice-revised from this section's first
 draft -- read this as the current account, not the history).** Not part
 of the per-launch broker (bundle contents are install-time verified and
