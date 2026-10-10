@@ -91,6 +91,10 @@ static void confined(int broker) {
     }
     EXPECT(seen, "game folder lists");
 
+    snprintf(path, sizeof(path), "%s/alias/data.txt", root);
+    fd = open(path, O_RDONLY);
+    EXPECT(fd >= 0, "an alias of an allowed folder (as /sdcard is of /storage/emulated/0)");
+    if (fd >= 0) close(fd);
     snprintf(path, sizeof(path), "%s/key", secret);
     EXPECT(refused(open(path, O_RDONLY)), "file outside the policy refused");
     EXPECT(refused(stat(path, &st)), "stat outside the policy refused");
@@ -167,6 +171,8 @@ int main(void) {
     char link[400];
     snprintf(link, sizeof(link), "%s/escape", game);
     if (symlink(path, link) != 0) { perror("symlink"); return 2; }
+    snprintf(link, sizeof(link), "%s/alias", root);
+    if (symlink(game, link) != 0) { perror("symlink"); return 2; }
 
     int pair[2];
     if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, pair) != 0) { perror("socketpair"); return 2; }

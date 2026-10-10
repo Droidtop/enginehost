@@ -199,17 +199,13 @@ static int rewrite_proc(char *path, pid_t pid, pid_t tid) {
 }
 
 /*
- * The path as the kernel would resolve it. follow_last: resolve the final
- * component too (open, stat, access, statfs). Otherwise only the parent
- * is resolved and the final name appended (lstat, readlink, unlink,
- * rename, mkdir). A create of a name that does not exist yet also
- * resolves its parent only.
+ * The path as the kernel would resolve it: the parent through realpath(),
+ * then the final name, followed only when follow_last and only when it is
+ * a symlink. readlink() answers EINVAL for anything else without the stat
+ * that realpath() would make, which SELinux can refuse where access() and
+ * open() are allowed (libhidl's access() of /system/bin/hwservicemanager).
  */
-static int resolve(const char *path, int follow_last, int may_create, char *out) {
-    if (follow_last) {
-        if (realpath(path, out)) return 0;
-        if (errno != ENOENT || !may_create) return -errno;
-    }
+static int resolve(const char *path, int follow_last, char *out) {
     if (strcmp(path, "/") == 0) {
         strcpy(out, "/");
         return 0;
@@ -229,6 +225,12 @@ static int resolve(const char *path, int follow_last, int may_create, char *out)
     if (strlen(real_parent) + 1 + strlen(name) >= SBX_PATH_MAX) return -ENAMETOOLONG;
     if (strcmp(real_parent, "/") == 0) snprintf(out, SBX_PATH_MAX, "/%s", name);
     else snprintf(out, SBX_PATH_MAX, "%s/%s", real_parent, name);
+    if (!follow_last) return 0;
+    char target[SBX_PATH_MAX];
+    if (readlink(out, target, sizeof(target)) < 0) return 0;
+    char linked[PATH_MAX];
+    if (!realpath(out, linked)) return -errno;
+    snprintf(out, SBX_PATH_MAX, "%s", linked);
     return 0;
 }
 
@@ -259,25 +261,31 @@ static int open_wants_write(int flags) {
     return (flags & O_ACCMODE) != O_RDONLY || (flags & (O_CREAT | O_TRUNC | O_APPEND)) != 0;
 }
 
-/* Checks one path both ways; fills real. need: SBX_READ, SBX_WRITE, or TRAVERSE for stat-like calls. */
+static int permits(unsigned mode, unsigned need) {
+    return need == TRAVERSE ? mode != SBX_DENY : (mode != TRAVERSE && (mode & need) == need);
+}
+
+/*
+ * Checks one path and fills real; need is SBX_READ, SBX_WRITE, or TRAVERSE
+ * for stat-like calls. The path as asked must be allowed, or else the path
+ * it resolves to (an alias such as /sdcard for /storage/emulated/0); a path
+ * allowed neither way is refused whether or not it exists. The resolved
+ * path must always be allowed.
+ */
 static int check(const struct sbx_policy *policy, uint32_t op, const char *asked, const char *base, size_t len,
-                 const char *raw, pid_t pid, pid_t tid, unsigned need, int follow_last, int may_create,
-                 char *real) {
+                 const char *raw, pid_t pid, pid_t tid, unsigned need, int follow_last, char *real) {
     char normal[SBX_PATH_MAX];
     int error = normalise(base, raw, len, normal);
     if (error == 0) error = rewrite_proc(normal, pid, tid);
     if (error != 0) return error;
-    unsigned mode = allowed(policy, normal, pid);
-    int ok = (need == TRAVERSE) ? mode != SBX_DENY : (mode != TRAVERSE && (mode & need) == need);
-    if (!ok) {
+    int as_asked = permits(allowed(policy, normal, pid), need);
+    error = resolve(normal, follow_last, real);
+    if (error != 0) {
+        if (as_asked) return error;
         log_refusal(op_name(op), asked, normal, EACCES);
         return -EACCES;
     }
-    error = resolve(normal, follow_last, may_create, real);
-    if (error != 0) return error;
-    mode = allowed(policy, real, pid);
-    ok = (need == TRAVERSE) ? mode != SBX_DENY : (mode != TRAVERSE && (mode & need) == need);
-    if (!ok) {
+    if (!permits(allowed(policy, real, pid), need)) {
         log_refusal(op_name(op), asked, real, EACCES);
         return -EACCES;
     }
@@ -323,12 +331,11 @@ static void handle(const struct sbx_policy *policy, const struct sbx_request *re
     case SBX_OPEN: {
         int flags = request->flags;
         int writing = open_wants_write(flags);
-        int creating = (flags & O_CREAT) != 0;
         /* O_PATH reads nothing: it is a handle to look things up from, like a traversal. */
         unsigned need = writing ? SBX_WRITE : (flags & O_PATH) ? TRAVERSE : SBX_READ;
         /* O_NOFOLLOW means the link itself, so only its parent is resolved and the flag kept. */
         error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, need,
-                      !(flags & O_NOFOLLOW), creating, real);
+                      !(flags & O_NOFOLLOW), real);
         if (error != 0) break;
         /* Opened by the resolved path; no controlling terminal; never inherited by the broker's children. */
         int fd = open(real, flags | O_NOCTTY | O_CLOEXEC, (mode_t) request->mode);
@@ -336,8 +343,7 @@ static void handle(const struct sbx_policy *policy, const struct sbx_request *re
         char opened[SBX_PATH_MAX];
         if (fd_path(fd, opened) == 0 && opened[0] == '/') {
             unsigned mode = allowed(policy, opened, pid);
-            int ok = need == TRAVERSE ? mode != SBX_DENY : (mode != TRAVERSE && (mode & need) == need);
-            if (!ok) {
+            if (!permits(mode, need)) {
                 log_refusal("open", asked, opened, EACCES);
                 close(fd);
                 error = -EACCES;
@@ -351,7 +357,7 @@ static void handle(const struct sbx_policy *policy, const struct sbx_request *re
     case SBX_STAT: {
         int follow = !(request->flags & AT_SYMLINK_NOFOLLOW);
         error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, TRAVERSE,
-                      follow, 0, real);
+                      follow, real);
         if (error != 0) break;
         struct stat st;
         if ((follow ? stat(real, &st) : lstat(real, &st)) != 0) { error = -errno; break; }
@@ -360,15 +366,13 @@ static void handle(const struct sbx_policy *policy, const struct sbx_request *re
     }
     case SBX_ACCESS: {
         unsigned need = (request->mode & W_OK) ? SBX_WRITE : (request->mode & R_OK) ? SBX_READ : TRAVERSE;
-        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, need, 1, 0,
-                      real);
+        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, need, 1, real);
         if (error != 0) break;
         error = access(real, (int) request->mode) == 0 ? 0 : -errno;
         break;
     }
     case SBX_READLINK: {
-        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, TRAVERSE, 0,
-                      0, real);
+        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, TRAVERSE, 0, real);
         if (error != 0) break;
         char target[SBX_PATH_MAX];
         ssize_t n = readlink(real, target, sizeof(target));
@@ -378,24 +382,21 @@ static void handle(const struct sbx_policy *policy, const struct sbx_request *re
         return;
     }
     case SBX_MKDIR:
-        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, SBX_WRITE, 0,
-                      1, real);
+        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, SBX_WRITE, 0, real);
         if (error == 0) error = mkdir(real, (mode_t) request->mode) == 0 ? 0 : -errno;
         break;
     case SBX_UNLINK:
-        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, SBX_WRITE, 0,
-                      0, real);
+        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, SBX_WRITE, 0, real);
         if (error == 0) error = ((request->flags & AT_REMOVEDIR) ? rmdir(real) : unlink(real)) == 0 ? 0 : -errno;
         break;
     case SBX_RENAME: {
-        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, SBX_WRITE, 0,
-                      0, real);
+        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, SBX_WRITE, 0, real);
         if (error != 0) break;
         char asked2[SBX_PATH_MAX];
         snprintf(asked2, sizeof(asked2), "%.*s", (int) request->path2_len, path2);
         char real2[SBX_PATH_MAX];
         error = check(policy, request->op, asked2, base2, request->path2_len, path2, pid, request->tid,
-                      SBX_WRITE, 0, 1, real2);
+                      SBX_WRITE, 0, real2);
         if (error != 0) break;
         if (request->flags != 0) {
             error = syscall(__NR_renameat2, AT_FDCWD, real, AT_FDCWD, real2, (unsigned) request->flags) == 0
@@ -406,8 +407,7 @@ static void handle(const struct sbx_policy *policy, const struct sbx_request *re
         break;
     }
     case SBX_STATFS: {
-        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, TRAVERSE, 1,
-                      0, real);
+        error = check(policy, request->op, asked, base, request->path_len, path, pid, request->tid, TRAVERSE, 1, real);
         if (error != 0) break;
         struct statfs st;
         if (statfs(real, &st) != 0) { error = -errno; break; }
