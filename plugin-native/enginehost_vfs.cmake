@@ -18,7 +18,8 @@ set(ENGINEHOST_VFS_WRAPPED
     stat stat64 lstat lstat64 fstatat fstatat64 access faccessat
     opendir readdir readdir64 closedir rewinddir dirfd scandir
     mkdir rmdir unlink unlinkat remove rename
-    chdir getcwd realpath)
+    chdir getcwd realpath
+    exit)
 
 function(enginehost_vfs target)
     target_sources(${target} PRIVATE ${ENGINEHOST_VFS_DIR}/enginehost_vfs_forward.c)

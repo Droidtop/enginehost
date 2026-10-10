@@ -20,7 +20,7 @@ $cc $flags -fPIC -shared -o "$out/libehvfs.so" \
 # shellcheck disable=SC2086
 $cc $flags -o "$out/vfs_test" \
     "$root/app/src/test/native/vfs_test_engine.c" "$root/plugin-native/enginehost_vfs_forward.c" \
-    $wraps -L"$out" -lehvfs -Wl,-rpath,"$out"
+    $wraps -L"$out" -lehvfs -Wl,-rpath,"$out" -lpthread
 "$out/vfs_test"
 
 # The audio ring writer plugins copy (plugin-native/enginehost_audio_ring.c).

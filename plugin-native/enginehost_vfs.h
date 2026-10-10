@@ -69,6 +69,13 @@ struct enginehost_vfs_table {
     int (*scandir)(const char *path, struct dirent ***names,
                    int (*filter)(const struct dirent *),
                    int (*compare)(const struct dirent **, const struct dirent **));
+    /*
+     * The engine ending itself with exit(). In the isolated runtime that
+     * tells the host the game is over and ends only the calling thread, so
+     * the host closes the game as it does any game that ended, instead of
+     * finding its runtime dead. Returns when it cannot (then exit proceeds).
+     */
+    void (*exit)(int status);
 };
 
 /*

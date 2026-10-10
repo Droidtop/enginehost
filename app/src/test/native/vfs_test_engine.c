@@ -12,6 +12,7 @@
  */
 #define _GNU_SOURCE
 #include <dirent.h>
+#include <pthread.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -24,6 +25,13 @@
 
 int vfs_test_mount(const char *virtual_root, const char *real_root, int which, int writable);
 const struct enginehost_vfs_table *ehvfs_table(void);
+void vfs_test_watch_exit(void);
+int vfs_test_exit_status(void);
+
+static void *engine_thread_that_quits(void *unused) {
+    (void) unused;
+    exit(7);
+}
 
 #define GAME "/enginehost-test/game"
 #define SAVE "/enginehost-test/save"
@@ -236,6 +244,13 @@ int main(void) {
     write_real(path, "plain");
     text = read_all(path);
     CHECK(text != NULL && strcmp(text, "plain") == 0);
+
+    /* exit() from an engine thread ends that thread and tells the host; the process goes on. */
+    vfs_test_watch_exit();
+    pthread_t quitter;
+    CHECK(pthread_create(&quitter, NULL, engine_thread_that_quits, NULL) == 0);
+    CHECK(pthread_join(quitter, NULL) == 0);
+    CHECK(vfs_test_exit_status() == 7);
 
     if (g_failures == 0) printf("isolated_vfs: all checks passed\n");
     return g_failures == 0 ? 0 : 1;

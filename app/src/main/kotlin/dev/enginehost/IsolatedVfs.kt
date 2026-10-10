@@ -25,6 +25,10 @@ internal object IsolatedVfs {
     private const val EACCES = 13
     private const val EROFS = 30
 
+    /** Set once engine code has called exit(): the game is over (isolated_vfs.c vfs_exit). */
+    @Volatile var engineExited: Boolean = false
+        private set
+
     @Volatile private var game: IEngineFileBroker? = null
     @Volatile private var save: IEngineFileBroker? = null
 
@@ -99,6 +103,12 @@ internal object IsolatedVfs {
     fun list(root: Int, relative: String): BrokerListing? = runCatching {
         broker(root)?.listEntries(relative)
     }.onFailure { Log.w(TAG, "listing $relative failed", it) }.getOrNull()
+
+    @JvmStatic
+    fun engineExited(status: Int) {
+        Log.i(TAG, "the engine ended itself (exit $status)")
+        engineExited = true
+    }
 
     @JvmStatic private external fun install0(gamePath: String?, gameWritable: Boolean, savePath: String?): Int
 }

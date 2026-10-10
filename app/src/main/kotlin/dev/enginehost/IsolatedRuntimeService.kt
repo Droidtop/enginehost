@@ -272,6 +272,9 @@ class IsolatedRuntimeService : Service() {
         private var frameBytes: ByteArray = ByteArray(0)
 
         override fun step(): Int = runCatching {
+            // An engine that ends with exit() (ONScripter's quit, for one)
+            // ends the game, not the process: see IsolatedVfs.engineExited.
+            if (IsolatedVfs.engineExited) return@runCatching -1
             val driven = stepDriven ?: return@runCatching -1
             val width = driven.pixelWidth()
             val height = driven.pixelHeight()

@@ -21,6 +21,7 @@ static JavaVM *g_vm;
 static jclass g_class;
 static jmethodID g_open_read, g_open_write, g_commit_write, g_remove, g_make_directory, g_rename, g_list;
 static jfieldID g_listing_names, g_listing_info;
+static jmethodID g_engine_exited;
 
 static JNIEnv *thread_env(void) {
     JNIEnv *env = NULL;
@@ -156,6 +157,13 @@ static int broker_list(void *context, const char *relative, struct ehvfs_entry *
     return 0;
 }
 
+static void report_exit(int status) {
+    JNIEnv *env = thread_env();
+    if (env == NULL) return;
+    (*env)->CallStaticVoidMethod(env, g_class, g_engine_exited, (jint) status);
+    (*env)->ExceptionClear(env);
+}
+
 static int mount_root(JNIEnv *env, jstring root, int which, int writable) {
     if (root == NULL) return 0;
     const char *path = (*env)->GetStringUTFChars(env, root, NULL);
@@ -192,7 +200,9 @@ Java_dev_enginehost_IsolatedVfs_install0(JNIEnv *env, jclass local, jstring game
                                        "(ILjava/lang/String;)Ldev/enginehost/runtime/BrokerListing;");
     g_listing_names = (*env)->GetFieldID(env, listing, "names", "[Ljava/lang/String;");
     g_listing_info = (*env)->GetFieldID(env, listing, "info", "[J");
+    g_engine_exited = (*env)->GetStaticMethodID(env, g_class, "engineExited", "(I)V");
     if ((*env)->ExceptionCheck(env) || g_class == NULL) return -EIO;
+    ehvfs_set_exit_hook(report_exit);
     int result = mount_root(env, game_root, ROOT_GAME, game_writable == JNI_TRUE);
     if (result == 0) result = mount_root(env, save_root, ROOT_SAVE, 1);
     return result;

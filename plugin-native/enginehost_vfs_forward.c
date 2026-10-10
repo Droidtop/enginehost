@@ -61,6 +61,7 @@ int __real_rename(const char *from, const char *to);
 int __real_chdir(const char *path);
 char *__real_getcwd(char *buffer, size_t size);
 char *__real_realpath(const char *path, char *resolved);
+void __real_exit(int status) __attribute__((noreturn));
 int __real_scandir(const char *path, struct dirent ***names,
                    int (*filter)(const struct dirent *),
                    int (*compare)(const struct dirent **, const struct dirent **));
@@ -234,4 +235,9 @@ int __wrap_scandir(const char *path, struct dirent ***names,
                    int (*filter)(const struct dirent *),
                    int (*compare)(const struct dirent **, const struct dirent **)) {
     return g_vfs ? g_vfs->scandir(path, names, filter, compare) : __real_scandir(path, names, filter, compare);
+}
+
+void __wrap_exit(int status) {
+    if (g_vfs) g_vfs->exit(status);
+    __real_exit(status);
 }

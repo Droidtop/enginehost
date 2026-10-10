@@ -54,4 +54,11 @@ int ehvfs_mount(const char *root, const struct ehvfs_broker *broker, int writabl
 /* The table every bound plugin library calls into. */
 const struct enginehost_vfs_table *ehvfs_table(void);
 
+/*
+ * Called when engine code calls exit(); the calling thread then ends there
+ * (the process goes on until the host ends it). Not on the process's main
+ * thread, where exit proceeds as usual.
+ */
+void ehvfs_set_exit_hook(void (*hook)(int status));
+
 #endif

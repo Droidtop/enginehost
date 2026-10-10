@@ -111,3 +111,17 @@ int vfs_test_mount(const char *virtual_root, const char *real_root, int which, i
     };
     return ehvfs_mount(virtual_root, &broker, writable);
 }
+
+static volatile int g_exit_status = -1;
+
+static void record_exit(int status) {
+    g_exit_status = status;
+}
+
+void vfs_test_watch_exit(void) {
+    ehvfs_set_exit_hook(record_exit);
+}
+
+int vfs_test_exit_status(void) {
+    return g_exit_status;
+}

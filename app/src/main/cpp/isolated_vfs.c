@@ -1039,6 +1039,18 @@ static char *vfs_realpath(const char *path, char *resolved) {
     return out;
 }
 
+static void (*g_exit_hook)(int status);
+
+void ehvfs_set_exit_hook(void (*hook)(int status)) {
+    g_exit_hook = hook;
+}
+
+static void vfs_exit(int status) {
+    if (g_exit_hook == NULL || getpid() == gettid()) return;
+    g_exit_hook(status);
+    pthread_exit(NULL);
+}
+
 static const struct enginehost_vfs_table g_table = {
     .size = sizeof(struct enginehost_vfs_table),
     .version = ENGINEHOST_VFS_VERSION,
@@ -1067,6 +1079,7 @@ static const struct enginehost_vfs_table g_table = {
     .getcwd = vfs_getcwd,
     .realpath = vfs_realpath,
     .scandir = vfs_scandir,
+    .exit = vfs_exit,
 };
 
 const struct enginehost_vfs_table *ehvfs_table(void) {
