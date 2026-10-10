@@ -84,6 +84,12 @@ class RuntimeActivity : FragmentActivity() {
         CrashWatch.arm(this, gameFolder, resolved.plugin.bundleId)
         try {
             val verifiedManifest = InstalledBundleVerifier.verify(this, resolved.plugin)
+            if (RuntimeSandbox.lockdownRequested() && !RuntimeSandbox.lockdown(
+                    this, gameFolder, resolved.plugin.writesGameFolder, saveFolder, resolved.plugin.directory,
+                )
+            ) {
+                return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")
+            }
             val instance = loadPlugin(resolved.plugin)
             val host = RuntimeHost(this, gameFolder, resolved.plugin.bundleId, saveFolder)
             instance.onCreate(

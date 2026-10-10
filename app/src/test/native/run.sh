@@ -27,3 +27,7 @@ $cc $flags -o "$out/vfs_test" \
 $cc $flags -o "$out/audio_ring_test" \
     "$root/app/src/test/native/audio_ring_test.c" "$root/plugin-native/enginehost_audio_ring.c"
 "$out/audio_ring_test"
+
+# The process lockdown and its broker (app/src/main/cpp/sbx), on this host's kernel.
+$cc $flags -o "$out/sbx_test"     "$root/app/src/test/native/sbx_test.c" "$root/app/src/main/cpp/sbx/sbx_lockdown.c"     "$root/app/src/main/cpp/sbx/sbx_broker.c" -lpthread
+TMPDIR="$out" "$out/sbx_test"

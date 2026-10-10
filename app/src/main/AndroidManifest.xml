@@ -130,6 +130,12 @@
             android:exported="true"
             android:grantUriPermissions="false" />
 
+        <!-- The process lockdown's file broker (RuntimeSandbox.lockdown); main process, this app only. -->
+        <provider
+            android:name=".SandboxBrokerProvider"
+            android:authorities="dev.enginehost.sandbox"
+            android:exported="false" />
+
         <activity
             android:name=".ProblemReportActivity"
             android:exported="false"
