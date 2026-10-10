@@ -2140,7 +2140,7 @@ is `app/src/main/cpp/sbx/`, general rather than Enginehost-specific
   process that opened it, so a broker-opened `/dev/hwbinder` fails to map
   ("Mmapping /dev/hwbinder failed: Invalid argument", emulator-5560). The
   process opens those itself just before the lockdown (`/dev/hwbinder`,
-  `/dev/vndbinder`, and the GPU nodes that keep per-process state:
+  and the GPU nodes that keep per-process state:
   `/dev/kgsl-3d0`, `/dev/mali0`, `/dev/dri/renderD128`), and the handler
   answers a later open of exactly that path with a duplicate.
 - The policy (`RuntimeSandbox.policy`): the game folder (read-only unless
