@@ -113,15 +113,14 @@ static int normalise(const char *base, const char *path, size_t path_len, char *
     return 0;
 }
 
+static int resolve(const char *path, int follow_last, char *out);
+
 int sbx_policy_add(struct sbx_policy *policy, const char *path, unsigned mode) {
     if (!policy || !path || path[0] != '/') return -EINVAL;
-    char canonical[PATH_MAX];
     char normal[SBX_PATH_MAX];
-    const char *chosen = realpath(path, canonical);
-    if (!chosen) {
-        if (normalise("/", path, strlen(path), normal) != 0) return -ENAMETOOLONG;
-        chosen = normal;
-    }
+    char canonical[SBX_PATH_MAX];
+    if (normalise("/", path, strlen(path), normal) != 0) return -ENAMETOOLONG;
+    const char *chosen = resolve(normal, 1, canonical) == 0 ? canonical : normal;
     struct rule *grown = realloc(policy->rules, (policy->count + 1) * sizeof(struct rule));
     if (!grown) return -ENOMEM;
     policy->rules = grown;

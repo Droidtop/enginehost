@@ -155,7 +155,7 @@ object RuntimeSandbox {
      * /dev/hwbinder; a broker-opened one fails with EINVAL) and the GPU
      * drivers that keep per-process state (kgsl, Mali, DRM render nodes).
      */
-    private val OWN_OPENS = arrayOf("/dev/hwbinder", "/dev/vndbinder", "/dev/kgsl-3d0", "/dev/mali0", "/dev/dri/renderD128")
+    private val OWN_OPENS = arrayOf("/dev/hwbinder", "/dev/kgsl-3d0", "/dev/mali0", "/dev/dri/renderD128")
 
     private const val SBX_READ = 1
     private const val SBX_WRITE = 2
