@@ -22,3 +22,8 @@ $cc $flags -o "$out/vfs_test" \
     "$root/app/src/test/native/vfs_test_engine.c" "$root/plugin-native/enginehost_vfs_forward.c" \
     $wraps -L"$out" -lehvfs -Wl,-rpath,"$out"
 "$out/vfs_test"
+
+# The audio ring writer plugins copy (plugin-native/enginehost_audio_ring.c).
+$cc $flags -o "$out/audio_ring_test" \
+    "$root/app/src/test/native/audio_ring_test.c" "$root/plugin-native/enginehost_audio_ring.c"
+"$out/audio_ring_test"
