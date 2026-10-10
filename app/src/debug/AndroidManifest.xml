@@ -29,5 +29,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- The process lockdown's evidence run, in the runtime process. See DebugLockdownProbeActivity. -->
+        <activity
+            android:name=".DebugLockdownProbeActivity"
+            android:exported="true"
+            android:permission="android.permission.DUMP"
+            android:process=":runtime" />
     </application>
 </manifest>
