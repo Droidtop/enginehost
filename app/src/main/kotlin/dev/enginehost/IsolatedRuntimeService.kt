@@ -8,7 +8,6 @@ import android.os.ParcelFileDescriptor
 import android.system.Os
 import android.system.OsConstants
 import android.util.Log
-import android.view.Surface
 import dev.enginehost.api.EngineControllerEvent
 import dev.enginehost.api.EngineFileBroker
 import dev.enginehost.api.EngineFileSystem
@@ -236,19 +235,13 @@ class IsolatedRuntimeService : Service() {
                 runtimeRequirements, runtimeComponents,
             )
             loaded.plugin.onCreate(session)
-            // Sandbox layer 2's original (CatSystem2/CMVS) shape requires
-            // EngineStepDriven: the host drives frames itself into a
-            // software pixel buffer, never depending on this process
-            // reaching SurfaceFlinger. usesSurface() (docs/engine-sandbox.md
-            // "Surface handoff") is the other, later-added shape for a
-            // plugin that owns a real GPU-rendering surface instead (SDL
-            // and other engines migrating off runtimeTransport:
-            // android-activity) -- exactly one of the two is required, a
-            // plugin implementing neither is not eligible to run isolated
-            // at all under either mechanism.
+            // The one isolated shape: the host drives frames itself into a
+            // software pixel buffer. An isolated process can never render
+            // on the GPU (docs/engine-sandbox.md "GPU rendering is closed
+            // to isolated processes"), so there is no Surface shape.
             val driven = loaded.plugin as? EngineStepDriven
-            require(driven != null || loaded.plugin.usesSurface()) {
-                "${loaded.plugin.javaClass.name} implements neither EngineStepDriven nor usesSurface(); not eligible to run isolated"
+            require(driven != null) {
+                "${loaded.plugin.javaClass.name} does not implement EngineStepDriven; not eligible to run isolated"
             }
             plugin = loaded.plugin
             stepDriven = driven
@@ -256,15 +249,6 @@ class IsolatedRuntimeService : Service() {
 
         override fun pixelWidth(): Int = stepDriven?.pixelWidth() ?: 0
         override fun pixelHeight(): Int = stepDriven?.pixelHeight() ?: 0
-
-        /** EnginePlugin.usesSurface(); see the AIDL doc comment. */
-        override fun usesSurface(): Boolean = plugin?.usesSurface() ?: false
-
-        /** EnginePlugin.attachIsolatedSurface(); see the AIDL doc comment. */
-        override fun setGameSurface(surface: Surface) {
-            runCatching { plugin?.attachIsolatedSurface(surface) }
-                .onFailure { Log.e(TAG, "attachIsolatedSurface failed", it) }
-        }
 
         /** The host's own frame buffer (docs/engine-sandbox.md "Audio" precedent); see the AIDL doc comment. */
         override fun setFrameBuffer(buffer: ParcelFileDescriptor) {

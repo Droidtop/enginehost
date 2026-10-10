@@ -1956,6 +1956,49 @@ ruled out by this result -- worth a second, smaller exerciser if BlueStacks
 confirms the same block, before concluding no isolated GPU rendering is
 possible at all.
 
+#### GPU rendering is closed to isolated processes, on every device (2026-10-10)
+
+The emulator result above was not a goldfish quirk. AOSP's own policy
+forbids it: `system/sepolicy` `private/isolated_app.te` (android13-release,
+the RP5's release) carries
+
+```
+# Isolated apps shouldn't be able to access the driver directly.
+neverallow isolated_app gpu_device:chr_file { rw_file_perms execute };
+```
+
+and main carries the same rule for `isolated_app_all` (every isolated
+domain except `isolated_compute_app`, which apps cannot ask for). A
+neverallow is checked by CTS, so no certified device's vendor policy may
+grant it; the Retroid Pocket 5's Adreno driver node is `gpu_device` like
+every other. An `android:isolatedProcess="true"` service therefore cannot
+open the GPU at all: no GLES, no Vulkan, no hardware-composited View or
+WebView. The graphics allocator denial above is the same wall seen from
+the buffer side. BlueStacks does not show it only because its instance
+runs with SELinux disabled (`getenforce`: Disabled, 2026-10-10), so it is
+not evidence either way for isolation questions.
+
+Consequences, decided here:
+
+- **The Surface handoff is deleted, not deferred.** `usesSurface()`,
+  `attachIsolatedSurface()`, `IEngineRuntimeService.setGameSurface()` and
+  the debug-build exerciser (`DebugSurfaceTestActivity`/`Service`) could
+  never work on a certified device and nothing used them. The one
+  isolated shape is `EngineStepDriven`: the engine renders into memory and
+  the host draws it.
+- **Engines that already render in software** (CatSystem2, CMVS, and the
+  SDL engines that composite in software: OpenBGI, AGS's software
+  renderer, EasyRPG, onscripter) fit that shape directly.
+- **Engines that need GLES or Vulkan** (Godot, Ren'Py, LOVE, mkxp-z,
+  KiriKiri) can only run isolated on a software GL implementation inside
+  the isolated process, at a real cost in frame rate on a handheld, or
+  under a different UID that is not an isolated one. Which of those is the
+  owner's decision (Droidtop/tracker#26); nothing here assumes it.
+- **WebView engines** (HTML, RPG Maker MV/MZ, Flash via Ruffle) cannot
+  draw inside an isolated process for the same reason. Their game code
+  already runs in Chromium's own sandboxed renderer process; whether that
+  counts as their sandbox is part of the same decision.
+
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
 The static-method-contract finding above (`nativeSetupJNI`'s `cls` parameter)

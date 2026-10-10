@@ -215,8 +215,9 @@ uses the joypad HLL needs it; nothing here predetermines its ids.
 
 **Sandbox.** The first bundle targets the ordinary (non-isolated)
 plugin-api launch, exactly the sequencing the LOVE adapter is proving:
-`usesSurface()`/`attachIsolatedSurface` and the file broker are the
-adapter milestone after this one, `isolatable: true` stays the
+the file broker and a software frame (an isolated process cannot open
+the GPU; the sandbox doc, "GPU rendering is closed to isolated
+processes") are the milestone after this one, `isolatable: true` stays the
 mandatory goal for every official plugin, and until it lands the
 per-launch "Run unsandboxed?" warning keeps showing for this bundle as
 for the others. The engine's file reads at launch are the game folder

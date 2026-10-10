@@ -20,12 +20,8 @@ public interface EngineHost {
      * (docs/engine-sandbox.md "Correction... SDLSurface.java"). Null
      * under isolation (docs/engine-sandbox.md "Layer 2"): an isolated
      * service is never an Activity and never gets one, by the same rule
-     * that makes session.display() null there too. A plugin that needs
-     * this for its non-isolated launch and gets usesSurface()/
-     * attachIsolatedSurface() right for its isolated one can still run
-     * under both; a plugin that cannot do without a real Activity at all
-     * cannot be made isolatable, the same conclusion this document
-     * already reaches for runtimeTransport: android-activity itself.
+     * that makes session.display() null there too. A plugin that cannot
+     * do without a real Activity cannot be made isolatable.
      */
     default Activity activity() { return null; }
     /**

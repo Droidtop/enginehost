@@ -165,14 +165,11 @@ resource id"; then the transport migration):
 
 **Not yet isolatable.** This is the non-isolated half of the Single
 transport migration, deliberately first: it proves the transport change
-before the Surface-handoff question is settled. `EnginePlugin`'s
-`usesSurface()`/`attachIsolatedSurface()` and the host-side
-`setGameSurface` plumbing exist (the sandbox doc's "Surface handoff"
-sections); what gates `isolatable: true` is the still-open platform
-question the sandbox doc records with rig evidence -- on emulator-5560
-SELinux denies `isolated_app` use of the graphics allocator fd, the
-BlueStacks half is pending, and the fallback is the
-software-readback path. The PhysFS broker seam (wiring
+before the rendering question is settled. That question is now answered:
+an isolated process can never open the GPU (the sandbox doc, "GPU
+rendering is closed to isolated processes"), so the Surface handoff was
+deleted and LOVE can only run isolated on software GL, or under a
+non-isolated sandbox UID; the owner decides which (Droidtop/tracker#26). The PhysFS broker seam (wiring
 `EngineFileBroker` into PhysFS's own `PHYSFS_Io` the way
 CatSystem2/CMVS's file layers were done) is the follow-on file work.
 Until then the per-launch "Run unsandboxed?" prompt shows exactly as

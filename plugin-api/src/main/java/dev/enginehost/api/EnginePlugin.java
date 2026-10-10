@@ -18,27 +18,4 @@ public interface EnginePlugin {
     default void onPause() throws Exception {}
     default void onStop() throws Exception {}
     default void onDestroy() throws Exception {}
-
-    /**
-     * True when this plugin renders GPU frames onto a real
-     * {@code android.view.Surface} (docs/engine-sandbox.md "Surface
-     * handoff") rather than the software pixel buffer
-     * {@link EngineStepDriven#step} drives. Checked once under isolation,
-     * after {@link #onCreate}: a plugin answering true is not required to
-     * implement {@link EngineStepDriven}, and one answering false (the
-     * default) must implement it to be eligible to run isolated at all
-     * (IsolatedRuntimeService's own check). Never checked for an
-     * in-process launch, which already gets a real {@code ViewGroup} from
-     * {@link EnginePluginSession#display()} to attach its own rendering
-     * surface into directly, in the same process.
-     */
-    default boolean usesSurface() { return false; }
-
-    /**
-     * Hands this plugin the {@code Surface} an isolated launch's
-     * host-owned view created (docs/engine-sandbox.md "Surface handoff");
-     * called at most once, only when {@link #usesSurface()} answered true
-     * and only under isolation. An in-process launch never calls this.
-     */
-    default void attachIsolatedSurface(android.view.Surface surface) {}
 }
