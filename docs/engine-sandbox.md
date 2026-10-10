@@ -474,6 +474,26 @@ CatSystem2's and CMVS's own broker seams (`cs2_broker`, `cmvs_broker`) do
 the same job by hand and become a second mechanism once those plugins link
 the forwarder; they are to be replaced by it and deleted, not kept beside it.
 
+#### Engines with a libretro core (2026-10-10)
+
+A libretro core is already the shape an isolated engine needs: it draws
+into memory and hands each frame over, produces sound as samples, polls its
+input, and opens its files with ordinary libc calls. EasyRPG Player ships
+one (`PLAYER_TARGET_PLATFORM=libretro`), as does onscripter-yuri
+(`src/onsyuri_libretro`). So instead of an adapter per engine,
+`plugin-native/libretro/` is the frontend half of the libretro API, once:
+`enginehost_libretro.c` runs the core on its own thread at the frame rate it
+asks for, keeps the newest frame (converted to ARGB_8888 at the size of the
+first one) for the plugin's `step()`, resamples the core's sound into the
+host's audio ring (calling a core that uses `SET_AUDIO_CALLBACK` whenever the
+ring has room), answers input from one RetroPad, a pointer and a mouse, and
+gives core options their defaults overridden by what the plugin passes.
+`LibretroPlugin.java` is the plugin side; a plugin subclasses it to say which
+contexts it runs, what the core loads, its options and its action-to-button
+map. The core, the frontend and the file layer link into one library. A core
+asking for a GPU context (`SET_HW_RENDER`) is refused, as an isolated process
+has none.
+
 #### Saves beside the game (2026-10-10)
 
 The save rule (CLAUDE.md: Enginehost
