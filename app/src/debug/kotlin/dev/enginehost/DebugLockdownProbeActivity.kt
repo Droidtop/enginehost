@@ -31,14 +31,12 @@ class DebugLockdownProbeActivity : Activity() {
         super.onCreate(savedInstanceState)
         val game = File(intent.getStringExtra("game") ?: "/sdcard/TestGames")
         val save = File(cacheDir, "lockdown-probe-save").apply { mkdirs() }
-        probes(game, save, "before")
+        offMain { probes(game, save, "before") }
         File(game, "probe-write.txt").delete()
         val locked = RuntimeSandbox.lockdown(this, game, false, save, File(filesDir, "engine-bundles-v1"))
         Log.i(TAG, "lockdown: $locked")
-        probes(game, save, "after")
-        val fromThread = Thread { probe("after", "game file from a new thread") { "${File(game, "main.lua").readBytes().size} bytes" } }
-        fromThread.start()
-        fromThread.join()
+        // A thread started after the lockdown, as every engine thread is.
+        offMain { probes(game, save, "after") }
         val view = GLSurfaceView(this)
         view.setEGLContextClientVersion(2)
         view.setRenderer(object : GLSurfaceView.Renderer {
@@ -61,6 +59,9 @@ class DebugLockdownProbeActivity : Activity() {
         })
         setContentView(view)
     }
+
+    /** Off the main thread, where Android refuses network calls before any sandbox could. */
+    private fun offMain(block: () -> Unit) = Thread(block).run { start(); join() }
 
     private fun probes(game: File, save: File, phase: String) {
         probe(phase, "game file") { "${File(game, "main.lua").readBytes().size} bytes" }

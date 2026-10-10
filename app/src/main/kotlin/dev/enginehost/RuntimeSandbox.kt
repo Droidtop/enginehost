@@ -122,7 +122,7 @@ object RuntimeSandbox {
         val rules = LinkedHashMap<String, Int>()
         listOf(
             "/system", "/system_ext", "/product", "/vendor", "/odm", "/apex", "/linkerconfig",
-            "/data/dalvik-cache", "/data/fonts", "/proc", "/sys", "/dev/__properties__",
+            "/data/dalvik-cache", "/data/fonts", "/data/resource-cache", "/proc", "/sys", "/dev/__properties__",
             File(context.applicationInfo.sourceDir).parent ?: context.applicationInfo.sourceDir,
             context.applicationInfo.nativeLibraryDir,
         ).forEach { rules[it] = SBX_READ }
