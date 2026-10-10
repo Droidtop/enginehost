@@ -111,7 +111,7 @@ object RuntimeSandbox {
             pair[1].close()
             return false
         }
-        val result = lockdown0(pair[1].detachFd())
+        val result = lockdown0(pair[1].detachFd(), OWN_OPENS)
         if (result == 0) Log.i(TAG, "Process locked down: files only through the broker, no sockets, no exec")
         else Log.w(TAG, "Process NOT locked down: errno ${-result}")
         return result == 0
@@ -149,11 +149,19 @@ object RuntimeSandbox {
         return serve0(fd, rules.keys.toTypedArray(), rules.values.toIntArray()) == 0
     }
 
+    /**
+     * Devices this process opens for itself before the lockdown, because the
+     * kernel ties the open file to the opener: binder (libhidl maps
+     * /dev/hwbinder; a broker-opened one fails with EINVAL) and the GPU
+     * drivers that keep per-process state (kgsl, Mali, DRM render nodes).
+     */
+    private val OWN_OPENS = arrayOf("/dev/hwbinder", "/dev/vndbinder", "/dev/kgsl-3d0", "/dev/mali0", "/dev/dri/renderD128")
+
     private const val SBX_READ = 1
     private const val SBX_WRITE = 2
 
     @JvmStatic private external fun denyInternet(): Int
-    @JvmStatic private external fun lockdown0(fd: Int): Int
+    @JvmStatic private external fun lockdown0(fd: Int, ownOpens: Array<String>): Int
     @JvmStatic private external fun serve0(fd: Int, paths: Array<String>, modes: IntArray): Int
 }
 

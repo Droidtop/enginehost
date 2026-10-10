@@ -34,10 +34,20 @@ extern "C" {
 /*
  * Confines the calling process. broker_fd is a connected SOCK_SEQPACKET
  * Unix socket whose other end a broker serves; the process keeps it.
+ *
+ * own_opens (NULL-terminated, or NULL) names devices the process must
+ * open for itself, because the kernel ties the open file to the process
+ * that opened it: a binder device opened by the broker cannot be mapped
+ * here (libhidl: "Mmapping /dev/hwbinder failed: Invalid argument"), and
+ * some GPU drivers keep per-process state the same way. Each is opened
+ * now, read-write, and an open of exactly that path later is answered
+ * with a duplicate, without asking the broker. One that cannot be opened
+ * now is skipped.
+ *
  * Returns 0 when every thread is confined, or a negative errno when
  * nothing was installed.
  */
-int sbx_lockdown(int broker_fd);
+int sbx_lockdown(int broker_fd, const char *const *own_opens);
 
 struct sbx_policy;
 

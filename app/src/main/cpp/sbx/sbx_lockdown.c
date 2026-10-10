@@ -94,6 +94,25 @@ static int broker = -1;
 static int start_dir = -1;
 static struct sigaction previous;
 
+#define OWN_MAX 8
+static struct {
+    char path[128];
+    int fd;
+} own[OWN_MAX];
+static int own_count;
+
+/* An open of a device the process opened for itself before the lockdown: a duplicate, or -ENOENT if not one. */
+static long own_open(const char *path, int flags) {
+    if (path == NULL || path[0] != '/') return -ENOENT;
+    for (int i = 0; i < own_count; i++) {
+        if (strcmp(own[i].path, path) == 0) {
+            int copy = fcntl(own[i].fd, (flags & O_CLOEXEC) ? F_DUPFD_CLOEXEC : F_DUPFD, 0);
+            return copy >= 0 ? copy : -errno;
+        }
+    }
+    return -ENOENT;
+}
+
 static long forward(uint32_t op, int dirfd, const char *path, int dirfd2, const char *path2,
                     int flags, uint32_t mode, void *out, size_t out_len) {
     if (path == NULL || (op == SBX_RENAME && path2 == NULL)) return -EFAULT;
@@ -196,8 +215,11 @@ static long forward(uint32_t op, int dirfd, const char *path, int dirfd2, const 
 static long dispatch(long nr, ucontext_t *uc) {
     long a0 = ARG(uc, 0), a1 = ARG(uc, 1), a2 = ARG(uc, 2), a3 = ARG(uc, 3), a4 = ARG(uc, 4);
     switch (nr) {
-    case __NR_openat:
+    case __NR_openat: {
+        long mine = own_open((const char *) a1, (int) a2);
+        if (mine != -ENOENT) return mine;
         return forward(SBX_OPEN, (int) a0, (const char *) a1, 0, NULL, (int) a2, (uint32_t) a3, NULL, 0);
+    }
     case __NR_newfstatat: {
         const char *path = (const char *) a1;
         if ((a3 & AT_EMPTY_PATH) && path != NULL && path[0] == '\0') {
@@ -226,8 +248,11 @@ static long dispatch(long nr, ucontext_t *uc) {
     case __NR_statfs:
         return forward(SBX_STATFS, AT_FDCWD, (const char *) a0, 0, NULL, 0, 0, (void *) a1, sizeof(struct statfs));
 #ifdef __NR_open
-    case __NR_open:
+    case __NR_open: {
+        long mine = own_open((const char *) a0, (int) a1);
+        if (mine != -ENOENT) return mine;
         return forward(SBX_OPEN, AT_FDCWD, (const char *) a0, 0, NULL, (int) a1, (uint32_t) a2, NULL, 0);
+    }
     case __NR_creat:
         return forward(SBX_OPEN, AT_FDCWD, (const char *) a0, 0, NULL, O_CREAT | O_WRONLY | O_TRUNC,
                        (uint32_t) a1, NULL, 0);
@@ -362,9 +387,10 @@ static int build_filter(void) {
 }
 #endif
 
-int sbx_lockdown(int broker_fd) {
+int sbx_lockdown(int broker_fd, const char *const *own_opens) {
 #ifndef SBX_ARCH
     (void) broker_fd;
+    (void) own_opens;
     return -ENOSYS;
 #else
     if (broker >= 0) return -EALREADY;
@@ -374,6 +400,15 @@ int sbx_lockdown(int broker_fd) {
     if (directory < 0) return -errno;
     broker = broker_fd;
     start_dir = directory;
+    own_count = 0;
+    for (int i = 0; own_opens && own_opens[i] && own_count < OWN_MAX; i++) {
+        if (strlen(own_opens[i]) >= sizeof(own[0].path)) continue;
+        int fd = open(own_opens[i], O_RDWR | O_CLOEXEC);
+        if (fd < 0) continue;
+        strcpy(own[own_count].path, own_opens[i]);
+        own[own_count].fd = fd;
+        own_count++;
+    }
 
     struct sigaction action;
     memset(&action, 0, sizeof(action));
@@ -393,6 +428,8 @@ int sbx_lockdown(int broker_fd) {
         error = synced > 0 ? -EBUSY : -errno;
     }
     sigaction(SIGSYS, &previous, NULL);
+    for (int i = 0; i < own_count; i++) close(own[i].fd);
+    own_count = 0;
     close(directory);
     broker = -1;
     start_dir = -1;
