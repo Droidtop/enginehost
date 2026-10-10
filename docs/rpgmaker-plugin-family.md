@@ -1,5 +1,10 @@
 # RPG Maker plugin-family layout
 
+**First rule, for this family as for every engine plugin:** plugin-core is
+authoritative. Every line is exactly its upstream commit plus plugin-core,
+generated and checked by droidtop-platforms' `tools/plugin_line.py`; nothing
+is authored on a line. See [plugin-lines.md](plugin-lines.md).
+
 RPG Maker is one Enginehost plugin family, not one interpreter. Every engine
 bundle below declares `engine: rpgmaker`; Enginehost's normal capability
 resolver combines all installed bundles into that family. No dispatcher bundle
@@ -28,13 +33,14 @@ branch model where an upstream exists:
   Never engine sources. It builds nothing by itself, so its workflow does
   not run on pushes to it (since 2026-09-03; the previous engine-carrying
   plugin-core branches are kept as `archive/plugin-core-<date>`);
-- `plugin/<compatibility-line>` starts at a selected upstream revision and
-  merges `plugin-core` with `--allow-unrelated-histories`; that merge is what
-  turns an upstream checkout into an enginehost plugin;
-- shared wrapper fixes originate in `plugin-core` and are merged into every
-  applicable line;
-- engine fixes stay on their line (or go upstream) and are backported
-  deliberately.
+- `plugin/<compatibility-line>` is composed from a selected upstream
+  revision and `plugin-core` (plugin-lines.md): plugin-core's tree written
+  over the upstream tree, its per-line files and its patch series applied,
+  and the two commits pinned in `enginehost/line.json`;
+- wrapper changes are made on `plugin-core` only and reach a line by
+  recomposing it;
+- engine fixes live on an engine branch of the fork (and go upstream); a
+  line takes them by pointing its declaration in plugin-core at that commit.
 
 The MV/MZ shell has no single upstream RPG Maker engine repository because the
 deployed engine JavaScript ships with each game. Its main branch is therefore
