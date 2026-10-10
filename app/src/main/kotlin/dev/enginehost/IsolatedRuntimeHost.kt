@@ -115,7 +115,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
         val watchdogHandler = Handler(Looper.getMainLooper())
         val watchdog = Runnable {
             if (settled.compareAndSet(false, true)) {
-                Log.e(TAG, "isolated runtime init did not finish within ${INIT_TIMEOUT_MS}ms; giving up on it")
+                Log.e(TAG, "isolated runtime did not start or show a picture in time; giving up on it")
                 connection?.let { runCatching { activity.unbindService(it) } }
                 connection = null
                 onFailure("The isolated runtime did not start in time")
@@ -161,6 +161,15 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                             // AIDL duplicates each descriptor across the binder call; this
                             // process's own copies are spent once init() returns (or throws).
                             (dexFds.asList() + nativeLibraryFds.asList()).forEach { runCatching { it.close() } }
+                        }
+                        // The runtime is up. An engine that boots into its
+                        // own scripts may take a while to compose its first
+                        // picture, whose size pixelWidth()/pixelHeight()
+                        // answer (OpenBGI runs its boot scripts for seconds
+                        // first), so that wait gets its own, longer bound.
+                        if (!settled.get()) {
+                            watchdogHandler.removeCallbacks(watchdog)
+                            watchdogHandler.postDelayed(watchdog, PICTURE_TIMEOUT_MS)
                         }
                         val width = svc.pixelWidth()
                         val height = svc.pixelHeight()
@@ -452,6 +461,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
         // isolated launch (dq-sandbox-03: AudioFlinger lookup spinning
         // forever) shows a failure instead of a permanent black screen.
         private const val INIT_TIMEOUT_MS = 15_000L
+        private const val PICTURE_TIMEOUT_MS = 60_000L
     }
 }
 

@@ -722,7 +722,11 @@ single `settle {}` gate that every success and failure path (including
 the AIDL call itself throwing) must pass through exactly once; a timeout
 unbinds the service and fails the launch with a reported reason instead
 of leaving the screen waiting. This is the backstop for whatever the
-*next* unreachable system service turns out to be, not just this one.
+*next* unreachable system service turns out to be, not just this one. (2026-10-10: the bound covers starting the runtime; once
+`init()` has returned, the wait for the picture's size gets its own
+`PICTURE_TIMEOUT_MS`, 60s, because an engine such as OpenBGI runs its boot
+scripts for seconds before it composes a first frame and the size is the
+first frame's.)
 
 ### Audio
 
