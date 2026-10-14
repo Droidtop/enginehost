@@ -14,6 +14,14 @@ import time
 from typing import NamedTuple
 
 
+RELEASE_ENVELOPE = "enginehost-release.json"
+# A runtime-component bundle's envelope (docs/engine-bundle-format.md,
+# "Runtime components"): same format, its own name, so older Enginehost
+# builds skip it.
+COMPONENT_ENVELOPE = "enginehost-component.json"
+ENVELOPES = (RELEASE_ENVELOPE, COMPONENT_ENVELOPE)
+
+
 class Published(NamedTuple):
     version: str      # pluginVersion of the release's signed manifest
     commit: str       # the commit the release was built from ("" when unknown)
@@ -102,7 +110,7 @@ def published_builds(repository: str, bundle_id: str) -> list:
         if not re.fullmatch(r"[0-9a-f]{40}", commit):
             commit = ""
         for asset in release.get("assets", []):
-            if asset["name"] != "enginehost-release.json":
+            if asset["name"] not in ENVELOPES:
                 continue
             envelope = gh_api("-H", "Accept: application/octet-stream",
                               f"repos/{repository}/releases/assets/{asset['id']}", parse=json.loads)

@@ -13,7 +13,7 @@ import sys
 import tarfile
 import tempfile
 
-from release_history import next_build, published_versions, version_key
+from release_history import COMPONENT_ENVELOPE, next_build, published_versions, version_key
 
 
 def sha256(data: bytes) -> str:
@@ -90,13 +90,35 @@ def main() -> None:
         raise SystemExit("output name must end in .enginehost.tar.xz")
 
     metadata = json.loads(args.metadata.read_text(encoding="utf-8"))
-    required = {
-        "bundleId", "engine", "pluginVersion", "apiVersion", "entrypoint",
-        "origin", "dexFiles", "capabilities",
-    }
+    # A runtime-component bundle (docs/engine-bundle-format.md, "Runtime
+    # components") carries no code the host loads and serves no game itself;
+    # what it provides and its licence are required instead.
+    kind = metadata.get("kind", "engine")
+    if kind == "engine":
+        required = {
+            "bundleId", "engine", "pluginVersion", "apiVersion", "entrypoint",
+            "origin", "dexFiles", "capabilities",
+        }
+    elif kind == "component":
+        required = {"bundleId", "engine", "pluginVersion", "apiVersion", "origin", "component", "license"}
+        for forbidden in ("dexFiles", "entrypoint", "capabilities"):
+            if metadata.get(forbidden):
+                raise SystemExit(f"a component bundle has no {forbidden}")
+    else:
+        raise SystemExit(f"unknown bundle kind {kind!r}")
     missing = sorted(required - metadata.keys())
     if missing:
         raise SystemExit("metadata is missing: " + ", ".join(missing))
+    if kind == "component":
+        component = metadata["component"]
+        for key in ("engine", "name", "version", "supportedSeries"):
+            if not component.get(key):
+                raise SystemExit(f"component is missing {key}")
+        if component["engine"] != metadata["engine"]:
+            raise SystemExit("component.engine must be the bundle's engine")
+        licence = metadata["license"]
+        if not licence.get("name") or not (args.payload / str(licence.get("file", ""))).is_file():
+            raise SystemExit("a component bundle carries its licence: license.name and a payload license.file")
 
     # pluginVersion is the total order on builds within a bundle id (see
     # docs/engine-bundle-format.md), yet the value in a repository's metadata
@@ -165,6 +187,12 @@ def main() -> None:
             archive.addfile(*tar_member(relative, data, mode))
 
     if args.release_envelope:
+        # A component's envelope has its own name, so an Enginehost from
+        # before component bundles skips the release instead of failing on
+        # it (and with it the repository's whole catalog). The callers pass
+        # the engine name; the component one sits beside it.
+        if kind == "component":
+            args.release_envelope = args.release_envelope.with_name(COMPONENT_ENVELOPE)
         envelope = {
             "formatVersion": 1,
             "bundles": [{

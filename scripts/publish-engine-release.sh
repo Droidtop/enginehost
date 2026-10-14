@@ -26,7 +26,9 @@ if [ -z "$bundle" ]; then
   exit 0
 fi
 id="$(basename "$bundle" .enginehost.tar.xz)"
-envelope="$(find "$RELEASE_DIR" -name 'enginehost-release.json' -print -quit)"
+# A runtime component's envelope has a name of its own (docs/engine-bundle-format.md,
+# "Runtime components"), so older Enginehost builds skip its release.
+envelope="$(find "$RELEASE_DIR" \( -name 'enginehost-release.json' -o -name 'enginehost-component.json' \) -print -quit)"
 keydoc="$(find "$RELEASE_DIR" -name 'enginehost-public-key.json' -print -quit)"
 test -f "$envelope"
 
