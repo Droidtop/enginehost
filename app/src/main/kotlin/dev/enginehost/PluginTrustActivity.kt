@@ -119,8 +119,14 @@ class PluginTrustActivity : EnginehostActivity() {
         all.setOnClickListener { runUpdates(pending, buttons, all) }
     }
 
-    /** Installs [updates] one after another, then redraws; the button pressed says what is happening. */
+    /** Installs [updates] one after another, after the warning when any cannot run sandboxed. */
     private fun runUpdates(updates: List<AvailablePlugin>, buttons: List<Button>, pressed: Button) {
+        if (updating) return
+        UnsandboxedWarning.beforeInstall(this, updates, proceed = { installUpdates(updates, buttons, pressed) }, cancel = {})
+    }
+
+    /** Installs [updates] one after another, then redraws; the button pressed says what is happening. */
+    private fun installUpdates(updates: List<AvailablePlugin>, buttons: List<Button>, pressed: Button) {
         if (updating) return
         updating = true
         buttons.forEach { it.isEnabled = false }
@@ -190,7 +196,7 @@ class PluginTrustActivity : EnginehostActivity() {
         val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.isolatable) {
             Triple(R.string.badge_sandboxed, R.color.eh_official_container, R.color.eh_on_official_container)
         } else {
-            Triple(R.string.badge_unsandboxed, R.color.eh_caution_container, R.color.eh_on_caution_container)
+            Triple(R.string.badge_unsandboxed, R.color.eh_danger_container, R.color.eh_on_danger_container)
         }
         sandboxBadge.setText(sandboxLabel)
         sandboxBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, sandboxContainer))

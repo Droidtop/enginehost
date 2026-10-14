@@ -43,12 +43,20 @@ class Sheet(private val activity: Activity) {
         val pick: () -> Unit,
     )
 
+    private var warning = false
     private var title: CharSequence? = null
     private var message: CharSequence? = null
     private var content: View? = null
     private val choices = mutableListOf<Choice>()
     private var onCancel: (() -> Unit)? = null
     private var onDismiss: (() -> Unit)? = null
+
+    /**
+     * A warning rather than a question: a red title over a red plate, for
+     * what the owner asked to be a "big red warning" (tracker#482). Its
+     * safe choice still goes first.
+     */
+    fun warning(): Sheet = apply { warning = true }
 
     fun title(text: CharSequence): Sheet = apply { title = text }
     fun title(@StringRes text: Int): Sheet = title(activity.getString(text))
@@ -86,10 +94,17 @@ class Sheet(private val activity: Activity) {
         root.findViewById<TextView>(R.id.sheetTitle).apply {
             text = title
             visibility = if (title == null) View.GONE else View.VISIBLE
+            if (warning) setTextColor(ContextCompat.getColor(activity, R.color.eh_danger))
         }
         root.findViewById<TextView>(R.id.sheetMessage).apply {
             text = message
             visibility = if (message == null) View.GONE else View.VISIBLE
+            if (warning) {
+                setBackgroundResource(R.drawable.eh_danger_bg)
+                setTextColor(ContextCompat.getColor(activity, R.color.eh_on_danger_container))
+                val padding = resources.getDimensionPixelSize(R.dimen.eh_space_s)
+                setPadding(padding, padding, padding, padding)
+            }
         }
         content?.let { view ->
             root.findViewById<FrameLayout>(R.id.sheetContent).apply {

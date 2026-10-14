@@ -89,7 +89,10 @@ class GameSectionsView(
     }
 
     /** Installs the newer build through the quiet path Plugins' Update uses; approval carries over from the same key. */
-    private fun installUpdate(update: AvailablePlugin, core: InstalledPlugin?) {
+    private fun installUpdate(update: AvailablePlugin, core: InstalledPlugin?) =
+        UnsandboxedWarning.beforeInstall(activity, listOf(update), proceed = { installWarned(update, core) }, cancel = {})
+
+    private fun installWarned(update: AvailablePlugin, core: InstalledPlugin?) {
         Toast.makeText(activity, R.string.updating, Toast.LENGTH_SHORT).show()
         Thread {
             val failure = runCatching { PluginInstaller.installQuietly(activity, update) }.exceptionOrNull()

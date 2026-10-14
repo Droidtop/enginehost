@@ -132,9 +132,12 @@ class PluginUpdateCheck(private val context: Context) {
                 installed,
                 cache.loadAll(origins).filter { it.stream.offeredTo(stream) },
             ).values
+            // An update that cannot run sandboxed is never installed silently:
+            // it stays pending, for the warning on the Plugins screen (tracker#482).
             onPending(
                 updates.filterNot { update ->
-                    installAutomatically && runCatching { PluginInstaller.installQuietly(context, update) }.isSuccess
+                    installAutomatically && update.manifest.isolatable &&
+                        runCatching { PluginInstaller.installQuietly(context, update) }.isSuccess
                 },
             )
         }.start()

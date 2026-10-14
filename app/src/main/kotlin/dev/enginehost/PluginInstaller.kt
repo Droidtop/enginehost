@@ -16,6 +16,18 @@ object PluginInstaller {
         plugin: AvailablePlugin,
         onError: (String) -> Unit,
         onStatus: ((String) -> Unit)? = null,
+    ) = UnsandboxedWarning.beforeInstall(
+        activity,
+        listOf(plugin),
+        proceed = { installWarned(activity, plugin, onError, onStatus) },
+        cancel = { onError(activity.getString(R.string.unsandboxed_install_cancelled)) },
+    )
+
+    private fun installWarned(
+        activity: Activity,
+        plugin: AvailablePlugin,
+        onError: (String) -> Unit,
+        onStatus: ((String) -> Unit)?,
     ) {
         Thread {
             runCatching {
@@ -53,10 +65,12 @@ object PluginInstaller {
                     PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
                 }
                 activity.runOnUiThread {
-                    activity.startActivity(
-                        Intent(activity, PluginTrustActivity::class.java)
-                            .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
-                    )
+                    UnsandboxedWarning.afterFileInstall(activity, installed) {
+                        activity.startActivity(
+                            Intent(activity, PluginTrustActivity::class.java)
+                                .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
+                        )
+                    }
                 }
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }

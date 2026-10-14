@@ -316,10 +316,11 @@ class LaunchActivity : EnginehostActivity() {
         val engineLine = EngineNames.line(plan.config.engine, plan.config.engineContext)
         val shown = runCatching {
             Sheet(this)
+                .warning()
                 .title(R.string.sandbox_consent_title)
                 .message(getString(R.string.sandbox_consent_message, engineLine))
                 .choice(R.string.cancel) { cancel() }
-                .choice(R.string.sandbox_consent_run) { enterRuntime(plan) }
+                .choice(R.string.sandbox_consent_run, Sheet.Tone.DANGER) { enterRuntime(plan) }
                 .onCancel { cancel() }
                 .show()
         }.isSuccess

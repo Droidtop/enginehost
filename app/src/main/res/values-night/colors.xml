@@ -13,6 +13,8 @@
     <color name="eh_accent_container_pressed">#2B457A</color>
     <color name="eh_on_accent_container">#CFE0FF</color>
     <color name="eh_danger">#E06C65</color>
+    <color name="eh_danger_container">#8C1D18</color>
+    <color name="eh_on_danger_container">#F9DEDC</color>
     <color name="eh_official">#63CD8C</color>
     <color name="eh_official_container">#143221</color>
     <color name="eh_on_official_container">#BEE9CD</color>

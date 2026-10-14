@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The plate of a red warning (Sheet.warning): danger container, danger stroke. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/eh_danger_container" />
+    <stroke android:width="2dp" android:color="@color/eh_danger" />
+    <corners android:radius="@dimen/eh_corner_small" />
+</shape>

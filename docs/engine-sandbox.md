@@ -122,6 +122,23 @@ relaunching the same game asks again, and a launch that finds nowhere to
 show the sheet (the screen already finishing) refuses rather than ever
 reading silence as consent. Enginehost only; droidtop is unaffected.
 
+### Big red warnings, and a recommendation against (owner, 2026-10-10)
+
+"Running plugins unsandboxed should be possible, but big red warnings and a
+recommendation that users not install unsandboxed plugins" (tracker#482,
+decision 4 on tracker#470). The per-run sheet above is a red warning
+(`Sheet.warning`: red title over a red plate, "Run unsandboxed" in red) and
+recommends not installing engine plugins that cannot run sandboxed.
+`UnsandboxedWarning` asks the same way, Cancel first, before a catalog
+install (`PluginInstaller.install`, which also serves droidtop's
+install-on-launch) and before an update from Plugins (Update, Update all) or
+a game page. A bundle picked from storage can only be read once installed,
+so it gets the warning straight after, offering to remove it again first.
+The automatic pass never installs such an update quietly; it stays pending
+for the warning. The Unsandboxed badge on the Plugins and catalog cards is
+red. Layer 1's best-effort path (above) is the sandbox library's to replace
+(tracker#470, tracker#26).
+
 ### Audit: what breaks per plugin shape
 
 Today every v1 plugin, of both transports, runs inside one process,

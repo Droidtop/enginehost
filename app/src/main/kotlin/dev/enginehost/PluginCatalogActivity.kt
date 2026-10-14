@@ -600,7 +600,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.manifest.isolatable) {
             Triple(R.string.badge_sandboxed, R.color.eh_official_container, R.color.eh_on_official_container)
         } else {
-            Triple(R.string.badge_unsandboxed, R.color.eh_caution_container, R.color.eh_on_caution_container)
+            Triple(R.string.badge_unsandboxed, R.color.eh_danger_container, R.color.eh_on_danger_container)
         }
         sandboxBadge.setText(sandboxLabel)
         sandboxBadge.backgroundTintList = android.content.res.ColorStateList.valueOf(
