@@ -194,6 +194,16 @@ open (rig, Enginehost dev-289: input dispatching timed out waiting for the focus
 is filed against the screen that was in front, PluginTrustActivity, because the new window had
 not taken focus yet). A newer redraw drops an older read.
 
+## Add a plugin has Install all
+
+After the catalog's cards, when the chosen channel offers two or more plugins that are not
+installed, "Install all (N)" installs each one's newest build through the same path as its
+card's button, then opens Plugins. It approves nothing (each new plugin waits for its own
+approval there) and asks first, with the red warning, when any of them cannot run sandboxed.
+The channel stays Stable unless the person changes it, so the one-press path is the stable
+set. It is not offered while the screen picks an engine for one game (tracker#23, the shape
+droidtop's per-catalog Install all has, tracker#458).
+
 ## Updating Enginehost itself: a missed check retries, a stuck hand-over ends
 
 The automatic pass (`PluginUpdateCheck`) runs when its interval has passed since the last pass

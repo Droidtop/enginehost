@@ -484,10 +484,11 @@ class PluginCatalogActivity : EnginehostActivity() {
         // A store, not a ledger: one card per plugin showing its newest build,
         // ordered by the engine a person is looking for. Older builds stay a
         // tap away for whoever needs one; they are not thrown at everyone.
-        available.groupBy { it.bundleId }.values
+        val cards = available.groupBy { it.bundleId }.values
             .map { builds -> builds.maxBy { it.info.pluginVersion } to builds.sortedByDescending { it.info.pluginVersion }.drop(1) }
             .sortedWith(compareBy({ EngineNames.engines(it.first.manifest).firstOrNull() ?: "" }, { it.first.bundleId }))
-            .forEach { (newest, older) -> addRelease(newest, older) }
+        cards.forEach { (newest, older) -> addRelease(newest, older) }
+        addInstallAll(cards.map { it.first })
         // A catalog stored a while ago may describe builds that have since
         // been replaced; installing from it would fetch the old one by its
         // old checksum. Refresh first, once, and come back here afterwards.
@@ -737,6 +738,57 @@ class PluginCatalogActivity : EnginehostActivity() {
             actions.addView(button)
         }
         releaseList.addView(card)
+    }
+
+    /**
+     * "Install all (5)" after the cards, the way Update all follows the update rows on Plugins:
+     * every plugin the chosen channel offers that is not installed yet, each card's newest build,
+     * through the same install each card's button runs (tracker#23; droidtop's Install all,
+     * tracker#458). It approves nothing: each new plugin waits on Plugins for its own approval, and
+     * any that cannot run sandboxed are named in the warning first. Not offered while the screen is
+     * picking an engine for one game.
+     */
+    private fun addInstallAll(newest: List<AvailablePlugin>) {
+        if (intent.getBooleanExtra(EXTRA_SELECTION_ONLY, false) || requestedConfig != null) return
+        val installedIds = snapshot?.installed.orEmpty().map { it.bundleId }.toSet()
+        val missing = newest.filter {
+            it.bundleId !in installedIds && it.bundleId !in installing &&
+                it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
+        }
+        if (missing.size < 2) return
+        val button = layoutInflater.inflate(R.layout.item_primary_button, releaseList, false) as Button
+        button.text = getString(R.string.install_all, missing.size)
+        button.setOnClickListener {
+            UnsandboxedWarning.beforeInstall(this, missing, proceed = { installAll(missing) }, cancel = {})
+        }
+        releaseList.addView(button)
+    }
+
+    /** Installs [plugins] one after another off the main thread, then opens Plugins, where they wait for approval. */
+    private fun installAll(plugins: List<AvailablePlugin>) {
+        installing += plugins.map { it.bundleId }
+        renderReleases()
+        Thread {
+            val failures = plugins.mapNotNull { plugin ->
+                runCatching { PluginInstaller.installQuietly(this, plugin) }.exceptionOrNull()
+            }
+            runOnUiThread {
+                installing -= plugins.map { it.bundleId }.toSet()
+                if (isDestroyed) return@runOnUiThread
+                if (failures.isNotEmpty()) {
+                    toast(
+                        getString(
+                            R.string.install_all_done,
+                            plugins.size - failures.size,
+                            failures.size,
+                            failures.last().message.orEmpty(),
+                        ),
+                    )
+                }
+                render()
+                if (failures.size < plugins.size) startActivity(Intent(this, PluginTrustActivity::class.java))
+            }
+        }.start()
     }
 
     private fun refresh() {
