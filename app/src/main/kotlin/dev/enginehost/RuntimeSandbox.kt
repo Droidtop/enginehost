@@ -78,7 +78,7 @@ object RuntimeSandbox {
     @Volatile private var broker: ContentProviderClient? = null
 
     /**
-     * Confines this process (sbx: app/src/main/cpp/sbx/sbx.h): from here on
+     * Confines this process (the sandbox library, vendor/sandbox, sbx.h): from here on
      * no thread can name a file except through the broker in the main
      * process ([SandboxBrokerProvider]), whose policy is the game folder
      * (read-only unless [gameWritable]), the save folder, the bundle, the

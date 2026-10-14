@@ -2128,10 +2128,11 @@ The owner's answer to the above: "we can sandbox the code ourselves, we
 don't have to have android do it". The engine stays in `:runtime`, so it
 keeps the GPU, the window and audio, and the process confines itself before
 any plugin code loads, after Chromium's Linux broker
-(`sandbox/linux/syscall_broker`) and minijail's seccomp policies. The code
-is `app/src/main/cpp/sbx/`, general rather than Enginehost-specific
-(`sbx.h` is the whole interface), so the shared sandbox design
-(Droidtop/tracker#26, #53) can take it as is.
+(`sandbox/linux/syscall_broker`) and minijail's seccomp policies. Since
+2026-10-14 the code is the sandbox library Enginehost shares with droidtop
+(`vendor/sandbox`, bi0shacker001/sandbox, GPL-3.0-or-later, pinned as a
+submodule; Droidtop/tracker#470), which grew out of this prototype:
+`runtime_sandbox.c` only passes Enginehost's device list and policy to it.
 
 - `sbx_lockdown()` installs a seccomp filter on every thread (TSYNC; a
   lockdown that misses a thread fails instead). Every system call that names
@@ -2139,11 +2140,14 @@ is `app/src/main/cpp/sbx/`, general rather than Enginehost-specific
   with a socketpair of its own for the answer, to the broker, and returns
   the broker's result (and descriptor, by `SCM_RIGHTS`) as the call's.
   `socket`, `bind`, `connect`, `execve`, `ptrace`, `process_vm_*`,
-  `pidfd_getfd`, `bpf`, `perf_event_open`, `io_uring`, `chdir`, links,
-  `chmod`/`chown`, path xattrs and file handles are refused; `statx` and
-  `openat2` answer ENOSYS so callers fall back. Calls on descriptors are
-  untouched: the GPU driver keeps working on its device node.
-- The broker (`sbx_broker.c`) runs in the main process
+  `pidfd_getfd`, `bpf`, `perf_event_open`, `io_uring`, links,
+  `chmod`/`chown`, path xattrs and file handles are refused, and so are
+  namespaces and mounts, the keyring, pidfds and signals to other
+  processes; `chdir` is kept by the handler as a directory descriptor;
+  `statx` and `openat2` answer ENOSYS so callers fall back. Calls on
+  descriptors are untouched: the GPU driver keeps working on its device
+  node.
+- The broker (the library's `broker.c`) runs in the main process
   (`SandboxBrokerProvider`, one session per calling process, this app's
   own processes only) and checks each path as asked and as the kernel
   resolves it, and an open again on what the new descriptor names, so `..`
@@ -2159,7 +2163,9 @@ is `app/src/main/cpp/sbx/`, general rather than Enginehost-specific
   process opens those itself just before the lockdown (`/dev/hwbinder`,
   and the GPU nodes that keep per-process state:
   `/dev/kgsl-3d0`, `/dev/mali0`, `/dev/dri/renderD128`), and the handler
-  answers a later open of exactly that path with a duplicate.
+  answers a later open of exactly that path with a duplicate, and a stat or
+  access of it from that descriptor (libhidl checks `/dev/hwbinder` with
+  `access` first; droidtop's rig, 2026-10-14).
 - The policy (`RuntimeSandbox.policy`): the game folder (read-only unless
   `writesGameFolder`), the save folder, the bundle, the system's code and
   data (`/system`, `/vendor`, `/apex`, the APK, ...), `/proc` and `/sys`
@@ -2173,8 +2179,8 @@ is `app/src/main/cpp/sbx/`, general rather than Enginehost-specific
 
 It is off unless `debug.enginehost.lockdown` is 1 (`adb shell setprop`)
 and applies only to plugin-api launches that are not isolatable, while the
-shared design is agreed. `app/src/test/native/sbx_test.c` runs it on the
-build host's kernel in CI.
+shared design is agreed. The library's own CI runs its escape-attempt test
+on Linux and on the Android emulator at API 28 and 34.
 
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
