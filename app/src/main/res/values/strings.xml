@@ -203,6 +203,15 @@
     <string name="filtered_missing_component">This game needs %1$s, which no plugin here provides. %2$s</string>
     <string name="component_carried">Plugins here carry %1$s %2$s.</string>
     <string name="component_carried_none">No plugin here carries %1$s.</string>
+    <string name="component_title">%1$s %2$s runtime</string>
+    <string name="component_serves">For %1$s %2$s</string>
+    <string name="component_license_line">Its own licence: %1$s. You read it before you allow it.</string>
+    <string name="license_line">Licence: %1$s</string>
+    <string name="license_show">Read the licence</string>
+    <string name="license_hide">Hide the licence</string>
+    <string name="license_loading">Loading the licence…</string>
+    <string name="license_unreadable">The licence text could not be read from the installed bundle.</string>
+    <string name="approve_accept_license">Accept licence and allow</string>
     <string name="releases_not_loaded">Not loaded yet. Refresh to fetch releases.</string>
     <string name="releases_none_published">Nothing published yet. Check again later.</string>
     <string name="releases_unavailable">The catalog could not be loaded. %1$s</string>

@@ -47,6 +47,12 @@ data class EngineCapability(
      * fall through to their engine's own handling.
      */
     val controllerInput: ControllerInput = ControllerInput.NATIVE,
+    /**
+     * Components this capability can load from separately installed
+     * component bundles (`loadsComponents`), by name; which version is the
+     * game's requirement. [ComponentSelection] picks the bundle.
+     */
+    val loadableComponents: Set<String> = emptySet(),
 ) {
     fun supports(version: Version): Boolean =
         acceptsAnyEngineVersion || version == runtimeVersion || version in supportedVersions ||
@@ -63,6 +69,15 @@ data class EngineCapability(
 
     fun satisfies(requirements: Map<String, Version>): Boolean =
         requirements.all { (name, version) -> runtimeComponents[name] == version }
+
+    /**
+     * Whether this capability could serve [requirements] with the right
+     * component bundles installed: each one carried, or loadable by name.
+     * What decides a launch is [ComponentSelection.select] against what is
+     * actually installed; this is what a catalog offers an engine bundle on.
+     */
+    fun canServe(requirements: Map<String, Version>): Boolean =
+        requirements.all { (name, version) -> runtimeComponents[name] == version || name in loadableComponents }
 
     /**
      * How many components this capability would load that [requirements]
@@ -145,6 +160,16 @@ object PluginCapabilitiesReader {
                         }
                     }
                 }
+                val loadable = buildSet {
+                    val array = entry.optJSONArray("loadsComponents")
+                    if (array != null) {
+                        for (nameIndex in 0 until array.length()) {
+                            val name = array.getString(nameIndex)
+                            require(name.isNotBlank()) { "Loadable component names must not be blank" }
+                            add(name)
+                        }
+                    }
+                }
                 add(
                     EngineCapability(
                         id, entry.optString("engine").takeIf { it.isNotBlank() },
@@ -155,6 +180,7 @@ object PluginCapabilitiesReader {
                         } else {
                             ControllerInput.NATIVE
                         },
+                        loadable,
                     ),
                 )
             }

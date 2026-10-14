@@ -57,7 +57,7 @@ class PluginTrustActivity : EnginehostActivity() {
     private fun render() {
         list.removeAllViews()
         val requestedPackage = intent.getStringExtra(EXTRA_BUNDLE)
-        val plugins = PluginRegistry.discover(this).filter {
+        val plugins = PluginRegistry.discoverAll(this).filter {
             requestedPackage == null || it.bundleId == requestedPackage
         }
         emptyState.visibility = if (plugins.isEmpty()) View.VISIBLE else View.GONE
@@ -99,7 +99,7 @@ class PluginTrustActivity : EnginehostActivity() {
             // engine apart, where "Ren'Py: build N" did not.
             row.findViewById<TextView>(R.id.buildLabel).text = getString(
                 R.string.update_row,
-                lineName(plugin?.info ?: update.info),
+                update.manifest.component?.let { EngineNames.component(this, it) } ?: lineName(plugin?.info ?: update.info),
                 update.info.pluginVersion.toString(),
             )
             val button = row.findViewById<Button>(R.id.buildInstallButton)
@@ -162,7 +162,8 @@ class PluginTrustActivity : EnginehostActivity() {
 
         // Named the way the catalog names it: the engine and the versions this
         // build runs ("Ren'Py 7.5.x"), so two lines of one engine tell apart.
-        card.findViewById<TextView>(R.id.pluginTitle).text = lineName(plugin.info)
+        card.findViewById<TextView>(R.id.pluginTitle).text =
+            plugin.component?.let { EngineNames.component(this, it) } ?: lineName(plugin.info)
         // The repository adds nothing where the badge already says Official.
         card.findViewById<TextView>(R.id.trustBuildLine).text = if (official) {
             PluginVersions.display(plugin.info.pluginVersion)
@@ -173,8 +174,12 @@ class PluginTrustActivity : EnginehostActivity() {
                 plugin.origin.removePrefix("https://github.com/"),
             )
         }
-        card.findViewById<TextView>(R.id.sandboxLine)
-            .setText(if (plugin.isolatable) R.string.sandbox_yes else R.string.sandbox_no)
+        card.findViewById<TextView>(R.id.sandboxLine).text = plugin.component?.let {
+            // A component runs inside the engine that loads it; that engine's
+            // card says whether it is sandboxed.
+            EngineNames.componentServes(this, it)
+        } ?: getString(if (plugin.isolatable) R.string.sandbox_yes else R.string.sandbox_no)
+        showLicense(card, plugin, state)
         card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId
         val details = card.findViewById<View>(R.id.trustDetails)
         card.findViewById<TextView>(R.id.trustDetailsToggle).setOnClickListener {
@@ -201,6 +206,7 @@ class PluginTrustActivity : EnginehostActivity() {
         sandboxBadge.setText(sandboxLabel)
         sandboxBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, sandboxContainer))
         sandboxBadge.setTextColor(ContextCompat.getColor(this, sandboxOnContainer))
+        if (plugin.component != null) sandboxBadge.visibility = View.GONE
 
         card.findViewById<TextView>(R.id.originValue).text = "${getString(R.string.origin_label)}: " + if (thirdParty != null) {
             getString(R.string.origin_verified_third_party, plugin.origin, thirdParty.maintainerName)
@@ -221,6 +227,8 @@ class PluginTrustActivity : EnginehostActivity() {
         }
 
         card.findViewById<Button>(R.id.approveButton).apply {
+            // Approving a bundle that carries its own licence is accepting it.
+            if (plugin.license != null) setText(R.string.approve_accept_license)
             isEnabled = state != PluginTrustState.APPROVED && plugin.signerIdentity.isNotBlank()
             setOnClickListener {
                 trust.approve(plugin)
@@ -242,6 +250,39 @@ class PluginTrustActivity : EnginehostActivity() {
             render()
         }
         list.addView(card)
+    }
+
+    /**
+     * A bundle with a licence of its own (a runtime component such as
+     * Spine's) names it, and its text is on the card: open before the
+     * person decides, one tap away once they have. The text is the signed
+     * payload file the manifest names, read off the main thread.
+     */
+    private fun showLicense(card: View, plugin: InstalledPlugin, state: PluginTrustState) {
+        val license = plugin.license ?: return
+        val line = card.findViewById<TextView>(R.id.licenseLine)
+        val toggle = card.findViewById<TextView>(R.id.licenseToggle)
+        val text = card.findViewById<TextView>(R.id.licenseText)
+        line.visibility = View.VISIBLE
+        line.text = getString(R.string.license_line, license.name)
+        toggle.visibility = View.VISIBLE
+        fun shown(open: Boolean) {
+            text.visibility = if (open) View.VISIBLE else View.GONE
+            toggle.setText(if (open) R.string.license_hide else R.string.license_show)
+        }
+        shown(state != PluginTrustState.APPROVED)
+        toggle.setOnClickListener { shown(text.visibility != View.VISIBLE) }
+        text.setText(R.string.license_loading)
+        Thread {
+            val body = runCatching {
+                java.io.File(plugin.directory, license.file).also {
+                    require(it.canonicalPath.startsWith(plugin.directory.canonicalPath + java.io.File.separator))
+                }.readText()
+            }.getOrNull()
+            runOnUiThread {
+                if (!isDestroyed) text.text = body ?: getString(R.string.license_unreadable)
+            }
+        }.start()
     }
 
     /**

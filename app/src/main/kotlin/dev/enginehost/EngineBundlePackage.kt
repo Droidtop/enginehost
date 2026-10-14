@@ -47,6 +47,10 @@ data class EngineBundleManifest(
     val engines: List<String> = emptyList(),
     /** See InstalledPlugin.writesGameFolder (docs/engine-sandbox.md "Saves beside the game"). */
     val writesGameFolder: Boolean = false,
+    /** Set for a runtime-component bundle (`"kind": "component"`), null for an engine bundle. */
+    val component: ComponentInfo? = null,
+    /** The bundle's own licence and the payload file with its text, when it declares one. */
+    val license: BundleLicense? = null,
 ) {
     /**
      * The ABIs this bundle's signed payload carries native libraries for:
@@ -78,6 +82,9 @@ data class EngineBundleManifest(
         .put("isolatable", isolatable)
         .put("writesGameFolder", writesGameFolder)
         .put("capabilities", JSONArray().apply { info.capabilities.forEach { put(it.toJson()) } })
+        .put("kind", if (component == null) BUNDLE_KIND_ENGINE else BUNDLE_KIND_COMPONENT)
+        .putOpt("component", component?.toJson())
+        .putOpt("license", license?.toJson())
 }
 
 object EngineBundleManifestReader {
@@ -95,9 +102,26 @@ object EngineBundleManifestReader {
         val publicKey = Base64.getDecoder().decode(signing.requiredString("publicKeySpki"))
         val fingerprint = sha256(publicKey)
         require(fingerprint == signing.requiredSha256("keySha256")) { "Signing-key fingerprint mismatch" }
-        val capabilityDocument = JSONObject()
-            .put("schemaVersion", 1)
-            .put("capabilities", json.getJSONArray("capabilities"))
+        // A component bundle carries no code of its own for the host to load
+        // and serves no game directly: no dex, no entry point, no capabilities.
+        // What it provides, and the licence a person accepts before approving
+        // it, are required instead (docs/engine-bundle-format.md, "Runtime
+        // components (subplugins)").
+        val component = if (ComponentManifestReader.kind(json) == BUNDLE_KIND_COMPONENT) {
+            ComponentManifestReader.component(json.getJSONObject("component")).also {
+                require(it.engine == json.requiredString("engine")) { "A component names the engine it is for" }
+            }
+        } else null
+        val license = ComponentManifestReader.license(json.optJSONObject("license"))
+        require(component == null || license != null) { "A component bundle must carry its licence" }
+        val capabilities = if (component != null) {
+            require((json.optJSONArray("capabilities")?.length() ?: 0) == 0) { "A component bundle serves no game itself" }
+            emptyList()
+        } else {
+            PluginCapabilitiesReader.parse(
+                JSONObject().put("schemaVersion", 1).put("capabilities", json.getJSONArray("capabilities")).toString(),
+            )
+        }
         val files = json.getJSONArray("files").let { array ->
             (0 until array.length()).map { index ->
                 val file = array.getJSONObject(index)
@@ -115,11 +139,18 @@ object EngineBundleManifestReader {
             require(file.size <= MAX_UNPACKED_BYTES - total) { "Bundle exceeds unpacked size limit" }
             total + file.size
         }
-        val dexFiles = json.getJSONArray("dexFiles").let { array ->
-            (0 until array.length()).map { validateBundlePath(array.getString(it)) }
+        license?.let { declared ->
+            require(files.any { it.path == declared.file }) { "The licence file must be part of the signed payload" }
         }
-        require(dexFiles.isNotEmpty() && dexFiles.all { dex -> files.any { it.path == dex } }) {
-            "Every dex file must be part of the signed payload"
+        val dexFiles = (if (component != null) json.optJSONArray("dexFiles") else json.getJSONArray("dexFiles"))
+            ?.let { array -> (0 until array.length()).map { validateBundlePath(array.getString(it)) } }
+            .orEmpty()
+        if (component != null) {
+            require(dexFiles.isEmpty()) { "A component bundle carries no code for the host to load" }
+        } else {
+            require(dexFiles.isNotEmpty() && dexFiles.all { dex -> files.any { it.path == dex } }) {
+                "Every dex file must be part of the signed payload"
+            }
         }
         val resourceApks = json.optJSONArray("resourceApks")?.let { array ->
             (0 until array.length()).map { validateBundlePath(array.getString(it)) }
@@ -152,11 +183,11 @@ object EngineBundleManifestReader {
             PluginInfo(
                 json.requiredString("engine"),
                 Version.parsePlugin(json.requiredString("pluginVersion")),
-                PluginCapabilitiesReader.parse(capabilityDocument.toString()),
+                capabilities,
                 engines = engines,
             ),
             json.getInt("apiVersion").also { require(it > 0) },
-            json.requiredString("entrypoint"),
+            if (component != null) json.optString("entrypoint") else json.requiredString("entrypoint"),
             origin,
             publicKey,
             fingerprint,
@@ -168,6 +199,8 @@ object EngineBundleManifestReader {
             files,
             engines = engines,
             writesGameFolder = json.optBoolean("writesGameFolder", false),
+            component = component,
+            license = license,
         )
     }
 
@@ -221,7 +254,7 @@ object EngineBundleInstaller {
             // a crash between a previous replacement's rename and its cleanup
             // can leave a superseded build behind, and treating the whole set
             // here makes a retried install remove it rather than trip on it.
-            val existing = PluginRegistry.discover(context).filter { it.bundleId == manifest.bundleId }
+            val existing = PluginRegistry.discoverAll(context).filter { it.bundleId == manifest.bundleId }
             existing.forEach { previous ->
                 require(previous.archiveSha256 != archiveSha) { "Bundle ${manifest.bundleId} is already installed" }
                 // Same line, different bytes: only a strictly newer build from
@@ -658,6 +691,7 @@ private fun EngineCapability.toJson() = JSONObject()
     .put("runtimeComponents", JSONObject().apply {
         runtimeComponents.forEach { (name, version) -> put(name, version.toString()) }
     })
+    .put("loadsComponents", JSONArray(loadableComponents.sorted()))
 
 private const val SIGNATURE_ALGORITHM = "SHA256withECDSA"
 private const val MAX_MANIFEST_BYTES = 2L * 1024 * 1024

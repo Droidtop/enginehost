@@ -145,7 +145,7 @@ class GithubPluginCatalogClient(private val context: Context) {
                     val name = asset.getString("name")
                     val url = asset.getString("browser_download_url")
                     byName[name] = url to asset.optString("digest").takeIf(String::isNotBlank)
-                    if (name == CatalogRefresh.RELEASE_CATALOG) catalogUrl = url
+                    if (name in CatalogRefresh.RELEASE_ENVELOPES) catalogUrl = url
                 }
                 if (catalogUrl == null) continue
                 result += PluginReleaseReader.parse(
@@ -238,13 +238,14 @@ object AvailablePluginResolver {
     ): List<Pair<AvailablePlugin, EngineCapability>> {
         val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
         return plugins.asSequence()
+            .filter { it.manifest.component == null }
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }
             .filter { it.info.runs(engine) }
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
             .flatMap { plugin -> plugin.info.capabilities.asSequence().map { plugin to it } }
             .filter { (plugin, capability) ->
                 plugin.info.engineOf(capability) == engine && capability.engineContext == requestedContext &&
-                    capability.supports(engineVersion) && capability.satisfies(runtimeRequirements)
+                    capability.supports(engineVersion) && capability.canServe(runtimeRequirements)
             }
             .sortedWith(
                 compareByDescending<Pair<AvailablePlugin, EngineCapability>> { it.second.runtimeVersion == engineVersion }
@@ -255,6 +256,26 @@ object AvailablePluginResolver {
             )
             .toList()
     }
+
+    /**
+     * The component bundles that would meet [needed] for an engine running
+     * one of [runtimeVersions] (the capabilities, installed or offered, that
+     * can load them): newest build of each bundle first. This is what the
+     * catalog offers when a game's engine is there but a component it needs
+     * is not.
+     */
+    fun components(
+        plugins: List<AvailablePlugin>,
+        engine: String,
+        needed: Map<String, Version>,
+        runtimeVersions: Collection<Version>,
+    ): List<AvailablePlugin> = plugins
+        .filter { plugin ->
+            val component = plugin.manifest.component ?: return@filter false
+            plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION &&
+                needed.any { (name, version) -> runtimeVersions.any { component.serves(engine, name, version, it) } }
+        }
+        .sortedWith(compareByDescending<AvailablePlugin> { it.info.pluginVersion }.thenBy { it.bundleId })
 }
 
 class PluginCatalogCache(context: Context) {
