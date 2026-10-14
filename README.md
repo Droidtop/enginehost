@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/Droidtop/enginehost/releases"><img alt="Latest build" src="https://img.shields.io/github/v/release/Droidtop/enginehost?include_prereleases&label=build&style=flat-square"></a>
-  <a href="https://github.com/Droidtop/enginehost/actions/workflows/build.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Droidtop/enginehost/android-build.yml?branch=main&label=build&style=flat-square"></a>
+  <a href="https://github.com/Droidtop/enginehost/actions/workflows/build.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Droidtop/enginehost/build.yml?branch=main&label=build&style=flat-square"></a>
   <img alt="Android 8.0 and newer" src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=flat-square">
   <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square"></a>
   <img alt="Status: early development" src="https://img.shields.io/badge/status-early%20development-d69e2e?style=flat-square">
