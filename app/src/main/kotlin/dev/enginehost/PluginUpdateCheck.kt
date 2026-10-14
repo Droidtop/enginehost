@@ -77,7 +77,11 @@ class PluginUpdateCheck(private val context: Context) {
         // from the same fresh catalogs. Home used to keep a count from the
         // last daily pass ("16 plugin updates") until the Plugins screen ran
         // its own refresh ("22"; rig, dq-ehfix-02).
-        val scheduled = now - preferences.getLong(LAST_ATTEMPT, 0L) >= frequency.intervalMs
+        // A pass that never reached the network (the device was offline when
+        // Home opened) is not the day's pass: it is tried again an hour later
+        // instead of a whole interval later (rig, tracker#401).
+        val scheduled = now - preferences.getLong(LAST_REACHED, 0L) >= frequency.intervalMs &&
+            now - preferences.getLong(LAST_ATTEMPT, 0L) >= RETRY_AFTER_FAILURE_MS
         Thread {
             val due = scheduled || catalogsStale()
             if (!due || (unmeteredOnly && isMetered())) onPending(pending()) else run(onPending)
@@ -93,7 +97,8 @@ class PluginUpdateCheck(private val context: Context) {
 
     /** Runs the pass now, regardless of schedule or network. */
     fun run(onPending: (List<AvailablePlugin>) -> Unit) {
-        preferences.edit().putLong(LAST_ATTEMPT, System.currentTimeMillis()).apply()
+        val started = System.currentTimeMillis()
+        preferences.edit().putLong(LAST_ATTEMPT, started).apply()
         Thread {
             val installed = PluginRegistry.discover(context)
             val origins = installed.map { it.origin }.filter(String::isNotBlank).distinct()
@@ -115,10 +120,12 @@ class PluginUpdateCheck(private val context: Context) {
             // one more small unauthenticated download, remembered so the
             // home screen can say an app update exists. Failure is as silent
             // as a failed catalog fetch.
+            // Its answer is also what says the pass reached the network.
             runCatching { AppUpdate.fetch(context) }.onSuccess { info ->
                 preferences.edit()
                     .putLong(APP_VERSION_CODE, info.versionCode)
                     .putString(APP_VERSION_NAME, info.versionName)
+                    .putLong(LAST_REACHED, started)
                     .apply()
             }
             val updates = PluginUpdates.updatesFor(
@@ -146,12 +153,15 @@ class PluginUpdateCheck(private val context: Context) {
     companion object {
         /** How old a cached catalog may be before Home or the Plugins screen fetches it again. */
         const val CATALOG_MAX_AGE_MS = 10L * 60 * 1000
+        /** How soon a pass that could not reach the release info is tried again. */
+        private const val RETRY_AFTER_FAILURE_MS = 60L * 60 * 1000
         private const val LEGACY_CHECK = "checkAutomatically"
         private const val FREQUENCY = "frequency"
         private const val STREAM = "stream"
         private const val INSTALL = "installAutomatically"
         private const val UNMETERED_ONLY = "unmeteredOnly"
         private const val LAST_ATTEMPT = "lastAttemptMs"
+        private const val LAST_REACHED = "lastReachedMs"
         private const val APP_VERSION_CODE = "newestAppVersionCode"
         private const val APP_VERSION_NAME = "newestAppVersionName"
     }

@@ -36,6 +36,14 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     /** Engine families with an installed plugin, in the order their rows are shown. */
     private var engines: List<String> = emptyList()
 
+    /**
+     * Set while an app update is with the Android installer: ends the
+     * hand-over (the button can be pressed again). A successful install
+     * replaces this process, so coming back to this screen, or a minute
+     * passing with the screen in front, means it did not happen.
+     */
+    private var endHandOver: (() -> Unit)? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = getString(R.string.settings_title)
@@ -131,6 +139,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     override fun onResume() {
         super.onResume()
         refresh()
+        endHandOver?.invoke()
     }
 
     /** A short list of actions for one row. */
@@ -161,15 +170,32 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                         installButton.text = getString(R.string.app_update_install, info.versionName)
                         installButton.setOnClickListener {
                             installButton.isEnabled = false
+                            fun ready() {
+                                installButton.isEnabled = true
+                                installButton.text = getString(R.string.app_update_install, info.versionName)
+                            }
                             AppUpdate.downloadAndInstall(
                                 this,
                                 info,
                                 onStatus = { status -> runOnUiThread { installButton.text = status } },
                                 onError = { message ->
                                     runOnUiThread {
-                                        installButton.isEnabled = true
-                                        installButton.text = getString(R.string.app_update_install, info.versionName)
+                                        ready()
                                         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                onHandedOver = {
+                                    runOnUiThread {
+                                        endHandOver = {
+                                            endHandOver = null
+                                            ready()
+                                            Toast.makeText(this, R.string.app_update_not_installed, Toast.LENGTH_LONG).show()
+                                        }
+                                        // With no installer screen in front of this one the
+                                        // system answered without asking; give it a minute.
+                                        installButton.postDelayed({
+                                            if (hasWindowFocus()) endHandOver?.invoke()
+                                        }, HAND_OVER_TIMEOUT_MS)
                                     }
                                 },
                             )
@@ -376,5 +402,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         private const val REQUEST_BROWSER_START = 31
         /** Per-engine folder picks: this plus the row's index in [engines]. */
         private const val REQUEST_ENGINE_FOLDER = 100
+        /** How long an app update may sit with the installer, this screen in front, before the button comes back. */
+        private const val HAND_OVER_TIMEOUT_MS = 60_000L
     }
 }

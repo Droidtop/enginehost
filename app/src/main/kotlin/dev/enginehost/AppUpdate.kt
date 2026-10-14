@@ -73,13 +73,19 @@ object AppUpdate {
     /**
      * Downloads the release APK, verifies its digest against the published
      * release info, and hands it to the system installer. The system takes it
-     * from there; [onStatus] narrates, [onError] reports any failure.
+     * from there; [onStatus] narrates, [onError] reports any failure, and
+     * [onHandedOver] says the session is committed. Nothing comes back after
+     * that when the install does not happen: the confirmation can be
+     * dismissed, and the "install unknown apps" round-trip can return to the
+     * app with the install never started (rig, tracker#401). The caller
+     * decides when the hand-over is over.
      */
     fun downloadAndInstall(
         activity: Activity,
         info: Info,
         onStatus: (String) -> Unit,
         onError: (String) -> Unit,
+        onHandedOver: () -> Unit,
     ) {
         Thread {
             runCatching {
@@ -87,6 +93,7 @@ object AppUpdate {
                 val apk = download(activity, info)
                 onStatus(activity.getString(R.string.app_update_handing_to_installer))
                 commitSession(activity, apk)
+                onHandedOver()
             }.onFailure { error ->
                 onError(error.message ?: activity.getString(R.string.app_update_failed))
             }

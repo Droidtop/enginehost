@@ -512,6 +512,7 @@
     <string name="app_update_downloading">Downloading Enginehost %1$s…</string>
     <string name="app_update_handing_to_installer">Handing over to the Android installer…</string>
     <string name="app_update_failed">Update failed</string>
+    <string name="app_update_not_installed">Android did not install the update. Press Install to try again.</string>
     <!-- Launch screen: shown from the tap until the engine draws its first frame. -->
     <string name="launch_starting">Starting…</string>
     <!-- Over a game's window until its engine draws something. -->

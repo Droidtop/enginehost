@@ -193,3 +193,14 @@ opening, per redraw and once more per card for the installed bundles, which ANRe
 open (rig, Enginehost dev-289: input dispatching timed out waiting for the focus event; the ANR
 is filed against the screen that was in front, PluginTrustActivity, because the new window had
 not taken focus yet). A newer redraw drops an older read.
+
+## Updating Enginehost itself: a missed check retries, a stuck hand-over ends
+
+The automatic pass (`PluginUpdateCheck`) runs when its interval has passed since the last pass
+that reached the network, which its fetch of the release info stands for; a pass that did not
+reach it is tried again an hour later rather than a whole interval later. Settings' Install
+button hands the downloaded APK to the Android installer and then waits. A successful install
+replaces the process, so Settings coming back to the front, or a minute with Settings still in
+front, means the install did not happen: the button returns, with a line saying so. Before,
+the "install unknown apps" round-trip came back with the button stuck on "Handing over to the
+Android installer" (rig, Enginehost dev-269 to 289, tracker#401).
