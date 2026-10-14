@@ -1,312 +1,109 @@
-# enginehost
+<h1 align="center">Enginehost</h1>
 
-A straightforward multi-engine host for VN/RPG-Maker-family games on
-Android. Runtime families ship as independently versioned engine bundles,
-including KiriKiri, Ren'Py, RPG Maker, Buriko/Ethornell, CatSystem2, CMVS,
-Flash/AIR, Twine, and Godot.
+<p align="center">
+  <b>A multi-engine game host for Android.</b><br>
+  Visual novels and RPG Maker games run from their own folder, each engine in its own signed plugin.
+</p>
 
-enginehost is a centralized interpreter host with two equally supported
-front doors, and neither is a second-class citizen. Used directly, it has
-its own game library, config creator, plugin catalog and trust screens,
-controller mapping, and settings — someone who only ever installs
-enginehost has a complete, usable application. Requiring a second app in
-order to use this one would be elitist, and the earlier framing of the
-built-in picker as "minimal, just for testing" is retired (directed
-2026-09-01). Driven programmatically, every one of those capabilities is
-also reachable over the Intent contract below, so a launcher such as
-droidtop can do the whole job without a hand-off: name the game, supply its
-config inline or open the config creator for it, resolve a runtime, and
-install a bundle.
+<p align="center">
+  <a href="https://github.com/Droidtop/enginehost/releases"><img alt="Latest build" src="https://img.shields.io/github/v/release/Droidtop/enginehost?include_prereleases&label=build&style=flat-square"></a>
+  <a href="https://github.com/Droidtop/enginehost/actions/workflows/build.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Droidtop/enginehost/android-build.yml?branch=main&label=build&style=flat-square"></a>
+  <img alt="Android 8.0 and newer" src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=flat-square">
+  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square"></a>
+  <img alt="Status: early development" src="https://img.shields.io/badge/status-early%20development-d69e2e?style=flat-square">
+</p>
 
-The design rule that follows: any flow that exists in the UI must have a
-programmatic equivalent, and vice versa. A caller that already knows what
-it wants should never be forced through a screen, and a person without a
-caller should never be missing a feature.
+<p align="center">
+  <img src="docs/images/cores.webp" alt="The Cores screen listing installed engine plugins such as CatSystem2, Godot, Ren'Py and RPG Maker, each with Official and Sandboxed badges" width="100%">
+</p>
 
-Callers can open the first-class config creator with action
-`dev.enginehost.CONFIGURE`, the same `path` extra, and an optional `config`
-starting point. They can query installed support through the read-only URI
-`content://dev.enginehost.capabilities/installed`; bundle selection remains
-Enginehost's responsibility.
+<p align="center">
+  <a href="#what-it-does">What it does</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#engines">Engines</a> ·
+  <a href="#use-it-from-a-launcher">Launcher contract</a> ·
+  <a href="#faq">FAQ</a> ·
+  <a href="#licence">Licence</a>
+</p>
 
-## The contract
+Enginehost runs games made with engines such as Ren'Py, RPG Maker, KiriKiri and Godot on Android, without converting or repacking them. You point it at the game's folder and it reads the game where it is. It works on its own as a complete app, and it can be driven by a launcher such as [droidtop](https://github.com/Droidtop/droidtop) over a small Intent contract.
 
-Fire an Intent:
+## What it does
+
+| | |
+|---|---|
+| **A library** | Every game you add or scan, filterable by engine, platform, status, folder and text, sortable by name, date added, recent play and size. |
+| **Config creator** | Reads a game folder, detects the engine and version, and writes the folder's `enginehost.json` only when you press Save. |
+| **Plugins as cores** | Each engine is a separately installed, versioned bundle. Several versions of one engine can sit side by side. |
+| **Trust first** | A plugin must be signed and approved by you before it runs. Each card shows whether it runs in a sandbox. |
+| **Pad and touch** | Every screen works from a controller. Global remapping, multiple controllers, hot-plug and rumble are supported. |
+| **Drivable** | Every screen has an Intent equivalent, so a launcher can do the whole job without a hand-off. |
+
+Games it cannot run are still listed and tagged with the builds they ship, so other runners can pick them up.
+
+## Install
+
+You need a device on Android 8.0 or newer.
+
+1. Open [Releases](https://github.com/Droidtop/enginehost/releases) and download `enginehost-latest.apk` from the **latest build** release.
+2. Open the file and allow the install when Android asks.
+3. Start Enginehost, open **Cores**, press **Add**, and install the plugins for the engines your games use.
+4. In **Library**, press **Add games** and pick a game folder, or a folder of games to scan.
+
+`enginehost-latest-debug.apk` is the debuggable build for inspecting with adb. Every build also keeps its own release, so the release list is the build history.
+
+## Engines
+
+Each repository is one plugin, packaged as a signed engine bundle. Plugins need an actual implementation of the engine. Handing a game to Wine or a PC compatibility layer does not count.
+
+| Engine | Plugin | Notes |
+|---|---|---|
+| Ren'Py | [enginehost-renpy-plugin](https://github.com/Droidtop/enginehost-renpy-plugin) | One branch per engine minor, 7.3 to 7.8 and 8.0 to 8.5 |
+| RPG Maker XP, VX, VX Ace | [mkxp-z](https://github.com/Droidtop/enginehost-rpgmaker-mkxp-z-plugin) | |
+| RPG Maker 2000, 2003 | [EasyRPG](https://github.com/Droidtop/enginehost-rpgmaker-easyrpg-plugin) | |
+| RPG Maker MV, MZ | [mv-mz](https://github.com/Droidtop/enginehost-rpgmaker-mv-mz-plugin) | Runs over a WebView |
+| KiriKiri | [kirikiri](https://github.com/Droidtop/enginehost-kirikiri-plugin) | |
+| Buriko / Ethornell | [buriko](https://github.com/Droidtop/enginehost-buriko-plugin) | Built on OpenBGI |
+| CatSystem2 | [catsystem2](https://github.com/Droidtop/enginehost-catsystem2-plugin) | Own scene player, no menus or saves yet |
+| CMVS | [cmvs](https://github.com/Droidtop/enginehost-cmvs-plugin) | Experimental: no opcodes, choices, graphics, audio or saves yet |
+| Flash and AIR | [flash-air](https://github.com/Droidtop/enginehost-flash-air-plugin) | Built on Ruffle |
+| HTML and Twine | [html](https://github.com/Droidtop/enginehost-html-plugin) | Web games and compiled Twine stories |
+| NScripter | [nscripter](https://github.com/Droidtop/enginehost-nscripter-plugin) | Built on OnscripterYuri |
+| Godot | [godot](https://github.com/Droidtop/enginehost-godot-plugin) | One branch per engine minor, 4.0 to 4.7 |
+
+Compatibility is never guessed from nearby version numbers. A plugin supports only the versions, ranges and series it declares.
+
+## Use it from a launcher
+
+One Intent starts a game:
 
 ```
 action: dev.enginehost.LAUNCH
-extra "path": absolute path to the game's folder
-extra "config" (optional): a raw enginehost.json-shaped JSON string
+extra "path":   absolute path to the game's folder
+extra "config": optional enginehost.json-shaped JSON
 ```
 
-One game runs at a time. Launching the game that is already running brings it
-back exactly as it was; launching any other game ends the running one first,
-the way leaving it does, and starts the new one. Address the action, not a
-component: the activity that answers it is not part of the contract.
+The same folder can hold an `enginehost.json` that names the engine and version. Without one, detection reads the folder. Enginehost never copies or moves the game. `dev.enginehost.CONFIGURE` opens the config creator, and `content://dev.enginehost.capabilities/installed` lists what is installed.
 
-That's the whole interface. In the normal case there's no catalog, no
-import step, no metadata to pass beyond the path — enginehost reads a
-small `enginehost.json` file at the root of that folder to figure out
-everything else:
+The full contract, the config file, the plugin format and the catalog design are in [docs/contract.md](docs/contract.md).
 
-```json
-{
-  "engine": "rpgmaker",
-  "engineContext": "vxace",
-  "engineVersion": "3.0",
-  "runtimeRequirements": { "ruby": "1.9.2" },
-  "pluginVersion": "1.0.0,1.2.0-1.4.0",
-  "execFile": "Game.exe",
-  "options": {
-    "rtpPaths": ["/storage/emulated/0/RTP/RPGVXAce"]
-  }
-}
-```
+## FAQ
 
-`engine` and `engineVersion` are required. `engine` names the plugin
-family (`renpy`, `rpgmaker`, `godot`, ...). `engineContext` is an optional,
-plugin-defined compatibility line within that family (`mv`, `mz`,
-`python3`, ...); omitting it means `default`. `engineVersion` is the
-game's dotted-numeric runtime target inside that context.
+**Is Enginehost only for droidtop?**
+No. It is a complete app. droidtop treats it as one more emulator.
 
-`runtimeRequirements` optionally selects exact embedded dependencies that are
-independent of the engine version. Its keys are plugin-defined and its values
-are dotted numeric versions. For example, VX Ace/RGSS3 games normally require
-Ruby 1.9.2, while a compatibility-oriented plugin may also offer Ruby 3.1.3.
-The host only considers capabilities advertising every requested component.
-This field participates in resolution; `options` does not.
+**Does it run Windows builds of games?**
+No. It runs games through engine plugins. Windows and Linux builds that it finds are listed but not launched.
 
-`pluginVersion` in a game's config is optional and different from a
-plugin's own `pluginVersion`: it's a comma-separated allowlist of exact
-versions and/or `lo-hi` ranges of *plugin builds* this specific game
-permits, letting a game exclude plugin revisions with known bugs.
-`execFile` is optional — the
-specific file to run within the folder, for engines that need one.
+**Where do saves go?**
+Where the engine would normally put them. Engines that save beside the game keep doing that. The in-game menu's Save location shows the real folder.
 
-`title` is optional: the name the launch screen shows, when the game's
-files state one (a Twine story's name). `saveFolder` is optional and only
-meaningful for engines whose SYSTEM save location has no per-game name of its
-own (HTML, Flash/AIR and RPG Maker MV/MZ, whose browser runtime has one
-localStorage, and CatSystem2, which saves under the user profile): the single
-folder name their saves go under beneath the engine's save root, so that two
-games never share one store. Enginehost derives it from what the engine itself
-would use, a story's title or the game's folder name, so it is stable across
-devices.
+**Is a plugin a separate app?**
+No. A plugin is a signed bundle that Enginehost verifies, stores privately and loads in its own runtime process.
 
-Enginehost does not change where an engine saves. Its save folder is only what
-an engine's system locations mean (a user profile, AppData, `~/.renpy`, Godot's
-`user://`, a browser's storage). An engine that saves beside the game on its
-desktop original keeps doing so here: KiriKiri, Buriko, CMVS, NScripter, and RPG
-Maker 2000/2003 and XP/VX/VX Ace save in the game folder, and a `saveFolder` an
-older config names for them is not used. Before this was settled (2026-09-17)
-some of them were given a host-named folder instead; when a launch finds save
-files there that the game folder does not have, it offers to copy them into the
-game folder, never deleting or overwriting anything, or to leave them.
+**Is it finished?**
+No. See the engine table for what each plugin covers today.
 
-The in-game menu's Save location says where a game's saves really are: the
-game's own folder for an engine that saves beside the game, the per-game
-folder for one Enginehost names, and the save root for an engine that names
-its own folder inside it (Ren'Py, Godot).
+## Licence
 
-A folder's `enginehost.json` is the person's own config, and only the config
-creator (Game setup) writes it, when the person presses Save there. Nothing else in
-Enginehost writes or edits it: not Play, not adding games, not a caller's
-launch (the user, 2026-09-25). A folder with no `enginehost.json` is still not
-a dead end. Detection reads the engine, version, entry file, title and save
-folder from the folder's own files; when all of that is evident the launch runs
-on that detected config in memory, with a caller's inline config filling what
-detection left open, and only a folder that leaves a question open is shown in
-the config editor with detection prefilled.
-
-Game setup's Test never touches that file. It stores what is on screen as the
-game's testing configuration, in Enginehost's own storage keyed by the game
-folder, and runs the game with it (the user, 2026-09-25: a test that does not
-work must not replace a working config). Game setup and the game's own screen
-then say a testing configuration is pending, one press from Keep (it becomes
-the folder's `enginehost.json`) or Discard (the working config, never touched,
-runs again). A new Test replaces the pending one. Every other launch, Play or
-another app's `dev.enginehost.LAUNCH`, runs the working config.
-
-`options` is a generic, opaque-to-enginehost bag of post-resolution
-engine-specific settings, passed straight through to the resolved plugin
-without being inspected. Examples include a decryption key, RTP paths,
-renderer switches, or engine compatibility toggles. Each plugin defines its
-own real option keys.
-
-Nothing about this file's contents, or the folder it lives in, is ever
-copied or moved by enginehost. It reads the folder in place and runs the
-game from there.
-
-A caller can pass the same JSON shape inline via `LAUNCH`'s `config`
-extra. The folder's own `enginehost.json` is authoritative: inline JSON
-may append fields the file omitted, including missing keys inside
-`options`, but can never override a value already present in the file.
-When the folder has no config file, the inline config is used by itself.
-
-## On-device tools
-
-The first-class UI is a config creator built around Android's system folder
-picker. It opens or creates the authoritative `enginehost.json` in a chosen
-game folder, scans the complete granted tree for conservative engine/version
-evidence, exposes the complete host contract, validates before writing, and
-preserves unknown top-level fields so newer plugin settings are not destroyed.
-Detection only prefills empty fields; it never replaces an existing game-owned
-setting. The system folder grant is sufficient for editing and detection.
-
-Testing additionally requires a provider that maps to a native primary-storage
-path. Because native interpreters traverse the live tree through filesystem
-paths, Android 11 and newer also require the per-app native-file-access grant.
-
-The home screen is the library: every game added there, found by a scan, or
-started through either front door, filterable by engine, platform, status,
-folder and text and sortable by name, date added, recent play and size (most
-recently played first by default). Home has one way to add games, **Add
-games**, which offers one game (by its folder; it starts once added) or a
-folder of games (a scan that also finds Windows and Linux builds and archives,
-tags them by platform, and adds the ones chosen; see docs/enginehost.md, "The
-library, the scanner and its filters"). A game's
-card opens that game's own screen, and that screen opens with the thing: a
-cover plate fills the freed space between the header and the actions. The
-plate holds the game's own art when it has any, and the same plate with its
-name and engine line when it does not. The actions are Play, Game setup (the
-config creator for that folder), Report a problem, and Remove from list.
-Game setup is reached
-only from a game, because it is always about one; `dev.enginehost.CONFIGURE`
-remains its programmatic door. Y on a card plays it without opening it; X opens the filters.
-
-Controller settings provide global remapping for D-pad, face and shoulder
-buttons, sticks, triggers, VN actions such as skip/auto/history and quick
-save/load, multiple connected controllers, hot-plug, and controller rumble.
-Engine bundles receive normalized actions while unconsumed raw Android input
-continues to their render view.
-
-### How the screens behave
-
-Every screen is usable from a pad alone: D-pad to move, A to act, B to go
-back, and a hint row under the screen naming the buttons it answers to,
-which is also the touch route to them.
-
-Focus has one look everywhere, the accent ring over a raised fill
-(`eh_focus_ring`, `eh_focus_fill`): rows, cards, buttons, switches and text
-fields alike. A filled button draws the ring outside its fill, with a gap, so
-it still shows. No focusable view gets a focus colour of its own.
-
-Every choice and every question is a sheet in the app's own look (`Sheet`),
-never a stock dialog: on the bottom edge while the device is held upright,
-on the right edge in landscape. A sheet takes the pad (D-pad between its
-rows, A to pick, B or Escape to close) and carries its own hint row, so it
-needs no Cancel button. The in-game menu is one too, drawn over the engine.
-
-## Plugins
-
-Plugins are separately installed, versioned `*.enginehost.tar.xz` bundles, not
-Android packages or separate apps. Enginehost verifies and extracts them into
-private storage, then loads an approved entrypoint inside its own `:runtime`
-process, under Enginehost's UID, so the
-host owns the one game-folder permission and all configuration. The separate
-process contains native crashes and is terminated after a session; it is not a
-security sandbox from an approved plugin, which is why Plugin Trust is a hard
-gate.
-
-An enginehost plugin must contain or embed an actual portable implementation
-of its engine/runtime. Delegating a Windows executable to Wine, Box64, or a
-generic PC compatibility app does not implement an enginehost plugin. Engines
-without a viable native interpreter remain explicitly unsupported until that
-interpreter is started. An interpreter does not need perfect compatibility to
-ship: early plugin versions may implement only a useful subset, as long as the
-limitations and supported engine versions are declared honestly. Later
-co-installable plugin builds can extend that implementation and compatibility.
-
-Each bundle's internally signed manifest declares its API version, Java
-entrypoint, engine family, plugin build version, canonical GitHub origin,
-payload hashes, dex files, and every runtime capability it supports. The
-repository's P-256 public key is pinned before catalog data is accepted.
-
-Capability schema version 1:
-
-```json
-{
-  "schemaVersion": 1,
-  "capabilities": [{
-    "id": "mz-1.8.0",
-    "engineContext": "mz",
-    "runtimeVersion": "1.8.0",
-    "runtimeComponents": { "javascript": "1.8.0" },
-    "supportedVersions": ["1.7.0"],
-    "supportedSeries": ["1.8"],
-    "supportedRanges": [{ "min": "1.7.1", "max": "1.8.0" }]
-  }]
-}
-```
-
-Compatibility is never inferred from numerical proximity. A capability
-supports its own `runtimeVersion` plus only the exact versions, ranges, or
-dotted series it explicitly declares. A Ren'Py `8.2` series, for example,
-matches every precisely recorded `8.2.*` game version but not `8.3`. Resolution prefers an exact bundled runtime, then
-the narrowest declared compatibility span, then the newest plugin build
-allowed by the game's optional `pluginVersion` allowlist. A capability is
-eligible only when its optional `runtimeComponents` exactly satisfy every
-entry in the game's `runtimeRequirements` map.
-
-The entrypoint implements the Java interface in the publishable `plugin-api`
-module (plugins depend on it as `compileOnly`). It receives a host-owned render
-container, lifecycle callbacks, the game path, engine/context/requested and
-selected runtime versions, capability ID, runtime requirements, executable,
-raw options JSON, save/cache directories, logging/finish services, and an
-optional path-confined filesystem facade. Native engines may use the canonical
-game path directly because code executes under Enginehost's UID.
-
-### Downloadable runtime bundles
-
-A runtime bundle is a self-verifying XZ-compressed tar archive with a unique
-bundle ID and explicit capability document. Native interpreters and embedded
-language ABIs live inside that bundle. An engine-family bundle can contain
-several internally namespaced runtimes—for example both Ruby 1.9.2 and Ruby
-3.1.3—and the host selects the matching capability deterministically. Different
-plugin/runtime releases remain co-installable without Android package installs.
-
-Each plugin repository's complete GitHub Releases history is its catalog. Every
-published release carries an `enginehost-release.json` browsing envelope plus
-the independently signed engine-bundle assets, and the project retains old releases. Enginehost
-can enumerate, filter, download, verify, and offer any compatible release rather
-than treating only “latest” as useful. See
-[`docs/plugin-catalog.md`](docs/plugin-catalog.md) and the release-manifest schema.
-
-Dedicated engine plugin forks keep their upstream history and never live in
-this host repository. Their `plugin-core` branch contains the portable Android
-wrapper changeset; release branches start at relevant engine releases and
-apply that changeset. Incompatible runtime lines use co-installable package
-slots and explicit capabilities so builds can be installed side by side.
-
-Current plugin repositories:
-
-- [Ren'Py](https://github.com/Droidtop/enginehost-renpy-plugin): one
-  `plugin/<version>` branch per engine minor, 7.3 to 7.8 and 8.0 to 8.5,
-  because each line's runtime serves only its own series.
-- RPG Maker family:
-  [mkxp-z (XP/VX/VX Ace)](https://github.com/Droidtop/enginehost-rpgmaker-mkxp-z-plugin),
-  [EasyRPG (2000/2003)](https://github.com/Droidtop/enginehost-rpgmaker-easyrpg-plugin), and
-  [MV/MZ](https://github.com/Droidtop/enginehost-rpgmaker-mv-mz-plugin).
-- [KiriKiri](https://github.com/Droidtop/enginehost-kirikiri-plugin)
-- [Buriko/Ethornell (OpenBGI)](https://github.com/Droidtop/enginehost-buriko-plugin).
-  AUGUST is a game studio whose applicable Windows titles use this engine
-  family; configure those games as `engine: buriko`, rather than inventing a
-  duplicate `august` runtime family.
-- [CatSystem2](https://github.com/Droidtop/enginehost-catsystem2-plugin)
-- [CMVS](https://github.com/Droidtop/enginehost-cmvs-plugin)
-- [Flash/AIR (Ruffle)](https://github.com/Droidtop/enginehost-flash-air-plugin)
-- [HTML](https://github.com/Droidtop/enginehost-html-plugin): web games, and
-  Twine stories as a capability of the same plugin (there is no separate Twine
-  repository).
-- [NScripter/ONScripter](https://github.com/Droidtop/enginehost-nscripter-plugin),
-  built on OnscripterYuri.
-- [Godot](https://github.com/Droidtop/enginehost-godot-plugin): one
-  `plugin/<version>` branch per engine minor, 4.0 to 4.7, because GDScript
-  exported as binary tokens is refused across minors.
-
-## Status
-
-## Third-party assets
-
-- The launch screen sets the game title in Gantari (Lafontype), licensed
-  under the SIL Open Font License 1.1; see `third_party/gantari/OFL.txt`.
+Enginehost is licensed under the **GNU General Public License v3.0**, see [LICENSE](LICENSE). The launch screen sets titles in Gantari (SIL Open Font License 1.1, see `third_party/gantari/OFL.txt`). Engine plugins keep the licences of the upstream engines they build on, and each lives in its own repository.
