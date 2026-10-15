@@ -53,9 +53,13 @@ class RuntimeComponentsTest {
     @Test
     fun `the install record round-trips the component and its licence`() {
         val parsed = EngineBundleManifestReader.parse(componentManifest())
-        val record = parsed.installedRecord("A".repeat(64))
+        val signer = BundleSigner("B".repeat(64), SignerKind.OFFICIAL, format = 1, anchorKeySha256 = "C".repeat(64))
+        val record = parsed.installedRecord("A".repeat(64), signer)
 
         assertEquals(BUNDLE_KIND_COMPONENT, record.getString("kind"))
+        // The signer verified at install travels with the record; every launch checks it again.
+        assertEquals("B".repeat(64), record.getString("signingKeySha256"))
+        assertEquals(signer, BundleSigner.fromJson(record.getJSONObject("signer")))
         assertEquals("spine-godot", record.getJSONObject("component").getString("name"))
         assertEquals("LICENSE-spine-runtimes.txt", record.getJSONObject("license").getString("file"))
     }
