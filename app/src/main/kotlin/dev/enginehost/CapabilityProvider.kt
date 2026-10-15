@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import android.os.Bundle
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -50,6 +51,26 @@ class CapabilityProvider : ContentProvider() {
         }
     }
 
+    /**
+     * `state`: whether Enginehost has anything open, for droidtop's running-game session. Answered to droidtop alone
+     * (Android's record of the caller, [TrustedCallers]); anyone else gets null. `tasks` is the number of Enginehost's
+     * own tasks across all its processes (a launch's warning, a running game, an error screen), so it is 0 once a launch
+     * was cancelled, a game ended or its error screen was left, and `runtime` is whether the game's process is alive.
+     * Read-only: nothing is touched. Without this droidtop could not tell a cancelled launch from a running game when no
+     * privileged helper is installed (Droidtop/tracker#289).
+     */
+    override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
+        if (method != METHOD_STATE) return null
+        val context = context ?: return null
+        val caller = callingPackage ?: return null
+        if (!TrustedCallers.isDroidtop(context.packageManager, caller)) return null
+        val tasks = context.getSystemService(android.app.ActivityManager::class.java)?.appTasks?.size ?: return null
+        return Bundle().apply {
+            putInt(STATE_TASKS, tasks)
+            putBoolean(STATE_RUNTIME, RuntimeProcess.alive(context))
+        }
+    }
+
     override fun getType(uri: Uri): String = "vnd.android.cursor.dir/vnd.dev.enginehost.capability"
     override fun insert(uri: Uri, values: ContentValues?): Uri? = readOnly()
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = readOnly()
@@ -60,6 +81,9 @@ class CapabilityProvider : ContentProvider() {
     companion object {
         const val AUTHORITY = "dev.enginehost.capabilities"
         const val PATH = "installed"
+        const val METHOD_STATE = "state"
+        const val STATE_TASKS = "tasks"
+        const val STATE_RUNTIME = "runtime"
         val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/$PATH")
         const val BUNDLE_ID = "bundleId"
         const val ENGINE = "engine"
