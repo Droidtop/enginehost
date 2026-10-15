@@ -10,6 +10,7 @@ one mirrors it so CI refuses a bundle the app would refuse.
 """
 
 import base64
+import datetime
 import json
 import re
 import subprocess
@@ -74,6 +75,83 @@ def key_algorithm(spki: bytes) -> str:
     if "RSA" in text.upper() and bits and int(bits.group(1)) >= 2048:
         return "RS256"
     raise Refused("signing keys must be EC P-256 or RSA of 2048 bits or more")
+
+
+def pem_public_key(text: str) -> bytes:
+    """A PEM `PUBLIC KEY` block as SubjectPublicKeyInfo DER: the pinned Droidtop Core key."""
+    match = re.search(r"-----BEGIN PUBLIC KEY-----(.*?)-----END PUBLIC KEY-----", text, re.S)
+    if not match:
+        raise Refused("no PEM public key found")
+    spki = base64.b64decode("".join(match.group(1).split()))
+    openssl("pkey", "-pubin", "-inform", "DER", "-noout", data=spki)
+    return spki
+
+
+def _der_element(data: bytes, offset: int) -> tuple[int, int, int]:
+    """(tag, start of content, end of element) of the DER element at [offset]."""
+    tag = data[offset]
+    length = data[offset + 1]
+    start = offset + 2
+    if length & 0x80:
+        count = length & 0x7F
+        length = int.from_bytes(data[start:start + count], "big")
+        start += count
+    return tag, start, start + length
+
+
+_DIGESTS = {
+    "1.2.840.113549.1.1.11": "-sha256", "1.2.840.113549.1.1.12": "-sha384", "1.2.840.113549.1.1.13": "-sha512",
+    "1.2.840.10045.4.3.2": "-sha256", "1.2.840.10045.4.3.3": "-sha384",
+}
+
+
+def _decode_oid(content: bytes) -> str:
+    arcs, value = [], 0
+    for byte in content:
+        value = (value << 7) | (byte & 0x7F)
+        if not byte & 0x80:
+            arcs.append(value)
+            value = 0
+    first = min(arcs[0] // 40, 2)
+    return ".".join(str(arc) for arc in [first, arcs[0] - 40 * first, *arcs[1:]])
+
+
+def verify_signed_by(certificate: bytes, issuer_spki: bytes) -> None:
+    """[certificate] (DER) was signed by the key [issuer_spki], with one of the allowed algorithms."""
+    tag, start, end = _der_element(certificate, 0)
+    if tag != 0x30:
+        raise Refused("not a certificate")
+    _, tbs_start, tbs_end = _der_element(certificate, start)
+    tbs = certificate[start:tbs_end]
+    _, algorithm_start, algorithm_end = _der_element(certificate, tbs_end)
+    oid_tag, oid_start, oid_end = _der_element(certificate, algorithm_start)
+    algorithm = _decode_oid(certificate[oid_start:oid_end]) if oid_tag == 0x06 else ""
+    if algorithm not in _DIGESTS:
+        raise Refused("unsupported certificate signature algorithm " + algorithm)
+    bits_tag, bits_start, bits_end = _der_element(certificate, algorithm_end)
+    if bits_tag != 0x03 or certificate[bits_start] != 0:
+        raise Refused("malformed certificate signature")
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        (root / "tbs").write_bytes(tbs)
+        (root / "signature").write_bytes(certificate[bits_start + 1:bits_end])
+        (root / "key.der").write_bytes(issuer_spki)
+        try:
+            openssl("dgst", _DIGESTS[algorithm], "-verify", str(root / "key.der"), "-keyform", "DER",
+                    "-signature", str(root / "signature"), str(root / "tbs"))
+        except Refused:
+            raise Refused("a certificate in the chain is not signed by the next one (or by Droidtop Core)")
+
+
+def check_validity(der: bytes) -> None:
+    """The certificate is within its validity period now."""
+    if subprocess.run(["openssl", "x509", "-inform", "DER", "-noout", "-checkend", "0"], input=der,
+                      stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode:
+        raise Refused("a certificate in the chain has expired")
+    start = openssl("x509", "-inform", "DER", "-noout", "-startdate", data=der).decode().strip().split("=", 1)[1]
+    not_before = datetime.datetime.strptime(start, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=datetime.timezone.utc)
+    if not_before > datetime.datetime.now(datetime.timezone.utc):
+        raise Refused("a certificate in the chain is not valid yet")
 
 
 def certificate_text(der: bytes, extension: str) -> str:
@@ -146,7 +224,8 @@ def sign(content: bytes, private_key: Path, chain: list[bytes], purpose: str, de
 
 def verify(compact: str, purpose: str, core: bytes, content: bytes | None) -> dict:
     """
-    Checks [compact] for [purpose] up to the Core certificate [core] (DER) and
+    Checks [compact] for [purpose] up to Droidtop Core's public key [core]
+    (SubjectPublicKeyInfo DER) and
     no further, the way the app does: header, chain, the leaf's usage, and the
     signature. Answers what the leaf names. Raises Refused.
     """
@@ -187,15 +266,18 @@ def verify(compact: str, purpose: str, core: bytes, content: bytes | None) -> di
 def verify_chain(chain: list[bytes], purpose: str, core: bytes) -> dict:
     """
     Checks a certificate chain (DER, leaf first, Core excluded) for [purpose]
-    up to the Core certificate [core] and no further. Answers what the leaf
-    names. Raises Refused. An origin's published certificate is checked this way.
+    up to Droidtop Core's public key [core] (SubjectPublicKeyInfo DER) and no
+    further: each certificate signed by the next, the last by Core's key, and
+    no certificate carrying Core's key. The anchor is a key, not a
+    certificate (Droidtop/tracker#550), so there is no issuer name to compare.
+    Answers what the leaf names. Raises Refused. An origin's published
+    certificate is checked this way.
     """
     oid, typ = PURPOSES[purpose]
     if not 1 <= len(chain) <= 3:
         raise Refused("the chain is empty or too long")
-    core_spki = certificate_spki(core)
-    if any(der == core or certificate_spki(der) == core_spki for der in chain):
-        raise Refused("the chain may not carry the Core certificate")
+    if any(certificate_spki(der) == core for der in chain):
+        raise Refused("the chain may not carry a certificate holding Droidtop Core's key")
     leaf = chain[0]
     if "CA:TRUE" in certificate_text(leaf, "basicConstraints"):
         raise Refused("the signing certificate is a CA")
@@ -206,21 +288,23 @@ def verify_chain(chain: list[bytes], purpose: str, core: bytes) -> dict:
         raise Refused("the signing certificate is not for " + typ)
     leaf_spki = certificate_spki(leaf)
     key_algorithm(leaf_spki)
-    with tempfile.TemporaryDirectory() as temporary:
-        root = Path(temporary)
-
-        def pem(der: bytes) -> str:
-            return openssl("x509", "-inform", "DER", data=der).decode()
-
-        (root / "core.pem").write_text(pem(core))
-        (root / "leaf.pem").write_text(pem(leaf))
-        (root / "intermediates.pem").write_text("".join(pem(der) for der in chain[1:]))
-        # -partial_chain makes Core the trust anchor: the walk stops there and
-        # nothing above it (the UCM root) is read or needed.
-        command = ["verify", "-partial_chain", "-trusted", str(root / "core.pem"), "-purpose", "any"]
-        if len(chain) > 1:
-            command += ["-untrusted", str(root / "intermediates.pem")]
-        openssl(*command, str(root / "leaf.pem"))
+    for below, intermediate in enumerate(chain[1:]):
+        constraints = certificate_text(intermediate, "basicConstraints")
+        if "CA:TRUE" not in constraints:
+            raise Refused("an intermediate certificate is not a CA")
+        path_length = re.search(r"pathlen:(\d+)", constraints)
+        if path_length and int(path_length.group(1)) < below:
+            raise Refused("an intermediate's path length constraint is exceeded")
+        if "Certificate Sign" not in certificate_text(intermediate, "keyUsage"):
+            raise Refused("an intermediate certificate may not sign certificates")
+    for der in chain:
+        check_validity(der)
+    for child, parent in zip(chain, chain[1:]):
+        if openssl("x509", "-inform", "DER", "-noout", "-issuer", "-nameopt", "RFC2253", data=child).split(b"=", 1)[1] \
+                != openssl("x509", "-inform", "DER", "-noout", "-subject", "-nameopt", "RFC2253", data=parent).split(b"=", 1)[1]:
+            raise Refused("the certificate chain is out of order")
+        verify_signed_by(child, certificate_spki(parent))
+    verify_signed_by(chain[-1], core)
     names = uris(leaf)
     return {
         "origins": {name[len(ORIGIN_URN):].lower() for name in names if name.lower().startswith(ORIGIN_URN)},

@@ -141,13 +141,13 @@ def main() -> None:
                     f"at {commit[:12]}; refusing to publish what users cannot verify"
                 )
 
-        core = scripts.parent / "app/src/main/assets/trust/droidtop-core.pem"
+        core = scripts.parent / "app/src/main/assets/trust/droidtop-core.pub"
         for bundle in bundles:
             command = [sys.executable, str(scripts / "verify-engine-bundle.py"), str(bundle)]
             if key_documents:
                 command += ["--repository-key", str(key_documents[0])]
             if certificates and core.is_file():
-                command += ["--core-certificate", str(core), "--require-v1"]
+                command += ["--core-key", str(core), "--require-v1"]
             run(*command)
             print(f"verified: {bundle.name}")
 

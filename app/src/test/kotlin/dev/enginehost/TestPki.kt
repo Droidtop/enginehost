@@ -100,7 +100,7 @@ object TestPki {
             "CN=Test Droidtop Core", rsa(), issuer = ucm, ca = true, pathLength = 1,
             keyUsage = KeyUsage.keyCertSign or KeyUsage.cRLSign, eku = null,
         )
-        val anchor = TrustAnchor.Core(core.certificate)
+        val anchor = TrustAnchor.Core(core.keys.public.encoded)
 
         fun leaf(
             origin: String = "droidtop/enginehost-example-plugin",

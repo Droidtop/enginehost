@@ -129,4 +129,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.json)
     testImplementation(libs.bouncycastle.pkix)
+    testImplementation(libs.conscrypt.openjdk)
 }

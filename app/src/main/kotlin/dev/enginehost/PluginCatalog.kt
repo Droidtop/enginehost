@@ -470,7 +470,7 @@ class PluginOriginStore(private val context: Context) {
 
     /**
      * Adds every origin the index proves official: a certificate chain that
-     * ends at the Droidtop Core certificate this APK pins and names the origin
+     * ends at the Droidtop Core key this APK pins and names the origin
      * (format v1), or a key document carrying the legacy official root's
      * certificate. Both are verified here; what the index says about trust is
      * not consulted, so nothing but Core (or the legacy root) can make an
@@ -480,7 +480,7 @@ class PluginOriginStore(private val context: Context) {
     fun learnOfficial(index: PluginsIndex): List<String> {
         val before = all().toSet()
         val store = keys
-        val core = CoreCertificate.get(context)
+        val core = CoreKey.get(context)
         val revoked = RevocationListStore(context).revoked(BundleVerifier.ENGINEHOST_CATALOG)
         index.origins.values.forEach { indexed ->
             // Format v1: a Core-issued bundle-signing certificate naming the origin.

@@ -75,7 +75,7 @@ enum class VerificationMoment {
 
 /** Where [BundleVerifier] gets what it trusts. Split out so the decisions run in a plain JVM test. */
 interface BundleTrustSources {
-    /** The pinned Droidtop Core certificate, or null in a build that pins none. */
+    /** Droidtop Core's pinned public key, or null in a build that pins none. */
     val core: TrustAnchor.Core?
 
     /** The key a person pinned for a repository they added, as SubjectPublicKeyInfo DER, or null. */
@@ -104,7 +104,7 @@ interface BundleTrustSources {
  *
  * The legacy signature is bounded: an installed bundle keeps verifying with it
  * at launch until it is updated, and a new install or catalog entry may use
- * it only while this build pins no Core certificate (the transition: before
+ * it only while this build pins no Core key (the transition: before
  * the owner commits Core, no v1 official bundle can be verified, and refusing
  * legacy then would leave nothing installable). Once Core is pinned, every
  * new install and update needs a v1 signature.

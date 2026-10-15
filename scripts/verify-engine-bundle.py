@@ -57,8 +57,8 @@ def main() -> None:
     parser.add_argument("bundle", type=Path)
     parser.add_argument("--repository-key", type=Path,
                         help="Legacy: the repository key document the legacy signature must match")
-    parser.add_argument("--core-certificate", type=Path,
-                        help="Format v1: the Droidtop Core certificate (PEM) the JWS chain must end at")
+    parser.add_argument("--core-key", type=Path,
+                        help="Format v1: Droidtop Core's public key (PEM PUBLIC KEY) the JWS chain must end at")
     parser.add_argument("--require-v1", action="store_true",
                         help="Refuse a bundle that carries no v1 signature")
     args = parser.parse_args()
@@ -123,8 +123,8 @@ def main() -> None:
 
         if "enginehost-bundle.jws" in signature_members:
             jws = read(signature_members["enginehost-bundle.jws"]).decode("ascii").strip()
-            if args.core_certificate:
-                core = bundle_jws.pem_certificates(args.core_certificate.read_text(encoding="utf-8"))[0]
+            if args.core_key:
+                core = bundle_jws.pem_public_key(args.core_key.read_text(encoding="utf-8"))
                 try:
                     named = bundle_jws.verify(jws, "plugin", core, manifest_bytes)
                 except bundle_jws.Refused as error:
@@ -133,7 +133,7 @@ def main() -> None:
                     fail("the v1 signing certificate does not name the manifest's origin")
                 fingerprint = sha256(named["leafSpki"])
             elif args.require_v1:
-                fail("--require-v1 needs --core-certificate to check the v1 signature against")
+                fail("--require-v1 needs --core-key to check the v1 signature against")
 
         if args.repository_key:
             if fingerprint is None or "enginehost-bundle.sig" not in signature_members:
