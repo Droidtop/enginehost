@@ -321,7 +321,7 @@ class CatalogRefresh(private val context: Context) {
         val keys = PluginOriginKeyStore(context)
         val plugins = mutableListOf<AvailablePlugin>()
         for (release in indexed.releases) {
-            val envelope = release.assets.firstOrNull { it.name == RELEASE_CATALOG } ?: continue
+            val envelope = release.assets.firstOrNull { it.name in RELEASE_ENVELOPES } ?: continue
             plugins += PluginReleaseReader.parse(
                 envelopeText(envelope),
                 origin,
@@ -385,6 +385,16 @@ class CatalogRefresh(private val context: Context) {
 
         internal const val INDEX_ETAG_PREFIX = "index:"
         internal const val RELEASE_CATALOG = "enginehost-release.json"
+
+        /**
+         * A runtime-component release's envelope has a name of its own, so
+         * that an Enginehost from before component bundles skips the release
+         * (it reads [RELEASE_CATALOG] only) instead of failing to parse a
+         * manifest with no entry point, which would fail the whole origin's
+         * catalog. Same format, same verification.
+         */
+        internal const val COMPONENT_CATALOG = "enginehost-component.json"
+        internal val RELEASE_ENVELOPES = setOf(RELEASE_CATALOG, COMPONENT_CATALOG)
         private const val ENVELOPE_DIR = "plugin-release-envelopes"
     }
 }

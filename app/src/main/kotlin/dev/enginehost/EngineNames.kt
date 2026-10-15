@@ -89,6 +89,18 @@ object EngineNames {
         else -> component
     }
 
+    /** A component bundle's name on a card: "Spine 4.2 runtime". */
+    fun component(context: android.content.Context, info: ComponentInfo): String =
+        context.getString(R.string.component_title, componentName(info.name), info.version.toString())
+
+    /** Which engine versions load it: "For Godot 4.2.x, 4.3.x". */
+    fun componentServes(context: android.content.Context, info: ComponentInfo): String =
+        context.getString(
+            R.string.component_serves,
+            family(info.engine),
+            info.supportedSeries.sortedBy { Version.parse(it.toString()) }.joinToString(", ") { "$it.x" },
+        )
+
     /**
      * The variant on its own, for a field that already says which engine it is
      * under: "VX Ace" for RPG Maker's `vxace`, "4.1" for Godot 4.1. Null for

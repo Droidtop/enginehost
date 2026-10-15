@@ -111,7 +111,7 @@ def main() -> None:
         workdir = Path(temporary)
         run("gh", "run", "download", args.run, "-R", args.repo, "-D", str(workdir))
         bundles = sorted(workdir.rglob("*.enginehost.tar.xz"))
-        envelopes = sorted(workdir.rglob("enginehost-release.json"))
+        envelopes = sorted(workdir.rglob("enginehost-release.json")) + sorted(workdir.rglob("enginehost-component.json"))
         key_documents = sorted(workdir.rglob("enginehost-public-key.json"))
         if not bundles or len(envelopes) != 1 or len(key_documents) != 1:
             raise SystemExit(

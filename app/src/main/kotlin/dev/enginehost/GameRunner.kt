@@ -135,6 +135,27 @@ object GameRunner {
             config.runtimeRequirements, config.pluginVersionConstraint,
         )
         if (resolved == null) {
+            // An installed engine that only lacks a component the game needs:
+            // when that component is already installed and waiting for the
+            // person to accept its licence, that is the one step left. Any
+            // other case goes to the catalog, which offers the component
+            // bundle (or an engine) for this game.
+            val missing = PluginRegistry.missingComponents(
+                context, config.engine, config.engineContext, config.engineVersion,
+                config.runtimeRequirements, config.pluginVersionConstraint,
+            )
+            val trust = PluginTrustStore(context)
+            val waiting = PluginRegistry.components(context).firstOrNull { installed ->
+                val component = installed.component ?: return@firstOrNull false
+                trust.state(installed) == PluginTrustState.PENDING && missing[component.name] == component.version
+            }
+            if (waiting != null) {
+                PendingPluginLaunchStore(context).save(gameFolder, inlineJson, waiting.bundleId, testing)
+                return Plan.Detour(
+                    Intent(context, PluginTrustActivity::class.java)
+                        .putExtra(PluginTrustActivity.EXTRA_BUNDLE, waiting.bundleId),
+                )
+            }
             PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing = testing)
             return Plan.Detour(
                 Intent(context, PluginCatalogActivity::class.java).apply {

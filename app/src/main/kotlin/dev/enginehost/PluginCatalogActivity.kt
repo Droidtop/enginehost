@@ -180,7 +180,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             catalogAll = cache.loadAll(all)
                 .sortedWith(compareBy<AvailablePlugin>({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId })),
             index = PluginCatalogIndex.cached(this),
-            installed = PluginRegistry.discover(this),
+            installed = PluginRegistry.discoverAll(this),
             described = all.associateWith { directory.describe(it) },
             fetched = all.filter(cache::hasFetched).toSet(),
             stale = all.filter { cache.isStale(it, PluginUpdateCheck.CATALOG_MAX_AGE_MS) }.toSet(),
@@ -442,10 +442,11 @@ class PluginCatalogActivity : EnginehostActivity() {
         val catalogAll = snapshot?.catalogAll.orEmpty()
         val allAvailable = catalogAll.filter { it.stream.offeredTo(updateCheck.stream) }
         val matches = requestedConfig?.let { config ->
-            AvailablePluginResolver.compatible(
+            val engines = AvailablePluginResolver.compatible(
                 allAvailable, config.engine, config.engineContext, config.engineVersion,
                 config.runtimeRequirements, config.pluginVersionConstraint,
             ).map { it.first }.distinctBy { it.bundleId }
+            engines + componentMatches(config, allAvailable, engines)
         }.orEmpty()
         val available = if (requestedConfig != null && matches.isNotEmpty()) matches else allAvailable
         requestedConfig?.let { config ->
@@ -486,7 +487,14 @@ class PluginCatalogActivity : EnginehostActivity() {
         // tap away for whoever needs one; they are not thrown at everyone.
         val cards = available.groupBy { it.bundleId }.values
             .map { builds -> builds.maxBy { it.info.pluginVersion } to builds.sortedByDescending { it.info.pluginVersion }.drop(1) }
-            .sortedWith(compareBy({ EngineNames.engines(it.first.manifest).firstOrNull() ?: "" }, { it.first.bundleId }))
+            // Runtime components after the engines that load them.
+            .sortedWith(
+                compareBy(
+                    { it.first.manifest.component != null },
+                    { EngineNames.engines(it.first.manifest).firstOrNull() ?: "" },
+                    { it.first.bundleId },
+                ),
+            )
         cards.forEach { (newest, older) -> addRelease(newest, older) }
         addInstallAll(cards.map { it.first })
         // A catalog stored a while ago may describe builds that have since
@@ -497,12 +505,14 @@ class PluginCatalogActivity : EnginehostActivity() {
             refresh()
             return
         }
+        // The first match not installed yet: the engine, or, when the engine
+        // is already here, the component the game still needs.
+        val nextToInstall = matches.firstOrNull { !isInstalled(it.bundleId) }
         if (
-            intent.getBooleanExtra(EXTRA_AUTOINSTALL, false) && !autoAttempted &&
-            matches.isNotEmpty() && !isInstalled(matches.first().bundleId)
+            intent.getBooleanExtra(EXTRA_AUTOINSTALL, false) && !autoAttempted && nextToInstall != null
         ) {
             autoAttempted = true
-            PluginInstaller.install(this, matches.first(), ::toast) { status ->
+            PluginInstaller.install(this, nextToInstall, ::toast) { status ->
                 runOnUiThread { statusText.text = status }
             }
         } else if (
@@ -511,6 +521,33 @@ class PluginCatalogActivity : EnginehostActivity() {
         ) {
             refresh()
         }
+    }
+
+    /**
+     * The component bundles [config] needs that an engine here (installed,
+     * or among [engines] offered for it) can load: a game needing Spine on
+     * an engine that loads Spine is offered the Spine component, whose
+     * licence the trust screen shows before it is allowed.
+     */
+    private fun componentMatches(
+        config: EngineConfig,
+        available: List<AvailablePlugin>,
+        engines: List<AvailablePlugin>,
+    ): List<AvailablePlugin> {
+        if (config.runtimeRequirements.isEmpty()) return emptyList()
+        val engineContext = config.engineContext ?: DEFAULT_ENGINE_CONTEXT
+        val infos = snapshot?.installed.orEmpty().filter { it.component == null }.map { it.info } + engines.map { it.info }
+        val capabilities = infos.flatMap { info ->
+            info.capabilities.filter {
+                info.engineOf(it) == config.engine && it.engineContext == engineContext &&
+                    it.supports(config.engineVersion) && it.canServe(config.runtimeRequirements)
+            }
+        }
+        val needed = config.runtimeRequirements.filter { (name, _) -> capabilities.any { name in it.loadableComponents } }
+        if (needed.isEmpty()) return emptyList()
+        return AvailablePluginResolver.components(
+            available, config.engine, needed, capabilities.map { it.runtimeVersion }.distinct(),
+        ).distinctBy { it.bundleId }
     }
 
     /**
@@ -577,20 +614,35 @@ class PluginCatalogActivity : EnginehostActivity() {
      */
     private fun addRelease(plugin: AvailablePlugin, older: List<AvailablePlugin> = emptyList()) {
         val card = layoutInflater.inflate(R.layout.item_release, releaseList, false)
-        card.findViewById<TextView>(R.id.releaseTitle).text = EngineNames.engines(plugin.manifest).joinToString(" · ")
+        // A runtime component serves no game itself: its card says which
+        // engine loads it and, before anything else, under which licence.
+        val component = plugin.manifest.component
+        card.findViewById<TextView>(R.id.releaseTitle).text = if (component != null) {
+            EngineNames.component(this, component)
+        } else {
+            EngineNames.engines(plugin.manifest).joinToString(" · ")
+        }
         card.findViewById<TextView>(R.id.releaseVersion).apply {
             // A runtime that accepts any engine version ships no version worth a number.
-            text = EngineNames.shippedVersions(plugin.info.capabilities)
+            text = if (component != null) "" else EngineNames.shippedVersions(plugin.info.capabilities)
             visibility = if (text.isBlank()) View.GONE else View.VISIBLE
         }
-        card.findViewById<TextView>(R.id.releaseCompatibility).text = getString(
-            R.string.release_runs,
-            EngineNames.compatibility(plugin.info.engine, plugin.info.capabilities).joinToString("\n"),
-        )
+        card.findViewById<TextView>(R.id.releaseCompatibility).text = if (component != null) {
+            EngineNames.componentServes(this, component)
+        } else {
+            getString(
+                R.string.release_runs,
+                EngineNames.compatibility(plugin.info.engine, plugin.info.capabilities).joinToString("\n"),
+            )
+        }
         card.findViewById<TextView>(R.id.releaseIncludes).apply {
-            val includes = EngineNames.includes(plugin.info.capabilities)
+            val includes = if (component != null) {
+                plugin.manifest.license?.let { getString(R.string.component_license_line, it.name) }
+            } else {
+                EngineNames.includes(plugin.info.capabilities)?.let { getString(R.string.release_includes, it) }
+            }
             visibility = if (includes == null) View.GONE else View.VISIBLE
-            includes?.let { text = getString(R.string.release_includes, it) }
+            includes?.let { text = it }
         }
         card.findViewById<TextView>(R.id.releaseStream).apply {
             text = streamName(plugin.stream)
@@ -608,6 +660,8 @@ class PluginCatalogActivity : EnginehostActivity() {
             androidx.core.content.ContextCompat.getColor(this, sandboxContainer)
         )
         sandboxBadge.setTextColor(androidx.core.content.ContextCompat.getColor(this, sandboxOnContainer))
+        // Sandboxing is the loading engine's property, not the component's.
+        if (component != null) sandboxBadge.visibility = View.GONE
         // A third-party build says so, and whose, on the card itself: the
         // store mixes every source, and Official is never assumed.
         val thirdParty = origins.thirdParty(plugin.origin)

@@ -22,6 +22,7 @@ public final class EnginePluginSession {
     private final String optionsJson;
     private final Map<String, String> runtimeRequirements;
     private final Map<String, String> runtimeComponents;
+    private final Map<String, File> runtimeComponentDirectories;
 
     public EnginePluginSession(
             File bundleDirectory,
@@ -37,6 +38,26 @@ public final class EnginePluginSession {
             String optionsJson,
             Map<String, String> runtimeRequirements,
             Map<String, String> runtimeComponents) {
+        this(bundleDirectory, display, host, gamePath, engine, engineContext, engineVersion, runtimeVersion,
+                capabilityId, execFile, optionsJson, runtimeRequirements, runtimeComponents,
+                Collections.<String, File>emptyMap());
+    }
+
+    public EnginePluginSession(
+            File bundleDirectory,
+            ViewGroup display,
+            EngineHost host,
+            String gamePath,
+            String engine,
+            String engineContext,
+            String engineVersion,
+            String runtimeVersion,
+            String capabilityId,
+            String execFile,
+            String optionsJson,
+            Map<String, String> runtimeRequirements,
+            Map<String, String> runtimeComponents,
+            Map<String, File> runtimeComponentDirectories) {
         this.bundleDirectory = Objects.requireNonNull(bundleDirectory);
         // Null under an isolated runtime, which owns no window of its own
         // (docs/engine-sandbox.md "Layer 2"); see EngineStepDriven.
@@ -52,6 +73,8 @@ public final class EnginePluginSession {
         this.optionsJson = optionsJson;
         this.runtimeRequirements = Collections.unmodifiableMap(new LinkedHashMap<>(runtimeRequirements));
         this.runtimeComponents = Collections.unmodifiableMap(new LinkedHashMap<>(runtimeComponents));
+        this.runtimeComponentDirectories =
+                Collections.unmodifiableMap(new LinkedHashMap<>(runtimeComponentDirectories));
     }
 
     /** Read-only root containing this engine bundle's dex, native libraries, assets and notices. */
@@ -74,14 +97,27 @@ public final class EnginePluginSession {
     public String optionsJson() { return optionsJson; }
     public Map<String, String> runtimeRequirements() { return runtimeRequirements; }
     /**
-     * The runtime components (name to version) the selected capability
-     * declares in its {@code runtimeComponents}: what this launch loads
-     * beside the engine. It covers every name in {@link #runtimeRequirements()},
-     * which says only what the game asked for. A plugin carrying loadable
-     * components loads exactly these (docs/engine-bundle-format.md, "Runtime
-     * components (subplugins)"). Added after apiVersion 1 shipped: a plugin
+     * The runtime components (name to version) this launch loads beside the
+     * engine: those the selected capability carries ({@code runtimeComponents})
+     * and the separately installed component bundles chosen for the game's
+     * requirements ({@link #runtimeComponentDirectory(String)} names where
+     * each is). It covers every name in {@link #runtimeRequirements()},
+     * which says only what the game asked for. A plugin loads exactly these
+     * (docs/engine-bundle-format.md, "Runtime components (subplugins)").
+     * Added after apiVersion 1 shipped: a plugin
      * that may run on an older Enginehost catches {@code NoSuchMethodError}
      * and falls back to its own table keyed by {@link #capabilityId()}.
      */
     public Map<String, String> runtimeComponents() { return runtimeComponents; }
+    /**
+     * The read-only, verified root of the separately installed component
+     * bundle that provides {@code name} for this launch, or null when the
+     * component is not a separate bundle (the engine carries it itself, or
+     * the launch loads no such component). The layout inside is the
+     * component's own (docs/engine-bundle-format.md, "Runtime components").
+     * Added after apiVersion 1 shipped: a plugin that may run on an older
+     * Enginehost catches {@code NoSuchMethodError}; an older Enginehost
+     * never selects a capability that needs a separate component.
+     */
+    public File runtimeComponentDirectory(String name) { return runtimeComponentDirectories.get(name); }
 }

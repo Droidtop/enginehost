@@ -54,7 +54,7 @@ class PluginUpdateCheck(private val context: Context) {
 
     /** Updates for installed bundles, computed from the already-cached catalogs alone. */
     fun pending(): List<AvailablePlugin> {
-        val installed = PluginRegistry.discover(context)
+        val installed = PluginRegistry.discoverAll(context)
         val origins = installed.map { it.origin }.filter(String::isNotBlank).distinct()
         val available = PluginCatalogCache(context).loadAll(origins).filter { it.stream.offeredTo(stream) }
         return PluginUpdates.updatesFor(installed, available).values.toList()
@@ -91,7 +91,7 @@ class PluginUpdateCheck(private val context: Context) {
     /** Whether any installed plugin's catalog is older than [CATALOG_MAX_AGE_MS]. */
     private fun catalogsStale(): Boolean {
         val cache = PluginCatalogCache(context)
-        return PluginRegistry.discover(context).map { it.origin }.filter(String::isNotBlank).distinct()
+        return PluginRegistry.discoverAll(context).map { it.origin }.filter(String::isNotBlank).distinct()
             .any { cache.isStale(it, CATALOG_MAX_AGE_MS) }
     }
 
@@ -100,7 +100,7 @@ class PluginUpdateCheck(private val context: Context) {
         val started = System.currentTimeMillis()
         preferences.edit().putLong(LAST_ATTEMPT, started).apply()
         Thread {
-            val installed = PluginRegistry.discover(context)
+            val installed = PluginRegistry.discoverAll(context)
             val origins = installed.map { it.origin }.filter(String::isNotBlank).distinct()
             val cache = PluginCatalogCache(context)
             // The same refresh the catalog screen's button runs: the plugins

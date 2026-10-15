@@ -2182,6 +2182,13 @@ and applies only to plugin-api launches that are not isolatable, while the
 shared design is agreed. The library's own CI runs its escape-attempt test
 on Linux and on the Android emulator at API 28 and 34.
 
+A launch that needs a separately installed runtime component (component
+bundles, docs/engine-bundle-format.md) is refused under the lockdown with
+the component named: the broker's policy names the engine's bundle
+directory only, so the component's files would be unreachable once the
+process is confined. Widening the policy to the verified component
+directories is the fix when the lockdown leaves prototype.
+
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
 The static-method-contract finding above (`nativeSetupJNI`'s `cls` parameter)

@@ -48,13 +48,26 @@ data class InstalledPlugin(
      * the game").
      */
     val writesGameFolder: Boolean = false,
+    /** Set for a runtime-component bundle, which no game runs directly ([ComponentSelection]). */
+    val component: ComponentInfo? = null,
+    /** The bundle's own licence, shown on the trust screen before approval. */
+    val license: BundleLicense? = null,
 ) {
     /** Compatibility alias while callers migrate from package terminology. */
     val packageName: String get() = bundleId
     val signerIdentity: String = signerFingerprints.sorted().joinToString("+")
 }
 
-data class ResolvedPlugin(val plugin: InstalledPlugin, val capability: EngineCapability)
+data class ResolvedPlugin(
+    val plugin: InstalledPlugin,
+    val capability: EngineCapability,
+    /** The separately installed component bundles this launch loads ([ComponentSelection.select]). */
+    val components: List<InstalledPlugin> = emptyList(),
+) {
+    /** Everything the launch loads beside the engine: what the capability carries, then the component bundles. */
+    val runtimeComponents: Map<String, Version>
+        get() = capability.runtimeComponents + components.mapNotNull { it.component }.associate { it.name to it.version }
+}
 
 /** A detected engine line and the installed alternatives that can run it. */
 data class PluginLineSelection(
@@ -114,12 +127,19 @@ object PluginResolver {
         runtimeRequirements: Map<String, Version>,
         pluginVersionAllowlist: VersionConstraint?,
         trustOf: (InstalledPlugin) -> PluginTrustState = { PluginTrustState.APPROVED },
+        components: List<InstalledPlugin> = emptyList(),
     ): ResolvedPlugin? =
-        ranked(plugins, engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist, trustOf).firstOrNull()
+        ranked(plugins, engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist, trustOf, components)
+            .firstOrNull()
 
     /**
      * Every installed build that could run the game, best first: the order [resolve] picks from.
      * With no allowlist this is the list the game's Change core offers.
+     *
+     * [components] are the installed component bundles a capability may
+     * load for [runtimeRequirements] it does not carry itself; the caller
+     * passes only approved ones, so a launch never loads a component the
+     * person has not accepted ([PluginRegistry.approvedComponents]).
      */
     fun ranked(
         plugins: List<InstalledPlugin>,
@@ -129,9 +149,11 @@ object PluginResolver {
         runtimeRequirements: Map<String, Version>,
         pluginVersionAllowlist: VersionConstraint?,
         trustOf: (InstalledPlugin) -> PluginTrustState = { PluginTrustState.APPROVED },
+        components: List<InstalledPlugin> = emptyList(),
     ): Sequence<ResolvedPlugin> {
         val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
         return plugins.asSequence()
+            .filter { it.component == null }
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }
             .filter { it.info.runs(engine) }
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
@@ -140,9 +162,12 @@ object PluginResolver {
                 plugin.info.capabilities.asSequence()
                     .filter {
                         plugin.info.engineOf(it) == engine && it.engineContext == requestedContext &&
-                            it.supports(engineVersion) && it.satisfies(runtimeRequirements)
+                            it.supports(engineVersion)
                     }
-                    .map { ResolvedPlugin(plugin, it) }
+                    .mapNotNull { capability ->
+                        ComponentSelection.select(engine, capability, runtimeRequirements, components)
+                            ?.let { ResolvedPlugin(plugin, capability, it) }
+                    }
             }
             .sortedWith(
                 compareByDescending<ResolvedPlugin> { trustOf(it.plugin) == PluginTrustState.APPROVED }
@@ -171,7 +196,20 @@ object PluginRegistry {
         return root
     }
 
-    fun discover(context: Context): List<InstalledPlugin> = discoverIn(root(context))
+    /** Every installed engine bundle: what games run on. Component bundles are [components]. */
+    fun discover(context: Context): List<InstalledPlugin> = discoverAll(context).filter { it.component == null }
+
+    /** Every installed bundle, engines and runtime components alike: what Plugins lists, updates and removes. */
+    fun discoverAll(context: Context): List<InstalledPlugin> = discoverIn(root(context))
+
+    /** Every installed runtime-component bundle (docs/engine-bundle-format.md, "Runtime components"). */
+    fun components(context: Context): List<InstalledPlugin> = discoverAll(context).filter { it.component != null }
+
+    /** The component bundles a launch may load: installed and approved by the person, licence accepted. */
+    fun approvedComponents(context: Context): List<InstalledPlugin> {
+        val trust = PluginTrustStore(context)
+        return components(context).filter { trust.state(it) == PluginTrustState.APPROVED }
+    }
 
     /**
      * Split out from [discover] so the staging-directory filter below --
@@ -204,18 +242,21 @@ object PluginRegistry {
         require(json.getInt("formatVersion") == 1) { "Unsupported installed bundle record" }
         val bundleId = json.requiredString("bundleId")
         require(bundleId.matches(BUNDLE_ID)) { "Invalid bundle ID" }
-        val capabilityDocument = JSONObject()
-            .put("schemaVersion", 1)
-            .put("capabilities", json.getJSONArray("capabilities"))
+        val component = if (ComponentManifestReader.kind(json) == BUNDLE_KIND_COMPONENT) {
+            ComponentManifestReader.component(json.getJSONObject("component"))
+        } else null
+        val capabilities = if (component != null) emptyList() else PluginCapabilitiesReader.parse(
+            JSONObject().put("schemaVersion", 1).put("capabilities", json.getJSONArray("capabilities")).toString(),
+        )
         return InstalledPlugin(
             PluginInfo(
                 json.requiredString("engine"),
                 Version.parsePlugin(json.requiredString("pluginVersion")),
-                PluginCapabilitiesReader.parse(capabilityDocument.toString()),
+                capabilities,
                 engines = json.optJSONArray("engines")?.let { array -> (0 until array.length()).map { array.getString(it) } }.orEmpty(),
             ),
             bundleId,
-            json.requiredString("entrypoint"),
+            if (component != null) json.optString("entrypoint") else json.requiredString("entrypoint"),
             normalizeGithubOrigin(json.requiredString("origin")),
             setOf(json.requiredSha256("signingKeySha256")),
             root,
@@ -232,6 +273,8 @@ object PluginRegistry {
             },
             json.optBoolean("isolatable", false),
             writesGameFolder = json.optBoolean("writesGameFolder", false),
+            component = component,
+            license = ComponentManifestReader.license(json.optJSONObject("license")),
         )
     }
 
@@ -239,7 +282,7 @@ object PluginRegistry {
         // Every directory carrying the ID, not just the first: an interrupted
         // in-place update can briefly leave a superseded build alongside the
         // new one (see EngineBundleInstaller), and uninstalling means all of it.
-        val installed = discover(context).filter { it.bundleId == bundleId }
+        val installed = discoverAll(context).filter { it.bundleId == bundleId }
         if (installed.isEmpty()) return false
         return installed
             .map { plugin ->
@@ -254,8 +297,42 @@ object PluginRegistry {
         val trustStore = PluginTrustStore(context)
         return PluginResolver.ranked(
             discover(context), config.engine, config.engineContext, config.engineVersion, config.runtimeRequirements, null,
-            trustOf = trustStore::state,
+            trustOf = trustStore::state, components = approvedComponents(context),
         ).map { it.plugin }.distinctBy { it.bundleId to it.info.pluginVersion }.toList()
+    }
+
+    /**
+     * When no launch resolves: the component requirements an installed
+     * engine bundle could meet once the right component bundle is installed
+     * and approved, so the launch can offer that component (with its
+     * licence) instead of another engine. Empty when installing a component
+     * would not help.
+     */
+    fun missingComponents(
+        context: Context,
+        engine: String,
+        engineContext: String?,
+        engineVersion: Version,
+        runtimeRequirements: Map<String, Version>,
+        pluginVersionAllowlist: VersionConstraint?,
+    ): Map<String, Version> {
+        if (runtimeRequirements.isEmpty()) return emptyMap()
+        val trustStore = PluginTrustStore(context)
+        val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
+        val approved = approvedComponents(context)
+        return discover(context).asSequence()
+            .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION && it.info.runs(engine) }
+            .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
+            .filter { trustStore.state(it) != PluginTrustState.DENIED }
+            .flatMap { plugin ->
+                plugin.info.capabilities.asSequence().filter {
+                    plugin.info.engineOf(it) == engine && it.engineContext == requestedContext && it.supports(engineVersion)
+                }
+            }
+            .map { ComponentSelection.missing(engine, it, runtimeRequirements, approved) }
+            .filter { it.isNotEmpty() }
+            .minByOrNull { it.size }
+            .orEmpty()
     }
 
     fun resolve(
@@ -269,7 +346,7 @@ object PluginRegistry {
         val trustStore = PluginTrustStore(context)
         return PluginResolver.resolve(
             discover(context), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
-            trustOf = trustStore::state,
+            trustOf = trustStore::state, components = approvedComponents(context),
         )
     }
 }

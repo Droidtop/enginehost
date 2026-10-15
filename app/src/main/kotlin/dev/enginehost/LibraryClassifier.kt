@@ -17,6 +17,9 @@ class SupportResolver(private val context: Context) {
         runCatching { PluginRegistry.discover(context) }.getOrDefault(emptyList())
     }
     private val trust: PluginTrustStore by lazy { PluginTrustStore(context) }
+    private val components: List<InstalledPlugin> by lazy {
+        runCatching { PluginRegistry.approvedComponents(context) }.getOrDefault(emptyList())
+    }
     private val memo = HashMap<String, Support>()
 
     fun of(row: GameRow): Support {
@@ -43,6 +46,7 @@ class SupportResolver(private val context: Context) {
                 runtimeRequirements = requirements,
                 pluginVersionAllowlist = null,
                 trustOf = trust::state,
+                components = components,
             )
         }.getOrNull()
         return if (resolved != null) Support.RUNS_HERE else Support.NEEDS_PLUGIN

@@ -78,17 +78,45 @@ class RuntimeActivity : FragmentActivity() {
             return failAndFinish("Plugin approval is missing")
         }
         if (resolved.plugin.isolatable) {
+            // An isolated runtime reaches bundle files only as descriptors the
+            // host hands it (docs/engine-sandbox.md "Layer 2"); a separately
+            // installed component has no such path yet, so it is refused here
+            // with its name rather than failing inside the engine.
+            if (resolved.components.isNotEmpty()) {
+                return failAndFinish(
+                    STARTUP_FAILED + "a sandboxed engine cannot load the separately installed " +
+                        resolved.components.mapNotNull { it.component }.joinToString { "${it.name} ${it.version}" } + " yet",
+                )
+            }
             return startIsolatedRuntime(resolved, config, gameFolder, saveFolder, display)
         }
 
         CrashWatch.arm(this, gameFolder, resolved.plugin.bundleId)
         try {
             val verifiedManifest = InstalledBundleVerifier.verify(this, resolved.plugin)
-            if (RuntimeSandbox.lockdownRequested() && !RuntimeSandbox.lockdown(
-                    this, gameFolder, resolved.plugin.writesGameFolder, saveFolder, resolved.plugin.directory,
-                )
-            ) {
-                return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")
+            // Each component bundle is checked like the engine's own: its
+            // signature, its pinned signer and every payload file, before the
+            // engine is handed its directory to load native code from.
+            val componentDirectories = resolved.components.associate { component ->
+                InstalledBundleVerifier.verify(this, component)
+                checkNotNull(component.component).name to component.directory
+            }
+            if (RuntimeSandbox.lockdownRequested()) {
+                // The broker's policy names one bundle directory, so a locked
+                // process could not open a separately installed component's
+                // files; refuse it by name, as the isolated runtime does above.
+                if (resolved.components.isNotEmpty()) {
+                    return failAndFinish(
+                        STARTUP_FAILED + "the process lockdown cannot load the separately installed " +
+                            resolved.components.mapNotNull { it.component }.joinToString { "${it.name} ${it.version}" } + " yet",
+                    )
+                }
+                if (!RuntimeSandbox.lockdown(
+                        this, gameFolder, resolved.plugin.writesGameFolder, saveFolder, resolved.plugin.directory,
+                    )
+                ) {
+                    return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")
+                }
             }
             val instance = loadPlugin(resolved.plugin)
             val host = RuntimeHost(this, gameFolder, resolved.plugin.bundleId, saveFolder)
@@ -99,7 +127,8 @@ class RuntimeActivity : FragmentActivity() {
                     resolved.capability.runtimeVersion.toString(), resolved.capability.id,
                     config.execFile, config.options?.toString(),
                     config.runtimeRequirements.mapValues { it.value.toString() },
-                    resolved.capability.runtimeComponents.mapValues { it.value.toString() },
+                    resolved.runtimeComponents.mapValues { it.value.toString() },
+                    componentDirectories,
                 ),
             )
             check(verifiedManifest.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION)
@@ -178,7 +207,7 @@ class RuntimeActivity : FragmentActivity() {
             config.execFile,
             config.options?.toString(),
             config.runtimeRequirements.mapValues { it.value.toString() },
-            resolved.capability.runtimeComponents.mapValues { it.value.toString() },
+            resolved.runtimeComponents.mapValues { it.value.toString() },
             intent.getStringArrayExtra(EXTRA_RESTART_ARGUMENTS) ?: emptyArray(),
             gameFolder,
             saveFolder,

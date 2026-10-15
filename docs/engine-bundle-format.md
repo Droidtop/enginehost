@@ -145,11 +145,10 @@ and a device that runs an ABI through binary translation (an x86_64 emulator
 listing `arm64-v8a`) is a device that runs it. The install check is deliberately
 not the two-ABI minimum itself: a single-ABI bundle still installs anywhere it
 does run, and the requirement that a *published* bundle carry both required ABIs
-stays an admission rule, the catalog index's to enforce. Component libraries
-nested at `components/<id>/<version>/lib/<abi>/` are outside it — the engine
-wrapper resolves those at launch, not the host's library path; if component
-bundles ever need the same refusal, that changes with the wrapper code that
-resolves them.
+stays an admission rule, the catalog index's to enforce. A runtime-component
+bundle ("Runtime components" below) keeps its libraries under the same
+top-level `lib/<abi>/`, so the same refusal and the same admission rule apply
+to it; the engine wrapper, not the host's library path, loads them.
 
 A resource APK must compile its resource table at a package id of its own.
 Android resource IDs are `0xPPTTEEEE`, and aapt2 builds an ordinary
@@ -207,261 +206,238 @@ stays usable.
 Some games need more than a stock engine: Goodbye Eternity is a Godot 4.5
 game whose scenes are Spine animations, and its own desktop exports are
 custom Godot builds with EsotericSoftware's `spine_godot` runtime compiled
-in. An engine bundle must therefore be able to carry extensions to its
+in. An engine plugin must therefore be able to load extensions to its
 engine. Spine is the first; the format treats it as a general concept so
 the next one follows the same path.
 
-A runtime component ships **inside the parent bundle's signed payload** —
-same tar, same manifest, same signature, same pinned origin key. A
-component is native code loaded into the `:runtime` process, so it carries
-exactly the trust weight of the engine itself; a separately-delivered or
-separately-signed component would be a second trust mechanism beside the
-existing one, and is deliberately not part of the format. Adding a
-component means publishing a new bundle build.
+### Component bundles (decided 2026-10-14)
 
-A capability declares what it carries in `runtimeComponents`, a JSON
-object of component name to exact version:
+A runtime component is **its own bundle, installed separately and
+distributed under its own licence** (owner, 2026-10-14, Droidtop/tracker#291:
+"This is part of the subplugin system that has been pending for a while").
+The reason is licensing as much as size: the Spine Runtimes License is not
+GPL-compatible, so an engine bundle with Spine compiled in (or carried in its
+payload) cannot be distributed as the GPL-3.0 work every official bundle is.
+A separate component bundle keeps the engine bundles GPL-3.0 and puts the
+Spine runtime, under the Spine licence, in front of the person before they
+choose to install it.
+
+A component bundle is the same format as an engine bundle: the same
+`.enginehost.tar.xz`, manifest, signature, repository key, installer,
+payload verification, update check and trust screen. It is a second kind of
+bundle, not a second trust mechanism. What differs is in the manifest:
+
+```json
+{
+  "kind": "component",
+  "bundleId": "dev.enginehost.godot.component.spine-godot.v42",
+  "engine": "godot",
+  "pluginVersion": "1.0.0",
+  "apiVersion": 1,
+  "component": {
+    "engine": "godot",
+    "name": "spine-godot",
+    "version": "4.2",
+    "supportedSeries": ["4.2", "4.3", "4.4", "4.5", "4.6"]
+  },
+  "license": { "name": "Spine Runtimes License", "file": "LICENSE-spine-runtimes.txt" }
+}
+```
+
+- `kind` is `component` (absent means `engine`).
+- `component` names the engine whose plugins load it, the component's
+  ecosystem-scoped name (`spine-godot`, not `spine`) and its version (the
+  component's compatibility line as its own ecosystem defines it: for
+  spine-godot, the Spine editor major.minor whose exported skeletons it
+  loads), and the engine versions it carries a build for (`supportedSeries`).
+- `license` is required: its name and the payload file holding its text.
+  The trust screen shows that text, open, and the approve button reads
+  "Accept licence and allow"; approving is accepting. An engine bundle may
+  declare a `license` too, and is shown the same way.
+- It has no `dexFiles`, no `entrypoint` and no `capabilities`: Enginehost runs
+  no code of a component and no game runs on one. Its native code is loaded
+  by the engine plugin, into the engine's own runtime process, so it carries
+  the trust weight of engine code and is approved like it.
+- Its payload layout is the loading plugin's business. Native libraries sit
+  under the top-level `lib/<abi>/` so the installer's ABI check and the
+  plugins index's both-ABIs rule apply to it as to any bundle.
+
+A component's release envelope is named `enginehost-component.json` instead
+of `enginehost-release.json` (same format). An Enginehost from before
+component bundles reads only the latter, so it skips a component release
+instead of failing to parse a manifest with no entry point, which would have
+failed that repository's whole catalog. Enginehost now reads both, as do the
+plugins index generator (droidtop-platforms) and the release tooling here.
+
+### Which capabilities load which components
+
+A capability declares the components it can load in `loadsComponents`, by
+name:
 
 ```json
 "capabilities": [{
-  "id": "godot-4.5-standard-v1",
+  "id": "godot-4.5-standard-v2",
   "runtimeVersion": "4.5.1",
   "supportedSeries": ["4.5"],
-  "runtimeComponents": { "spine-godot": "4.2" }
+  "loadsComponents": ["spine-godot"]
 }]
 ```
 
-The name is scoped to the engine's ecosystem (`spine-godot`, not `spine`);
-the version is the component's compatibility line as its own ecosystem
-defines it — for spine-godot, the Spine editor major.minor whose exported
-skeletons the runtime loads. A game's `enginehost.json` states what it
-needs in `runtimeRequirements`, and a capability is eligible only when
-every named component is present at exactly the required version:
+A game's `enginehost.json` states what it needs in `runtimeRequirements`
+(detection writes it; `SpineSkeletonScan` for Spine):
 
 ```json
 { "engine": "godot", "engineVersion": "4.5.1",
   "runtimeRequirements": { "spine-godot": "4.2" } }
 ```
 
-This reuses the engine-version vocabulary rather than inventing one — it
-is the same two-sided constraint mkxp-z already expresses by declaring
-`vxace` against both Ruby 3.1.3 and 1.9.2. When no installed capability
-satisfies the requirements, plugin selection fails before launch with the
-requirements named, which is a legible answer; the alternative this
-section exists to prevent is the engine coming up without the component
-and rendering black.
+A requirement is met either by the capability itself, when its
+`runtimeComponents` carries that exact version (the first Spine bundles had
+it compiled in), or, for a name in `loadsComponents`, by an installed and
+approved component bundle for the same engine, of that name and exact
+version, whose `supportedSeries` covers the capability's `runtimeVersion`
+(`ComponentSelection.select`). Only what the game asked for is loaded: a game
+that needs nothing loads no component, whatever is installed. A component the
+person has not approved never resolves.
 
-Among capabilities that satisfy the requirements, selection prefers the
-one that loads the fewest components the game did not ask for
+When nothing resolves but an installed engine could serve the game once a
+component is there (`PluginRegistry.missingComponents`), the launch does not
+fail: an installed component waiting for approval opens its trust screen with
+its licence; otherwise the catalog opens for the game and offers the component
+bundle (and installs it first when the launch asked for automatic installs).
+Its card says what it is ("Spine 4.2 runtime"), which engine versions load it
+and which licence it carries. After it is approved the launch resumes.
+
+The plugin learns what the launch loads from
+`EnginePluginSession.runtimeComponents()` (carried and separate together) and
+where each separate one is from `EnginePluginSession.runtimeComponentDirectory(name)`:
+the verified, read-only root of the component bundle. Every component bundle a
+launch loads is verified (signature, pinned signer, payload stamps) together
+with the engine bundle before the plugin starts. An isolated runtime
+(docs/engine-sandbox.md, "Layer 2") reaches bundle files only through
+descriptors, which components do not have yet, so a sandboxed engine that
+would need one is refused at launch with the component named.
+
+Selection among capabilities that serve the game prefers the one that loads
+the fewest carried components the game did not ask for
 (`EngineCapability.unrequestedComponents`, after version specificity and
-before plugin version), so a game that needs nothing gets the stock
-capability of a bundle that also declares component combinations.
-The plugin learns what the selected capability carries from
-`EnginePluginSession.runtimeComponents()`; `runtimeRequirements()` is
-only what the game asked for.
+before plugin version).
 
-How the engine finds the component at runtime is engine-specific and
-deliberately outside this contract. For Godot it is a GDExtension the
-wrapper hands the engine (below). The first Godot bundles instead compile
-`spine_godot` into `libgodot_android.so` as an engine module, the same way
-the games' own desktop exports embed it; that shape is being retired (see
-the next section). A component for another engine may be a payload shared
-library its plugin loads at startup. Either way the bytes are signed
-payload members, and the manifest's `source` records the component's
-upstream and revision under `source.components`.
+### Godot: components are GDExtensions
 
-A component's licence travels with it: the Spine Runtimes License permits
-redistribution only when the licence and copyright notice are included, so
-a compiled-in Godot bundle ships `LICENSE-spine-runtimes.txt` in its payload
-beside `LICENSE.txt` and `COPYRIGHT.txt`, a component bundle ships it inside
-the component (`components/spine-godot/<version>/LICENSE-spine-runtimes.txt`),
-and the manifest lists the licence in `licenses` either way.
+How an engine finds a component is engine-specific. For Godot it is a
+GDExtension the wrapper hands the engine, verified in the Godot sources from
+4.2 on. During core registration, before any game script parses,
+`register_core_types.cpp` runs `GDExtensionManager::load_extensions()`, which
+ends by asking the OS for platform extensions;
+`OS_Android::load_platform_gdextensions()` gets its list from the Java side,
+which collects every registered Android `GodotPlugin`'s
+`getPluginGDExtensionLibrariesPaths()`. A `.gdextension` config returned there
+is loaded at `INITIALIZATION_LEVEL_CORE`, so the classes exist before the
+game's resources name them, the same guarantee a compiled-in module gives.
+spine-runtimes builds its extension flavor officially
+(`spine_godot_extension.gdextension`, `build-extension.sh`, godot-cpp).
 
-### The version matrix: compiled-in versus loadable components
+So the Godot plugin's wrapper (`GodotComponents`, plugin-core of
+enginehost-godot-plugin) registers a host `GodotPlugin` whose
+`getPluginGDExtensionLibrariesPaths()` returns, for each component of the
+launch, `<component root>/godot-<series>/<name>.gdextension` for the engine's
+own series. The spine-godot component bundle carries one build per Godot
+series it supports, each compiled against godot-cpp at that series' release
+tag, for arm64-v8a and x86_64:
 
-Compiling a component into the engine binary makes every (engine version ×
-component version) pair its own ~180MB bundle. That is multiplicative and
-will not survive a second component version. It is how the first spine
-bundle ships — it exactly reproduces what the games' own desktop builds do,
-which made it the lowest-risk way to get a first game rendering — but it is
-not the shape the format settles on.
+```
+LICENSE-spine-runtimes.txt
+godot-4.5/spine-godot.gdextension          [libraries] android.arm64 / android.x86_64
+lib/arm64-v8a/godot-4.5/libspine_godot.so
+lib/x86_64/godot-4.5/libspine_godot.so
+...one godot-<series> set per supported series
+```
 
-The engine supports an additive shape, verified in the Godot 4.5.1
-sources. Games need not declare an extension for the engine to load one:
-the host does. During core registration — before any game script parses —
-`register_core_types.cpp` runs `GDExtensionManager::load_extensions()`,
-which ends by asking the OS for platform extensions;
-`OS_Android::load_platform_gdextensions()` gets its list from the Java
-side (`Godot.kt`, `getGDExtensionConfigFiles()`), which collects every
-registered Android `GodotPlugin`'s `getPluginGDExtensionLibrariesPaths()`.
-A `.gdextension` config path returned there is loaded at
-`INITIALIZATION_LEVEL_CORE`, so the classes exist before the game's
-scripts reference them — the same guarantee the compiled-in module gives.
-spine-runtimes builds its extension flavor for `android.release.arm64`
-officially (`spine_godot_extension.gdextension`, `build-extension.sh`,
-godot-cpp), so the pieces exist on both sides.
+The Godot engine bundles are built with no extra module compiled in and are
+GPL-3.0; their capabilities declare `loadsComponents: ["spine-godot"]`. The
+compiled-in Spine bundles (lines 4.2 to 4.6 before 2026-10-14) and the
+payload-carried `plugin/4.5-components` experiment are retired: their builds
+are out of the official catalog, so there is one mechanism.
 
-In that shape one bundle carries one stock engine binary per Godot
-version plus N small component libraries, and declares one capability per
-combination it can serve — same engine `runtimeVersion`, different
-`runtimeComponents` — with the plugin handing Godot the `.gdextension`
-for whichever capability was selected. A new Spine version is then a few
-megabytes of payload and a new capability entry, not a new engine build.
-`runtimeRequirements` matching needs no change.
-
-The 4.5 line is built this way on `plugin/4.5-components`
-(`dev.enginehost.godot.v45.v2`: one engine built with no extra modules,
-spine-godot 4.2 as `components/spine-godot/4.2/`, capabilities
-`godot-4.5-standard-v2` and `godot-4.5-spine-4.2-v2`). It is a new
-series so it installs beside the compiled-in `v45.v1` from `plugin/4.5`
-while the two are compared. What keeps the compiled-in bundles alive until
-then: the extension flavor of spine-godot is the newer of Esoteric's two
-builds and has not been proven against these games' module-imported
-resources on device. Verifying that one game renders identically under the
-extension build is what settles it; when it does, the compiled-in module
-is retired, the other spine lines (4.2 to 4.6) move to the component
-shape, and `v1` stops being built, so there is one mechanism, not two.
+**Choosing a library under a presented platform.** The Godot lines can show a
+game the desktop platform it was exported for (`ENGINEHOST_GODOT_PLATFORM`;
+`OS.get_name()` answers "Windows" and the `pc`/`windows` feature tags are
+set). GDExtension library selection must not follow that: a component's
+`android.*` entry would never match and, on an x86_64 device, a game's
+`windows.*.x86_64` DLL would. The engine therefore picks a `[libraries]` entry
+with Android's own platform tags and every other tag as usual (an engine-side
+patch on each line). That one rule serves both a game's own Android libraries
+and the host's component configs.
 
 ### The module system: one mechanism for every Godot component (decided 2026-09-17)
 
 Spine is one component, and shipping games use many more. The user's
-direction: "we only support spine, but there are SO MANY other modules." The
-compiled-in spine bundle stays exactly what the section above calls it, a
-first bundle, and the settled shape is this.
+direction: "we only support spine, but there are SO MANY other modules."
 
 **What a game can depend on.** Two things, resolved by one mechanism:
 
 - **GDExtensions the game ships.** A game carries `*.gdextension` files
   (listed in `res://.godot/extension_list.cfg`) whose `[libraries]` table
-  names one library per platform: `windows.x86_64 = "res://addons/foo/foo.dll"`,
-  `linux.x86_64 = ...`. A desktop export names no `android.*` library at
-  all, so on Android the engine has nothing to load and every class the
-  extension provides is missing. The component Enginehost supplies is the
-  **Android build of that same extension at that same version**: arm64-v8a
-  and x86_64 shared libraries, built from the extension's own source
-  against godot-cpp for the engine line.
+  names one library per platform. A desktop export names no `android.*`
+  library, so on Android the engine has nothing to load. The component
+  Enginehost supplies is the **Android build of that same extension at that
+  same version**, built from the extension's own source against godot-cpp
+  for the engine line.
 - **Engine modules the game's export template was built with.** A game
-  built on a custom template (spine-godot's module flavor is the case in
-  this library) references the module's classes from its resources
-  (`SpineSkeletonDataResource`, ...). There is no `.gdextension` to read;
-  the classes must exist before the game's scripts parse. The component is
-  the **extension flavor of the same module**, loaded at
-  `INITIALIZATION_LEVEL_CORE` the way the section above describes, or,
-  while a module has no extension flavor, compiled in.
+  built on a custom template (spine-godot's module flavor is the case in this
+  library) references the module's classes from its resources
+  (`SpineSkeletonDataResource`, ...). The component is the **extension
+  flavor of the same module**, loaded at `INITIALIZATION_LEVEL_CORE`.
 
-**Detection writes the requirement; nobody types it.** Today
-`runtimeRequirements` is hand-written into a game's `enginehost.json`.
-Instead the Godot detector (the pack resolver that already reads the pack
-header and directory) reads from the pack: every `*.gdextension` entry (name,
-`entry_symbol`, `compatibility_minimum`, the platforms it does ship) and,
-for module-built games, the class names of imported resources against a
-table of known module classes. It writes `runtimeRequirements` as
-`{ "<component>": "<version>" }` where the component id is the extension's
-own name from its `.gdextension` (or the addon's `plugin.cfg` name) and the
-version is the addon's declared version when it has one, else the engine
-line. A person may still override it in `enginehost.json`; detection never
-overwrites a hand-written value.
+**Detection writes the requirement; nobody types it.** The Godot detector
+reads the pack: every `*.gdextension` entry and, for module-built games, the
+class names of imported resources against a table of known module classes,
+and writes `runtimeRequirements` as `{ "<component>": "<version>" }`. A person
+may still override it in `enginehost.json`; detection never overwrites a
+hand-written value.
 
-**Components are bundle payload, one capability per combination.** A
-Godot line's bundle carries one engine runtime and N component libraries
-under `components/<id>/<version>/lib/<abi>/*.so` plus that component's
-`.gdextension` written for Android paths, and declares one capability per
-combination it serves (same `runtimeVersion`, different
-`runtimeComponents`), exactly as the version-matrix section already says.
-A component that is heavy or licence-separate may instead ship as its own
-component bundle (`dev.enginehost.godot.component.<id>.v1`, signed and
-certified like any bundle) that the host installs beside the engine bundle
-and merges into the capability list; the wrapper does not care which.
+**The wrapper injects, and never edits the game.** For a game-shipped
+extension whose own `.gdextension` names no Android library, the component
+provides a `.gdextension` with the same `entry_symbol` pointing at its Android
+libraries; the game's file in the pack is left as it is. A game whose
+`.gdextension` already names an Android library needs no component.
 
-**The wrapper injects, and never edits the game.** At launch the Godot
-plugin hands the engine, for every required component, the path of the
-component's `.gdextension` through the platform hook the section above
-names (`getPluginGDExtensionLibrariesPaths`), so the classes exist at core
-initialisation. For a game-shipped extension whose own `.gdextension` names
-no Android library, the wrapper provides a `.gdextension` with the same
-`entry_symbol` pointing at the component's Android libraries; the game's
-file in the pack is left as it is. A game whose `.gdextension` already names
-an Android library needs no component: the engine loads it as upstream does.
-
-**Building components.** Each component is a small CI job from the
-extension's upstream source at a pinned revision, against godot-cpp of the
-matching engine line, for arm64-v8a and x86_64, with its licence file
-carried in the payload and listed in `licenses`. The first components are
-the ones this library's games actually need: read every Godot game's pack
-for `.gdextension` entries and module class names, list them, and build in
-that order. A component nobody's game needs is not built.
-
-**Choosing a library under a presented platform.** The Godot lines can
-show a game the desktop platform it was exported for
-(`ENGINEHOST_GODOT_PLATFORM`; `OS.get_name()` answers "Windows" and the
-`pc`/`windows` feature tags are set). GDExtension library selection must
-not follow that: a game's `android.*` entry would never match and, on an
-x86_64 device, its `windows.*.x86_64` DLL would. The engine therefore picks
-a `[libraries]` entry with Android's own platform tags
-(`_library_has_feature` in `core/extension/gdextension_library_loader.cpp`
-on the line) and every other tag as usual. That one rule serves both a
-game's own Android libraries, which the engine loads from
-`res://.godot/extension_list.cfg` as upstream does (copying a library out
-of the pack before `dlopen`), and the host's component configs, which
-name `android.arm64` and `android.x86_64`.
-
-**What stays out.** Extensions that exist only as Windows DLLs with no
-source cannot be built for Android; detection records the requirement and
-plugin selection fails before launch with the component named, the same
-outcome the version-matrix section defines for an unsatisfied requirement.
-The compiled-in spine module is retired when spine's extension flavor is
-proven on device, per the section above; until then it is the one exception
-to "components are payload", not a second mechanism.
+**What stays out.** Extensions that exist only as Windows DLLs with no source
+cannot be built for Android; detection records the requirement and plugin
+selection fails before launch with the component named.
 
 ### Adding a runtime component
 
-A component is a payload member and a capability entry, not an engine
-build. For Godot (the enginehost-godot-plugin repository):
-
-1. **Build it.** Add a CI job on the line that builds the component from
-   its upstream source at a pinned revision, against godot-cpp pinned to
-   the engine line's release tag, for `arm64-v8a` and `x86_64` (both, or
-   the bundle fails), with the NDK godot-cpp names. Upload an artifact
-   holding `lib/<abi>/<library>.so` for each ABI and the component's
-   licence file. `spine-godot-extension` in `plugin/4.5-components` is the
-   pattern: the upstream's own extension build script, then a check that
-   the library exports its entry symbol. Make `bundle` need the job and
-   download the artifact.
-2. **Describe it** in the line's `enginehost/components.json`: `name` (the
-   ecosystem-scoped id games require, e.g. `spine-godot`, or a game
-   extension's own name), `version` (the component's compatibility line,
-   as `runtimeRequirements` names it), `artifact` (the downloaded
-   directory), `library`, `entrySymbol` (from the upstream
-   `.gdextension`), `compatibilityMinimum` (the engine line), `license`.
-   `enginehost/stage-components.py` (called by the bundle job) writes
-   `components/<name>/<version>/` with both ABIs, the licence and
-   `<name>.gdextension`.
-3. **Declare it.** In `enginehost/bundle-metadata.json`, add a capability
-   with the same `runtimeVersion` and series as the line's others and
-   `runtimeComponents: { "<name>": "<version>" }` (one capability per
-   combination the bundle serves), record the source under
-   `source.components`, and add the licence to `licenses`. The staging
-   script fails the build if a declared component is not carried or a
-   carried one is not declared.
-4. **Bump the declared `pluginVersion`** (a new component is a revision).
-5. **Make games ask for it.** Detection writes `runtimeRequirements`
-   (`SpineSkeletonScan` for Spine; a game's own `.gdextension` names for
-   game-shipped extensions); a person can still set it in `enginehost.json`.
-
-Nothing in the wrapper changes: `GodotComponents` resolves whatever the
-selected capability declares to `components/<name>/<version>/<name>.gdextension`
-and registers it with the engine as a host `GodotPlugin`
-(`getPluginGDExtensionLibrariesPaths()`), which Godot loads at core
-registration. A launch whose capability declares a component the bundle
-does not carry fails before the engine starts, naming it.
+1. **Build it** as its own line of the engine's plugin repository (Godot:
+   `enginehost/lines/component-<name>-<version>/` on plugin-core, composed like
+   any line, Enginehost docs/plugin-lines.md). Its workflow builds the
+   component from its upstream source at a pinned revision for every engine
+   series it supports, for `arm64-v8a` and `x86_64`, checks each library
+   exports its entry symbol, and packs the payload with the component's licence
+   text. `component-spine-godot-4.2` is the pattern.
+2. **Describe it** in the line's `enginehost/bundle-metadata.json`: `kind`,
+   `component`, `license`, a bundle id of its own
+   (`dev.enginehost.<engine>.component.<name>.v<version>`).
+3. **Let engines load it:** add its name to `loadsComponents` on the engine
+   capabilities whose wrapper can load it, and bump their `pluginVersion`.
+4. **Make games ask for it.** Detection writes `runtimeRequirements`; a person
+   can still set it in `enginehost.json`.
 
 ### Host services added after apiVersion 1 shipped
 
-`EnginePluginSession.runtimeComponents()` (2026-10-02): the selected
-capability's `runtimeComponents`, so a plugin that loads components knows
-which (above). A plugin that may run on an older Enginehost catches
+`EnginePluginSession.runtimeComponents()` (2026-10-02): what the launch
+loads beside the engine, so a plugin that loads components knows which
+(above). A plugin that may run on an older Enginehost catches
 `NoSuchMethodError` and uses `runtimeRequirements()` instead, which the
 capability was selected against.
+
+`EnginePluginSession.runtimeComponentDirectory(name)` (2026-10-14): the
+verified root of the separately installed component bundle providing
+`name` for this launch, null for a component the engine carries itself. An
+older Enginehost never selects a capability that needs a separate
+component (it does not read `loadsComponents`), so a plugin that reaches
+this call on one can only be loading nothing.
 
 `EngineHost.fail(message)` (2026-09-25): ends the runtime because the engine
 could not start, and the launch screen shows `message` with Report a problem,
