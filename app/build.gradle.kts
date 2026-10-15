@@ -128,4 +128,5 @@ dependencies {
     implementation(libs.xz)
     testImplementation(libs.junit)
     testImplementation(libs.json)
+    testImplementation(libs.bouncycastle.pkix)
 }

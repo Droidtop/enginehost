@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Build Enginehost bundle-format v1 with an internal ECDSA P-256 signature."""
+"""Build an Enginehost bundle (format v1) and sign it.
+
+Signature format v1 (Droidtop/tracker#550): `--certificate-key` and
+`--certificate-chain` add `enginehost-bundle.jws`, a detached JWS over the
+manifest whose x5c chain ends at Droidtop Core. The legacy raw-key signature
+(`--private-key`, `enginehost-bundle.sig`) is still made when that key is
+given, so builds that cannot verify v1 yet still install it; at least one of
+the two is required. See docs/engine-bundle-format.md "Signatures".
+"""
 
 import argparse
 import base64
@@ -13,6 +21,7 @@ import sys
 import tarfile
 import tempfile
 
+import bundle_jws
 from release_history import COMPONENT_ENVELOPE, next_build, published_versions, version_key
 
 
@@ -73,7 +82,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--metadata", required=True, type=Path)
     parser.add_argument("--payload", required=True, type=Path)
-    parser.add_argument("--private-key", required=True, type=Path)
+    parser.add_argument("--private-key", type=Path,
+                        help="Legacy raw P-256 signing key: adds enginehost-bundle.sig and the manifest's signing block")
+    parser.add_argument("--certificate-key", type=Path,
+                        help="Format v1: the private key of the signing certificate")
+    parser.add_argument("--certificate-chain", type=Path,
+                        help="Format v1: PEM certificates, the signing certificate first, Droidtop Core excluded")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--release-envelope", type=Path)
     parser.add_argument("--public-key-document", type=Path)
@@ -88,6 +102,12 @@ def main() -> None:
     args = parser.parse_args()
     if not args.output.name.endswith(".enginehost.tar.xz"):
         raise SystemExit("output name must end in .enginehost.tar.xz")
+    if (args.certificate_key is None) != (args.certificate_chain is None):
+        raise SystemExit("--certificate-key and --certificate-chain go together")
+    if args.private_key is None and args.certificate_key is None:
+        raise SystemExit("sign with --private-key (legacy), --certificate-key/--certificate-chain (v1), or both")
+    if args.public_key_document and args.private_key is None:
+        raise SystemExit("--public-key-document describes the legacy key; it needs --private-key")
 
     metadata = json.loads(args.metadata.read_text(encoding="utf-8"))
     # A runtime-component bundle (docs/engine-bundle-format.md, "Runtime
@@ -152,37 +172,59 @@ def main() -> None:
         aggregate.update(data)
         records.append({"path": relative, "size": len(data), "sha256": sha256(data), "mode": mode})
 
-    public_der = public_key(args.private_key)
     origin = metadata["origin"].rstrip("/").removesuffix(".git")
+    chain = None
+    if args.certificate_chain:
+        chain = bundle_jws.pem_certificates(args.certificate_chain.read_text(encoding="utf-8"))
+        # The certificate must name this origin and be for plugin bundles,
+        # or the app refuses every bundle signed with it; fail here instead.
+        names = bundle_jws.uris(chain[0])
+        if bundle_jws.ORIGIN_URN + bundle_jws.origin_id(origin) not in (name.lower() for name in names):
+            raise SystemExit(f"the signing certificate does not name {origin} (urn:droidtop:origin:{bundle_jws.origin_id(origin)})")
+        if bundle_jws.PURPOSES["plugin"][0] not in bundle_jws.certificate_text(chain[0], "extendedKeyUsage"):
+            raise SystemExit("the signing certificate is not for plugin bundles")
     manifest = dict(metadata)
+    manifest.pop("signing", None)
     manifest.update({
         "formatVersion": 1,
         "assetName": args.output.name,
         "origin": origin,
-        "signing": {
-            "algorithm": "SHA256withECDSA",
-            "publicKeySpki": base64.b64encode(public_der).decode("ascii"),
-            "keySha256": sha256(public_der),
-        },
         "payloadSha256": aggregate.hexdigest().upper(),
         "files": records,
     })
+    public_der = None
+    if args.private_key:
+        public_der = public_key(args.private_key)
+        manifest["signing"] = {
+            "algorithm": "SHA256withECDSA",
+            "publicKeySpki": base64.b64encode(public_der).decode("ascii"),
+            "keySha256": sha256(public_der),
+        }
     manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
-    with tempfile.TemporaryDirectory() as temporary:
-        manifest_path = Path(temporary) / "enginehost-bundle.json"
-        signature_path = Path(temporary) / "enginehost-bundle.sig.der"
-        manifest_path.write_bytes(manifest_bytes)
-        subprocess.run(
-            ["openssl", "dgst", "-sha256", "-sign", str(args.private_key),
-             "-out", str(signature_path), str(manifest_path)],
-            check=True,
-        )
-        signature = signature_path.read_bytes()
+    signature = None
+    if args.private_key:
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest_path = Path(temporary) / "enginehost-bundle.json"
+            signature_path = Path(temporary) / "enginehost-bundle.sig.der"
+            manifest_path.write_bytes(manifest_bytes)
+            subprocess.run(
+                ["openssl", "dgst", "-sha256", "-sign", str(args.private_key),
+                 "-out", str(signature_path), str(manifest_path)],
+                check=True,
+            )
+            signature = signature_path.read_bytes()
+    jws = None
+    if chain:
+        jws = bundle_jws.sign(manifest_bytes, args.certificate_key, chain, "plugin", detached=True)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(args.output, "w:xz", format=tarfile.USTAR_FORMAT) as archive:
         archive.addfile(*tar_member("enginehost-bundle.json", manifest_bytes))
-        archive.addfile(*tar_member("enginehost-bundle.sig", base64.b64encode(signature) + b"\n"))
+        # The legacy signature first, then the v1 one: the order the app reads them in.
+        if signature is not None:
+            archive.addfile(*tar_member("enginehost-bundle.sig", base64.b64encode(signature) + b"\n"))
+        if jws is not None:
+            archive.addfile(*tar_member("enginehost-bundle.jws", jws.encode("ascii") + b"\n"))
         for relative, _path, data, mode in files:
             archive.addfile(*tar_member(relative, data, mode))
 
@@ -193,13 +235,12 @@ def main() -> None:
         # the engine name; the component one sits beside it.
         if kind == "component":
             args.release_envelope = args.release_envelope.with_name(COMPONENT_ENVELOPE)
-        envelope = {
-            "formatVersion": 1,
-            "bundles": [{
-                "manifestBase64": base64.b64encode(manifest_bytes).decode("ascii"),
-                "signatureBase64": base64.b64encode(signature).decode("ascii"),
-            }],
-        }
+        entry = {"manifestBase64": base64.b64encode(manifest_bytes).decode("ascii")}
+        if signature is not None:
+            entry["signatureBase64"] = base64.b64encode(signature).decode("ascii")
+        if jws is not None:
+            entry["jws"] = jws
+        envelope = {"formatVersion": 1, "bundles": [entry]}
         args.release_envelope.write_text(
             json.dumps(envelope, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8"
         )

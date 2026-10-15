@@ -39,7 +39,7 @@ from release_history import declared_core, published_builds, version_key
 # tools/plugin_line.py, Droidtop/tracker#324): bookkeeping that every line
 # carries, so declaring a new line must not count as a revision of the others.
 IGNORED_PREFIXES = (".github/", "docs/", "enginehost/lines/")
-IGNORED_NAMES = {"LICENSE", "enginehost-public-key.json", "enginehost-origin.json",
+IGNORED_NAMES = {"LICENSE", "enginehost-public-key.json", "enginehost-signing-certificate.pem", "enginehost-origin.json",
                  "build-scripts/publish-history-release.sh", "enginehost/line.json"}
 IGNORED_SUFFIXES = (".md",)
 

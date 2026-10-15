@@ -16,6 +16,15 @@ name: Sign engine bundle
 #       artifact-name: ...
 #     secrets:
 #       ENGINEHOST_SIGNING_KEY_PEM: ${{ secrets.ENGINEHOST_SIGNING_KEY_PEM }}
+#       ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
+#
+# Two signatures, either or both (docs/engine-bundle-format.md "Signatures"):
+# format v1 when ENGINEHOST_CERTIFICATE_KEY_PEM is set -- the key of the
+# certificate Droidtop Core issued for this repository, which the repository
+# commits as enginehost-signing-certificate.pem (scripts/provision-signing-
+# certificates.py) -- and the legacy raw-key signature when
+# ENGINEHOST_SIGNING_KEY_PEM is set. A repository signs both until every
+# Enginehost a person may run verifies v1, then drops the legacy secret.
 #
 # Why a separate job: a build job runs code nobody here reviewed line by line
 # (engine SDK downloads, Gradle plugins, third-party actions). All steps of a
@@ -50,9 +59,16 @@ on:
         type: string
         required: true
       repository-key-document:
-        description: The repository's committed key document, relative to its root.
+        description: The repository's committed legacy key document, relative to its root.
         type: string
         default: enginehost-public-key.json
+      repository-certificate:
+        description: >-
+          The repository's committed signing certificate (PEM, the certificate
+          Droidtop Core issued for it first, then any intermediates), relative
+          to its root. Used when ENGINEHOST_CERTIFICATE_KEY_PEM is set.
+        type: string
+        default: enginehost-signing-certificate.pem
       channel:
         description: >-
           The release channel this signed bundle is being produced for, if
@@ -65,7 +81,11 @@ on:
         default: ""
     secrets:
       ENGINEHOST_SIGNING_KEY_PEM:
-        required: true
+        description: The legacy raw signing key; optional once format v1 signs.
+        required: false
+      ENGINEHOST_CERTIFICATE_KEY_PEM:
+        description: Format v1, the private key of enginehost-signing-certificate.pem.
+        required: false
 
 permissions:
   contents: read
@@ -125,6 +145,7 @@ jobs:
           TOOLING_SHA: ${{ inputs.tooling-sha }}
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: ${{ inputs.repository-key-document }}
+          CERTIFICATE: ${{ inputs.repository-certificate }}
           CHANNEL: ${{ inputs.channel }}
         run: |
           set -euo pipefail
@@ -133,22 +154,27 @@ jobs:
           [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
           [[ "$BUNDLE" =~ ^[A-Za-z0-9._-]+\.enginehost\.tar\.xz$ ]] || { echo "bad bundle name '$BUNDLE'" >&2; exit 1; }
           [[ "$KEY_DOCUMENT" =~ ^[A-Za-z0-9._/-]+$ && "$KEY_DOCUMENT" != *..* ]] || { echo "bad key document path '$KEY_DOCUMENT'" >&2; exit 1; }
+          [[ "$CERTIFICATE" =~ ^[A-Za-z0-9._/-]+$ && "$CERTIFICATE" != *..* ]] || { echo "bad certificate path '$CERTIFICATE'" >&2; exit 1; }
           [[ -z "$CHANNEL" || "$CHANNEL" =~ ^(stable|testing|unstable)$ ]] || { echo "bad channel '$CHANNEL'" >&2; exit 1; }
-      - name: Check out the repository key document
+      - name: Check out the repository key document and signing certificate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           path: repository
           persist-credentials: false
-          sparse-checkout: ${{ inputs.repository-key-document }}
+          sparse-checkout: |
+            ${{ inputs.repository-key-document }}
+            ${{ inputs.repository-certificate }}
           sparse-checkout-cone-mode: false
-      - name: Check out the signing tooling
+      - name: Check out the signing tooling and the pinned Core certificate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: Droidtop/enginehost
           ref: ${{ inputs.tooling-sha }}
           path: enginehost-tooling
           persist-credentials: false
-          sparse-checkout: scripts
+          sparse-checkout: |
+            scripts
+            app/src/main/assets/trust
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ inputs.unsigned-artifact }}
@@ -156,15 +182,20 @@ jobs:
       - name: Sign
         env:
           ENGINEHOST_SIGNING_KEY_PEM: ${{ secrets.ENGINEHOST_SIGNING_KEY_PEM }}
+          ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: repository/${{ inputs.repository-key-document }}
+          CERTIFICATE: repository/${{ inputs.repository-certificate }}
+          CORE_CERTIFICATE: enginehost-tooling/app/src/main/assets/trust/droidtop-core.pem
           CHANNEL: ${{ inputs.channel }}
           # Reads the calling repository's releases to number this build.
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test -n "$ENGINEHOST_SIGNING_KEY_PEM"
-          test -f "$KEY_DOCUMENT"
+          if [ -z "$ENGINEHOST_SIGNING_KEY_PEM" ] && [ -z "$ENGINEHOST_CERTIFICATE_KEY_PEM" ]; then
+            echo "::error::no signing key: set ENGINEHOST_CERTIFICATE_KEY_PEM (format v1), ENGINEHOST_SIGNING_KEY_PEM (legacy), or both" >&2
+            exit 1
+          fi
           mkdir -p unsigned output
           # -p keeps the modes the build gave the payload; the manifest signs them.
           tar -xpf unsigned-download/unsigned.tar -C unsigned --no-same-owner
@@ -188,19 +219,42 @@ jobs:
             fi
           fi
           key="$RUNNER_TEMP/signing-key.pem"
-          trap 'rm -f "$key"' EXIT
-          (umask 077; printf '%s' "$ENGINEHOST_SIGNING_KEY_PEM" > "$key")
+          certificate_key="$RUNNER_TEMP/certificate-key.pem"
+          trap 'rm -f "$key" "$certificate_key"' EXIT
+          signing=()
+          if [ -n "$ENGINEHOST_SIGNING_KEY_PEM" ]; then
+            test -f "$KEY_DOCUMENT"
+            (umask 077; printf '%s' "$ENGINEHOST_SIGNING_KEY_PEM" > "$key")
+            signing+=(--private-key "$key" --repository-key-document "$KEY_DOCUMENT"
+                      --public-key-document output/enginehost-public-key.json)
+          fi
+          if [ -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" ]; then
+            test -f "$CERTIFICATE" || { echo "::error::ENGINEHOST_CERTIFICATE_KEY_PEM is set but $CERTIFICATE is not committed" >&2; exit 1; }
+            (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$certificate_key")
+            signing+=(--certificate-key "$certificate_key" --certificate-chain "$CERTIFICATE")
+          fi
           python3 enginehost-tooling/scripts/build-engine-bundle.py \
             --metadata unsigned/bundle-metadata.json --payload unsigned/payload \
-            --private-key "$key" \
-            --repository-key-document "$KEY_DOCUMENT" \
+            "${signing[@]}" \
             --release-history-repo "$GITHUB_REPOSITORY" \
             --output "output/$BUNDLE" \
-            --release-envelope output/enginehost-release.json \
-            --public-key-document output/enginehost-public-key.json
-          # The key that signed must be the one the repository committed and
-          # the official root certified; anything else is the wrong secret.
-          cmp "$KEY_DOCUMENT" output/enginehost-public-key.json
+            --release-envelope output/enginehost-release.json
+          if [ -n "$ENGINEHOST_SIGNING_KEY_PEM" ]; then
+            # The key that signed must be the one the repository committed and
+            # the official root certified; anything else is the wrong secret.
+            cmp "$KEY_DOCUMENT" output/enginehost-public-key.json
+          fi
+          if [ -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" ]; then
+            # The certificate the repository committed travels with the release,
+            # and the bundle must verify to the Core this tooling pins.
+            cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
+            if [ -f "$CORE_CERTIFICATE" ]; then
+              python3 enginehost-tooling/scripts/verify-engine-bundle.py "output/$BUNDLE" \
+                --core-certificate "$CORE_CERTIFICATE" --require-v1
+            else
+              echo "::warning::this Enginehost commit pins no Droidtop Core certificate; the v1 chain was not checked here"
+            fi
+          fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ inputs.artifact-name }}

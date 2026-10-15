@@ -112,31 +112,43 @@ def main() -> None:
         run("gh", "run", "download", args.run, "-R", args.repo, "-D", str(workdir))
         bundles = sorted(workdir.rglob("*.enginehost.tar.xz"))
         envelopes = sorted(workdir.rglob("enginehost-release.json")) + sorted(workdir.rglob("enginehost-component.json"))
+        # A legacy key document, a v1 signing certificate, or both: what the
+        # signing job produced (docs/engine-bundle-format.md "Signatures").
         key_documents = sorted(workdir.rglob("enginehost-public-key.json"))
-        if not bundles or len(envelopes) != 1 or len(key_documents) != 1:
+        certificates = sorted(workdir.rglob("enginehost-signing-certificate.pem"))
+        if (not bundles or len(envelopes) != 1 or len(key_documents) > 1 or len(certificates) > 1
+                or not (key_documents or certificates)):
             raise SystemExit(
                 f"run {args.run} artifacts do not form one bundle set "
-                f"(bundles={len(bundles)}, envelopes={len(envelopes)}, keys={len(key_documents)}); "
-                "is this the plugin build workflow?"
+                f"(bundles={len(bundles)}, envelopes={len(envelopes)}, keys={len(key_documents)}, "
+                f"certificates={len(certificates)}); is this the plugin build workflow?"
             )
 
-        # The key document the release will carry must be the one committed in
-        # the repository at this very commit -- that is what Enginehost pins.
-        committed = run(
-            "gh", "api", f"repos/{args.repo}/contents/enginehost-public-key.json?ref={commit}",
-            "-H", "Accept: application/vnd.github.raw",
-        )
-        if committed.strip() != key_documents[0].read_text().strip():
-            raise SystemExit(
-                "artifact enginehost-public-key.json differs from the one committed "
-                f"at {commit[:12]}; refusing to publish a key users cannot pin"
+        # What the release carries must be what the repository committed at
+        # this very commit: the key document Enginehost pins (legacy), the
+        # certificate Droidtop Core issued (v1).
+        for published, name in ((key_documents, "enginehost-public-key.json"),
+                                (certificates, "enginehost-signing-certificate.pem")):
+            if not published:
+                continue
+            committed = run(
+                "gh", "api", f"repos/{args.repo}/contents/{name}?ref={commit}",
+                "-H", "Accept: application/vnd.github.raw",
             )
+            if committed.strip() != published[0].read_text().strip():
+                raise SystemExit(
+                    f"artifact {name} differs from the one committed "
+                    f"at {commit[:12]}; refusing to publish what users cannot verify"
+                )
 
+        core = scripts.parent / "app/src/main/assets/trust/droidtop-core.pem"
         for bundle in bundles:
-            run(
-                sys.executable, str(scripts / "verify-engine-bundle.py"),
-                str(bundle), "--repository-key", str(key_documents[0]),
-            )
+            command = [sys.executable, str(scripts / "verify-engine-bundle.py"), str(bundle)]
+            if key_documents:
+                command += ["--repository-key", str(key_documents[0])]
+            if certificates and core.is_file():
+                command += ["--core-certificate", str(core), "--require-v1"]
+            run(*command)
             print(f"verified: {bundle.name}")
 
         notes = "\n\n".join(

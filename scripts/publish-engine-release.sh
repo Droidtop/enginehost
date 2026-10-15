@@ -30,6 +30,7 @@ id="$(basename "$bundle" .enginehost.tar.xz)"
 # "Runtime components"), so older Enginehost builds skip its release.
 envelope="$(find "$RELEASE_DIR" \( -name 'enginehost-release.json' -o -name 'enginehost-component.json' \) -print -quit)"
 keydoc="$(find "$RELEASE_DIR" -name 'enginehost-public-key.json' -print -quit)"
+certificate="$(find "$RELEASE_DIR" -name 'enginehost-signing-certificate.pem' -print -quit)"
 test -f "$envelope"
 
 # The envelope names its channel; the app filters on it. The signed manifest
@@ -53,6 +54,7 @@ case "$CHANNEL" in
 esac
 assets=("$bundle" "$envelope")
 [ -z "$keydoc" ] || assets+=("$keydoc")
+[ -z "$certificate" ] || assets+=("$certificate")
 
 notes="Signed Enginehost bundle \`$id\` on the **$CHANNEL** channel, built from \`$REF_NAME\` at \`$SHA\` (build $RUN_NUMBER). Install it through Enginehost rather than unpacking it by hand: the bundle is verified file by file at install time against the key pinned for this repository."
 if [ "$CHANNEL" = unstable ] || [ "$CHANNEL" = testing ]; then
