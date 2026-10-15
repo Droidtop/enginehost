@@ -113,6 +113,20 @@ boolean extra `ended` (true: a game was running and its runtime process was ende
 without a crash report; false: none was running), or RESULT_CANCELED with string
 extra `error` = `untrusted_caller`, touching nothing. It takes no other extras.
 
+## Reporting whether anything is open: the `state` call
+
+droidtop keeps a "Playing" session for the game it started and needs to know when
+it is over without a privileged helper (Droidtop/tracker#289: Cancel on the
+no-sandbox warning, or Back on a startup-error screen, left it standing for ever).
+`CapabilityProvider` answers `call("state")` on `content://dev.enginehost.capabilities`
+to droidtop alone (Android's record of the caller, `TrustedCallers.isDroidtop`);
+anyone else, and an unknown method, gets null. The Bundle holds `tasks` (the number
+of Enginehost's own tasks across all its processes, `ActivityManager.getAppTasks`:
+a launch's warning, a running game and an error screen each hold one, so it is 0
+once a launch was cancelled, a game ended, or its error screen was left) and
+`runtime` (whether the `:runtime` process is alive). It is read-only and touches
+nothing; END_GAME above remains the only way to end a game.
+
 ## Per-game choices live in the library database
 
 What a person sets for one game on this device (the core it runs on, an engine
