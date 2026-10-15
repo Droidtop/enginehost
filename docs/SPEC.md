@@ -121,9 +121,12 @@ no-sandbox warning, or Back on a startup-error screen, left it standing for ever
 `CapabilityProvider` answers `call("state")` on `content://dev.enginehost.capabilities`
 to droidtop alone (Android's record of the caller, `TrustedCallers.isDroidtop`);
 anyone else, and an unknown method, gets null. The Bundle holds `tasks` (the number
-of Enginehost's own tasks across all its processes, `ActivityManager.getAppTasks`:
-a launch's warning, a running game and an error screen each hold one, so it is 0
-once a launch was cancelled, a game ended, or its error screen was left) and
+of Enginehost's own tasks across all its processes that are running, from
+`ActivityManager.getAppTasks`: a launch's warning, a running game and an error
+screen each hold one, so it is 0 once a launch was cancelled, a game ended, or its
+error screen was left. A finished task Android keeps in Recents is not counted:
+`getAppTasks` lists it too, and counting it kept droidtop's session standing after
+Cancel, rig 2026-10-15; `TaskInfo.isRunning`, or `numActivities` before API 29) and
 `runtime` (whether the `:runtime` process is alive). It is read-only and touches
 nothing; END_GAME above remains the only way to end a game.
 

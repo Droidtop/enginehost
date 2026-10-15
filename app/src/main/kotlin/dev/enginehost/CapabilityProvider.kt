@@ -64,12 +64,20 @@ class CapabilityProvider : ContentProvider() {
         val context = context ?: return null
         val caller = callingPackage ?: return null
         if (!TrustedCallers.isDroidtop(context.packageManager, caller)) return null
-        val tasks = context.getSystemService(android.app.ActivityManager::class.java)?.appTasks?.size ?: return null
+        // Running tasks only. getAppTasks also lists a finished task Android keeps in Recents (Cancel on the
+        // no-sandbox warning only finishes its screen), so its size stayed 1 and droidtop's session never ended
+        // (Droidtop/tracker#289, console rig on droidtop 0.2.0-dev.1894).
+        val tasks = context.getSystemService(android.app.ActivityManager::class.java)?.appTasks
+            ?.count { task -> runCatching { isRunning(task.taskInfo) }.getOrDefault(true) } ?: return null
         return Bundle().apply {
             putInt(STATE_TASKS, tasks)
             putBoolean(STATE_RUNTIME, RuntimeProcess.alive(context))
         }
     }
+
+    /** Whether a task has an activity alive, not just an entry in Recents. */
+    private fun isRunning(info: android.app.ActivityManager.RecentTaskInfo): Boolean =
+        if (android.os.Build.VERSION.SDK_INT >= 29) info.isRunning else @Suppress("DEPRECATION") (info.numActivities > 0)
 
     override fun getType(uri: Uri): String = "vnd.android.cursor.dir/vnd.dev.enginehost.capability"
     override fun insert(uri: Uri, values: ContentValues?): Uri? = readOnly()
