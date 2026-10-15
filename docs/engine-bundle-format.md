@@ -183,7 +183,7 @@ Code: `CertificateSignatures.kt` (the JWS and chain checks), `BundleVerification
 revocation lists), `LegacyBundleSignatures.kt` (the bounded legacy path);
 tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
 `verify-engine-bundle.py`, `provision-signing-certificates.py`,
-`sign-revocation-list.py`.
+`make-publisher-certificate.py`, `sign-revocation-list.py`.
 
 ### The anchor
 
@@ -316,6 +316,10 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   derivation) and issues its certificate under Core. Re-downloading the Core key
   from the CA reproduces every key. The Enginehost APK signing key is not
   rotated and not derived here.
+- A third-party publisher signs v1 with the key people already pinned for its
+  repository: `scripts/make-publisher-certificate.py` makes a self-signed
+  certificate for that key naming the origin, and the same build options use
+  it. Once Core is pinned, a third party's new releases need it too.
 - Owner steps: commit Core's certificate at the path above (and the same in
   droidtop); run provisioning for each official origin; set each repository's
   `ENGINEHOST_CERTIFICATE_KEY_PEM` secret and commit its certificate to
