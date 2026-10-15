@@ -165,7 +165,7 @@ jobs:
             ${{ inputs.repository-key-document }}
             ${{ inputs.repository-certificate }}
           sparse-checkout-cone-mode: false
-      - name: Check out the signing tooling and the pinned Core certificate
+      - name: Check out the signing tooling and the pinned Core key
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: Droidtop/enginehost
@@ -186,7 +186,7 @@ jobs:
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: repository/${{ inputs.repository-key-document }}
           CERTIFICATE: repository/${{ inputs.repository-certificate }}
-          CORE_CERTIFICATE: enginehost-tooling/app/src/main/assets/trust/droidtop-core.pem
+          CORE_KEY: enginehost-tooling/app/src/main/assets/trust/droidtop-core.pub
           CHANNEL: ${{ inputs.channel }}
           # Reads the calling repository's releases to number this build.
           GH_TOKEN: ${{ github.token }}
@@ -248,11 +248,11 @@ jobs:
             # The certificate the repository committed travels with the release,
             # and the bundle must verify to the Core this tooling pins.
             cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
-            if [ -f "$CORE_CERTIFICATE" ]; then
+            if [ -f "$CORE_KEY" ]; then
               python3 enginehost-tooling/scripts/verify-engine-bundle.py "output/$BUNDLE" \
-                --core-certificate "$CORE_CERTIFICATE" --require-v1
+                --core-key "$CORE_KEY" --require-v1
             else
-              echo "::warning::this Enginehost commit pins no Droidtop Core certificate; the v1 chain was not checked here"
+              echo "::warning::this Enginehost commit pins no Droidtop Core key; the v1 chain was not checked here"
             fi
           fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -6,6 +6,7 @@ appcompat = "1.7.1"
 junit = "4.13.2"
 json = "20250517"
 bouncycastle = "1.78.1"
+conscrypt = "2.5.2"
 commons-compress = "1.28.0"
 xz = "1.10"
 
@@ -16,6 +17,8 @@ junit = { module = "junit:junit", version.ref = "junit" }
 json = { module = "org.json:json", version.ref = "json" }
 # Tests only: builds this run's own certificates (TestPki). The app verifies with the JDK alone.
 bouncycastle-pkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
+# Tests only: Android's certificate provider on the JVM (ConscryptSignaturesTest).
+conscrypt-openjdk = { module = "org.conscrypt:conscrypt-openjdk-uber", version.ref = "conscrypt" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 xz = { module = "org.tukaani:xz", version.ref = "xz" }
 

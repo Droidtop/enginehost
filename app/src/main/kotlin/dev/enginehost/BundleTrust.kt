@@ -5,14 +5,15 @@ import java.io.FileNotFoundException
 import java.util.Date
 
 /**
- * The Droidtop Core certificate this build pins, the one anchor of every
- * official chain (Droidtop/tracker#550): `assets/trust/droidtop-core.pem`.
- * It is public material the owner commits; until it is committed, a build
- * pins no Core, no official v1 signature can be verified, and
+ * Droidtop Core's public key, the one anchor of every official chain
+ * (Droidtop/tracker#550): `assets/trust/droidtop-core.pub`, a PEM `PUBLIC KEY`
+ * block, the same bytes droidtop pins. The certificate stays on the owner's
+ * machine; the key is public material the coordinator commits. A build without
+ * it pins no Core: no official v1 signature can be verified, and
  * [BundleVerifier] keeps accepting the legacy format for new installs.
  */
-object CoreCertificate {
-    const val ASSET = "trust/droidtop-core.pem"
+object CoreKey {
+    const val ASSET = "trust/droidtop-core.pub"
 
     @Volatile private var loaded = false
     @Volatile private var anchor: TrustAnchor.Core? = null
@@ -22,7 +23,7 @@ object CoreCertificate {
             if (!loaded) {
                 anchor = try {
                     context.assets.open(ASSET).bufferedReader().use { reader ->
-                        TrustAnchor.Core(CertificateSignatures.parsePemCertificate(reader.readText()))
+                        TrustAnchor.Core(CertificateSignatures.parsePemPublicKey(reader.readText()))
                     }
                 } catch (absent: FileNotFoundException) {
                     null
@@ -89,7 +90,7 @@ class RevocationListStore(private val context: Context) {
 
     private fun anchorFor(catalog: String): TrustAnchor? =
         if (catalog == BundleVerifier.ENGINEHOST_CATALOG) {
-            CoreCertificate.get(context)
+            CoreKey.get(context)
         } else {
             PluginOriginKeyStore(context).custom("https://github.com/$catalog")
                 ?.let { TrustAnchor.PinnedKey(it.publicKeySpki) }
@@ -107,7 +108,7 @@ class RevocationListStore(private val context: Context) {
 class BundleTrust(private val context: Context) : BundleTrustSources {
     private val revocations = RevocationListStore(context)
 
-    override val core: TrustAnchor.Core? get() = CoreCertificate.get(context)
+    override val core: TrustAnchor.Core? get() = CoreKey.get(context)
 
     override fun customKey(origin: String): ByteArray? = PluginOriginKeyStore(context).custom(origin)?.publicKeySpki
 

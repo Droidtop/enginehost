@@ -187,14 +187,23 @@ tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
 
 ### The anchor
 
-- **Droidtop Core** is the one certificate Enginehost pins for its own plugins:
-  `app/src/main/assets/trust/droidtop-core.pem` (public material the owner
-  commits; the same certificate droidtop pins). Its key is the anchor.
+- **Droidtop Core's public key** is the one anchor Enginehost pins for its own
+  plugins: `app/src/main/assets/trust/droidtop-core.pub`, a PEM `PUBLIC KEY`
+  block (SubjectPublicKeyInfo), byte for byte the file droidtop pins
+  (`runtime-common/.../droidtop-core.pub`). The anchor is the key, not a
+  certificate (owner, 2026-10-15: "The cert exists on the local machine. It
+  will not be uploaded." / "Pubkeys will be committed, but allow the
+  coordinator to do that.").
 - **The walk stops at Core.** A chain is the signing certificate, then at most
-  two intermediates, never Core itself. Its last certificate must be signed by
-  Core's key with `issuer` equal to Core's `subject`. Nothing above Core (the
+  two intermediates. Its last certificate must verify under Core's key, and no
+  certificate in it may carry Core's key. With no pinned certificate there is
+  no issuer name to compare; the signature decides. Nothing above Core (the
   owner's UCM root) is read, needed or trusted: a chain that reaches only the
-  UCM root, or carries Core or any certificate with Core's key, is refused.
+  UCM root is refused, because the UCM root never signs with Core's key.
+- **Extended key usage is read from the extension's DER**, not through
+  `X509Certificate.getExtendedKeyUsage()`: Android's provider (Conscrypt,
+  BoringSSL) throws on the purpose OIDs' UUID arc, which is wider than 64 bits.
+  `ConscryptSignaturesTest` runs the verifier under Conscrypt.
 - **A repository a person added** (by URL, or from the third-party list) is
   anchored at the key they pinned for it, the same pin a legacy signature was
   checked against; existing pins carry over with no new prompt. The chain's last
@@ -266,7 +275,7 @@ The legacy `enginehost-bundle.sig` is accepted:
 - at the launch of a bundle already installed with it, until that bundle is
   updated;
 - for a new install, update or catalog entry **only while this build pins no
-  Core certificate**. Once Core is committed, every new install and update
+  Core key**. Once Core is committed, every new install and update
   needs a v1 signature. (Droidtop's rule is "new installs require v1" from the
   start; Enginehost's transition differs because before Core is committed
   nothing at all could be installed otherwise.)
@@ -320,11 +329,14 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   repository: `scripts/make-publisher-certificate.py` makes a self-signed
   certificate for that key naming the origin, and the same build options use
   it. Once Core is pinned, a third party's new releases need it too.
-- Owner steps: commit Core's certificate at the path above (and the same in
-  droidtop); run provisioning for each official origin; set each repository's
-  `ENGINEHOST_CERTIFICATE_KEY_PEM` secret and commit its certificate to
-  plugin-core; publish; once every official plugin has a v1 release, drop
-  `ENGINEHOST_SIGNING_KEY_PEM` and delete the legacy verifier.
+- Core's key is committed (2026-10-15, copied from droidtop). From the build
+  that carries it, official plugins install and update only with a v1
+  signature (owner's choice, the strict rule as specified: no legacy gap
+  window); installed ones keep running. Owner steps left: run provisioning for
+  each official origin; set each repository's `ENGINEHOST_CERTIFICATE_KEY_PEM`
+  secret and commit its certificate to plugin-core; publish; once every
+  official plugin has a v1 release, drop `ENGINEHOST_SIGNING_KEY_PEM` and
+  delete the legacy verifier.
 
 ## Declared options
 

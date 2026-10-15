@@ -41,12 +41,13 @@ sealed interface TrustAnchor {
     val keySha256: String
 
     /**
-     * The Droidtop Core certificate. The chain's last certificate must be
-     * issued by it (signed by its key, issuer equal to its subject), and the
-     * chain may not contain it.
+     * Droidtop Core's public key (its SubjectPublicKeyInfo): the anchor is the
+     * key, not a certificate, which stays on the owner's machine
+     * (Droidtop/tracker#550, 04:53). The chain's last certificate must be
+     * signed by it, and no certificate in the chain may carry it.
      */
-    class Core(val certificate: X509Certificate) : TrustAnchor {
-        override val keySha256: String = sha256(certificate.publicKey.encoded)
+    class Core(val spki: ByteArray) : TrustAnchor {
+        override val keySha256: String = sha256(spki)
     }
 
     /**
@@ -273,14 +274,6 @@ object CertificateSignatures {
     fun parseCertificate(der: ByteArray): X509Certificate =
         CertificateFactory.getInstance("X.509").generateCertificate(ByteArrayInputStream(der)) as X509Certificate
 
-    /** One PEM certificate (the pinned Core certificate, a published origin certificate). */
-    fun parsePemCertificate(pem: String): X509Certificate {
-        val body = pem.substringAfter("-----BEGIN CERTIFICATE-----", "")
-            .substringBefore("-----END CERTIFICATE-----", "")
-        require(body.isNotBlank()) { "Not a PEM certificate" }
-        return parseCertificate(Base64.getMimeDecoder().decode(body))
-    }
-
     private fun certificates(x5c: JSONArray?): List<X509Certificate> {
         requireNotNull(x5c) { "Signature carries no certificate chain" }
         require(x5c.length() in 1..(1 + MAX_INTERMEDIATES)) { "Certificate chain is empty or too long" }
@@ -304,8 +297,8 @@ object CertificateSignatures {
         val usage = requireNotNull(leaf.keyUsage) { "The signing certificate has no key usage" }
         require(usage.bit(KEY_USAGE_DIGITAL_SIGNATURE)) { "The signing certificate does not allow digital signatures" }
         require(!usage.bit(KEY_USAGE_KEY_CERT_SIGN)) { "The signing certificate may not sign certificates" }
-        val extended = requireNotNull(leaf.extendedKeyUsage) { "The signing certificate has no extended key usage" }
-        require(purpose.oid in extended) { "The signing certificate is not for ${purpose.typ}" }
+        val extended = requireNotNull(extendedKeyUsage(leaf)) { "The signing certificate has no extended key usage" }
+        require(extended.any { it.contentEquals(encodeOid(purpose.oid)) }) { "The signing certificate is not for ${purpose.typ}" }
         when (val key = leaf.publicKey) {
             is ECPublicKey -> require(key.params.curve.field.fieldSize == 256) { "EC signing keys must be P-256" }
             is RSAPublicKey -> require(key.modulus.bitLength() >= 2048) { "RSA signing keys must be 2048 bits or more" }
@@ -333,23 +326,87 @@ object CertificateSignatures {
     private fun checkAnchor(last: X509Certificate, chain: List<X509Certificate>, anchor: TrustAnchor) {
         when (anchor) {
             is TrustAnchor.Core -> {
-                val core = anchor.certificate
-                val coreKey = core.publicKey.encoded
-                // The walk stops at Core: Core itself, or anything carrying
-                // its key, has no place in the chain, and what is above Core
-                // (the UCM root) is never a certificate Core signed.
-                require(chain.none { it.encoded.contentEquals(core.encoded) || it.publicKey.encoded.contentEquals(coreKey) }) {
-                    "The chain may not contain the Core certificate"
+                // The walk stops at Core: no certificate carrying Core's key
+                // (Core's own, or any re-issue of it) has a place in the
+                // chain, and what is above Core (the UCM root) never signed
+                // with Core's key. There is no pinned certificate, so there is
+                // no issuer name to compare; the signature decides.
+                require(chain.none { it.publicKey.encoded.contentEquals(anchor.spki) }) {
+                    "The chain may not contain a certificate carrying Droidtop Core's key"
                 }
-                require(last.issuerX500Principal == core.subjectX500Principal) {
-                    "The chain does not end at Droidtop Core"
-                }
-                last.verify(core.publicKey)
+                last.verify(publicKey(anchor.spki))
             }
             // Signed by the pinned key: a certificate it issued, or the
             // publisher's self-signed certificate that carries it.
             is TrustAnchor.PinnedKey -> last.verify(publicKey(anchor.spki))
         }
+    }
+
+    /**
+     * The extendedKeyUsage OIDs of [certificate], each as its DER content
+     * bytes, or null when it has none. Read from the extension's own DER, never
+     * X509Certificate.getExtendedKeyUsage: Android's provider (Conscrypt,
+     * BoringSSL) throws on the purpose OIDs' UUID arc, which is wider than 64
+     * bits, so that call would refuse every Droidtop certificate on a device
+     * (found by droidtop's Conscrypt test, Droidtop/tracker#550 07:04).
+     */
+    internal fun extendedKeyUsage(certificate: X509Certificate): List<ByteArray>? {
+        val wrapped = certificate.getExtensionValue("2.5.29.37") ?: return null
+        val sequence = Der(wrapped).element(0x04).let { Der(it).element(0x30) }
+        val reader = Der(sequence)
+        val oids = mutableListOf<ByteArray>()
+        while (!reader.done) oids += reader.element(0x06)
+        return oids
+    }
+
+    /** A dotted OID as the content bytes of its DER encoding (X.690 8.19). */
+    internal fun encodeOid(dotted: String): ByteArray {
+        val arcs = dotted.split('.').map(::BigInteger)
+        require(arcs.size >= 2) { "Not an OID: $dotted" }
+        val out = ByteArrayOutputStream()
+        (listOf(arcs[0] * BigInteger.valueOf(40) + arcs[1]) + arcs.drop(2)).forEach { arc ->
+            val groups = mutableListOf<Int>()
+            var rest = arc
+            do {
+                groups += rest.and(BigInteger.valueOf(0x7f)).toInt()
+                rest = rest.shiftRight(7)
+            } while (rest.signum() > 0)
+            groups.asReversed().forEachIndexed { index, group ->
+                out.write(if (index < groups.size - 1) group or 0x80 else group)
+            }
+        }
+        return out.toByteArray()
+    }
+
+    /** A minimal DER reader: definite lengths only, which is all DER has. */
+    private class Der(private val bytes: ByteArray) {
+        private var offset = 0
+        val done: Boolean get() = offset >= bytes.size
+
+        fun element(tag: Int): ByteArray {
+            require(offset < bytes.size && (bytes[offset].toInt() and 0xff) == tag) { "Malformed extension" }
+            offset += 1
+            require(offset < bytes.size) { "Malformed extension" }
+            var length = bytes[offset].toInt() and 0xff
+            offset += 1
+            if (length and 0x80 != 0) {
+                val count = length and 0x7f
+                require(count in 1..3 && offset + count <= bytes.size) { "Malformed extension" }
+                length = 0
+                repeat(count) { length = (length shl 8) or (bytes[offset].toInt() and 0xff); offset += 1 }
+            }
+            require(length >= 0 && offset + length <= bytes.size) { "Malformed extension" }
+            return bytes.copyOfRange(offset, offset + length).also { offset += length }
+        }
+    }
+
+    /** A PEM `PUBLIC KEY` block (SubjectPublicKeyInfo), as DER: the pinned Droidtop Core key. */
+    fun parsePemPublicKey(pem: String): ByteArray {
+        val body = pem.substringAfter("-----BEGIN PUBLIC KEY-----", "").substringBefore("-----END PUBLIC KEY-----", "")
+        require(body.isNotBlank()) { "Not a PEM public key" }
+        val spki = Base64.getMimeDecoder().decode(body)
+        publicKey(spki)
+        return spki
     }
 
     private fun publicKey(spki: ByteArray): PublicKey {
