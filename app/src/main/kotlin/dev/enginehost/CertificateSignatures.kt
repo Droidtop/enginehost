@@ -18,8 +18,8 @@ import java.util.Date
  * Signature format v1 (Droidtop/tracker#550, docs/engine-bundle-format.md
  * "Signatures"): a JWS (RFC 7515) in compact serialization whose protected
  * header carries the signer's X.509 chain in `x5c`, verified up to one
- * anchor and never past it. The anchor is the pinned Droidtop Core
- * certificate for Enginehost's own plugins, or the key a person pinned for a
+ * anchor and never past it. The anchor is the pinned Enginehost signing
+ * root's public key for Enginehost's own plugins, or the key a person pinned for a
  * repository they added. Nothing here touches Android: it is the JDK's
  * CertificateFactory and Signature, base64 and org.json, so plain JVM tests
  * exercise exactly what a device runs.
@@ -41,12 +41,13 @@ sealed interface TrustAnchor {
     val keySha256: String
 
     /**
-     * Droidtop Core's public key (its SubjectPublicKeyInfo): the anchor is the
-     * key, not a certificate, which stays on the owner's machine
-     * (Droidtop/tracker#550, 04:53). The chain's last certificate must be
-     * signed by it, and no certificate in the chain may carry it.
+     * The Enginehost signing root's public key (its SubjectPublicKeyInfo).
+     * The owner derives this root from Droidtop Core, which no app pins or
+     * uses directly (Droidtop/tracker#550): the anchor is the key, not the
+     * root's certificate. The chain's last certificate must be signed by it,
+     * and no certificate in the chain may carry it.
      */
-    class Core(val spki: ByteArray) : TrustAnchor {
+    class Root(val spki: ByteArray) : TrustAnchor {
         override val keySha256: String = sha256(spki)
     }
 
@@ -325,14 +326,14 @@ object CertificateSignatures {
 
     private fun checkAnchor(last: X509Certificate, chain: List<X509Certificate>, anchor: TrustAnchor) {
         when (anchor) {
-            is TrustAnchor.Core -> {
-                // The walk stops at Core: no certificate carrying Core's key
-                // (Core's own, or any re-issue of it) has a place in the
-                // chain, and what is above Core (the UCM root) never signed
-                // with Core's key. There is no pinned certificate, so there is
-                // no issuer name to compare; the signature decides.
+            is TrustAnchor.Root -> {
+                // The walk stops at the root: no certificate carrying the
+                // root's key (its own self-signed one, or any re-issue of it)
+                // has a place in the chain, and nothing above it (Droidtop
+                // Core, the CA) signs bundles. There is no pinned certificate,
+                // so there is no issuer name to compare; the signature decides.
                 require(chain.none { it.publicKey.encoded.contentEquals(anchor.spki) }) {
-                    "The chain may not contain a certificate carrying Droidtop Core's key"
+                    "The chain may not contain a certificate carrying the Enginehost root's key"
                 }
                 last.verify(publicKey(anchor.spki))
             }
@@ -400,7 +401,7 @@ object CertificateSignatures {
         }
     }
 
-    /** A PEM `PUBLIC KEY` block (SubjectPublicKeyInfo), as DER: the pinned Droidtop Core key. */
+    /** A PEM `PUBLIC KEY` block (SubjectPublicKeyInfo), as DER: the pinned Enginehost root key. */
     fun parsePemPublicKey(pem: String): ByteArray {
         val body = pem.substringAfter("-----BEGIN PUBLIC KEY-----", "").substringBefore("-----END PUBLIC KEY-----", "")
         require(body.isNotBlank()) { "Not a PEM public key" }

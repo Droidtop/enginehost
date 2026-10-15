@@ -267,6 +267,10 @@ Repo layout:
   derived and certified by `scripts/derive-official-key.py` /
   `scripts/certify-repository-key.py` from the master seed, and its private
   half is set as the repository's `ENGINEHOST_SIGNING_KEY_PEM` secret
+  (legacy format, during the transition)
+- `enginehost-signing-certificate.pem` -- at the root: the certificate the
+  Enginehost signing root issued for this origin (format v1), its key in
+  the `ENGINEHOST_CERTIFICATE_KEY_PEM` secret
 - `project/android/` -- the wrapper's Gradle project: the entry Activity
   (the upstream `AGSRuntimeActivity`, patched in-tree to read the host's
   extras and route saves), the runtime's resources at package id 0x80, and
@@ -321,7 +325,8 @@ jobs:
     # with tooling-sha the same commit; both shipped repos are currently
     # pinned at 4b9e41cb231b293d08852890aef54b619d4d57ec; the new repo pins
     # whatever is current when it is created.
-    # secret: ENGINEHOST_SIGNING_KEY_PEM; the key never shares a runner with the build.
+    # secrets: ENGINEHOST_CERTIFICATE_KEY_PEM (v1) and ENGINEHOST_SIGNING_KEY_PEM (legacy);
+    # the keys never share a runner with the build.
 
   unstable: # every green push to a plugin/* line: rolling <line>-unstable release,
             # replaced on each build, as in both repos
@@ -331,9 +336,11 @@ jobs:
             # droidtop-platforms (PLATFORMS_DISPATCH_TOKEN, a no-op without it)
 ```
 
-Before the first green build: derive and certify the repository key, set
-the `ENGINEHOST_SIGNING_KEY_PEM` secret, and commit
-`enginehost-public-key.json` to the building branches -- the "Keys for new
+Before the first green build: provision the repository's v1 certificate and
+legacy key, set the `ENGINEHOST_CERTIFICATE_KEY_PEM` and
+`ENGINEHOST_SIGNING_KEY_PEM` secrets, and commit
+`enginehost-signing-certificate.pem` and `enginehost-public-key.json` to
+`plugin-core` -- the "Keys for new
 official repositories" steps in `docs/plugin-catalog.md`. The
 `plugin-published` dispatch then registers the repository in the plugins
 index, and devices add the origin as official at their next refresh with

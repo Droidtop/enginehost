@@ -133,8 +133,8 @@ data class IndexedOrigin(
     val maintainer: IndexedMaintainer? = null,
     /**
      * The origin's signing certificate chain as the index publishes it (x5c
-     * style: standard base64 DER, leaf first, Core excluded). When it chains
-     * to the pinned Droidtop Core and names this origin, the origin is
+     * style: standard base64 DER, leaf first, root excluded). When it chains
+     * to the pinned Enginehost signing root and names this origin, the origin is
      * official ([PluginOriginStore.learnOfficial]); the index's own word is
      * never what decides.
      */

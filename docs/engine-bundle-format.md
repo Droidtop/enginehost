@@ -16,8 +16,8 @@ the manifest's `files` array. Safe directory entries are allowed, but links,
 devices, absolute paths, parent traversal, duplicate files, unsigned files, and
 special tar entries are rejected.
 
-Signature format v1 is an X.509 certificate chain to the pinned Droidtop Core
-certificate ("Signatures"). The legacy signature is `SHA256withECDSA` by a P-256
+Signature format v1 is an X.509 certificate chain to the pinned Enginehost
+signing root's key ("Signatures"). The legacy signature is `SHA256withECDSA` by a P-256
 key the manifest's `signing` block carries (X.509 SubjectPublicKeyInfo and its
 SHA-256 fingerprint), which Enginehost requires to equal the key pinned for the
 manifest's `origin`; replacing both an archive and its self-declared key
@@ -179,7 +179,7 @@ Signature format v1 (decided 2026-10-15, Droidtop/tracker#550; owner: "We do
 NOT want to chain the signature past this key"). The same format droidtop
 verifies; this section is Enginehost's side of it and what Enginehost adds.
 Code: `CertificateSignatures.kt` (the JWS and chain checks), `BundleVerification.kt`
-(which signature decides, at which moment), `BundleTrust.kt` (the pinned Core,
+(which signature decides, at which moment), `BundleTrust.kt` (the pinned root,
 revocation lists), `LegacyBundleSignatures.kt` (the bounded legacy path);
 tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
 `verify-engine-bundle.py`, `provision-signing-certificates.py`,
@@ -187,19 +187,36 @@ tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
 
 ### The anchor
 
-- **Droidtop Core's public key** is the one anchor Enginehost pins for its own
-  plugins: `app/src/main/assets/trust/droidtop-core.pub`, a PEM `PUBLIC KEY`
-  block (SubjectPublicKeyInfo), byte for byte the file droidtop pins
-  (`runtime-common/.../droidtop-core.pub`). The anchor is the key, not a
-  certificate (owner, 2026-10-15: "The cert exists on the local machine. It
-  will not be uploaded." / "Pubkeys will be committed, but allow the
-  coordinator to do that.").
-- **The walk stops at Core.** A chain is the signing certificate, then at most
-  two intermediates. Its last certificate must verify under Core's key, and no
-  certificate in it may carry Core's key. With no pinned certificate there is
-  no issuer name to compare; the signature decides. Nothing above Core (the
-  owner's UCM root) is read, needed or trusted: a chain that reaches only the
-  UCM root is refused, because the UCM root never signs with Core's key.
+The hierarchy (owner, 2026-10-15: "enginehost gets its key separately derived
+from the ca, then plugins are derived from that"):
+
+```
+Droidtop Core            the owner's CA key; never pinned or used by any app
+  └ Enginehost signing root    P-256, derived from Core by the owner; pinned here
+      ├ one certificate per official repository   (purpose .1, its origin)
+      ├ the developer certificate                 (purpose .1, urn:enginehost:developer)
+      └ the revocation-list signer                (purpose .3, catalog enginehost)
+```
+
+droidtop and gamegrab have roots of their own, derived the same way; none of
+them is trusted here.
+
+- **The Enginehost signing root's public key** is the one anchor Enginehost
+  pins for its own plugins: `app/src/main/assets/trust/enginehost-root.pub`, a
+  PEM `PUBLIC KEY` block (SubjectPublicKeyInfo), byte for byte the file
+  published at Droidtop/tracker `coordination/signing/roots/enginehost-root.pub`.
+  The anchor is the key, not the root's self-signed certificate (owner,
+  2026-10-15: "The cert exists on the local machine. It will not be
+  uploaded." / "Pubkeys will be committed, but allow the coordinator to do
+  that."). The root is derived from Core's private key, not certified by
+  Core, so nothing public links the two; that link is the owner's word.
+- **The walk stops at the root.** A chain is the signing certificate, then at
+  most two intermediates. Its last certificate must verify under the root's
+  key, and no certificate in it may carry the root's key. With no pinned
+  certificate there is no issuer name to compare; the signature decides.
+  Nothing above the root is read, needed or trusted: a certificate Droidtop
+  Core signed directly is refused, as is one under droidtop's or gamegrab's
+  root.
 - **Extended key usage is read from the extension's DER**, not through
   `X509Certificate.getExtendedKeyUsage()`: Android's provider (Conscrypt,
   BoringSSL) throws on the purpose OIDs' UUID arc, which is wider than 64 bits.
@@ -209,10 +226,10 @@ tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
   checked against; existing pins carry over with no new prompt. The chain's last
   certificate is signed by that key, or is the publisher's own certificate that
   carries it.
-- **Core outranks a pin.** A bundle whose chain reaches Core for its origin is
-  official, as a root-certified key was; a person's pin is tried only when it
-  does not.
-- **Until Core is committed** this build pins no Core: no official v1 signature
+- **The signing root outranks a pin.** A bundle whose chain reaches the root
+  for its origin is official, as a root-certified key was; a person's pin is
+  tried only when it does not.
+- **A build without the root's key** pins no root: no official v1 signature
   can be verified, and the legacy signature keeps working for new installs
   ("Legacy signatures").
 
@@ -231,7 +248,7 @@ tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
   one of them); optionally `urn:droidtop:plugin:<bundleId>` or
   `urn:droidtop:plugin:<prefix>.*`, which narrow the bundle IDs it may sign;
   `urn:droidtop:catalog:<id>` on a revocation-list signer.
-- **Developer builds** (Enginehost's addition): a Core-issued bundle-signing
+- **Developer builds** (Enginehost's addition): a root-issued bundle-signing
   certificate whose URI is `urn:enginehost:developer` signs a locally rebuilt
   bundle for any origin. It is accepted only for a bundle file a person
   installs (and at its launches), never from a catalog, and every trust surface
@@ -247,7 +264,7 @@ detached content (Appendix F): `BASE64URL(header) "." "." BASE64URL(signature)`,
 signed over `BASE64URL(header) "." BASE64URL(the exact manifest bytes)`. The
 protected header is the only header: `alg` (`ES256`, signature R‖S, or
 `RS256`, matching the key), `typ` (`droidtop-plugin+jws`), and `x5c` (standard
-base64 DER, the signing certificate first, Core excluded). A `crit` parameter
+base64 DER, the signing certificate first, the root excluded). A `crit` parameter
 refuses the signature; other unknown parameters are ignored. A release
 envelope entry carries the same text as `jws`, beside or instead of the legacy
 `signatureBase64`; the plugins index entry of an official repository carries
@@ -260,7 +277,7 @@ origin is learned without an app release.
 a file a person installs, and a launch. Every chain certificate's validity is
 checked at the first three; a launch checks none, so a wrong device clock never
 stops an installed plugin (revocation does). When the bundle's origin has an
-anchor (Core, or the person's pin), the JWS alone decides: a v1 signature that
+anchor (the signing root, or the person's pin), the JWS alone decides: a v1 signature that
 fails is never rescued by a legacy one beside it. The signer recorded at
 install (`signer` in the installation record: its key, kind, format and anchor)
 must match what each launch verifies. The signer's key (the signing
@@ -275,10 +292,10 @@ The legacy `enginehost-bundle.sig` is accepted:
 - at the launch of a bundle already installed with it, until that bundle is
   updated;
 - for a new install, update or catalog entry **only while this build pins no
-  Core key**. Once Core is committed, every new install and update
-  needs a v1 signature. (Droidtop's rule is "new installs require v1" from the
-  start; Enginehost's transition differs because before Core is committed
-  nothing at all could be installed otherwise.)
+  root key**. With the root pinned, every new install and update needs a v1
+  signature. (Droidtop's rule is "new installs require v1" from the start;
+  Enginehost's transition differs because without a pinned root nothing at all
+  could be installed otherwise.)
 
 The legacy verifier is `LegacyBundleSignatures.kt` and the official-root key
 documents in `PluginOriginKeys.kt`. They are deleted, with the manifest's
@@ -300,8 +317,9 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
 ```
 
 - **Enginehost's own list**, catalog `enginehost`, is `plugins/revocations.jws`
-  in droidtop-platforms beside the plugins index, under Core. It applies to
-  every Core-anchored chain and to legacy official and developer keys.
+  in droidtop-platforms beside the plugins index, signed by the root's
+  revocation-list certificate. It applies to every root-anchored chain and to
+  legacy official and developer keys.
 - **An added repository's list**, catalog `<owner>/<repo>`, is `revocations.jws`
   on its plugin branch, under the key the person pinned; read at most once a
   day per repository (GitHub API allowance). It applies only to that origin.
@@ -317,26 +335,32 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   repository sets `ENGINEHOST_CERTIFICATE_KEY_PEM` and commits
   `enginehost-signing-certificate.pem`, legacy when it sets
   `ENGINEHOST_SIGNING_KEY_PEM`, both during the transition. The signed bundle
-  is verified to the pinned Core before it leaves the job.
-- `scripts/provision-signing-certificates.py`, run by the owner where the Core
-  key is, derives each repository's key deterministically (HKDF-SHA256 over
-  Core's raw private value, salt `droidtop-ca-root-v1`, info
+  is verified to the pinned root before it leaves the job.
+- The owner derives the Enginehost signing root from Droidtop Core, outside
+  this repository. `scripts/provision-signing-certificates.py`, run by the
+  owner where the root's key is (`--root-key`, `--root-certificate`), derives
+  each repository's key deterministically (HKDF-SHA256 over the root's raw
+  private value, salt `droidtop-ca-root-v1`, info
   `enginehost-plugin-root-master-seed`, then the existing per-origin
-  derivation) and issues its certificate under Core. Re-downloading the Core key
-  from the CA reproduces every key. The Enginehost APK signing key is not
-  rotated and not derived here.
+  derivation) and issues its certificate under the root. Deriving the root
+  again reproduces every key. The Enginehost APK signing key is not rotated
+  and not derived here.
 - A third-party publisher signs v1 with the key people already pinned for its
   repository: `scripts/make-publisher-certificate.py` makes a self-signed
   certificate for that key naming the origin, and the same build options use
-  it. Once Core is pinned, a third party's new releases need it too.
-- Core's key is committed (2026-10-15, copied from droidtop). From the build
+  it. With the root pinned, a third party's new releases need it too.
+- The root's key is pinned (2026-10-15). It replaced a direct pin of Droidtop
+  Core's key, which no release ever carried a certificate for. From the build
   that carries it, official plugins install and update only with a v1
   signature (owner's choice, the strict rule as specified: no legacy gap
-  window); installed ones keep running. Owner steps left: run provisioning for
-  each official origin; set each repository's `ENGINEHOST_CERTIFICATE_KEY_PEM`
-  secret and commit its certificate to plugin-core; publish; once every
-  official plugin has a v1 release, drop `ENGINEHOST_SIGNING_KEY_PEM` and
-  delete the legacy verifier.
+  window); installed ones keep running. Provisioned on 2026-10-15: every
+  official repository's `ENGINEHOST_CERTIFICATE_KEY_PEM` secret, and the
+  certificates at Droidtop/tracker `coordination/signing/enginehost/`, which
+  each repository commits to plugin-core as `enginehost-signing-certificate.pem`.
+  Left to the owner: sign and publish the first `plugins/revocations.jws` when
+  something is revoked, and hand the developer certificate and its key to the
+  developer; once every official plugin has a v1 release, drop
+  `ENGINEHOST_SIGNING_KEY_PEM` and delete the legacy verifier.
 
 ## Declared options
 

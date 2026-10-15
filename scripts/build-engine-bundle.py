@@ -3,7 +3,7 @@
 
 Signature format v1 (Droidtop/tracker#550): `--certificate-key` and
 `--certificate-chain` add `enginehost-bundle.jws`, a detached JWS over the
-manifest whose x5c chain ends at Droidtop Core. The legacy raw-key signature
+manifest whose x5c chain ends at the Enginehost signing root. The legacy raw-key signature
 (`--private-key`, `enginehost-bundle.sig`) is still made when that key is
 given, so builds that cannot verify v1 yet still install it; at least one of
 the two is required. See docs/engine-bundle-format.md "Signatures".
@@ -87,7 +87,7 @@ def main() -> None:
     parser.add_argument("--certificate-key", type=Path,
                         help="Format v1: the private key of the signing certificate")
     parser.add_argument("--certificate-chain", type=Path,
-                        help="Format v1: PEM certificates, the signing certificate first, Droidtop Core excluded")
+                        help="Format v1: PEM certificates, the signing certificate first, the root excluded")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--release-envelope", type=Path)
     parser.add_argument("--public-key-document", type=Path)

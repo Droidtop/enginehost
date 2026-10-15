@@ -78,10 +78,10 @@ object PluginReleaseReader {
             val signatures = envelopeSignatures(envelope)
             val manifest = EngineBundleManifestReader.parse(manifestBytes)
             require(manifest.origin == normalizeGithubOrigin(expectedOrigin)) { "Release origin mismatch" }
-            // A release signed only the legacy way cannot be installed once Core
-            // is pinned (BundleVerifier). It is not offered, and it says nothing
-            // about the repository's key: the release simply predates format v1.
-            if (signatures.jws == null && trust.core != null) return@mapNotNull null
+            // A release signed only the legacy way cannot be installed once the
+            // root is pinned (BundleVerifier). It is not offered, and it says
+            // nothing about the repository's key: it simply predates format v1.
+            if (signatures.jws == null && trust.root != null) return@mapNotNull null
             val signer = try {
                 trust.verify(manifest, signatures, VerificationMoment.CATALOG)
             } catch (refused: IllegalArgumentException) {
@@ -327,7 +327,7 @@ class PluginCatalogCache(context: Context) {
             ?: runCatching {
                 val array = JSONObject(file.readText()).getJSONArray("plugins")
                 // Entry by entry: one a newer rule refuses (a legacy-only build
-                // cached before Core was pinned) leaves the others listed.
+                // cached before the root was pinned) leaves the others listed.
                 (0 until array.length()).mapNotNull { runCatching { availablePluginFromJson(array.getJSONObject(it), trust) }.getOrNull() }
             }.getOrDefault(emptyList()).also { synchronized(decoded) { decoded[file.path] = version to it } }
         return plugins.takeIf { all ->
@@ -452,7 +452,7 @@ class PluginOriginStore(private val context: Context) {
     private val keys get() = PluginOriginKeyStore(context)
 
     /** Compiled-in origins, official ones learned from the plugins index, and the person's own. */
-    fun all(): List<String> = (DEFAULT_ORIGINS + keys.certifiedOrigins() + coreCertified() + custom()).distinct().sorted()
+    fun all(): List<String> = (DEFAULT_ORIGINS + keys.certifiedOrigins() + rootCertified() + custom()).distinct().sorted()
 
     fun add(origin: String, rawKeyDocument: String) {
         val normalized = normalizeGithubOrigin(origin)
@@ -471,35 +471,35 @@ class PluginOriginStore(private val context: Context) {
     /** Part of Enginehost's own catalog (compiled in, or root-certified): not the person's to remove. */
     fun isOfficial(origin: String): Boolean {
         val normalized = normalizeGithubOrigin(origin)
-        return normalized in DEFAULT_ORIGINS || normalized in keys.certifiedOrigins() || normalized in coreCertified()
+        return normalized in DEFAULT_ORIGINS || normalized in keys.certifiedOrigins() || normalized in rootCertified()
     }
 
     /**
      * Adds every origin the index proves official: a certificate chain that
-     * ends at the Droidtop Core key this APK pins and names the origin
-     * (format v1), or a key document carrying the legacy official root's
-     * certificate. Both are verified here; what the index says about trust is
-     * not consulted, so nothing but Core (or the legacy root) can make an
-     * origin official. A person's own entry for the same repository is folded
+     * ends at the Enginehost signing root key this APK pins and names the
+     * origin (format v1), or a key document carrying the legacy official
+     * root's certificate. Both are verified here; what the index says about
+     * trust is not consulted, so nothing but the signing root (or the legacy
+     * root) can make an origin official. A person's own entry for the same repository is folded
      * into the official one. Answers the origins that were not known before.
      */
     fun learnOfficial(index: PluginsIndex): List<String> {
         val before = all().toSet()
         val store = keys
-        val core = CoreKey.get(context)
+        val root = EnginehostRoot.get(context)
         val revoked = RevocationListStore(context).revoked(BundleVerifier.ENGINEHOST_CATALOG)
         index.origins.values.forEach { indexed ->
-            // Format v1: a Core-issued bundle-signing certificate naming the origin.
-            val certified = core != null && indexed.certificates.isNotEmpty() && runCatching {
+            // Format v1: a bundle-signing certificate the signing root issued, naming the origin.
+            val certified = root != null && indexed.certificates.isNotEmpty() && runCatching {
                 val chain = CertificateSignatures.verifyChain(
-                    CertificateSignatures.parseChain(indexed.certificates), SignaturePurpose.PLUGIN, core, java.util.Date(), revoked,
+                    CertificateSignatures.parseChain(indexed.certificates), SignaturePurpose.PLUGIN, root, java.util.Date(), revoked,
                 )
                 VerifiedJws(chain, ByteArray(0)).namesOrigin(indexed.origin)
             }.getOrDefault(false)
             // Legacy: a key document carrying the official root's certificate.
             val legacy = !certified && indexed.keyDocument?.let { store.importCertified(it) } != null
             if (!certified && !legacy) return@forEach
-            if (certified) preferences.edit().putStringSet(CORE_CERTIFIED, coreCertified() + indexed.origin).apply()
+            if (certified) preferences.edit().putStringSet(ROOT_CERTIFIED, rootCertified() + indexed.origin).apply()
             if (indexed.origin in custom()) preferences.edit().putStringSet(CUSTOM, custom() - indexed.origin).apply()
             thirdPartyPreferences.edit().remove(indexed.origin).apply()
         }
@@ -570,12 +570,12 @@ class PluginOriginStore(private val context: Context) {
 
     private fun custom(): Set<String> = preferences.getStringSet(CUSTOM, emptySet())?.toSet().orEmpty()
 
-    /** Origins the index showed a Core-issued certificate for ([learnOfficial]). */
-    private fun coreCertified(): Set<String> = preferences.getStringSet(CORE_CERTIFIED, emptySet())?.toSet().orEmpty()
+    /** Origins the index showed a certificate from the signing root for ([learnOfficial]). */
+    private fun rootCertified(): Set<String> = preferences.getStringSet(ROOT_CERTIFIED, emptySet())?.toSet().orEmpty()
 
     companion object {
         private const val CUSTOM = "custom"
-        private const val CORE_CERTIFIED = "core-certified"
+        private const val ROOT_CERTIFIED = "root-certified"
         val DEFAULT_ORIGINS = setOf(
             "https://github.com/droidtop/enginehost-renpy-plugin",
             "https://github.com/droidtop/enginehost-rpgmaker-mkxp-z-plugin",

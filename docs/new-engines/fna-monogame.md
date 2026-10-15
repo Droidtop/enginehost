@@ -358,16 +358,19 @@ jobs:
 
   sign:     # the org's one signing mechanism, pinned to a full Enginehost commit SHA
             # uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<full-sha>
-            # secret: ENGINEHOST_SIGNING_KEY_PEM; the key never shares a runner with the build.
+            # secrets: ENGINEHOST_CERTIFICATE_KEY_PEM (v1) and ENGINEHOST_SIGNING_KEY_PEM (legacy);
+            # the keys never share a runner with the build.
 
   unstable: # every green push to a plugin/* line: rolling <line>-unstable release
   publish:  # manual dispatch only: stable / testing channel; the plugin-published
             # dispatch to droidtop-platforms (PLATFORMS_DISPATCH_TOKEN)
 ```
 
-Before the first green build: derive and certify the repository key,
-set the `ENGINEHOST_SIGNING_KEY_PEM` secret, and commit
-`enginehost-public-key.json` to the building branches -- the "Keys for
+Before the first green build: provision the repository's v1 certificate
+and legacy key, set the `ENGINEHOST_CERTIFICATE_KEY_PEM` and
+`ENGINEHOST_SIGNING_KEY_PEM` secrets, and commit
+`enginehost-signing-certificate.pem` and `enginehost-public-key.json` to
+`plugin-core` -- the "Keys for
 new official repositories" steps in `docs/plugin-catalog.md`. Also
 before the first green build: the registry row mapping in
 droidtop-platforms (c), or the bundle installs with nothing to say to a

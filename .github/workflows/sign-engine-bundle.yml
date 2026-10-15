@@ -20,7 +20,7 @@ name: Sign engine bundle
 #
 # Two signatures, either or both (docs/engine-bundle-format.md "Signatures"):
 # format v1 when ENGINEHOST_CERTIFICATE_KEY_PEM is set -- the key of the
-# certificate Droidtop Core issued for this repository, which the repository
+# certificate the Enginehost signing root issued for this repository, which the repository
 # commits as enginehost-signing-certificate.pem (scripts/provision-signing-
 # certificates.py) -- and the legacy raw-key signature when
 # ENGINEHOST_SIGNING_KEY_PEM is set. A repository signs both until every
@@ -65,7 +65,7 @@ on:
       repository-certificate:
         description: >-
           The repository's committed signing certificate (PEM, the certificate
-          Droidtop Core issued for it first, then any intermediates), relative
+          the Enginehost signing root issued for it first, then any intermediates), relative
           to its root. Used when ENGINEHOST_CERTIFICATE_KEY_PEM is set.
         type: string
         default: enginehost-signing-certificate.pem
@@ -165,7 +165,7 @@ jobs:
             ${{ inputs.repository-key-document }}
             ${{ inputs.repository-certificate }}
           sparse-checkout-cone-mode: false
-      - name: Check out the signing tooling and the pinned Core key
+      - name: Check out the signing tooling and the pinned root key
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: Droidtop/enginehost
@@ -186,7 +186,7 @@ jobs:
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: repository/${{ inputs.repository-key-document }}
           CERTIFICATE: repository/${{ inputs.repository-certificate }}
-          CORE_KEY: enginehost-tooling/app/src/main/assets/trust/droidtop-core.pub
+          ROOT_KEY: enginehost-tooling/app/src/main/assets/trust/enginehost-root.pub
           CHANNEL: ${{ inputs.channel }}
           # Reads the calling repository's releases to number this build.
           GH_TOKEN: ${{ github.token }}
@@ -246,13 +246,13 @@ jobs:
           fi
           if [ -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" ]; then
             # The certificate the repository committed travels with the release,
-            # and the bundle must verify to the Core this tooling pins.
+            # and the bundle must verify to the signing root this tooling pins.
             cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
-            if [ -f "$CORE_KEY" ]; then
+            if [ -f "$ROOT_KEY" ]; then
               python3 enginehost-tooling/scripts/verify-engine-bundle.py "output/$BUNDLE" \
-                --core-key "$CORE_KEY" --require-v1
+                --root-key "$ROOT_KEY" --require-v1
             else
-              echo "::warning::this Enginehost commit pins no Droidtop Core key; the v1 chain was not checked here"
+              echo "::warning::this Enginehost commit pins no signing root key; the v1 chain was not checked here"
             fi
           fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

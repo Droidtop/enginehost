@@ -288,8 +288,9 @@ jobs:
 
   sign:      # the org's one signing mechanism
     # uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<full sha>
-    # with tooling-sha the same commit; secrets: ENGINEHOST_SIGNING_KEY_PEM
-    # the key never shares a runner with the build
+    # with tooling-sha the same commit; secrets: ENGINEHOST_CERTIFICATE_KEY_PEM
+    # (v1) and ENGINEHOST_SIGNING_KEY_PEM (legacy); the keys never share a
+    # runner with the build
 
   unstable:  # every green push to a line: rolling <line>-unstable release,
             # replaced on each build (tags love2d-11-v1-unstable exist)
@@ -306,7 +307,9 @@ The key steps that preceded the first green build are the catalog's
 `enginehost-public-key.json` is committed at the repository root on
 `plugin-core` and the lines, derived and certified from the master
 seed, with the private half in the `ENGINEHOST_SIGNING_KEY_PEM`
-secret. The `plugin-published` dispatch registered the repository in
+secret. Format v1 followed on 2026-10-15: `enginehost-signing-certificate.pem`,
+issued by the Enginehost signing root, beside it, with its key in the
+`ENGINEHOST_CERTIFICATE_KEY_PEM` secret. The `plugin-published` dispatch registered the repository in
 the plugins index, so devices add the origin as official at their next
 refresh with no new Enginehost build.
 

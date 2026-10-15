@@ -26,7 +26,7 @@ data class BundleSigner(
     val keySha256: String,
     val kind: SignerKind,
     val format: Int,
-    /** Core's key, the person's pinned key, or for a legacy signer its own key. */
+    /** The Enginehost root's key, the person's pinned key, or for a legacy signer its own key. */
     val anchorKeySha256: String,
     val chainCertSha256: List<String> = emptyList(),
     val chainKeySha256: List<String> = emptyList(),
@@ -75,8 +75,8 @@ enum class VerificationMoment {
 
 /** Where [BundleVerifier] gets what it trusts. Split out so the decisions run in a plain JVM test. */
 interface BundleTrustSources {
-    /** Droidtop Core's pinned public key, or null in a build that pins none. */
-    val core: TrustAnchor.Core?
+    /** The Enginehost signing root's pinned public key, or null in a build that pins none. */
+    val root: TrustAnchor.Root?
 
     /** The key a person pinned for a repository they added, as SubjectPublicKeyInfo DER, or null. */
     fun customKey(origin: String): ByteArray?
@@ -96,18 +96,18 @@ interface BundleTrustSources {
  * The one place a bundle's signature is decided, at every moment: catalog,
  * install and launch (docs/engine-bundle-format.md "Signatures").
  *
- * A v1 signature is verified up to an anchor: Droidtop Core for Enginehost's
- * own plugins (and the developer's certificate), or the key a person pinned
- * for a repository they added. When such an anchor exists for the bundle's
+ * A v1 signature is verified up to an anchor: the Enginehost signing root for
+ * Enginehost's own plugins (and the developer's certificate), or the key a
+ * person pinned for a repository they added. When such an anchor exists for the bundle's
  * origin, the JWS decides alone: there is no falling back to the legacy
  * signature beside it, so a bad v1 signature is never rescued by an old one.
  *
  * The legacy signature is bounded: an installed bundle keeps verifying with it
  * at launch until it is updated, and a new install or catalog entry may use
- * it only while this build pins no Core key (the transition: before
- * the owner commits Core, no v1 official bundle can be verified, and refusing
- * legacy then would leave nothing installable). Once Core is pinned, every
- * new install and update needs a v1 signature.
+ * it only while this build pins no root key (without one, no v1 official
+ * bundle can be verified, and refusing legacy would leave nothing
+ * installable). With the root pinned, every new install and update needs a
+ * v1 signature.
  */
 object BundleVerifier {
     const val ENGINEHOST_CATALOG = "enginehost"
@@ -123,16 +123,16 @@ object BundleVerifier {
     ): BundleSigner {
         val clock = if (moment == VerificationMoment.LAUNCH) null else now
         val jws = signatures.jws
-        val core = sources.core
+        val root = sources.root
         val customKey = sources.customKey(origin)
-        if (jws != null && (core != null || customKey != null)) {
-            return verifyCertified(jws, manifestBytes, origin, bundleId, moment, core, customKey, sources, clock)
+        if (jws != null && (root != null || customKey != null)) {
+            return verifyCertified(jws, manifestBytes, origin, bundleId, moment, root, customKey, sources, clock)
         }
         val legacy = requireNotNull(signatures.legacy) {
             if (jws != null) "This build pins no certificate this bundle's signature can be verified to"
             else "This bundle carries no v1 signature"
         }
-        require(moment == VerificationMoment.LAUNCH || core == null) {
+        require(moment == VerificationMoment.LAUNCH || root == null) {
             "New installs and updates need a v1 signature; this bundle carries only the legacy one"
         }
         return sources.legacy(manifestBytes, origin, legacy, moment)
@@ -144,17 +144,17 @@ object BundleVerifier {
         origin: String,
         bundleId: String,
         moment: VerificationMoment,
-        core: TrustAnchor.Core?,
+        root: TrustAnchor.Root?,
         customKey: ByteArray?,
         sources: BundleTrustSources,
         clock: Date?,
     ): BundleSigner {
-        // Core first: an official certificate for an origin outranks a key a
-        // person pinned for it, as a root-certified key always did.
-        val coreFailure: Exception? = if (core != null) {
+        // The root first: an official certificate for an origin outranks a
+        // key a person pinned for it, as a root-certified key always did.
+        val rootFailure: Exception? = if (root != null) {
             try {
                 val verified = CertificateSignatures.verify(
-                    jws, SignaturePurpose.PLUGIN, core, manifestBytes, clock, sources.revoked(ENGINEHOST_CATALOG),
+                    jws, SignaturePurpose.PLUGIN, root, manifestBytes, clock, sources.revoked(ENGINEHOST_CATALOG),
                 )
                 val kind = when {
                     verified.isDeveloper -> {
@@ -172,7 +172,7 @@ object BundleVerifier {
                     }
                 }
                 require(verified.allowsPlugin(bundleId)) { "The signing certificate does not cover $bundleId" }
-                return signer(verified, kind, core)
+                return signer(verified, kind, root)
             } catch (error: IllegalArgumentException) {
                 error
             } catch (error: java.security.GeneralSecurityException) {
@@ -190,7 +190,7 @@ object BundleVerifier {
             require(verified.allowsPlugin(bundleId)) { "The signing certificate does not cover $bundleId" }
             return signer(verified, SignerKind.CUSTOM, anchor)
         }
-        throw requireNotNull(coreFailure)
+        throw requireNotNull(rootFailure)
     }
 
     private fun signer(verified: VerifiedJws, kind: SignerKind, anchor: TrustAnchor) = BundleSigner(

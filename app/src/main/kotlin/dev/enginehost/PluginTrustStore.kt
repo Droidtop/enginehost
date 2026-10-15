@@ -57,7 +57,7 @@ class PluginTrustStore(private val context: Context) {
     }
 
     /**
-     * Official: signed in format v1 by a certificate Droidtop Core issued for its own
+     * Official: signed in format v1 by a certificate the Enginehost signing root issued for its own
      * origin, still unrevoked; or, for a legacy signature, by its origin's
      * root-certified key, compiled in or learned from the plugins index.
      */
