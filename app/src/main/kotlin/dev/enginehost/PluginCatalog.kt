@@ -72,12 +72,16 @@ object PluginReleaseReader {
         require(root.getInt("formatVersion") == 1) { "Unsupported release catalog envelope" }
         val stream = PluginStream.fromChannel(root.optString("channel").takeIf(String::isNotBlank), prerelease)
         val bundles = root.getJSONArray("bundles")
-        return (0 until bundles.length()).map { index ->
+        return (0 until bundles.length()).mapNotNull { index ->
             val envelope = bundles.getJSONObject(index)
             val manifestBytes = Base64.getDecoder().decode(envelope.requiredString("manifestBase64"))
             val signatures = envelopeSignatures(envelope)
             val manifest = EngineBundleManifestReader.parse(manifestBytes)
             require(manifest.origin == normalizeGithubOrigin(expectedOrigin)) { "Release origin mismatch" }
+            // A release signed only the legacy way cannot be installed once Core
+            // is pinned (BundleVerifier). It is not offered, and it says nothing
+            // about the repository's key: the release simply predates format v1.
+            if (signatures.jws == null && trust.core != null) return@mapNotNull null
             val signer = try {
                 trust.verify(manifest, signatures, VerificationMoment.CATALOG)
             } catch (refused: IllegalArgumentException) {
@@ -322,7 +326,9 @@ class PluginCatalogCache(context: Context) {
         val plugins = synchronized(decoded) { decoded[file.path]?.takeIf { it.first == version }?.second }
             ?: runCatching {
                 val array = JSONObject(file.readText()).getJSONArray("plugins")
-                (0 until array.length()).map { availablePluginFromJson(array.getJSONObject(it), trust) }
+                // Entry by entry: one a newer rule refuses (a legacy-only build
+                // cached before Core was pinned) leaves the others listed.
+                (0 until array.length()).mapNotNull { runCatching { availablePluginFromJson(array.getJSONObject(it), trust) }.getOrNull() }
             }.getOrDefault(emptyList()).also { synchronized(decoded) { decoded[file.path] = version to it } }
         return plugins.takeIf { all ->
             all.all { trust.stillTrusted(it.origin, it.signer) }
