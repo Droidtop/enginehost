@@ -163,11 +163,39 @@ def verify(compact: str, purpose: str, core: bytes, content: bytes | None) -> di
     if algorithm not in ("ES256", "RS256"):
         raise Refused("unsupported alg")
     chain = [base64.b64decode(item, validate=True) for item in header.get("x5c") or []]
+    named = verify_chain(chain, purpose, core)
+    leaf_spki = named["leafSpki"]
+    if key_algorithm(leaf_spki) != algorithm:
+        raise Refused("alg does not match the signing key")
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        (root / "leaf.der").write_bytes(leaf_spki)
+        signing_payload = b64url(content) if content is not None else parts[1]
+        if content is not None and parts[1]:
+            raise Refused("a detached signature carries no payload")
+        (root / "input").write_bytes((parts[0] + "." + signing_payload).encode("ascii"))
+        signature = b64url_decode(parts[2])
+        if algorithm == "ES256":
+            signature = _ecdsa_raw_to_der(signature)
+        (root / "signature").write_bytes(signature)
+        openssl("dgst", "-sha256", "-verify", str(root / "leaf.der"), "-keyform", "DER",
+                "-signature", str(root / "signature"), str(root / "input"))
+    named["payload"] = b64url_decode(parts[1]) if content is None else content
+    return named
+
+
+def verify_chain(chain: list[bytes], purpose: str, core: bytes) -> dict:
+    """
+    Checks a certificate chain (DER, leaf first, Core excluded) for [purpose]
+    up to the Core certificate [core] and no further. Answers what the leaf
+    names. Raises Refused. An origin's published certificate is checked this way.
+    """
+    oid, typ = PURPOSES[purpose]
     if not 1 <= len(chain) <= 3:
-        raise Refused("x5c is empty or too long")
+        raise Refused("the chain is empty or too long")
     core_spki = certificate_spki(core)
     if any(der == core or certificate_spki(der) == core_spki for der in chain):
-        raise Refused("x5c may not carry the Core certificate")
+        raise Refused("the chain may not carry the Core certificate")
     leaf = chain[0]
     if "CA:TRUE" in certificate_text(leaf, "basicConstraints"):
         raise Refused("the signing certificate is a CA")
@@ -177,8 +205,7 @@ def verify(compact: str, purpose: str, core: bytes, content: bytes | None) -> di
     if oid not in certificate_text(leaf, "extendedKeyUsage"):
         raise Refused("the signing certificate is not for " + typ)
     leaf_spki = certificate_spki(leaf)
-    if key_algorithm(leaf_spki) != algorithm:
-        raise Refused("alg does not match the signing key")
+    key_algorithm(leaf_spki)
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
 
@@ -194,22 +221,10 @@ def verify(compact: str, purpose: str, core: bytes, content: bytes | None) -> di
         if len(chain) > 1:
             command += ["-untrusted", str(root / "intermediates.pem")]
         openssl(*command, str(root / "leaf.pem"))
-        (root / "leaf.der").write_bytes(leaf_spki)
-        signing_payload = b64url(content) if content is not None else parts[1]
-        if content is not None and parts[1]:
-            raise Refused("a detached signature carries no payload")
-        (root / "input").write_bytes((parts[0] + "." + signing_payload).encode("ascii"))
-        signature = b64url_decode(parts[2])
-        if algorithm == "ES256":
-            signature = _ecdsa_raw_to_der(signature)
-        (root / "signature").write_bytes(signature)
-        openssl("dgst", "-sha256", "-verify", str(root / "leaf.der"), "-keyform", "DER",
-                "-signature", str(root / "signature"), str(root / "input"))
     names = uris(leaf)
     return {
         "origins": {name[len(ORIGIN_URN):].lower() for name in names if name.lower().startswith(ORIGIN_URN)},
         "catalogs": {name[len(CATALOG_URN):].lower() for name in names if name.lower().startswith(CATALOG_URN)},
         "developer": DEVELOPER_URN in (name.lower() for name in names),
-        "payload": b64url_decode(parts[1]) if content is None else content,
         "leafSpki": leaf_spki,
     }

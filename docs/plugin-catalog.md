@@ -303,12 +303,16 @@ replace another bundle.
 
 ## Provenance, official status, and approval
 
-- **Verified provenance** means the internal bundle signature matches the key
-  pinned for the bundle's declared GitHub origin and every payload byte matches
-  the signed manifest.
-- **Official** means the official root certified that origin/key pair, and
-  Enginehost verified the certificate: built in, or learned from the plugins
-  index as above.
+- **Verified provenance** means the bundle's signature verifies to the anchor
+  for its declared GitHub origin -- its certificate chain to the pinned Droidtop
+  Core certificate, or to the key a person pinned for a repository they added
+  (format v1); or, for the legacy format, the key pinned for that origin -- and
+  every payload byte matches the signed manifest (engine-bundle-format.md
+  "Signatures").
+- **Official** means a certificate Droidtop Core issued for that origin signed
+  it (format v1), or, for the legacy format, the official root certified that
+  origin/key pair; Enginehost verified either itself, whether built in or
+  learned from the plugins index as above.
 - **Third party** means the person added the origin from droidtop-platforms'
   third-party list, and the bundle is signed by the key that listing names.
 - **Approved** means the user has allowed that exact bundle ID and signing-key
