@@ -493,8 +493,8 @@ object InstalledBundleVerifier {
             Base64.getMimeDecoder().decode(it.readText(Charsets.US_ASCII).trim())
         }
         val jws = File(directory, PluginRegistry.SIGNED_JWS).takeIf(File::isFile)?.readText(Charsets.US_ASCII)?.trim()
-        // At launch: no clock (an installed plugin is stopped by revocation,
-        // never by expiry), a key the root has since replaced still vouches
+        // At launch: an installed plugin is stopped by revocation (never by
+        // expiry, at any moment), a key the root has since replaced still vouches
         // for what was installed under it, and a legacy signature still
         // serves until the bundle is updated (BundleVerifier).
         val signer = BundleTrust(context).verify(manifest, BundleSignatures(jws, legacy), VerificationMoment.LAUNCH)

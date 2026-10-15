@@ -492,7 +492,7 @@ class PluginOriginStore(private val context: Context) {
             // Format v1: a bundle-signing certificate the signing root issued, naming the origin.
             val certified = root != null && indexed.certificates.isNotEmpty() && runCatching {
                 val chain = CertificateSignatures.verifyChain(
-                    CertificateSignatures.parseChain(indexed.certificates), SignaturePurpose.PLUGIN, root, java.util.Date(), revoked,
+                    CertificateSignatures.parseChain(indexed.certificates), SignaturePurpose.PLUGIN, root, revoked,
                 )
                 VerifiedJws(chain, ByteArray(0)).namesOrigin(indexed.origin)
             }.getOrDefault(false)

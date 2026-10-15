@@ -274,9 +274,12 @@ origin is learned without an app release.
 ### When each is checked
 
 `BundleVerifier` decides at four moments: a catalog entry, a catalog download,
-a file a person installs, and a launch. Every chain certificate's validity is
-checked at the first three; a launch checks none, so a wrong device clock never
-stops an installed plugin (revocation does). When the bundle's origin has an
+a file a person installs, and a launch. No certificate's validity period is
+read at any of them (owner, 2026-10-15: "Can we ignore its expiration date? We
+don't want older plugins to be invalidated" / "We don't use the certificate
+itself's validity period"): an expired or not-yet-valid certificate verifies,
+a JWS carries no trusted time to check one against, and a device's clock never
+matters. Only the revocation list withdraws trust ("Revocation"). When the bundle's origin has an
 anchor (the signing root, or the person's pin), the JWS alone decides: a v1 signature that
 fails is never rescued by a legacy one beside it. The signer recorded at
 install (`signer` in the installation record: its key, kind, format and anchor)

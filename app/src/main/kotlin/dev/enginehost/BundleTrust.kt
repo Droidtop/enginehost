@@ -2,7 +2,6 @@ package dev.enginehost
 
 import android.content.Context
 import java.io.FileNotFoundException
-import java.util.Date
 
 /**
  * The Enginehost signing root's public key, the one anchor of every official
@@ -58,7 +57,7 @@ class RevocationListStore(private val context: Context) {
         val anchor = anchorFor(key) ?: return false
         val current = held(key)
         val offered = runCatching {
-            RevocationList.verify(compact, anchor, key, Date(), current?.revoked ?: RevokedSet.NONE)
+            RevocationList.verify(compact, anchor, key, current?.revoked ?: RevokedSet.NONE)
         }.getOrNull() ?: return false
         if (current != null && offered.sequence <= current.sequence) return false
         preferences.edit().putString(key, offered.compact).apply()
@@ -85,7 +84,7 @@ class RevocationListStore(private val context: Context) {
         val compact = preferences.getString(key, null) ?: return null
         synchronized(Companion) { verified[key]?.takeIf { it.compact == compact }?.let { return it } }
         val anchor = anchorFor(key) ?: return null
-        return runCatching { RevocationList.verify(compact, anchor, key, now = null) }.getOrNull()
+        return runCatching { RevocationList.verify(compact, anchor, key) }.getOrNull()
             ?.also { list -> synchronized(Companion) { verified[key] = list } }
     }
 
@@ -119,7 +118,7 @@ class BundleTrust(private val context: Context) : BundleTrustSources {
         LegacyBundleSignatures.signer(context, manifestBytes, origin, signature, moment, ::revoked)
 
     fun verify(manifest: EngineBundleManifest, signatures: BundleSignatures, moment: VerificationMoment): BundleSigner =
-        BundleVerifier.verify(manifest.rawBytes, manifest.origin, manifest.bundleId, signatures, moment, this, Date())
+        BundleVerifier.verify(manifest.rawBytes, manifest.origin, manifest.bundleId, signatures, moment, this)
 
     /**
      * Whether a signer verified earlier still holds without verifying again:

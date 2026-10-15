@@ -12,7 +12,6 @@ import java.security.cert.X509Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPublicKey
 import java.util.Base64
-import java.util.Date
 
 /*
  * Signature format v1 (Droidtop/tracker#550, docs/engine-bundle-format.md
@@ -167,9 +166,10 @@ object CertificateSignatures {
      * header and the content's base64url) or, when that is null, carried in
      * the JWS itself (revocation lists).
      *
-     * [now] checks every chain certificate's validity; null skips it, which
-     * is how an installed plugin is verified at launch (a wrong device clock
-     * must not stop plugins; only revocation does). [revoked] refuses any
+     * No certificate's validity period is read, at any moment: expiry never
+     * invalidates a signature (owner, Droidtop/tracker#550: "We don't want
+     * older plugins to be invalidated"), and a JWS carries no trusted time it
+     * could be checked against. Only [revoked] withdraws trust: it refuses any
      * chain certificate or key it names, the anchor's key included.
      */
     fun verify(
@@ -177,7 +177,6 @@ object CertificateSignatures {
         purpose: SignaturePurpose,
         anchor: TrustAnchor,
         detachedContent: ByteArray?,
-        now: Date?,
         revoked: RevokedSet = RevokedSet.NONE,
     ): VerifiedJws {
         require(compact.length <= MAX_JWS_CHARS) { "Signature is too large" }
@@ -202,7 +201,7 @@ object CertificateSignatures {
             signingPayload = payloadPart
         }
 
-        val chain = verifyChain(certificates(header.optJSONArray("x5c")), purpose, anchor, now, revoked)
+        val chain = verifyChain(certificates(header.optJSONArray("x5c")), purpose, anchor, revoked)
         val leaf = chain.first()
         checkLeafAlgorithm(leaf, algorithm)
 
@@ -228,14 +227,12 @@ object CertificateSignatures {
         chain: List<X509Certificate>,
         purpose: SignaturePurpose,
         anchor: TrustAnchor,
-        now: Date?,
         revoked: RevokedSet = RevokedSet.NONE,
     ): List<X509Certificate> {
         require(chain.size in 1..(1 + MAX_INTERMEDIATES)) { "Certificate chain is empty or too long" }
         checkLeaf(chain.first(), purpose)
         chain.drop(1).forEachIndexed { index, intermediate -> checkIntermediate(intermediate, below = index) }
         chain.forEach(::checkCommon)
-        if (now != null) chain.forEach { it.checkValidity(now) }
 
         // Each certificate is signed by the next, and names it as its issuer.
         chain.zipWithNext().forEach { (child, parent) ->
@@ -465,12 +462,11 @@ data class RevocationList(
             compact: String,
             anchor: TrustAnchor,
             catalog: String,
-            now: Date?,
             alreadyRevoked: RevokedSet = RevokedSet.NONE,
         ): RevocationList {
             val expected = catalog.lowercase()
             val verified = CertificateSignatures.verify(
-                compact, SignaturePurpose.REVOCATIONS, anchor, detachedContent = null, now = now, revoked = alreadyRevoked,
+                compact, SignaturePurpose.REVOCATIONS, anchor, detachedContent = null, revoked = alreadyRevoked,
             )
             require(expected in verified.catalogs) { "The revocation list's signer does not speak for $catalog" }
             val json = JSONObject(verified.payload.toString(Charsets.UTF_8))

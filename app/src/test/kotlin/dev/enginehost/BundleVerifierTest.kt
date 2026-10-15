@@ -37,7 +37,7 @@ class BundleVerifierTest {
         moment: VerificationMoment,
         sources: BundleTrustSources,
         forOrigin: String = origin,
-    ) = BundleVerifier.verify(manifest, forOrigin, bundleId, signatures, moment, sources, Date())
+    ) = BundleVerifier.verify(manifest, forOrigin, bundleId, signatures, moment, sources)
 
     private fun refused(why: String, block: () -> Unit) {
         try {
@@ -151,15 +151,18 @@ class BundleVerifierTest {
     }
 
     @Test
-    fun `expiry stops installs but not launches`() {
+    fun `an expired leaf verifies at every moment, and a revoked one at none`() {
         val expired = TestPki.issue(
             "CN=expired", TestPki.ec(), pki.root, uris = listOf("urn:droidtop:origin:droidtop/enginehost-example-plugin"),
             notBefore = Date(System.currentTimeMillis() - 10_000_000_000), notAfter = Date(System.currentTimeMillis() - 1_000_000),
         )
         val signatures = BundleSignatures(TestPki.jws(manifest, expired), null)
         val sources = Sources(pki.anchor)
-        refused("expired at install") { verify(signatures, VerificationMoment.CATALOG_INSTALL, sources) }
-        assertEquals(SignerKind.OFFICIAL, verify(signatures, VerificationMoment.LAUNCH, sources).kind)
+        val revoked = Sources(pki.anchor, lists = mapOf("enginehost" to RevokedSet.of(listOf(sha256(expired.der)), emptyList())))
+        for (moment in VerificationMoment.values()) {
+            assertEquals(SignerKind.OFFICIAL, verify(signatures, moment, sources).kind)
+            refused("revoked at $moment") { verify(signatures, moment, revoked) }
+        }
     }
 
     @Test

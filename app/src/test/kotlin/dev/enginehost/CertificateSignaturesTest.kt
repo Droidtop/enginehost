@@ -16,16 +16,14 @@ import java.util.Date
 class CertificateSignaturesTest {
     private val pki = TestPki.Hierarchy()
     private val manifest = """{"bundleId":"dev.enginehost.example"}""".toByteArray()
-    private val now = Date()
 
     private fun verify(
         compact: String,
         anchor: TrustAnchor = pki.anchor,
         content: ByteArray? = manifest,
-        at: Date? = now,
         revoked: RevokedSet = RevokedSet.NONE,
         purpose: SignaturePurpose = SignaturePurpose.PLUGIN,
-    ) = CertificateSignatures.verify(compact, purpose, anchor, content, at, revoked)
+    ) = CertificateSignatures.verify(compact, purpose, anchor, content, revoked)
 
     private fun refused(why: String, block: () -> Unit) {
         try {
@@ -178,14 +176,24 @@ class CertificateSignaturesTest {
     }
 
     @Test
-    fun `validity is checked at install and catalog time, not at launch`() {
-        val expired = TestPki.issue(
-            "CN=expired", TestPki.ec(), pki.root, uris = listOf("urn:droidtop:origin:droidtop/enginehost-example-plugin"),
-            notBefore = Date(System.currentTimeMillis() - 10_000_000_000), notAfter = Date(System.currentTimeMillis() - 1_000_000),
+    fun `no certificate's validity period is read, only revocation stops it`() {
+        val origin = listOf("urn:droidtop:origin:droidtop/enginehost-example-plugin")
+        val past = Date(System.currentTimeMillis() - 10_000_000_000)
+        val recent = Date(System.currentTimeMillis() - 1_000_000)
+        val future = Date(System.currentTimeMillis() + 10_000_000_000)
+        val expired = TestPki.issue("CN=expired", TestPki.ec(), pki.root, uris = origin, notBefore = past, notAfter = recent)
+        val notYet = TestPki.issue("CN=not yet", TestPki.ec(), pki.root, uris = origin, notBefore = future, notAfter = future)
+        val expiredCa = TestPki.issue(
+            "CN=Expired intermediate", TestPki.rsa(), pki.root, ca = true, keyUsage = KeyUsage.keyCertSign, eku = null,
+            notBefore = past, notAfter = recent,
         )
-        val signed = TestPki.jws(manifest, expired)
-        refused("expired at install") { verify(signed) }
-        verify(signed, at = null)
+        val underExpiredCa = pki.leaf(issuer = expiredCa)
+        verify(TestPki.jws(manifest, expired))
+        verify(TestPki.jws(manifest, notYet))
+        verify(TestPki.jws(manifest, underExpiredCa, listOf(underExpiredCa, expiredCa)))
+        refused("an expired leaf that is revoked") {
+            verify(TestPki.jws(manifest, expired), revoked = RevokedSet.of(listOf(sha256(expired.der)), emptyList()))
+        }
     }
 
     @Test
@@ -197,10 +205,6 @@ class CertificateSignaturesTest {
         refused("leaf certificate revoked") { verify(signed, revoked = RevokedSet.of(listOf(sha256(leaf.der).lowercase()), emptyList())) }
         refused("intermediate key revoked") { verify(signed, revoked = RevokedSet.of(emptyList(), listOf(sha256(intermediate.keys.public.encoded)))) }
         refused("the root's key revoked") { verify(signed, revoked = RevokedSet.of(emptyList(), listOf(pki.anchor.keySha256))) }
-        // Revoked at launch too: revocation, unlike expiry, stops an installed plugin.
-        refused("revoked with no clock") {
-            verify(signed, at = null, revoked = RevokedSet.of(listOf(sha256(leaf.der)), emptyList()))
-        }
     }
 
     @Test
@@ -256,32 +260,32 @@ class CertificateSignaturesTest {
         val revokedKey = sha256(TestPki.ec().public.encoded)
         val list = RevocationList.verify(
             TestPki.revocationList(signer, listOf(signer), "enginehost", 7, keySha256 = listOf(revokedKey.lowercase())),
-            pki.anchor, "enginehost", now,
+            pki.anchor, "enginehost",
         )
         assertEquals(7, list.sequence)
         assertTrue(list.revoked.revokesKey(revokedKey))
         refused("verified for another catalog") {
-            RevocationList.verify(TestPki.revocationList(signer, listOf(signer), "enginehost", 7), pki.anchor, "droidtop", now)
+            RevocationList.verify(TestPki.revocationList(signer, listOf(signer), "enginehost", 7), pki.anchor, "droidtop")
         }
         refused("the payload names another catalog") {
             RevocationList.verify(
                 TestPki.revocationList(signer, listOf(signer), "enginehost", 7, listedCatalog = "droidtop"),
-                pki.anchor, "enginehost", now,
+                pki.anchor, "enginehost",
             )
         }
         val noCatalog = pki.leaf(purpose = SignaturePurpose.REVOCATIONS)
         refused("the signer names no catalog") {
-            RevocationList.verify(TestPki.revocationList(noCatalog, listOf(noCatalog), "enginehost", 8), pki.anchor, "enginehost", now)
+            RevocationList.verify(TestPki.revocationList(noCatalog, listOf(noCatalog), "enginehost", 8), pki.anchor, "enginehost")
         }
         refused("a signer the held list revoked") {
             RevocationList.verify(
-                TestPki.revocationList(signer, listOf(signer), "enginehost", 8), pki.anchor, "enginehost", now,
+                TestPki.revocationList(signer, listOf(signer), "enginehost", 8), pki.anchor, "enginehost",
                 alreadyRevoked = RevokedSet.of(emptyList(), listOf(sha256(signer.keys.public.encoded))),
             )
         }
         val pluginSigner = pki.leaf(extraUris = listOf("urn:droidtop:catalog:enginehost"))
         refused("a plugin-signing certificate signing a revocation list") {
-            RevocationList.verify(TestPki.revocationList(pluginSigner, listOf(pluginSigner), "enginehost", 8), pki.anchor, "enginehost", now)
+            RevocationList.verify(TestPki.revocationList(pluginSigner, listOf(pluginSigner), "enginehost", 8), pki.anchor, "enginehost")
         }
     }
 }

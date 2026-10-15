@@ -10,7 +10,6 @@ one mirrors it so CI refuses a bundle the app would refuse.
 """
 
 import base64
-import datetime
 import json
 import re
 import subprocess
@@ -143,17 +142,6 @@ def verify_signed_by(certificate: bytes, issuer_spki: bytes) -> None:
             raise Refused("a certificate in the chain is not signed by the next one (or by the signing root)")
 
 
-def check_validity(der: bytes) -> None:
-    """The certificate is within its validity period now."""
-    if subprocess.run(["openssl", "x509", "-inform", "DER", "-noout", "-checkend", "0"], input=der,
-                      stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode:
-        raise Refused("a certificate in the chain has expired")
-    start = openssl("x509", "-inform", "DER", "-noout", "-startdate", data=der).decode().strip().split("=", 1)[1]
-    not_before = datetime.datetime.strptime(start, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=datetime.timezone.utc)
-    if not_before > datetime.datetime.now(datetime.timezone.utc):
-        raise Refused("a certificate in the chain is not valid yet")
-
-
 def certificate_text(der: bytes, extension: str) -> str:
     """One extension of a certificate as openssl prints it, or '' when absent."""
     try:
@@ -270,7 +258,8 @@ def verify_chain(chain: list[bytes], purpose: str, root: bytes) -> dict:
     no further: each certificate signed by the next, the last by the root's
     key, and no certificate carrying the root's key. The anchor is a key, not a
     certificate (Droidtop/tracker#550), so there is no issuer name to compare.
-    Answers what the leaf names. Raises Refused. An origin's published
+    No validity period is read: expiry never invalidates a signature, only a
+    revocation list does (the app's rule). Answers what the leaf names. Raises Refused. An origin's published
     certificate is checked this way.
     """
     oid, typ = PURPOSES[purpose]
@@ -297,8 +286,6 @@ def verify_chain(chain: list[bytes], purpose: str, root: bytes) -> dict:
             raise Refused("an intermediate's path length constraint is exceeded")
         if "Certificate Sign" not in certificate_text(intermediate, "keyUsage"):
             raise Refused("an intermediate certificate may not sign certificates")
-    for der in chain:
-        check_validity(der)
     for child, parent in zip(chain, chain[1:]):
         if openssl("x509", "-inform", "DER", "-noout", "-issuer", "-nameopt", "RFC2253", data=child).split(b"=", 1)[1] \
                 != openssl("x509", "-inform", "DER", "-noout", "-subject", "-nameopt", "RFC2253", data=parent).split(b"=", 1)[1]:

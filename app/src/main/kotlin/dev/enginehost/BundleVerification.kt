@@ -2,7 +2,6 @@ package dev.enginehost
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.Date
 
 /** What a bundle carries to prove who signed its manifest: a v1 JWS, the legacy raw signature, or both. */
 class BundleSignatures(val jws: String?, val legacy: ByteArray?) {
@@ -119,14 +118,12 @@ object BundleVerifier {
         signatures: BundleSignatures,
         moment: VerificationMoment,
         sources: BundleTrustSources,
-        now: Date,
     ): BundleSigner {
-        val clock = if (moment == VerificationMoment.LAUNCH) null else now
         val jws = signatures.jws
         val root = sources.root
         val customKey = sources.customKey(origin)
         if (jws != null && (root != null || customKey != null)) {
-            return verifyCertified(jws, manifestBytes, origin, bundleId, moment, root, customKey, sources, clock)
+            return verifyCertified(jws, manifestBytes, origin, bundleId, moment, root, customKey, sources)
         }
         val legacy = requireNotNull(signatures.legacy) {
             if (jws != null) "This build pins no certificate this bundle's signature can be verified to"
@@ -147,14 +144,13 @@ object BundleVerifier {
         root: TrustAnchor.Root?,
         customKey: ByteArray?,
         sources: BundleTrustSources,
-        clock: Date?,
     ): BundleSigner {
         // The root first: an official certificate for an origin outranks a
         // key a person pinned for it, as a root-certified key always did.
         val rootFailure: Exception? = if (root != null) {
             try {
                 val verified = CertificateSignatures.verify(
-                    jws, SignaturePurpose.PLUGIN, root, manifestBytes, clock, sources.revoked(ENGINEHOST_CATALOG),
+                    jws, SignaturePurpose.PLUGIN, root, manifestBytes, sources.revoked(ENGINEHOST_CATALOG),
                 )
                 val kind = when {
                     verified.isDeveloper -> {
@@ -184,7 +180,7 @@ object BundleVerifier {
         if (customKey != null) {
             val anchor = TrustAnchor.PinnedKey(customKey)
             val verified = CertificateSignatures.verify(
-                jws, SignaturePurpose.PLUGIN, anchor, manifestBytes, clock, sources.revoked(VerifiedJws.originId(origin)),
+                jws, SignaturePurpose.PLUGIN, anchor, manifestBytes, sources.revoked(VerifiedJws.originId(origin)),
             )
             require(verified.namesOrigin(origin)) { "The signing certificate is not for $origin" }
             require(verified.allowsPlugin(bundleId)) { "The signing certificate does not cover $bundleId" }

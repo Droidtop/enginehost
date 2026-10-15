@@ -10,7 +10,6 @@ import org.junit.Test
 import java.security.Security
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
-import java.util.Date
 
 /**
  * The verifier under Conscrypt, Android's own provider (BoringSSL). Its
@@ -54,7 +53,7 @@ class ConscryptSignaturesTest {
     @Test
     fun `a root-anchored bundle signature verifies under Conscrypt`() {
         val verified = CertificateSignatures.verify(
-            TestPki.jws(manifest, pki.leaf()), SignaturePurpose.PLUGIN, pki.anchor, manifest, Date(),
+            TestPki.jws(manifest, pki.leaf()), SignaturePurpose.PLUGIN, pki.anchor, manifest,
         )
         assertTrue(verified.namesOrigin("https://github.com/droidtop/enginehost-example-plugin"))
     }
@@ -63,7 +62,7 @@ class ConscryptSignaturesTest {
     fun `the purpose is still enforced under Conscrypt`() {
         val catalogLeaf = pki.leaf(purpose = SignaturePurpose.CATALOG)
         try {
-            CertificateSignatures.verify(TestPki.jws(manifest, catalogLeaf), SignaturePurpose.PLUGIN, pki.anchor, manifest, Date())
+            CertificateSignatures.verify(TestPki.jws(manifest, catalogLeaf), SignaturePurpose.PLUGIN, pki.anchor, manifest)
             fail("a catalog certificate signed a plugin under Conscrypt")
         } catch (expected: IllegalArgumentException) {
         }

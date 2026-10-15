@@ -55,6 +55,8 @@ _spec.loader.exec_module(derive_official_key)
 
 SEED_SALT = b"droidtop-ca-root-v1"
 SEED_INFO = b"enginehost-plugin-root-master-seed"
+# X.509 needs a validity period; no Enginehost verifier reads it (expiry never
+# invalidates a signature, docs/engine-bundle-format.md "When each is checked").
 VALIDITY_DAYS = 3 * 365
 
 
