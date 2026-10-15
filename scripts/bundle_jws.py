@@ -1,4 +1,4 @@
-"""Signature format v1: JWS with an x5c chain to Droidtop Core (Droidtop/tracker#550).
+"""Signature format v1: JWS with an x5c chain to the Enginehost signing root (Droidtop/tracker#550).
 
 Shared by build-engine-bundle.py (signs), verify-engine-bundle.py (checks a
 bundle offline before it is published) and sign-revocation-list.py. Like the
@@ -78,7 +78,7 @@ def key_algorithm(spki: bytes) -> str:
 
 
 def pem_public_key(text: str) -> bytes:
-    """A PEM `PUBLIC KEY` block as SubjectPublicKeyInfo DER: the pinned Droidtop Core key."""
+    """A PEM `PUBLIC KEY` block as SubjectPublicKeyInfo DER: the pinned Enginehost root key."""
     match = re.search(r"-----BEGIN PUBLIC KEY-----(.*?)-----END PUBLIC KEY-----", text, re.S)
     if not match:
         raise Refused("no PEM public key found")
@@ -140,7 +140,7 @@ def verify_signed_by(certificate: bytes, issuer_spki: bytes) -> None:
             openssl("dgst", _DIGESTS[algorithm], "-verify", str(root / "key.der"), "-keyform", "DER",
                     "-signature", str(root / "signature"), str(root / "tbs"))
         except Refused:
-            raise Refused("a certificate in the chain is not signed by the next one (or by Droidtop Core)")
+            raise Refused("a certificate in the chain is not signed by the next one (or by the signing root)")
 
 
 def check_validity(der: bytes) -> None:
@@ -222,9 +222,9 @@ def sign(content: bytes, private_key: Path, chain: list[bytes], purpose: str, de
     return header_part + "." + ("" if detached else payload_part) + "." + b64url(signature)
 
 
-def verify(compact: str, purpose: str, core: bytes, content: bytes | None) -> dict:
+def verify(compact: str, purpose: str, root: bytes, content: bytes | None) -> dict:
     """
-    Checks [compact] for [purpose] up to Droidtop Core's public key [core]
+    Checks [compact] for [purpose] up to the signing root's public key [root]
     (SubjectPublicKeyInfo DER) and
     no further, the way the app does: header, chain, the leaf's usage, and the
     signature. Answers what the leaf names. Raises Refused.
@@ -242,7 +242,7 @@ def verify(compact: str, purpose: str, core: bytes, content: bytes | None) -> di
     if algorithm not in ("ES256", "RS256"):
         raise Refused("unsupported alg")
     chain = [base64.b64decode(item, validate=True) for item in header.get("x5c") or []]
-    named = verify_chain(chain, purpose, core)
+    named = verify_chain(chain, purpose, root)
     leaf_spki = named["leafSpki"]
     if key_algorithm(leaf_spki) != algorithm:
         raise Refused("alg does not match the signing key")
@@ -263,12 +263,12 @@ def verify(compact: str, purpose: str, core: bytes, content: bytes | None) -> di
     return named
 
 
-def verify_chain(chain: list[bytes], purpose: str, core: bytes) -> dict:
+def verify_chain(chain: list[bytes], purpose: str, root: bytes) -> dict:
     """
-    Checks a certificate chain (DER, leaf first, Core excluded) for [purpose]
-    up to Droidtop Core's public key [core] (SubjectPublicKeyInfo DER) and no
-    further: each certificate signed by the next, the last by Core's key, and
-    no certificate carrying Core's key. The anchor is a key, not a
+    Checks a certificate chain (DER, leaf first, root excluded) for [purpose]
+    up to the signing root's public key [root] (SubjectPublicKeyInfo DER) and
+    no further: each certificate signed by the next, the last by the root's
+    key, and no certificate carrying the root's key. The anchor is a key, not a
     certificate (Droidtop/tracker#550), so there is no issuer name to compare.
     Answers what the leaf names. Raises Refused. An origin's published
     certificate is checked this way.
@@ -276,8 +276,8 @@ def verify_chain(chain: list[bytes], purpose: str, core: bytes) -> dict:
     oid, typ = PURPOSES[purpose]
     if not 1 <= len(chain) <= 3:
         raise Refused("the chain is empty or too long")
-    if any(certificate_spki(der) == core for der in chain):
-        raise Refused("the chain may not carry a certificate holding Droidtop Core's key")
+    if any(certificate_spki(der) == root for der in chain):
+        raise Refused("the chain may not carry a certificate holding the signing root's key")
     leaf = chain[0]
     if "CA:TRUE" in certificate_text(leaf, "basicConstraints"):
         raise Refused("the signing certificate is a CA")
@@ -304,7 +304,7 @@ def verify_chain(chain: list[bytes], purpose: str, core: bytes) -> dict:
                 != openssl("x509", "-inform", "DER", "-noout", "-subject", "-nameopt", "RFC2253", data=parent).split(b"=", 1)[1]:
             raise Refused("the certificate chain is out of order")
         verify_signed_by(child, certificate_spki(parent))
-    verify_signed_by(chain[-1], core)
+    verify_signed_by(chain[-1], root)
     names = uris(leaf)
     return {
         "origins": {name[len(ORIGIN_URN):].lower() for name in names if name.lower().startswith(ORIGIN_URN)},

@@ -337,7 +337,11 @@ single 1.0.x series).
   `docs/plugin-catalog.md` requires on building branches; derived and
   certified by `scripts/derive-official-key.py` /
   `scripts/certify-repository-key.py`, private half set as the
-  repository's `ENGINEHOST_SIGNING_KEY_PEM` secret
+  repository's `ENGINEHOST_SIGNING_KEY_PEM` secret (legacy format, during
+  the transition)
+- `enginehost-signing-certificate.pem` -- at the root: the certificate the
+  Enginehost signing root issued for this origin (format v1), its key in
+  the `ENGINEHOST_CERTIFICATE_KEY_PEM` secret
 - `enginehost-origin.json` -- the implementation identity, as Buriko
   publishes
 - `project/` -- the port's own Gradle project (kept: it is upstream's
@@ -391,8 +395,9 @@ jobs:
                          # a8a6270dbfe0e7bd475c6d8209e9615960a8c0d7; the new
                          # repo pins whatever is current when it is created)
                          # uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<sha>
-                         # secret: ENGINEHOST_SIGNING_KEY_PEM; the key never
-                         # shares a runner with the build
+                         # secrets: ENGINEHOST_CERTIFICATE_KEY_PEM (v1) and
+                         # ENGINEHOST_SIGNING_KEY_PEM (legacy); the keys never
+                         # share a runner with the build
 
   publish:               # manual dispatch only: stable / testing channel; a
                          # bundle is published only once that exact build has
@@ -405,9 +410,11 @@ jobs:
                          # reindex (PLATFORMS_DISPATCH_TOKEN, a no-op without it)
 ```
 
-Before the first green build: derive and certify the repository key, set
-the `ENGINEHOST_SIGNING_KEY_PEM` secret, commit
-`enginehost-public-key.json` to the building branches -- the "Keys for
+Before the first green build: provision the repository's v1 certificate and
+legacy key, set the `ENGINEHOST_CERTIFICATE_KEY_PEM` and
+`ENGINEHOST_SIGNING_KEY_PEM` secrets, commit
+`enginehost-signing-certificate.pem` and `enginehost-public-key.json` to
+`plugin-core` -- the "Keys for
 new official repositories" steps in `docs/plugin-catalog.md`. The
 `plugin-published` dispatch then registers the repository in the plugins
 index, and devices add the origin as official at their next refresh,

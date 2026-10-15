@@ -22,20 +22,38 @@ and pins the fingerprint before reading any release. A different key for an
 already-pinned origin is rejected. Default repositories and their keys are
 compiled into Enginehost, so their network copy cannot replace host policy.
 
-Official keys form one hierarchy. The offline Enginehost primary seed derives
-an origin-scoped operational subkey for each repository, and the primary key
-certifies that subkey's public identity. The primary key never signs engine
-bundles directly. The Enginehost APK is likewise signed by its own
-application-scoped operational subkey from the same primary seed.
+Official keys form one hierarchy (signature format v1, decided 2026-10-15;
+the full rules are [engine-bundle-format.md](engine-bundle-format.md)
+"Signatures"):
 
-One more key derives from that seed: the primary developer's own key, which
-the root certifies and every APK carries. It is not origin-scoped, so it can
-sign a locally rebuilt bundle for any repository, and the trust screen marks
-such a bundle as a developer build. It is accepted only for a bundle that
-arrives as a file someone put on the device (the file picker, the debug
-build's adb installers). A repository's releases, and so the catalog and
-every update, must carry the repository's own key (decided 2026-09-24): the
-one key good for every origin never reaches a device over the network.
+```
+Droidtop Core            the owner's CA key; never pinned or used by any app
+  └ Enginehost signing root    derived from Core by the owner; its public key is
+      │                        app/src/main/assets/trust/enginehost-root.pub
+      ├ one certificate per official repository, naming its origin
+      ├ the developer certificate (urn:enginehost:developer)
+      └ the revocation-list signer for catalog "enginehost"
+```
+
+Each repository's private key is derived from the root and sits only in that
+repository's `ENGINEHOST_CERTIFICATE_KEY_PEM` secret; its certificate is public
+and committed as `enginehost-signing-certificate.pem`. A bundle carries a JWS
+whose certificate chain must end at the pinned root key. The root never signs
+bundles itself, and the Enginehost APK signing key is separate and unchanged.
+
+The developer certificate is not origin-scoped, so it can sign a locally
+rebuilt bundle for any repository, and the trust screen marks such a bundle as
+a developer build. It is accepted only for a bundle that arrives as a file
+someone put on the device (the file picker, the debug build's adb installers).
+A repository's releases, and so the catalog and every update, must carry the
+repository's own certificate (decided 2026-09-24): the one certificate good for
+every origin never reaches a device over the network.
+
+The older hierarchy (an offline primary seed whose root certifies each
+repository's raw key, `enginehost-public-key.json`) is the legacy format.
+Releases still carry its signature beside the v1 one during the transition and
+installed plugins signed only that way keep running, but once the root is
+pinned a new install or update needs v1.
 
 Every applicable release contains one or more `*.enginehost.tar.xz` engine
 bundles, one `enginehost-release.json` browsing envelope conforming to
@@ -105,10 +123,11 @@ and `GithubPluginCatalogClient`).
 
 ## Official repositories Enginehost was not built with
 
-The index also carries each official repository's key document, including
-the certificate the offline root key made for that exact origin. On every
-fetch of the index, Enginehost verifies each certificate against the root
-compiled into the APK and adds the origin as official when it verifies
+The index also carries each official repository's signing certificate
+(`certificates`, issued by the Enginehost signing root for that exact origin)
+and, during the transition, its legacy key document. On every fetch of the
+index, Enginehost verifies each against the root key compiled into the APK
+and adds the origin as official when it verifies
 (`PluginOriginStore.learnOfficial`): a repository Droidtop registers after
 this build shipped appears on the Plugins screen at the next refresh, with
 the Official badge, and cannot be removed by the person, exactly like a
@@ -116,17 +135,34 @@ compiled-in one. The index's own `trust` field is not consulted; only the
 root's signature makes an origin official, so nothing the index says (or
 whoever can write it) can. A compiled-in or learned key is replaced only by a
 rotation (below), and a person's own entry for the same repository is folded
-into the official one. There is no revocation list: a rotation stops a
-superseded key from signing anything new, but what was installed under it
-keeps running.
+into the official one. Trust is withdrawn only by the signed revocation list
+(`plugins/revocations.jws` in droidtop-platforms), which stops a certificate
+or key at every moment, launches included.
 
 ## Keys for new official repositories, and new keys for old ones
 
-Every official repository's key is derived from the offline master seed for
-its origin and certified by the root (`scripts/derive-official-key.py`,
+**Format v1.** The owner provisions a new repository where the root's key is:
+
+```sh
+python3 scripts/provision-signing-certificates.py \
+  --root-key <root private key> --root-certificate <root certificate> \
+  --out <directory> --origin https://github.com/Droidtop/enginehost-example-plugin
+gh secret set ENGINEHOST_CERTIFICATE_KEY_PEM -R Droidtop/enginehost-example-plugin \
+  < <directory>/droidtop--enginehost-example-plugin/signing-key.pem
+```
+
+Commit `<directory>/droidtop--enginehost-example-plugin/enginehost-signing-certificate.pem`
+to the repository's `plugin-core` root and recompose its lines; the signing
+workflow then signs v1 and checks the bundle against the pinned root before
+publishing. The key is deterministic: running the same command again derives
+the same key, so a lost secret needs no new certificate.
+
+**Legacy format.** Until it is retired, every official repository's raw key is
+derived from the offline master seed for its origin and certified by the old
+root (`scripts/derive-official-key.py`,
 `scripts/certify-repository-key.py`; both run only where the seed is, on
 droidtop-dev under `/root/.gnupg/enginehost-signing`). A new repository gets
-its key like this:
+its legacy key like this:
 
 ```sh
 seed=/root/.gnupg/enginehost-signing/master-seed.bin

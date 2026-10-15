@@ -126,7 +126,7 @@ def main() -> None:
 
         # What the release carries must be what the repository committed at
         # this very commit: the key document Enginehost pins (legacy), the
-        # certificate Droidtop Core issued (v1).
+        # certificate the Enginehost signing root issued (v1).
         for published, name in ((key_documents, "enginehost-public-key.json"),
                                 (certificates, "enginehost-signing-certificate.pem")):
             if not published:
@@ -141,13 +141,13 @@ def main() -> None:
                     f"at {commit[:12]}; refusing to publish what users cannot verify"
                 )
 
-        core = scripts.parent / "app/src/main/assets/trust/droidtop-core.pub"
+        root = scripts.parent / "app/src/main/assets/trust/enginehost-root.pub"
         for bundle in bundles:
             command = [sys.executable, str(scripts / "verify-engine-bundle.py"), str(bundle)]
             if key_documents:
                 command += ["--repository-key", str(key_documents[0])]
-            if certificates and core.is_file():
-                command += ["--core-key", str(core), "--require-v1"]
+            if certificates and root.is_file():
+                command += ["--root-key", str(root), "--require-v1"]
             run(*command)
             print(f"verified: {bundle.name}")
 

@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
-"""Issue format-v1 signing certificates under Droidtop Core (Droidtop/tracker#550).
+"""Issue format-v1 signing certificates under the Enginehost signing root (Droidtop/tracker#550).
 
-Run by the owner, on the machine holding the Droidtop Core key, never in CI.
-Everything it derives is reproducible: re-downloading the Core key from the CA
-and running this again yields the same signing keys.
+Run by the owner, on the machine holding the Enginehost signing root's key,
+never in CI. The owner derives that root from Droidtop Core outside this
+repository; Core itself signs nothing Enginehost reads. Everything here is
+reproducible: deriving the root again and running this again yields the same
+signing keys.
 
-    master seed  = HKDF-SHA256(ikm = Core's raw private value,
+    master seed  = HKDF-SHA256(ikm = the root's raw private value,
                                salt = "droidtop-ca-root-v1",
                                info = "enginehost-plugin-root-master-seed")
     origin key   = derive-official-key.py's repository derivation of that seed
                    (P-256, ES256), for the canonical GitHub origin
-    certificate  = issued and signed by the Core key: CA:FALSE, keyUsage
+    certificate  = issued and signed by the root key: CA:FALSE, keyUsage
                    digitalSignature, the purpose's extended key usage, and the
                    identity URNs docs/engine-bundle-format.md "Certificates" names
 
-"Core's raw private value" is the private key's secret number as unsigned
-big-endian bytes, padded to the key's size: the private exponent d (modulus
-length) for an RSA key, the scalar (field length) for an EC key.
+The salt and info strings predate the root and stay as they are: changing them
+would change every derived key. "The root's raw private value" is the private
+key's secret number as unsigned big-endian bytes, padded to the key's size: the
+scalar (field length) for an EC key, the private exponent d (modulus length)
+for an RSA key.
 
 Private keys are written to 0600 files and never printed; what is printed is
 paths and public fingerprints. A certificate is public: commit it.
@@ -54,25 +58,25 @@ SEED_INFO = b"enginehost-plugin-root-master-seed"
 VALIDITY_DAYS = 3 * 365
 
 
-def core_raw_private_value(key) -> bytes:
-    """The Core key's secret number, unsigned big-endian, padded to the key's size."""
+def raw_private_value(key) -> bytes:
+    """The root key's secret number, unsigned big-endian, padded to the key's size."""
     if isinstance(key, rsa.RSAPrivateKey):
         return key.private_numbers().d.to_bytes((key.key_size + 7) // 8, "big")
     if isinstance(key, ec.EllipticCurvePrivateKey):
         return key.private_numbers().private_value.to_bytes((key.curve.key_size + 7) // 8, "big")
-    raise SystemExit("The Core key must be RSA or EC")
+    raise SystemExit("The root key must be RSA or EC")
 
 
-def master_seed(core_key) -> bytes:
-    return HKDF(algorithm=hashes.SHA256(), length=32, salt=SEED_SALT, info=SEED_INFO).derive(core_raw_private_value(core_key))
+def master_seed(root_key) -> bytes:
+    return HKDF(algorithm=hashes.SHA256(), length=32, salt=SEED_SALT, info=SEED_INFO).derive(raw_private_value(root_key))
 
 
-def issue(core_key, core_cert: x509.Certificate, key, common_name: str, purpose: str, uris: list[str]) -> x509.Certificate:
+def issue(root_key, root_cert: x509.Certificate, key, common_name: str, purpose: str, uris: list[str]) -> x509.Certificate:
     now = datetime.datetime.now(datetime.timezone.utc)
     builder = (
         x509.CertificateBuilder()
         .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)]))
-        .issuer_name(core_cert.subject)
+        .issuer_name(root_cert.subject)
         .public_key(key.public_key())
         .serial_number(x509.random_serial_number())
         .not_valid_before(now - datetime.timedelta(days=1))
@@ -88,9 +92,9 @@ def issue(core_key, core_cert: x509.Certificate, key, common_name: str, purpose:
         .add_extension(x509.ExtendedKeyUsage([x509.ObjectIdentifier(bundle_jws.PURPOSES[purpose][0])]), critical=False)
         .add_extension(x509.SubjectAlternativeName([x509.UniformResourceIdentifier(uri) for uri in uris]), critical=False)
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
-        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(core_cert.public_key()), critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(root_cert.public_key()), critical=False)
     )
-    return builder.sign(core_key, hashes.SHA256())
+    return builder.sign(root_key, hashes.SHA256())
 
 
 def write_private(path: Path, key) -> None:
@@ -107,8 +111,8 @@ def fingerprint(key) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--core-key", required=True, type=Path, help="The Droidtop Core private key (PEM)")
-    parser.add_argument("--core-certificate", required=True, type=Path, help="The Droidtop Core certificate (PEM)")
+    parser.add_argument("--root-key", required=True, type=Path, help="The Enginehost signing root's private key (PEM)")
+    parser.add_argument("--root-certificate", required=True, type=Path, help="The Enginehost signing root's certificate (PEM)")
     parser.add_argument("--out", required=True, type=Path, help="Directory for the keys (0600) and certificates")
     parser.add_argument("--origin", action="append", default=[])
     parser.add_argument("--generation", type=int, default=0, help="Repository keys: N for an origin's Nth replacement")
@@ -118,12 +122,12 @@ def main() -> None:
     parser.add_argument("--revocations", action="append", default=[])
     args = parser.parse_args()
 
-    core_key = serialization.load_pem_private_key(args.core_key.read_bytes(), password=None)
-    core_cert = x509.load_pem_x509_certificate(args.core_certificate.read_bytes())
-    core_spki = core_cert.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
-    if core_key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo) != core_spki:
-        raise SystemExit("The Core key does not match the Core certificate")
-    seed = master_seed(core_key)
+    root_key = serialization.load_pem_private_key(args.root_key.read_bytes(), password=None)
+    root_cert = x509.load_pem_x509_certificate(args.root_certificate.read_bytes())
+    root_spki = root_cert.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    if root_key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo) != root_spki:
+        raise SystemExit("The root key does not match the root certificate")
+    seed = master_seed(root_key)
 
     def emit(name: str, key, certificate: x509.Certificate) -> None:
         write_private(args.out / name / "signing-key.pem", key)
@@ -134,14 +138,14 @@ def main() -> None:
         key = derive_official_key.derive_key(seed, derive_official_key.repository_info(origin, args.generation))
         identity = bundle_jws.origin_id(origin)
         uris = [bundle_jws.ORIGIN_URN + identity] + ["urn:droidtop:plugin:" + plugin for plugin in args.plugin]
-        emit(identity.replace("/", "--"), key, issue(core_key, core_cert, key, identity, "plugin", uris))
+        emit(identity.replace("/", "--"), key, issue(root_key, root_cert, key, identity, "plugin", uris))
     if args.developer:
         key = derive_official_key.derive_key(seed, b"enginehost/primary-developer-debug-signing/v1")
-        emit("developer", key, issue(core_key, core_cert, key, "Enginehost developer", "plugin", [bundle_jws.DEVELOPER_URN]))
+        emit("developer", key, issue(root_key, root_cert, key, "Enginehost developer", "plugin", [bundle_jws.DEVELOPER_URN]))
     for catalog in args.revocations:
         key = derive_official_key.derive_key(seed, b"enginehost/revocation-list-signing/v1\0" + catalog.lower().encode())
         uris = [bundle_jws.CATALOG_URN + catalog.lower()]
-        emit("revocations--" + catalog.lower().replace("/", "--"), key, issue(core_key, core_cert, key, catalog, "revocations", uris))
+        emit("revocations--" + catalog.lower().replace("/", "--"), key, issue(root_key, root_cert, key, catalog, "revocations", uris))
 
 
 if __name__ == "__main__":

@@ -29,8 +29,8 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Certificates and signatures for tests, generated per run. No real key or
- * certificate is ever used in a test (Droidtop/tracker#550): the "Core" here
- * is this run's own, issued by this run's own stand-in for the UCM root.
+ * certificate is ever used in a test (Droidtop/tracker#550): the "Core" and
+ * the signing root here are this run's own.
  */
 object TestPki {
     private val serials = AtomicLong(1000)
@@ -93,20 +93,26 @@ object TestPki {
         return Issued(JcaX509CertificateConverter().getCertificate(builder.build(signer)), keys)
     }
 
-    /** A stand-in for the owner's UCM root, and the Droidtop Core it issued (RSA, as the real one is). */
+    /**
+     * A stand-in for Droidtop Core (RSA, as the real one is) and for the
+     * Enginehost signing root the owner derives from it (P-256, self-signed,
+     * as the real one is). The root is not certified by Core: it is derived
+     * from Core's private key, so nothing public links them, and Core's own
+     * certificates must never verify.
+     */
     class Hierarchy {
-        val ucm = issue("CN=Test UCM Root", rsa(), ca = true, keyUsage = KeyUsage.keyCertSign or KeyUsage.cRLSign, eku = null)
-        val core = issue(
-            "CN=Test Droidtop Core", rsa(), issuer = ucm, ca = true, pathLength = 1,
+        val core = issue("CN=Test Droidtop Core", rsa(), ca = true, keyUsage = KeyUsage.keyCertSign or KeyUsage.cRLSign, eku = null)
+        val root = issue(
+            "CN=Test Enginehost Signing Root", ec(), ca = true, pathLength = 1,
             keyUsage = KeyUsage.keyCertSign or KeyUsage.cRLSign, eku = null,
         )
-        val anchor = TrustAnchor.Core(core.keys.public.encoded)
+        val anchor = TrustAnchor.Root(root.keys.public.encoded)
 
         fun leaf(
             origin: String = "droidtop/enginehost-example-plugin",
             purpose: SignaturePurpose = SignaturePurpose.PLUGIN,
             extraUris: List<String> = emptyList(),
-            issuer: Issued = core,
+            issuer: Issued = root,
             keys: KeyPair = ec(),
         ) = issue(
             "CN=$origin", keys, issuer = issuer, eku = listOf(purpose.oid),

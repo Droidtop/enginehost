@@ -52,7 +52,7 @@ class ConscryptSignaturesTest {
     }
 
     @Test
-    fun `a Core-anchored bundle signature verifies under Conscrypt`() {
+    fun `a root-anchored bundle signature verifies under Conscrypt`() {
         val verified = CertificateSignatures.verify(
             TestPki.jws(manifest, pki.leaf()), SignaturePurpose.PLUGIN, pki.anchor, manifest, Date(),
         )

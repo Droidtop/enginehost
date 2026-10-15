@@ -19,7 +19,7 @@ class BundleVerifierTest {
     private val legacySignature = byteArrayOf(1, 2, 3)
 
     private class Sources(
-        override val core: TrustAnchor.Core?,
+        override val root: TrustAnchor.Root?,
         val custom: Map<String, ByteArray> = emptyMap(),
         val lists: Map<String, RevokedSet> = emptyMap(),
     ) : BundleTrustSources {
@@ -51,7 +51,7 @@ class BundleVerifierTest {
     private fun officialJws(leaf: TestPki.Issued = pki.leaf()) = TestPki.jws(manifest, leaf)
 
     @Test
-    fun `a Core-issued certificate for the origin is official`() {
+    fun `a root-issued certificate for the origin is official`() {
         val leaf = pki.leaf()
         val signer = verify(BundleSignatures(officialJws(leaf), null), VerificationMoment.CATALOG_INSTALL, Sources(pki.anchor))
         assertEquals(SignerKind.OFFICIAL, signer.kind)
@@ -61,19 +61,19 @@ class BundleVerifierTest {
     }
 
     @Test
-    fun `once Core is pinned, a legacy signature serves only an installed bundle's launch`() {
+    fun `once the root is pinned, a legacy signature serves only an installed bundle's launch`() {
         val sources = Sources(pki.anchor)
         val legacyOnly = BundleSignatures(null, legacySignature)
         for (moment in listOf(VerificationMoment.CATALOG, VerificationMoment.CATALOG_INSTALL, VerificationMoment.FILE_INSTALL)) {
-            refused("legacy at $moment with Core pinned") { verify(legacyOnly, moment, sources) }
+            refused("legacy at $moment with the root pinned") { verify(legacyOnly, moment, sources) }
         }
         assertEquals(0, verify(legacyOnly, VerificationMoment.LAUNCH, sources).format)
         assertEquals(1, sources.legacyAsked)
     }
 
     @Test
-    fun `before Core is pinned, the legacy signature still installs`() {
-        val sources = Sources(core = null)
+    fun `before the root is pinned, the legacy signature still installs`() {
+        val sources = Sources(root = null)
         assertEquals(0, verify(BundleSignatures(null, legacySignature), VerificationMoment.CATALOG_INSTALL, sources).format)
         // A dual-signed bundle falls to its legacy signature: there is no anchor to check the JWS against.
         assertEquals(0, verify(BundleSignatures(officialJws(), legacySignature), VerificationMoment.CATALOG, sources).format)
@@ -106,7 +106,7 @@ class BundleVerifierTest {
 
     @Test
     fun `the developer's certificate installs from a file only`() {
-        val developer = TestPki.issue("CN=Developer", TestPki.ec(), pki.core, uris = listOf("urn:enginehost:developer"))
+        val developer = TestPki.issue("CN=Developer", TestPki.ec(), pki.root, uris = listOf("urn:enginehost:developer"))
         val signatures = BundleSignatures(TestPki.jws(manifest, developer), null)
         val sources = Sources(pki.anchor)
         assertEquals(SignerKind.DEVELOPER, verify(signatures, VerificationMoment.FILE_INSTALL, sources).kind)
@@ -125,7 +125,7 @@ class BundleVerifierTest {
         val signer = verify(signatures, VerificationMoment.CATALOG_INSTALL, sources, forOrigin = custom)
         assertEquals(SignerKind.CUSTOM, signer.kind)
         assertEquals(sha256(publisher.public.encoded), signer.anchorKeySha256)
-        // Without Core pinned the person's own pin still anchors it.
+        // Without the root pinned the person's own pin still anchors it.
         assertEquals(SignerKind.CUSTOM, verify(signatures, VerificationMoment.CATALOG, Sources(null, custom = mapOf(custom to publisher.public.encoded)), forOrigin = custom).kind)
         refused("a pinned key does not reach another origin") {
             verify(signatures, VerificationMoment.CATALOG, Sources(null, custom = mapOf(origin to publisher.public.encoded)))
@@ -153,7 +153,7 @@ class BundleVerifierTest {
     @Test
     fun `expiry stops installs but not launches`() {
         val expired = TestPki.issue(
-            "CN=expired", TestPki.ec(), pki.core, uris = listOf("urn:droidtop:origin:droidtop/enginehost-example-plugin"),
+            "CN=expired", TestPki.ec(), pki.root, uris = listOf("urn:droidtop:origin:droidtop/enginehost-example-plugin"),
             notBefore = Date(System.currentTimeMillis() - 10_000_000_000), notAfter = Date(System.currentTimeMillis() - 1_000_000),
         )
         val signatures = BundleSignatures(TestPki.jws(manifest, expired), null)

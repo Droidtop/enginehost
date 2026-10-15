@@ -5,25 +5,26 @@ import java.io.FileNotFoundException
 import java.util.Date
 
 /**
- * Droidtop Core's public key, the one anchor of every official chain
- * (Droidtop/tracker#550): `assets/trust/droidtop-core.pub`, a PEM `PUBLIC KEY`
- * block, the same bytes droidtop pins. The certificate stays on the owner's
- * machine; the key is public material the coordinator commits. A build without
- * it pins no Core: no official v1 signature can be verified, and
- * [BundleVerifier] keeps accepting the legacy format for new installs.
+ * The Enginehost signing root's public key, the one anchor of every official
+ * chain: `assets/trust/enginehost-root.pub`, a PEM `PUBLIC KEY` block. The
+ * owner derives the root from Droidtop Core, which Enginehost never pins
+ * (Droidtop/tracker#550); its private key stays on the owner's machine. A
+ * build without the file pins no root: no official v1 signature can be
+ * verified, and [BundleVerifier] keeps accepting the legacy format for new
+ * installs.
  */
-object CoreKey {
-    const val ASSET = "trust/droidtop-core.pub"
+object EnginehostRoot {
+    const val ASSET = "trust/enginehost-root.pub"
 
     @Volatile private var loaded = false
-    @Volatile private var anchor: TrustAnchor.Core? = null
+    @Volatile private var anchor: TrustAnchor.Root? = null
 
-    fun get(context: Context): TrustAnchor.Core? {
+    fun get(context: Context): TrustAnchor.Root? {
         if (!loaded) synchronized(this) {
             if (!loaded) {
                 anchor = try {
                     context.assets.open(ASSET).bufferedReader().use { reader ->
-                        TrustAnchor.Core(CertificateSignatures.parsePemPublicKey(reader.readText()))
+                        TrustAnchor.Root(CertificateSignatures.parsePemPublicKey(reader.readText()))
                     }
                 } catch (absent: FileNotFoundException) {
                     null
@@ -37,7 +38,7 @@ object CoreKey {
 
 /**
  * Revocation lists, one per catalog: Enginehost's own ("enginehost", beside
- * the plugins index, under Core) and each added repository's (`owner/repo`,
+ * the plugins index, under the Enginehost root) and each added repository's (`owner/repo`,
  * its own `revocations.jws`, under the key the person pinned for it).
  *
  * A list is taken only when its sequence is higher than the one held, so an
@@ -90,7 +91,7 @@ class RevocationListStore(private val context: Context) {
 
     private fun anchorFor(catalog: String): TrustAnchor? =
         if (catalog == BundleVerifier.ENGINEHOST_CATALOG) {
-            CoreKey.get(context)
+            EnginehostRoot.get(context)
         } else {
             PluginOriginKeyStore(context).custom("https://github.com/$catalog")
                 ?.let { TrustAnchor.PinnedKey(it.publicKeySpki) }
@@ -104,11 +105,11 @@ class RevocationListStore(private val context: Context) {
     }
 }
 
-/** [BundleVerifier]'s sources on a device: the pinned Core, the person's pins, the held revocation lists. */
+/** [BundleVerifier]'s sources on a device: the pinned root, the person's pins, the held revocation lists. */
 class BundleTrust(private val context: Context) : BundleTrustSources {
     private val revocations = RevocationListStore(context)
 
-    override val core: TrustAnchor.Core? get() = CoreKey.get(context)
+    override val root: TrustAnchor.Root? get() = EnginehostRoot.get(context)
 
     override fun customKey(origin: String): ByteArray? = PluginOriginKeyStore(context).custom(origin)?.publicKeySpki
 
@@ -123,7 +124,7 @@ class BundleTrust(private val context: Context) : BundleTrustSources {
     /**
      * Whether a signer verified earlier still holds without verifying again:
      * nothing it rests on is revoked, and its anchor is still the one pinned
-     * (Core for official and developer certificates, the person's key for
+     * (the Enginehost root for official and developer certificates, the person's key for
      * their repository, the pinned key for a legacy signer). Cheap enough for
      * every read of a cached catalog.
      */
@@ -134,7 +135,7 @@ class BundleTrust(private val context: Context) : BundleTrustSources {
             signer.format == 0 -> LegacyBundleSignatures.stillPinned(context, origin, signer)
             signer.kind == SignerKind.CUSTOM ->
                 PluginOriginKeyStore(context).custom(origin)?.fingerprint == signer.anchorKeySha256
-            else -> core?.keySha256 == signer.anchorKeySha256
+            else -> root?.keySha256 == signer.anchorKeySha256
         }
     }
 }
