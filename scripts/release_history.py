@@ -72,11 +72,17 @@ def _run_gh(arguments: tuple) -> subprocess.CompletedProcess:
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
-def gh_api(*arguments: str, parse=None, run=_run_gh, sleep=time.sleep):
+class Gone(Exception):
+    """A `gh api` call answered 404 where the caller asked to hear of it (gone_is_final)."""
+
+
+def gh_api(*arguments: str, parse=None, run=_run_gh, sleep=time.sleep, gone_is_final=False):
     """The body of a `gh api` call, or parse(body) when parse is given. A failed
     call, or a body parse refuses, is tried again after each of RETRY_PAUSES;
     the last failure ends the build with gh's message (it names the HTTP status
-    of an error answer) or the size of the body that could not be read."""
+    of an error answer) or the size of the body that could not be read. With
+    [gone_is_final], a 404 raises Gone at once: asking again for a thing that
+    was deleted cannot succeed, and the caller knows what to look up instead."""
     reason = ""
     for attempt, pause in enumerate((0, *RETRY_PAUSES)):
         if pause:
@@ -86,6 +92,8 @@ def gh_api(*arguments: str, parse=None, run=_run_gh, sleep=time.sleep):
         process = run(arguments)
         if process.returncode:
             reason = process.stderr.decode(errors="replace").strip() or f"exit {process.returncode}"
+            if gone_is_final and "HTTP 404" in reason:
+                raise Gone(reason)
             continue
         if parse is None:
             return process.stdout
@@ -96,14 +104,37 @@ def gh_api(*arguments: str, parse=None, run=_run_gh, sleep=time.sleep):
     raise SystemExit(f"gh api failed: {reason}")
 
 
-def published_builds(repository: str, bundle_id: str) -> list:
+# A rolling channel's release is deleted and recreated by every publish, so
+# an envelope listed a moment ago can be gone by the time it is fetched (HTTP
+# 404) when several lines publish at once (Droidtop/tracker#551). The listing
+# is then taken again, after these pauses, and the build fails only when an
+# envelope is still missing: the version check needs the whole history, so a
+# missing envelope is never skipped.
+RELIST_PAUSES = (5, 15, 45)
+
+
+def published_builds(repository: str, bundle_id: str, api=gh_api, sleep=time.sleep) -> list:
     """Every release envelope of this bundle id in the repository.
 
     Rolling channels delete and recreate their release, but the newest build
     of a line always sits in its unstable release, so the highest build is
     never absent from this listing.
     """
-    pages = gh_api(f"repos/{repository}/releases?per_page=100", "--paginate", "--slurp", parse=json.loads)
+    reason = ""
+    for attempt, pause in enumerate((0, *RELIST_PAUSES)):
+        if pause:
+            print(f"release envelope gone while reading ({reason}); listing the releases again in {pause} s "
+                  f"(attempt {attempt + 1} of {len(RELIST_PAUSES) + 1})", file=sys.stderr)
+            sleep(pause)
+        try:
+            return _builds_from_listing(repository, bundle_id, api)
+        except Gone as gone:
+            reason = str(gone)
+    raise SystemExit(f"a release envelope of {repository} is still missing after listing the releases again: {reason}")
+
+
+def _builds_from_listing(repository: str, bundle_id: str, api) -> list:
+    pages = api(f"repos/{repository}/releases?per_page=100", "--paginate", "--slurp", parse=json.loads)
     builds = []
     for release in (item for page in pages for item in page):
         commit = release.get("target_commitish") or ""
@@ -112,8 +143,9 @@ def published_builds(repository: str, bundle_id: str) -> list:
         for asset in release.get("assets", []):
             if asset["name"] not in ENVELOPES:
                 continue
-            envelope = gh_api("-H", "Accept: application/octet-stream",
-                              f"repos/{repository}/releases/assets/{asset['id']}", parse=json.loads)
+            envelope = api("-H", "Accept: application/octet-stream",
+                           f"repos/{repository}/releases/assets/{asset['id']}", parse=json.loads,
+                           gone_is_final=True)
             for entry in envelope.get("bundles", []):
                 manifest = json.loads(base64.b64decode(entry["manifestBase64"]))
                 if manifest.get("bundleId") == bundle_id:
