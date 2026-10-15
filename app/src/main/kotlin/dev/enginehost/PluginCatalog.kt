@@ -39,7 +39,9 @@ enum class PluginStream(val channel: String) {
 /** One signed engine bundle advertised by a repository's GitHub release. */
 data class AvailablePlugin(
     val manifest: EngineBundleManifest,
-    val signatureBytes: ByteArray,
+    val signatures: BundleSignatures,
+    /** Who signed it, as verified when the catalog was read ([BundleVerifier], moment CATALOG). */
+    val signer: BundleSigner,
     val releaseTag: String,
     val archiveUrl: String,
     val archiveSha256: String?,
@@ -49,7 +51,7 @@ data class AvailablePlugin(
     val origin: String get() = manifest.origin
     val bundleId: String get() = manifest.bundleId
     val apiVersion: Int get() = manifest.apiVersion
-    val signerFingerprints: Set<String> get() = setOf(manifest.signingKeySha256)
+    val signerFingerprints: Set<String> get() = setOf(signer.keySha256)
 }
 
 object PluginReleaseReader {
@@ -64,7 +66,7 @@ object PluginReleaseReader {
         releaseTag: String,
         prerelease: Boolean,
         releaseAssets: Map<String, Pair<String, String?>>,
-        keys: PluginOriginKeyStore,
+        trust: BundleTrust,
     ): List<AvailablePlugin> {
         val root = JSONObject(raw)
         require(root.getInt("formatVersion") == 1) { "Unsupported release catalog envelope" }
@@ -73,19 +75,23 @@ object PluginReleaseReader {
         return (0 until bundles.length()).map { index ->
             val envelope = bundles.getJSONObject(index)
             val manifestBytes = Base64.getDecoder().decode(envelope.requiredString("manifestBase64"))
-            val signature = Base64.getDecoder().decode(envelope.requiredString("signatureBase64"))
+            val signatures = envelopeSignatures(envelope)
             val manifest = EngineBundleManifestReader.parse(manifestBytes)
-            EngineBundleManifestReader.verifySignature(manifest, signature)
             require(manifest.origin == normalizeGithubOrigin(expectedOrigin)) { "Release origin mismatch" }
-            if (!keys.matches(manifest.origin, manifest.signingKeySha256, allowDeveloper = false)) {
-                throw SignerChangedException(manifest.origin, manifest.signingKeySha256)
+            val signer = try {
+                trust.verify(manifest, signatures, VerificationMoment.CATALOG)
+            } catch (refused: IllegalArgumentException) {
+                throw SignerChangedException(manifest.origin, claimedSigner(manifest, signatures), refused)
+            } catch (refused: java.security.GeneralSecurityException) {
+                throw SignerChangedException(manifest.origin, claimedSigner(manifest, signatures), refused)
             }
             val asset = requireNotNull(releaseAssets[manifest.assetName]) {
                 "Release is missing ${manifest.assetName}"
             }
             AvailablePlugin(
                 manifest,
-                signature,
+                signatures,
+                signer,
                 releaseTag,
                 asset.first,
                 asset.second?.let(::normalizeGithubDigest),
@@ -154,7 +160,7 @@ class GithubPluginCatalogClient(private val context: Context) {
                     release.getString("tag_name"),
                     prerelease,
                     byName,
-                    PluginOriginKeyStore(context),
+                    BundleTrust(context),
                 )
             }
             next = nextLink(response.link)
@@ -280,7 +286,7 @@ object AvailablePluginResolver {
 
 class PluginCatalogCache(context: Context) {
     private val directory = File(context.filesDir, "plugin-catalogs-v2").apply { mkdirs() }
-    private val keys = PluginOriginKeyStore(context)
+    private val trust = BundleTrust(context)
 
     /**
      * Stores a catalog and the validator that produced it: an HTTP ETag from
@@ -316,10 +322,10 @@ class PluginCatalogCache(context: Context) {
         val plugins = synchronized(decoded) { decoded[file.path]?.takeIf { it.first == version }?.second }
             ?: runCatching {
                 val array = JSONObject(file.readText()).getJSONArray("plugins")
-                (0 until array.length()).map { availablePluginFromJson(array.getJSONObject(it)) }
+                (0 until array.length()).map { availablePluginFromJson(array.getJSONObject(it), trust) }
             }.getOrDefault(emptyList()).also { synchronized(decoded) { decoded[file.path] = version to it } }
         return plugins.takeIf { all ->
-            all.all { keys.matches(it.origin, it.manifest.signingKeySha256, allowDeveloper = false) }
+            all.all { trust.stillTrusted(it.origin, it.signer) }
         }.orEmpty()
     }
 
@@ -360,20 +366,36 @@ class PluginCatalogCache(context: Context) {
 
 private fun AvailablePlugin.toJson() = JSONObject()
     .put("manifestBase64", Base64.getEncoder().encodeToString(manifest.rawBytes))
-    .put("signatureBase64", Base64.getEncoder().encodeToString(signatureBytes))
+    .putOpt("signatureBase64", signatures.legacy?.let { Base64.getEncoder().encodeToString(it) })
+    .putOpt("jws", signatures.jws)
     .put("releaseTag", releaseTag)
     .put("archiveUrl", archiveUrl)
     .put("archiveSha256", archiveSha256)
     .put("stream", stream.channel)
 
-private fun availablePluginFromJson(json: JSONObject): AvailablePlugin {
+/**
+ * A release envelope entry's signatures: `jws` (format v1), `signatureBase64`
+ * (legacy), or both, as the bundle itself carries them.
+ */
+internal fun envelopeSignatures(json: JSONObject) = BundleSignatures(
+    json.optString("jws").takeIf(String::isNotBlank),
+    json.optString("signatureBase64").takeIf(String::isNotBlank)?.let { Base64.getDecoder().decode(it) },
+)
+
+/** The key a refused entry claims to be signed by, for the key-changed prompt: its v1 leaf's, else its legacy key. */
+private fun claimedSigner(manifest: EngineBundleManifest, signatures: BundleSignatures): String =
+    signatures.jws?.let { runCatching { CertificateSignatures.claimedLeafKeySha256(it) }.getOrNull() }
+        ?: manifest.legacyKeySha256
+        ?: "0".repeat(64)
+
+private fun availablePluginFromJson(json: JSONObject, trust: BundleTrust): AvailablePlugin {
     val manifestBytes = Base64.getDecoder().decode(json.requiredString("manifestBase64"))
-    val signature = Base64.getDecoder().decode(json.requiredString("signatureBase64"))
+    val signatures = envelopeSignatures(json)
     val manifest = EngineBundleManifestReader.parse(manifestBytes)
-    EngineBundleManifestReader.verifySignature(manifest, signature)
     return AvailablePlugin(
         manifest,
-        signature,
+        signatures,
+        trust.verify(manifest, signatures, VerificationMoment.CATALOG),
         json.requiredString("releaseTag"),
         json.requiredString("archiveUrl"),
         json.optString("archiveSha256").takeIf(String::isNotBlank)?.let(::normalizeGithubDigest),
@@ -424,7 +446,7 @@ class PluginOriginStore(private val context: Context) {
     private val keys get() = PluginOriginKeyStore(context)
 
     /** Compiled-in origins, official ones learned from the plugins index, and the person's own. */
-    fun all(): List<String> = (DEFAULT_ORIGINS + keys.certifiedOrigins() + custom()).distinct().sorted()
+    fun all(): List<String> = (DEFAULT_ORIGINS + keys.certifiedOrigins() + coreCertified() + custom()).distinct().sorted()
 
     fun add(origin: String, rawKeyDocument: String) {
         val normalized = normalizeGithubOrigin(origin)
@@ -443,25 +465,37 @@ class PluginOriginStore(private val context: Context) {
     /** Part of Enginehost's own catalog (compiled in, or root-certified): not the person's to remove. */
     fun isOfficial(origin: String): Boolean {
         val normalized = normalizeGithubOrigin(origin)
-        return normalized in DEFAULT_ORIGINS || normalized in keys.certifiedOrigins()
+        return normalized in DEFAULT_ORIGINS || normalized in keys.certifiedOrigins() || normalized in coreCertified()
     }
 
     /**
-     * Adds every origin the index carries a root-certified key for. The
-     * certificate is verified here against the root compiled into this APK;
-     * what the index says about trust is not consulted, so nothing but the
-     * offline root key can make an origin official. A person's own entry for
-     * the same repository is folded into the official one. Answers the
-     * origins that were not known before.
+     * Adds every origin the index proves official: a certificate chain that
+     * ends at the Droidtop Core certificate this APK pins and names the origin
+     * (format v1), or a key document carrying the legacy official root's
+     * certificate. Both are verified here; what the index says about trust is
+     * not consulted, so nothing but Core (or the legacy root) can make an
+     * origin official. A person's own entry for the same repository is folded
+     * into the official one. Answers the origins that were not known before.
      */
     fun learnOfficial(index: PluginsIndex): List<String> {
         val before = all().toSet()
         val store = keys
+        val core = CoreCertificate.get(context)
+        val revoked = RevocationListStore(context).revoked(BundleVerifier.ENGINEHOST_CATALOG)
         index.origins.values.forEach { indexed ->
-            val document = indexed.keyDocument ?: return@forEach
-            val key = store.importCertified(document) ?: return@forEach
-            if (key.origin in custom()) preferences.edit().putStringSet(CUSTOM, custom() - key.origin).apply()
-            thirdPartyPreferences.edit().remove(key.origin).apply()
+            // Format v1: a Core-issued bundle-signing certificate naming the origin.
+            val certified = core != null && indexed.certificates.isNotEmpty() && runCatching {
+                val chain = CertificateSignatures.verifyChain(
+                    CertificateSignatures.parseChain(indexed.certificates), SignaturePurpose.PLUGIN, core, java.util.Date(), revoked,
+                )
+                VerifiedJws(chain, ByteArray(0)).namesOrigin(indexed.origin)
+            }.getOrDefault(false)
+            // Legacy: a key document carrying the official root's certificate.
+            val legacy = !certified && indexed.keyDocument?.let { store.importCertified(it) } != null
+            if (!certified && !legacy) return@forEach
+            if (certified) preferences.edit().putStringSet(CORE_CERTIFIED, coreCertified() + indexed.origin).apply()
+            if (indexed.origin in custom()) preferences.edit().putStringSet(CUSTOM, custom() - indexed.origin).apply()
+            thirdPartyPreferences.edit().remove(indexed.origin).apply()
         }
         return all() - before
     }
@@ -530,8 +564,12 @@ class PluginOriginStore(private val context: Context) {
 
     private fun custom(): Set<String> = preferences.getStringSet(CUSTOM, emptySet())?.toSet().orEmpty()
 
+    /** Origins the index showed a Core-issued certificate for ([learnOfficial]). */
+    private fun coreCertified(): Set<String> = preferences.getStringSet(CORE_CERTIFIED, emptySet())?.toSet().orEmpty()
+
     companion object {
         private const val CUSTOM = "custom"
+        private const val CORE_CERTIFIED = "core-certified"
         val DEFAULT_ORIGINS = setOf(
             "https://github.com/droidtop/enginehost-renpy-plugin",
             "https://github.com/droidtop/enginehost-rpgmaker-mkxp-z-plugin",

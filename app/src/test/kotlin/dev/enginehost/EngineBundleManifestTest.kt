@@ -16,7 +16,7 @@ class EngineBundleManifestTest {
         val keys = keyPair("secp256r1")
         val raw = manifest(keys.public.encoded)
         val parsed = EngineBundleManifestReader.parse(raw)
-        EngineBundleManifestReader.verifySignature(parsed, sign(keys.private, raw))
+        LegacyBundleSignatures.verifyRaw(raw, parsed.legacyKeySpki!!, sign(keys.private, raw))
 
         assertEquals("dev.enginehost.renpy.8_3.v1", parsed.bundleId)
         assertEquals("renpy", parsed.info.engine)
@@ -32,8 +32,18 @@ class EngineBundleManifestTest {
         val changed = raw.toString(Charsets.UTF_8).replace("8.3.2", "8.3.3").toByteArray()
 
         assertThrows(IllegalArgumentException::class.java) {
-            EngineBundleManifestReader.verifySignature(EngineBundleManifestReader.parse(changed), signature)
+            LegacyBundleSignatures.verifyRaw(changed, EngineBundleManifestReader.parse(changed).legacyKeySpki!!, signature)
         }
+    }
+
+    @Test
+    fun `a manifest signed only in format v1 names no legacy key`() {
+        // Its signer is the certificate in its JWS (docs/engine-bundle-format.md "Signatures").
+        val raw = JSONObject(manifest(keyPair("secp256r1").public.encoded).toString(Charsets.UTF_8))
+            .apply { remove("signing") }.toString().toByteArray()
+        val parsed = EngineBundleManifestReader.parse(raw)
+        assertEquals(null, parsed.legacyKeySpki)
+        assertEquals(null, parsed.legacyKeySha256)
     }
 
     @Test
@@ -42,7 +52,7 @@ class EngineBundleManifestTest {
         val raw = manifest(keys.public.encoded)
 
         assertThrows(IllegalArgumentException::class.java) {
-            EngineBundleManifestReader.verifySignature(EngineBundleManifestReader.parse(raw), sign(keys.private, raw))
+            LegacyBundleSignatures.verifyRaw(raw, EngineBundleManifestReader.parse(raw).legacyKeySpki!!, sign(keys.private, raw))
         }
     }
 

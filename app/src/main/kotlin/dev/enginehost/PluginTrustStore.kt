@@ -56,11 +56,17 @@ class PluginTrustStore(private val context: Context) {
         return changeSince(approvedSigners, preferences.getString(originKey(plugin.bundleId), null), plugin)
     }
 
-    /** Signed by its origin's root-certified key, compiled in or learned from the plugins index. */
-    fun isOfficial(plugin: InstalledPlugin): Boolean {
-        val keys = PluginOriginKeyStore(context)
-        return plugin.signerFingerprints.any { keys.isOfficial(plugin.origin, it) }
-    }
+    /**
+     * Official: signed in format v1 by a Droidtop Core certificate for its own
+     * origin, still unrevoked; or, for a legacy signature, by its origin's
+     * root-certified key, compiled in or learned from the plugins index.
+     */
+    fun isOfficial(plugin: InstalledPlugin): Boolean = certifiedSigner(plugin)?.let { it.kind == SignerKind.OFFICIAL }
+        ?: PluginOriginKeyStore(context).let { keys -> plugin.signerFingerprints.any { keys.isOfficial(plugin.origin, it) } }
+
+    /** A v1 signer recorded at install that still holds; null for a legacy-signed bundle. */
+    private fun certifiedSigner(plugin: InstalledPlugin): BundleSigner? =
+        plugin.signer?.takeIf { it.format == 1 && BundleTrust(context).stillTrusted(plugin.origin, it) }
 
     /**
      * The listing a plugin's origin was added from, when it came from the
@@ -71,17 +77,19 @@ class PluginTrustStore(private val context: Context) {
     fun thirdParty(plugin: InstalledPlugin): ThirdPartyOrigin? {
         if (isOfficial(plugin)) return null
         return PluginOriginStore(context).thirdParty(plugin.origin)
-            ?.takeIf { listing -> plugin.signerFingerprints.any { it.equals(listing.keySha256, ignoreCase = true) } }
+            ?.takeIf { listing ->
+                // The key the listing named is the anchor a v1 chain ends at, or the legacy signer itself.
+                val keys = plugin.signerFingerprints + listOfNotNull(plugin.signer?.anchorKeySha256)
+                keys.any { it.equals(listing.keySha256, ignoreCase = true) }
+            }
     }
 
     /**
      * Signed with the primary developer's key rather than the origin's own key.
      * Such a build is deliberately installable, and deliberately never official.
      */
-    fun isDeveloperDebug(plugin: InstalledPlugin): Boolean {
-        val keys = PluginOriginKeyStore(context)
-        return plugin.signerFingerprints.any { keys.isDeveloperDebug(it) }
-    }
+    fun isDeveloperDebug(plugin: InstalledPlugin): Boolean = certifiedSigner(plugin)?.let { it.kind == SignerKind.DEVELOPER }
+        ?: PluginOriginKeyStore(context).let { keys -> plugin.signerFingerprints.any { keys.isDeveloperDebug(it) } }
 
     companion object {
         /** Whether [updated] inherits [previous]'s stored decision. Only an explicit approval carries. */

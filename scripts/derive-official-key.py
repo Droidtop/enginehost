@@ -13,6 +13,29 @@ P256_ORDER = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
 SALT = b"enginehost-official-master-v1"
 
 
+def repository_info(origin: str, generation: int = 0) -> bytes:
+    """What a repository's bundle-signing key is derived for (canonical GitHub origin, generation)."""
+    origin = origin.rstrip("/").removesuffix(".git").lower()
+    if not origin.startswith("https://github.com/"):
+        raise SystemExit("Repository origin must be a canonical GitHub URL")
+    info = b"enginehost/repository-bundle-signing/v1\0" + origin.encode()
+    if generation:
+        # A replacement key for the same origin. Generation 0 keeps the
+        # original derivation, so every key issued before rotations
+        # existed is still reproducible from the seed.
+        info += b"\0generation=" + str(generation).encode()
+    return info
+
+
+def derive_key(seed: bytes, info: bytes) -> ec.EllipticCurvePrivateKey:
+    """The P-256 key [seed] yields for [info]: the same seed and info always give the same key."""
+    if len(seed) != 32:
+        raise SystemExit("Master seed must contain exactly 32 bytes")
+    material = HKDF(algorithm=hashes.SHA256(), length=48, salt=SALT, info=info).derive(seed)
+    scalar = int.from_bytes(material, "big") % (P256_ORDER - 1) + 1
+    return ec.derive_private_key(scalar, ec.SECP256R1())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--master-seed", required=True, type=Path)
@@ -36,15 +59,7 @@ def main() -> None:
     if args.official_root:
         info = b"enginehost/official-root-signing/v1"
     elif args.repository_origin:
-        origin = args.repository_origin.rstrip("/").removesuffix(".git").lower()
-        if not origin.startswith("https://github.com/"):
-            raise SystemExit("Repository origin must be a canonical GitHub URL")
-        info = b"enginehost/repository-bundle-signing/v1\0" + origin.encode()
-        if args.generation:
-            # A replacement key for the same origin. Generation 0 keeps the
-            # original derivation, so every key issued before rotations
-            # existed is still reproducible from the seed.
-            info += b"\0generation=" + str(args.generation).encode()
+        info = repository_info(args.repository_origin, args.generation)
     elif args.developer_debug:
         # The primary developer's own key. It is deliberately NOT origin-scoped:
         # it exists to sign locally rebuilt bundles for any repository during
@@ -58,9 +73,7 @@ def main() -> None:
         if not application_id or "." not in application_id:
             raise SystemExit("Application ID must be a dotted Android package name")
         info = b"enginehost/android-apk-signing/v1\0" + application_id.encode()
-    material = HKDF(algorithm=hashes.SHA256(), length=48, salt=SALT, info=info).derive(seed)
-    scalar = int.from_bytes(material, "big") % (P256_ORDER - 1) + 1
-    key = ec.derive_private_key(scalar, ec.SECP256R1())
+    key = derive_key(seed, info)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(key.private_bytes(
         serialization.Encoding.PEM,

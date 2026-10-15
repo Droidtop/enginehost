@@ -32,8 +32,8 @@ class GithubHttpException(
  * not yet delivered); for one the person added, that the repository changed
  * its key, which the person may review and accept as a new source.
  */
-class SignerChangedException(val origin: String, val fingerprint: String) :
-    IllegalArgumentException("Release signer does not match the repository's pinned key")
+class SignerChangedException(val origin: String, val fingerprint: String, cause: Throwable? = null) :
+    IllegalArgumentException("Release signer does not match the repository's pinned key", cause)
 
 /**
  * Why one origin's refresh produced no catalog.
@@ -131,6 +131,14 @@ data class IndexedOrigin(
     val trust: IndexedTrust? = null,
     val keyDocument: String? = null,
     val maintainer: IndexedMaintainer? = null,
+    /**
+     * The origin's signing certificate chain as the index publishes it (x5c
+     * style: standard base64 DER, leaf first, Core excluded). When it chains
+     * to the pinned Droidtop Core and names this origin, the origin is
+     * official ([PluginOriginStore.learnOfficial]); the index's own word is
+     * never what decides.
+     */
+    val certificates: List<String> = emptyList(),
 )
 
 data class PluginsIndex(
@@ -188,6 +196,9 @@ object PluginCatalogIndex {
                 maintainer = entry.optJSONObject("maintainer")?.let { maintainer ->
                     runCatching { IndexedMaintainer(maintainer.getString("id"), maintainer.getString("name")) }.getOrNull()
                 },
+                certificates = entry.optJSONArray("certificates")?.let { array ->
+                    (0 until array.length()).map(array::getString)
+                }.orEmpty(),
             )
         }
         return PluginsIndex(schemaVersion, generatedAt, parsed)
@@ -283,6 +294,12 @@ class CatalogRefresh(private val context: Context) {
      * answered for releases only while it is fresh.
      */
     private fun fetchIndex(indexUrl: String): PluginsIndex? {
+        // Enginehost's revocation list sits beside the index and is taken
+        // first, so nothing it revokes is learned or listed in this refresh.
+        runCatching {
+            Transport.getOrNull(indexUrl.substringBeforeLast('/') + "/" + REVOCATIONS_FILE, context)
+                ?.let { RevocationListStore(context).accept(BundleVerifier.ENGINEHOST_CATALOG, it) }
+        }
         val text = runCatching { Transport.getOrNull(indexUrl, context) }.getOrNull() ?: return null
         val index = runCatching { PluginCatalogIndex.parse(text) }.getOrNull() ?: return null
         runCatching { PluginCatalogIndex.keep(context, text) }
@@ -292,8 +309,11 @@ class CatalogRefresh(private val context: Context) {
 
     private fun refresh(origins: List<String>, index: PluginsIndex?): Map<String, OriginOutcome> {
         val cache = PluginCatalogCache(context)
+        val revocations = RevocationListStore(context)
         return origins.associateWith { origin ->
             runCatching {
+                // A repository a person added publishes its own list, under the key they pinned.
+                if (PluginOriginKeyStore(context).custom(origin) != null) runCatching { revocations.refreshAdded(origin) }
                 val indexed = index?.origins?.get(normalizeGithubOrigin(origin))
                 if (indexed == null) fromApi(cache, origin) else fromIndex(cache, indexed, origin)
             }.getOrElse { error -> OriginOutcome.Failed(CatalogFailures.of(error)) }
@@ -318,7 +338,7 @@ class CatalogRefresh(private val context: Context) {
             },
         )
         if (cache.hasFetched(origin) && cache.etag(origin) == fingerprint) return OriginOutcome.Unchanged
-        val keys = PluginOriginKeyStore(context)
+        val trust = BundleTrust(context)
         val plugins = mutableListOf<AvailablePlugin>()
         for (release in indexed.releases) {
             val envelope = release.assets.firstOrNull { it.name in RELEASE_ENVELOPES } ?: continue
@@ -328,7 +348,7 @@ class CatalogRefresh(private val context: Context) {
                 release.tag,
                 release.stream != PluginStream.STABLE,
                 release.assets.associate { it.name to (it.url to it.sha256) },
-                keys,
+                trust,
             )
         }
         cache.save(origin, plugins, fingerprint)
@@ -384,6 +404,9 @@ class CatalogRefresh(private val context: Context) {
         const val INDEX_MAX_AGE_MS = 3L * 24 * 60 * 60 * 1000
 
         internal const val INDEX_ETAG_PREFIX = "index:"
+
+        /** Enginehost's own revocation list, beside the plugins index (docs/engine-bundle-format.md "Revocation"). */
+        internal const val REVOCATIONS_FILE = "revocations.jws"
         internal const val RELEASE_CATALOG = "enginehost-release.json"
 
         /**

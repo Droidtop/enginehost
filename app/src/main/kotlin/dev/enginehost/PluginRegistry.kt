@@ -52,6 +52,13 @@ data class InstalledPlugin(
     val component: ComponentInfo? = null,
     /** The bundle's own licence, shown on the trust screen before approval. */
     val license: BundleLicense? = null,
+    /**
+     * Who signed it, as verified at install ([BundleVerifier]); every launch
+     * verifies it again and refuses a record that disagrees. Null for a
+     * bundle installed before signers were recorded: its legacy key is in
+     * [signerFingerprints] and trust is decided from that, as it always was.
+     */
+    val signer: BundleSigner? = null,
 ) {
     /** Compatibility alias while callers migrate from package terminology. */
     val packageName: String get() = bundleId
@@ -185,6 +192,7 @@ object PluginRegistry {
     const val INSTALL_RECORD = ".enginehost-installed.json"
     const val SIGNED_MANIFEST = ".enginehost-bundle.json"
     const val SIGNED_SIGNATURE = ".enginehost-bundle.sig"
+    const val SIGNED_JWS = ".enginehost-bundle.jws"
 
     /**
      * The bundle registry, in this app's private storage. Owner-only: the
@@ -275,6 +283,7 @@ object PluginRegistry {
             writesGameFolder = json.optBoolean("writesGameFolder", false),
             component = component,
             license = ComponentManifestReader.license(json.optJSONObject("license")),
+            signer = json.optJSONObject("signer")?.let(BundleSigner::fromJson),
         )
     }
 

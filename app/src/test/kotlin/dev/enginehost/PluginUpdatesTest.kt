@@ -19,8 +19,8 @@ class PluginUpdatesTest {
         apiVersion = apiVersion,
         entrypoint = "dev.enginehost.renpy.Plugin",
         origin = origin,
-        publicKeySpki = ByteArray(0),
-        signingKeySha256 = "AB".repeat(32),
+        legacyKeySpki = null,
+        legacyKeySha256 = null,
         dexFiles = listOf("classes.dex"),
         resourceApks = emptyList(),
         runtimeTransport = RUNTIME_TRANSPORT_PLUGIN,
@@ -41,7 +41,8 @@ class PluginUpdatesTest {
 
     private fun available(manifest: EngineBundleManifest): AvailablePlugin = AvailablePlugin(
         manifest,
-        ByteArray(0),
+        BundleSignatures(null, ByteArray(1)),
+        BundleSigner("AB".repeat(32), SignerKind.OFFICIAL, format = 0, anchorKeySha256 = "AB".repeat(32)),
         "renpy-8.2-v1",
         "https://example.invalid/bundle",
         null,
