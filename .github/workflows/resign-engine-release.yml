@@ -179,8 +179,12 @@ jobs:
           fi
           source="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$SOURCE_TAG")"
           title="$(printf '%s' "$source" | python3 -c 'import json,sys; r=json.load(sys.stdin); print(r["name"] or r["tag_name"])')"
-          # The new tag points at the commit the source tag names, so the
-          # release says truthfully which source its code was built from.
+          # The commit the code was built from is the source tag's; the notes
+          # name it. The new tag itself points at this run's commit: GitHub
+          # refuses this job's token a tag at an older commit whose workflow
+          # files differ from today's (HTTP 403 without the workflows
+          # permission), as it allows one at the commit the run is on, which
+          # is what every regular publish tags.
           commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_TAG" --jq .sha)"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           envelope="$(find release \( -name enginehost-release.json -o -name enginehost-component.json \) -print -quit)"
@@ -191,8 +195,8 @@ jobs:
           data["channel"] = "stable"
           json.dump(data, open(path, "w"), sort_keys=True, separators=(",", ":"))
           PY
-          notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), re-signed in signature format v1 (Droidtop/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now also carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, beside the legacy signature. Install it through Enginehost."
-          gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$commit" \
+          notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, re-signed in signature format v1 (Droidtop/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now also carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, beside the legacy signature. Install it through Enginehost."
+          gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "$title (v1-signed)" --notes "$notes" --draft
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
       - name: Ask droidtop-platforms to reindex
