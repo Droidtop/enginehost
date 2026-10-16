@@ -14,7 +14,7 @@ detector that classifies each title's runtime type (Mono vs IL2CPP),
 target architecture and Unity version from the build's contents, before
 any Unity runtime work is planned. This page is that detector's scope.
 Research and tooling only: no engine code, no host change, no SPEC
-change, and committing to a Unity plugin is exactly what this page exists
+change, and committing to a Unity core is exactly what this page exists
 to prevent doing blind.
 
 The host already reads these facts -- `EngineBuiltinProbes.isUnity`
@@ -149,7 +149,7 @@ table beside this page when the run happens, so the counts are
 reproducible from the listed evidence. That table is the deliverable the
 census asked for: the ~480 `Investigate` guesses become real numbers.
 
-**What the numbers are for.** They turn the plugin decision from a guess
+**What the numbers are for.** They turn the core decision from a guess
 into arithmetic:
 
 - **IL2CPP titles are excluded permanently, whatever the count.** IL2CPP
@@ -169,15 +169,15 @@ into arithmetic:
   a large Mono majority does not green-light the epic; it sizes it. A
   near-total IL2CPP/x86_64 result closes the question for good.
 
-If a plugin ever exists, the bundle contract already has the shape for
+If a core ever exists, the bundle contract already has the shape for
 these facts (docs/engine-bundle-format.md): the detected Unity version
 is the `runtimeVersion` vocabulary a capability would advertise by
 `supportedSeries`, and the backend is the context -- one capability per
-Unity line the plugin actually runs, matched by the same detection
+Unity line the core actually runs, matched by the same detection
 output, never typed by hand. Writing that mapping now would be deciding
-the plugin by paperwork; the counts come first.
+the core by paperwork; the counts come first.
 
-The detector does not commit to a plugin, and neither does this page.
+The detector does not commit to a core, and neither does this page.
 Detection stays as it is: classification from the registry, enrichment
 from `UnityBuild`, the unhosted explanation from `UnhostedEngine`.
 

@@ -19,6 +19,14 @@ section when a real version is cut.
   "latest" release is now only a pointer to the newest one; it is no
   longer the only record of what shipped.
 
+### Changed
+
+- Engine plugins are called cores everywhere you read them: the Cores
+  screen, the catalog, update notices, error messages, problem reports and
+  the docs. Enginehost is to visual-novel and PC-game engines what
+  RetroArch is to emulators. Nothing installed changes; the bundle format
+  and the names other apps use are the same.
+
 ## [0.1.5] - 2026-09-28
 
 This is Enginehost's first version-history entry: there was no changelog

@@ -1,4 +1,4 @@
-# AGS engine plugin: scaffold plan
+# AGS core: scaffold plan
 
 Step 1 of the AGS effort (the census's new-engine recommendations, AGS's
 batch, #26): this page is the written plan. No repository, no code, and no
@@ -10,11 +10,11 @@ file, or the old-format `.exe` carrying it, names its editor version),
 `ags` action set.
 
 The evidence behind this plan: `docs/engine-bundle-format.md` and
-`docs/plugin-catalog.md` read in full; the plugin API in
+`docs/plugin-catalog.md` read in full; the core API in
 `plugin-api/src/main/java/dev/enginehost/api/`; the host's launch path
 (`GameRunner.kt`, `EnginehostComponentFactory.kt`, `RuntimeActivity.kt`);
 a read-only clone of `adventuregamestudio/ags` at `83c6a082bd` (master,
-2026-09-23); and two shipped plugin repos cloned read-only as structural
+2026-09-23); and two shipped core repos cloned read-only as structural
 references, `Droidtop/enginehost-godot-plugin` at its `plugin/4.5` branch
 (`c7017632`) and `Droidtop/enginehost-kirikiri-plugin` at its `plugin/stable`
 branch (`86eaf827`).
@@ -24,7 +24,7 @@ branch (`86eaf827`).
 The official engine repository is `adventuregamestudio/ags` (branch
 `master`; the version string is `3.6.4.0`, `Common/ac/def_version.h`). The
 Android port lives **in that tree**, not in a separate community
-repository: the standalone ports and the editor's Android builder plugin
+repository: the standalone ports and the editor's Android builder core
 that predate it are no longer maintained, and the in-tree port is the one
 the project's own CI builds and publishes:
 
@@ -64,7 +64,7 @@ loads three libraries (`AGSRuntimeActivity.getLibraries()`):
   (`Engine/CMakeLists.txt:597`): the SDL `main`/entry layer that drives
   `engine`.
 
-The Android build compiles the engine's own plugin set in as well
+The Android build compiles the engine's own core set in as well
 (agsblend, agsflashlight, ags_parallax, ags_snowrain, agstouch,
 agspalrender; `Engine/CMakeLists.txt:482-533`), so no separately-shipped
 engine components are expected.
@@ -105,8 +105,8 @@ the host-declared `BundledActivityProxy`, and
 `EnginehostComponentFactory.instantiateActivity` (lines 20-79) requires
 `runtimeTransport == "android-activity"`, re-verifies the installed
 bundle, attaches the `resourceApks`, and instantiates the `entrypoint`
-class through the plugin's dex loader, which it must assign to `Activity`
-(line 74). The shipped KiriKiri plugin is the precedent for this shape: its
+class through the core's dex loader, which it must assign to `Activity`
+(line 74). The shipped KiriKiri core is the precedent for this shape: its
 metadata declares `"runtimeTransport": "android-activity"` with the
 engine's own `com.yuri.kirikiri2.MainActivity` as entrypoint, and its
 `KR2Activity` reads the host's extras
@@ -127,7 +127,7 @@ front end into a host-attachable fragment). The mapping, upstream to host:
 | its save location | `dev.enginehost.runtime.SAVE_PATH` (see save routing below) |
 | (nothing) | `dev.enginehost.runtime.CONTROLLER_BINDINGS` -- the host's resolved map over the `ags` action set (`ControllerBindings.kt:257-274`: `ags_mouse_left`, `ags_wheel_north`, `ags_key_escape`, the `ags_pointer_x`/`ags_pointer_y` axes, and the rest), which the engine front end translates into AGS input events |
 | `loadLastSave` | a declared option, off by default |
-| native libraries from the app package | `dev.enginehost.runtime.BUNDLE_ROOT` (`EnginehostComponentFactory.kt:60,86`); the plugin dex loader already puts the bundle's `lib/<abi>` on its native path (lines 63-69), so `System.loadLibrary` for `SDL2`/`engine`/`ags` resolves from the signed payload |
+| native libraries from the app package | `dev.enginehost.runtime.BUNDLE_ROOT` (`EnginehostComponentFactory.kt:60,86`); the core dex loader already puts the bundle's `lib/<abi>` on its native path (lines 63-69), so `System.loadLibrary` for `SDL2`/`engine`/`ags` resolves from the signed payload |
 | the game's `android.cfg` | unchanged -- it is game content the engine reads from the game folder |
 
 Work this mapping implies in the engine tree (the fork carries it; see (d)):
@@ -137,7 +137,7 @@ Work this mapping implies in the engine tree (the fork carries it; see (d)):
   writable (the `./tmptest.tmp` probe in `MakeGameSaveDirectory`) and falls
   back to `android_base_directory`, the game folder
   (`Engine/platform/android/acpland.cpp:437-458`). Under Enginehost that
-  CWD is the host app's private directory, so the plugin must make the
+  CWD is the host app's private directory, so the core must make the
   engine's SYSTEM save location mean the folder the person chose: seed
   `android_save_directory` from `SAVE_PATH` (a patched
   `AGSRuntimeActivity` passes it down, or the platform driver reads it).
@@ -167,7 +167,7 @@ Work this mapping implies in the engine tree (the fork carries it; see (d)):
 actions arrive through `onControllerEvent(EngineControllerEvent)`. That is
 the shape layer 2 of the sandbox will need, since an Activity cannot run
 under `isolatedProcess` (`docs/engine-sandbox.md` keeps
-activity-transport plugins on layer 1 until the host-side rewrite it
+activity-transport cores on layer 1 until the host-side rewrite it
 scopes). But getting AGS there means tearing SDLActivity's
 Activity-ness into a host-attachable view, the godot-fragment precedent,
 and a far larger engine-side change. A first bundle takes the
@@ -177,7 +177,7 @@ plugin-api shape is built, so nothing in this choice is spent.
 ## (c) Bundle-manifest fields, and the ABI question
 
 The author declares `enginehost/bundle-metadata.json` (the shape both
-shipped plugins use); `scripts/build-engine-bundle.py` then adds
+shipped cores use); `scripts/build-engine-bundle.py` then adds
 `formatVersion`, `assetName`, `signing`, `payloadSha256` and `files`, and
 sets the third `pluginVersion` component to the CI run counter. First AGS
 bundle:
@@ -249,11 +249,11 @@ otherwise fail at `System.loadLibrary`. The packing step still asserts the
 two required ABIs are in the payload, because the rule is per-bundle, not
 per-upstream.
 
-## (d) First CI workflow, modeled on the existing plugin repos' own structure
+## (d) First CI workflow, modeled on the existing core repos' own structure
 
-The plugin repo is `Droidtop/enginehost-ags-plugin`, created when this plan
+The core repo is `Droidtop/enginehost-ags-plugin`, created when this plan
 executes. It is a fork of `adventuregamestudio/ags` with the enginehost
-wrapper layered on -- both shipped plugin repos carry their engine's source
+wrapper layered on -- both shipped core repos carry their engine's source
 (godot's is the engine itself, KiriKiri's is the Kirikiroid2 fork), so the
 engine revision is the branch's content and `source.revision` names it.
 Branches: `plugin-core` (the wrapper trunk) and `plugin/3.6` (the line that
@@ -342,7 +342,7 @@ legacy key, set the `ENGINEHOST_CERTIFICATE_KEY_PEM` and
 `enginehost-signing-certificate.pem` and `enginehost-public-key.json` to
 `plugin-core` -- the "Keys for new
 official repositories" steps in `docs/plugin-catalog.md`. The
-`plugin-published` dispatch then registers the repository in the plugins
+`plugin-published` dispatch then registers the repository in the cores
 index, and devices add the origin as official at their next refresh with
 no new Enginehost build.
 
@@ -357,7 +357,7 @@ no new Enginehost build.
   an x86_64 emulator, batched through the rig queue. A green build is not
   proof a game runs, and on-device checking is not available from here.
 - **Deliberately untouched in this step:** the engine sandbox
-  (`docs/engine-sandbox.md` -- an activity-transport plugin is layer-1-only
+  (`docs/engine-sandbox.md` -- an activity-transport core is layer-1-only
   until the host-side rewrite that document scopes), CatSystem2 (the
   sandbox's first milestone), and the host's AGS detection, engine naming
   and controller set, which already exist.

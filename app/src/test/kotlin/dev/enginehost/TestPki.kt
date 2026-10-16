@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Certificates and signatures for tests, generated per run. No real key or
- * certificate is ever used in a test (Droidtop/tracker#550): the "Core" and
+ * certificate is ever used in a test (Droidtop/tracker#550): the CA and
  * the signing root here are this run's own.
  */
 object TestPki {
@@ -94,14 +94,14 @@ object TestPki {
     }
 
     /**
-     * A stand-in for Droidtop Core (RSA, as the real one is) and for the
+     * A stand-in for the Droidtop CA (RSA, as the real one is) and for the
      * Enginehost signing root the owner derives from it (P-256, self-signed,
-     * as the real one is). The root is not certified by Core: it is derived
-     * from Core's private key, so nothing public links them, and Core's own
-     * certificates must never verify.
+     * as the real one is). The root is not certified by the CA: it is derived
+     * from the CA's private key, so nothing public links them, and the CA's
+     * own certificates must never verify.
      */
     class Hierarchy {
-        val core = issue("CN=Test Droidtop Core", rsa(), ca = true, keyUsage = KeyUsage.keyCertSign or KeyUsage.cRLSign, eku = null)
+        val ca = issue("CN=Test Droidtop CA", rsa(), ca = true, keyUsage = KeyUsage.keyCertSign or KeyUsage.cRLSign, eku = null)
         val root = issue(
             "CN=Test Enginehost Signing Root", ec(), ca = true, pathLength = 1,
             keyUsage = KeyUsage.keyCertSign or KeyUsage.cRLSign, eku = null,

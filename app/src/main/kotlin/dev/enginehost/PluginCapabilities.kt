@@ -186,7 +186,7 @@ object PluginCapabilitiesReader {
             }
         }.also { capabilities ->
             require(capabilities.map { it.id }.distinct().size == capabilities.size) {
-                "Capability IDs must be unique within a plugin"
+                "Capability IDs must be unique within a core"
             }
         }
     }

@@ -1,4 +1,4 @@
-# xsystem4 (AliceSoft System 4) engine plugin: scaffold plan
+# xsystem4 (AliceSoft System 4) core: scaffold plan
 
 Step 1 of the xsystem4 effort (the census's new-engine recommendations,
 #26: AliceSoft System 4, alongside Buriko/BGI): this page is the written
@@ -11,7 +11,7 @@ A bundle alone cannot launch what the scanner cannot classify, so the
 host-side wiring a later step needs is listed under "What comes next".
 
 The evidence behind this plan: `docs/engine-bundle-format.md` and
-`docs/plugin-catalog.md` read in full; the plugin API in
+`docs/plugin-catalog.md` read in full; the core API in
 `plugin-api/src/main/java/dev/enginehost/api/`; the host's launch path and
 engine vocabulary (`GameRunner.kt`, `EngineRegistry.kt`,
 `EngineDetector.kt`, `EngineNames.kt`, `ControllerBindings.kt`); read-only
@@ -20,7 +20,7 @@ clones of the upstream projects -- `nunuhara/xsystem4` at
 `nightly` tag) with the fork the task text names, `kichikuou/xsystem4`
 (master stale at `6a36fc8f`, 2024-12-29), checked separately, and
 `kichikuou/xsystem4-android` at `1c8f691` (v1.0.7, 2026-09-22), which pins
-the engine as a submodule at exactly `04333ad`; and two shipped plugin repos
+the engine as a submodule at exactly `04333ad`; and two shipped core repos
 as structural references, `Droidtop/enginehost-buriko-plugin` at its
 `plugin-core` branch (`05a0de8`), the model this plan follows, and
 `Droidtop/enginehost-love2d-plugin` at its `plugin-core` branch
@@ -157,25 +157,25 @@ capability vocabulary deliberately cannot express it. Nothing in this
 plan has been run anywhere; a green build would not be evidence a game
 runs either.
 
-## (b) The EnginePlugin mapping, modeled on the Buriko plugin
+## (b) The EnginePlugin mapping, modeled on the Buriko core
 
-The task names the Buriko plugin as the model, and it is: the closest
+The task names the Buriko core as the model, and it is: the closest
 shipped structural relative -- a desktop C engine with SDL2 and no
 Android presence of its own, wrapped by a thin Gradle project whose
 `EngineHostBurikoActivity` extends `SDLActivity`, loads its libraries
 from the bundle, and hands the engine the game folder as
 `getArguments()`. But Buriko's wrapper is
 `runtimeTransport: "android-activity"`, and that transport is now
-closed to new official plugins
-(`docs/engine-bundle-format.md`, 2026-09-27: official plugins stop
+closed to new official cores
+(`docs/engine-bundle-format.md`, 2026-09-27: official cores stop
 using it; `docs/engine-sandbox.md` "Single transport" -- an isolated
 runtime must be a Service, never an Activity). xsystem4 is SDL2-family,
 the exact family the sandbox's `SdlEnginePlugin` adapter was designed
-for, and the plugin-api transport is where every official plugin is
+for, and the plugin-api transport is where every official core is
 heading. **This bundle is authored from the start as
 `runtimeTransport: "plugin-api"`.**
 
-The working precedent is the LÖVE plugin's `EngineHostGamePlugin`
+The working precedent is the LÖVE core's `EngineHostGamePlugin`
 (`enginehost-love2d-plugin` plugin-core `6c0b00c5`): it drives SDL's
 static lifecycle itself, attaches a real `SDLSurface` into
 `session.display()`, and reaches the handful of genuinely
@@ -218,7 +218,7 @@ plugin-api launch, exactly the sequencing the LOVE adapter is proving:
 the file broker and a software frame (an isolated process cannot open
 the GPU; the sandbox doc, "GPU rendering is closed to isolated
 processes") are the milestone after this one, `isolatable: true` stays the
-mandatory goal for every official plugin, and until it lands the
+mandatory goal for every official core, and until it lands the
 per-launch "Run unsandboxed?" warning keeps showing for this bundle as
 for the others. The engine's file reads at launch are the game folder
 and its own payload data (shaders, fonts) -- a small audit surface
@@ -226,7 +226,7 @@ when that milestone comes.
 
 ## (c) Bundle-manifest fields, and the honest ABI assessment
 
-`enginehost/bundle-metadata.json` (the shape both reference plugins
+`enginehost/bundle-metadata.json` (the shape both reference cores
 publish; `scripts/build-engine-bundle.py` adds `formatVersion`,
 `assetName`, `signing`, `payloadSha256`, `files`, and numbers the third
 `pluginVersion` component from the repository's releases):
@@ -315,15 +315,15 @@ port's minSdk 21. The payload also carries `libcglm.so` per ABI; sizes
 are upstream's own released-APK territory (~27 MB for three ABIs with
 LTO).
 
-## (d) First CI workflow, modeled on the Buriko plugin repo
+## (d) First CI workflow, modeled on the Buriko core repo
 
-The plugin repository is `Droidtop/enginehost-xsystem4-plugin`, created
+The core repository is `Droidtop/enginehost-xsystem4-plugin`, created
 when this plan executes. It is a fork of `kichikuou/xsystem4-android`
 with the engine source arriving as the port already carries it -- a
 submodule pinned per line -- so the engine revision is the branch's
 content and `source.revision` names it. Branches, per the org model:
 `plugin-core` (the wrapper changeset only: workflow, manifest, the
-plugin class, Gradle project, docs) and `plugin/1.0` (the pinned port
+core class, Gradle project, docs) and `plugin/1.0` (the pinned port
 revision with plugin-core merged in; one line while the port tracks a
 single 1.0.x series).
 
@@ -416,7 +416,7 @@ legacy key, set the `ENGINEHOST_CERTIFICATE_KEY_PEM` and
 `enginehost-signing-certificate.pem` and `enginehost-public-key.json` to
 `plugin-core` -- the "Keys for
 new official repositories" steps in `docs/plugin-catalog.md`. The
-`plugin-published` dispatch then registers the repository in the plugins
+`plugin-published` dispatch then registers the repository in the cores
 index, and devices add the origin as official at their next refresh,
 with no new Enginehost build.
 

@@ -89,11 +89,11 @@ class CertificateSignaturesTest {
     fun `the walk stops at the signing root`() {
         val leaf = pki.leaf()
         refused("x5c carries the root") { verify(TestPki.jws(manifest, leaf, listOf(leaf, pki.root))) }
-        // Droidtop Core is never pinned or used directly: a signer it issued is not trusted.
-        val fromCore = pki.leaf(issuer = pki.core)
-        refused("chains to Droidtop Core, not the root") { verify(TestPki.jws(manifest, fromCore)) }
-        refused("chains to Droidtop Core with Core carried") {
-            verify(TestPki.jws(manifest, fromCore, listOf(fromCore, pki.core)))
+        // The Droidtop CA is never pinned or used directly: a signer it issued is not trusted.
+        val fromCa = pki.leaf(issuer = pki.ca)
+        refused("chains to the CA, not the root") { verify(TestPki.jws(manifest, fromCa)) }
+        refused("chains to the CA with the CA carried") {
+            verify(TestPki.jws(manifest, fromCa, listOf(fromCa, pki.ca)))
         }
     }
 

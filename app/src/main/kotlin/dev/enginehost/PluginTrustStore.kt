@@ -120,7 +120,7 @@ class PluginTrustStore(private val context: Context) {
     }
 
     private fun decide(plugin: InstalledPlugin, decision: String) {
-        require(plugin.signerIdentity.isNotBlank()) { "A plugin without a verified signer cannot be trusted" }
+        require(plugin.signerIdentity.isNotBlank()) { "A core without a verified signer cannot be trusted" }
         val edit = preferences.edit().putString(decisionKey(plugin), decision)
         // Which repository the person last approved, so a later build from another one can say so.
         if (decision == "approved") edit.putString(originKey(plugin.bundleId), plugin.origin)

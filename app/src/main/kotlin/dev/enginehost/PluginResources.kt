@@ -59,7 +59,7 @@ object PluginResources {
         val handles = mutableListOf<AutoCloseable>()
         val loaders = mutableListOf<ResourcesLoader>()
         apks.forEach { apk ->
-            require(apk.isFile) { "A signed plugin resource APK is missing" }
+            require(apk.isFile) { "A signed core resource APK is missing" }
             ResourceTable.requireDistinctPackageId(apk)
             if (Build.VERSION.SDK_INT >= 30) {
                 val descriptor = ParcelFileDescriptor.open(apk, ParcelFileDescriptor.MODE_READ_ONLY)
@@ -108,7 +108,7 @@ object PluginResources {
     /** Below API 30: adds [path] to [resources]' AssetManager. */
     private fun addAssetPath(resources: Resources, path: String) {
         val method = resources.assets.javaClass.getMethod("addAssetPath", String::class.java)
-        require((method.invoke(resources.assets, path) as Int) != 0) { "Could not attach plugin resources" }
+        require((method.invoke(resources.assets, path) as Int) != 0) { "Could not attach core resources" }
         @Suppress("DEPRECATION")
         resources.updateConfiguration(resources.configuration, resources.displayMetrics)
     }
@@ -145,7 +145,7 @@ object PluginResources {
         }
         consider(runCatching { context.resources }.getOrNull())
         consider(runCatching { context.applicationContext?.resources }.getOrNull())
-        check(targets.isNotEmpty()) { "No Resources object to attach plugin resources to" }
+        check(targets.isNotEmpty()) { "No Resources object to attach core resources to" }
         return targets
     }
 }

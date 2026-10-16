@@ -16,10 +16,10 @@ Refs Droidtop/tracker#23. Part of Droidtop/tracker#24 (Enginehost UI v2, docs/ui
 
 Refs Droidtop/tracker#210.
 
-### The model: Enginehost is the emulator, plugins are cores, games are content
+### The model: Enginehost is the emulator, cores are cores, games are content
 
 Owner decision, 2026-10-01: Enginehost is a complete game manager and an emulator in its own right,
-the way RetroArch is, not a frontend. Each engine plugin is a core; a game folder is content; the
+the way RetroArch is, not a frontend. Each core is a core; a game folder is content; the
 library is what RetroArch calls playlists, built by a scanner. This section is how the library
 follows that model:
 
@@ -111,7 +111,7 @@ a confidence, the launch file, the architecture and whether it is managed code.
 
 Home and the scan screen share one list (`LibraryBrowser`): Home shows what was added, the scan screen
 shows everything found under the scanned folder with Add per row and Add all shown. Filters: engine,
-platform (Android-runnable, Windows, Linux, Web, Archive), status (runs here, needs a plugin, not
+platform (Android-runnable, Windows, Linux, Web, Archive), status (runs here, needs a core, not
 supported here), folder, and text. Sorts: name, recently added, recently played (Home's default),
 size. Controller first: the D-pad selects rows and pages the list and never reaches the search field
 or the buttons above it; A opens the selected row (on the scan screen it adds a game, and opens one

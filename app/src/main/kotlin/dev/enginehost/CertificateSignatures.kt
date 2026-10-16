@@ -41,7 +41,7 @@ sealed interface TrustAnchor {
 
     /**
      * The Enginehost signing root's public key (its SubjectPublicKeyInfo).
-     * The owner derives this root from Droidtop Core, which no app pins or
+     * The owner derives this root from the Droidtop CA, which no app pins or
      * uses directly (Droidtop/tracker#550): the anchor is the key, not the
      * root's certificate. The chain's last certificate must be signed by it,
      * and no certificate in the chain may carry it.
@@ -326,8 +326,8 @@ object CertificateSignatures {
             is TrustAnchor.Root -> {
                 // The walk stops at the root: no certificate carrying the
                 // root's key (its own self-signed one, or any re-issue of it)
-                // has a place in the chain, and nothing above it (Droidtop
-                // Core, the CA) signs bundles. There is no pinned certificate,
+                // has a place in the chain, and nothing above it (the
+                // Droidtop CA) signs bundles. There is no pinned certificate,
                 // so there is no issuer name to compare; the signature decides.
                 require(chain.none { it.publicKey.encoded.contentEquals(anchor.spki) }) {
                     "The chain may not contain a certificate carrying the Enginehost root's key"

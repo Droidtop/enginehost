@@ -1,8 +1,8 @@
-# Engine plugin lines: upstream commit + plugin-core
+# Core lines: upstream commit + plugin-core
 
 ## The rule
 
-The owner's rule, verbatim, and the first rule of every engine plugin
+The owner's rule, verbatim, and the first rule of every core
 repository:
 
 > "The highest priority task, always, in plugin creation for enginehost, is
@@ -22,7 +22,7 @@ and CI fails any line that is not exactly that output.
   `engine/0.0.1`) and are proposed upstream. A line's upstream commit may be
   a commit of that branch.
 - **`plugin-core`** holds the wrapper and nothing else: workflows, bundle
-  metadata, the plugin class, Enginehost's API copy, native glue and the file
+  metadata, the core class, Enginehost's API copy, native glue and the file
   layer (`plugin-native/`), licences and docs, plus:
   - `enginehost/lines/<id>/line.json`: each supported line, with its upstream
     repository, tag and commit and its dotted upstream version;
@@ -59,9 +59,9 @@ first, then the line.
   plugin-core it composes every declared line at the new tip and reports each
   line's pin.
 - droidtop-platforms' `plugin-lines.yml` reports every line of every engine
-  plugin repository daily.
+  core repository daily.
 - The version check (`scripts/check-declared-version.py`) does not count
-  `enginehost/line.json` or `enginehost/lines/` as a revision of the plugin.
+  `enginehost/line.json` or `enginehost/lines/` as a revision of the core.
 
 ## Changing a line
 
