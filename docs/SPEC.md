@@ -52,10 +52,15 @@ them".
   The launch carries that build's archive digest
   (`RuntimeActivity.EXTRA_PLUGIN_ARCHIVE`), so the runtime loads exactly the
   build that was resolved and approved.
-- **Blocking a build for everyone** is not built yet. The signed revocation
-  list withdraws a certificate or key, which stops every build it signed.
-  Withdrawing one build alone needs a new field in that list, a signing format
-  change for the owner to decide (Droidtop/tracker#23).
+- **Blacklisting a build is the person's, per game (decided 2026-10-16).**
+  Owner: "That's not a thing. Users can blacklist builds using the enginehost.json
+  file". There is no list that withdraws one build for everyone, and none is
+  planned. The signed revocation list withdraws certificates and keys only. A
+  person leaves a bad build out through the game's `pluginVersion` allowlist,
+  set in the config creator and saved to the game's `enginehost.json`
+  (`contract.md`). The allowlist names what is allowed and has no exclusion or
+  open-ended range, so leaving out build 1.0.191 is written as ranges either
+  side of it with an upper end, for example `1.0.0-1.0.190,1.0.192-1.0.999`.
 
 ## Layout follows the window, and Home keeps its place
 

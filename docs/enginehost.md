@@ -163,6 +163,13 @@ lives. The owner's standing rule, the same day: "Spec documents need to be updat
   there's a plugin version requirement in the enginehost spec. If a newer version has a
   regression, or certain versions have bugs, we can blacklist or filter them". `SPEC.md` "Several
   builds of a line, side by side"; Enginehost `c7b0baa`.
+- **Blacklisting a build is the person's.** Asked whether the revocation list should be able to
+  withdraw one build for everyone, the owner: "That's not a thing. Users can blacklist builds
+  using the enginehost.json file". Nothing is built for it; a game's `pluginVersion` allowlist
+  is the mechanism (`SPEC.md` "Several builds of a line, side by side").
+- **A reindex is never lost.** Owner: "Yeah", to fixing the plugins index losing a reindex when
+  another commit reaches droidtop-platforms main during the run. The job now rebuilds on the new
+  main and retries the push (droidtop-platforms `3b6647c`).
 - **Trust stays per build.** The owner chose to keep a decision bound to one exact build, with an
   approval carried to a same-key update and a denial never carried, over trusting a whole line
   (Droidtop/tracker#23).
