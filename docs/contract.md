@@ -1,7 +1,7 @@
 # Enginehost: the launch contract and how it works
 
 This page holds the full reference that used to be the README: the launch Intent, the
-`enginehost.json` file, the on-device tools and the plugin system. For what Enginehost is
+`enginehost.json` file, the on-device tools and the core system. For what Enginehost is
 and how to install it, see the [README](../README.md).
 
 A straightforward multi-engine host for VN/RPG-Maker-family games on
@@ -11,7 +11,7 @@ Flash/AIR, Twine, and Godot.
 
 enginehost is a centralized interpreter host with two equally supported
 front doors, and neither is a second-class citizen. Used directly, it has
-its own game library, config creator, plugin catalog and trust screens,
+its own game library, config creator, core catalog and trust screens,
 controller mapping, and settings — someone who only ever installs
 enginehost has a complete, usable application. Requiring a second app in
 order to use this one would be elitist, and the earlier framing of the
@@ -67,7 +67,7 @@ everything else:
 }
 ```
 
-`engine` and `engineVersion` are required. `engine` names the plugin
+`engine` and `engineVersion` are required. `engine` names the core
 family (`renpy`, `rpgmaker`, `godot`, ...). `engineContext` is an optional,
 plugin-defined compatibility line within that family (`mv`, `mz`,
 `python3`, ...); omitting it means `default`. `engineVersion` is the
@@ -76,14 +76,14 @@ game's dotted-numeric runtime target inside that context.
 `runtimeRequirements` optionally selects exact embedded dependencies that are
 independent of the engine version. Its keys are plugin-defined and its values
 are dotted numeric versions. For example, VX Ace/RGSS3 games normally require
-Ruby 1.9.2, while a compatibility-oriented plugin may also offer Ruby 3.1.3.
+Ruby 1.9.2, while a compatibility-oriented core may also offer Ruby 3.1.3.
 The host only considers capabilities advertising every requested component.
 This field participates in resolution; `options` does not.
 
 `pluginVersion` in a game's config is optional and different from a
-plugin's own `pluginVersion`: it's a comma-separated allowlist of exact
-versions and/or `lo-hi` ranges of *plugin builds* this specific game
-permits, letting a game exclude plugin revisions with known bugs.
+core's own `pluginVersion`: it's a comma-separated allowlist of exact
+versions and/or `lo-hi` ranges of *core builds* this specific game
+permits, letting a game exclude core revisions with known bugs.
 `execFile` is optional — the
 specific file to run within the folder, for engines that need one.
 
@@ -132,9 +132,9 @@ runs again). A new Test replaces the pending one. Every other launch, Play or
 another app's `dev.enginehost.LAUNCH`, runs the working config.
 
 `options` is a generic, opaque-to-enginehost bag of post-resolution
-engine-specific settings, passed straight through to the resolved plugin
+engine-specific settings, passed straight through to the resolved core
 without being inspected. Examples include a decryption key, RTP paths,
-renderer switches, or engine compatibility toggles. Each plugin defines its
+renderer switches, or engine compatibility toggles. Each core defines its
 own real option keys.
 
 Nothing about this file's contents, or the folder it lives in, is ever
@@ -153,7 +153,7 @@ The first-class UI is a config creator built around Android's system folder
 picker. It opens or creates the authoritative `enginehost.json` in a chosen
 game folder, scans the complete granted tree for conservative engine/version
 evidence, exposes the complete host contract, validates before writing, and
-preserves unknown top-level fields so newer plugin settings are not destroyed.
+preserves unknown top-level fields so newer core settings are not destroyed.
 Detection only prefills empty fields; it never replaces an existing game-owned
 setting. The system folder grant is sufficient for editing and detection.
 
@@ -201,28 +201,28 @@ on the right edge in landscape. A sheet takes the pad (D-pad between its
 rows, A to pick, B or Escape to close) and carries its own hint row, so it
 needs no Cancel button. The in-game menu is one too, drawn over the engine.
 
-## Plugins
+## Cores
 
-Plugins are separately installed, versioned `*.enginehost.tar.xz` bundles, not
+Cores are separately installed, versioned `*.enginehost.tar.xz` bundles, not
 Android packages or separate apps. Enginehost verifies and extracts them into
 private storage, then loads an approved entrypoint inside its own `:runtime`
 process, under Enginehost's UID, so the
 host owns the one game-folder permission and all configuration. The separate
 process contains native crashes and is terminated after a session; it is not a
-security sandbox from an approved plugin, which is why Plugin Trust is a hard
+security sandbox from an approved core, which is why Core Trust is a hard
 gate.
 
-An enginehost plugin must contain or embed an actual portable implementation
+An enginehost core must contain or embed an actual portable implementation
 of its engine/runtime. Delegating a Windows executable to Wine, Box64, or a
-generic PC compatibility app does not implement an enginehost plugin. Engines
+generic PC compatibility app does not implement an enginehost core. Engines
 without a viable native interpreter remain explicitly unsupported until that
 interpreter is started. An interpreter does not need perfect compatibility to
-ship: early plugin versions may implement only a useful subset, as long as the
+ship: early core versions may implement only a useful subset, as long as the
 limitations and supported engine versions are declared honestly. Later
-co-installable plugin builds can extend that implementation and compatibility.
+co-installable core builds can extend that implementation and compatibility.
 
 Each bundle's internally signed manifest declares its API version, Java
-entrypoint, engine family, plugin build version, canonical GitHub origin,
+entrypoint, engine family, core build version, canonical GitHub origin,
 payload hashes, dex files, and every runtime capability it supports. The
 repository's P-256 public key is pinned before catalog data is accepted.
 
@@ -247,13 +247,13 @@ Compatibility is never inferred from numerical proximity. A capability
 supports its own `runtimeVersion` plus only the exact versions, ranges, or
 dotted series it explicitly declares. A Ren'Py `8.2` series, for example,
 matches every precisely recorded `8.2.*` game version but not `8.3`. Resolution prefers an exact bundled runtime, then
-the narrowest declared compatibility span, then the newest plugin build
+the narrowest declared compatibility span, then the newest core build
 allowed by the game's optional `pluginVersion` allowlist. A capability is
 eligible only when its optional `runtimeComponents` exactly satisfy every
 entry in the game's `runtimeRequirements` map.
 
 The entrypoint implements the Java interface in the publishable `plugin-api`
-module (plugins depend on it as `compileOnly`). It receives a host-owned render
+module (cores depend on it as `compileOnly`). It receives a host-owned render
 container, lifecycle callbacks, the game path, engine/context/requested and
 selected runtime versions, capability ID, runtime requirements, executable,
 raw options JSON, save/cache directories, logging/finish services, and an
@@ -269,20 +269,20 @@ several internally namespaced runtimes—for example both Ruby 1.9.2 and Ruby
 3.1.3—and the host selects the matching capability deterministically. Different
 plugin/runtime releases remain co-installable without Android package installs.
 
-Each plugin repository's complete GitHub Releases history is its catalog. Every
+Each core repository's complete GitHub Releases history is its catalog. Every
 published release carries an `enginehost-release.json` browsing envelope plus
 the independently signed engine-bundle assets, and the project retains old releases. Enginehost
 can enumerate, filter, download, verify, and offer any compatible release rather
 than treating only “latest” as useful. See
 [`docs/plugin-catalog.md`](plugin-catalog.md) and the release-manifest schema.
 
-Dedicated engine plugin forks keep their upstream history and never live in
+Dedicated core forks keep their upstream history and never live in
 this host repository. Their `plugin-core` branch contains the portable Android
 wrapper changeset; release branches start at relevant engine releases and
 apply that changeset. Incompatible runtime lines use co-installable package
 slots and explicit capabilities so builds can be installed side by side.
 
-Current plugin repositories:
+Current core repositories:
 
 - [Ren'Py](https://github.com/Droidtop/enginehost-renpy-plugin): one
   `plugin/<version>` branch per engine minor, 7.3 to 7.8 and 8.0 to 8.5,
@@ -300,7 +300,7 @@ Current plugin repositories:
 - [CMVS](https://github.com/Droidtop/enginehost-cmvs-plugin)
 - [Flash/AIR (Ruffle)](https://github.com/Droidtop/enginehost-flash-air-plugin)
 - [HTML](https://github.com/Droidtop/enginehost-html-plugin): web games, and
-  Twine stories as a capability of the same plugin (there is no separate Twine
+  Twine stories as a capability of the same core (there is no separate Twine
   repository).
 - [NScripter/ONScripter](https://github.com/Droidtop/enginehost-nscripter-plugin),
   built on OnscripterYuri.

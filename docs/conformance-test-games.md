@@ -1,11 +1,11 @@
 # Conformance test games
 
-Every Enginehost plugin family needs a test game the conformance layers can
+Every Enginehost core family needs a test game the conformance layers can
 actually run: layer 1a (`plugin-conformance-static`) checks a built bundle
 offline, layer 1b (`plugin-conformance-emulator`) boots it on an emulator
 against a real game. Both workflows are the suite's own pending work; this
 page is the list of games layer 1b will launch, one row per family that has
-a plugin today, and the rules for what each game must show.
+a core today, and the rules for what each game must show.
 
 A conformance game must exercise three things, and the row says which of the
 three apply:
@@ -21,7 +21,7 @@ three apply:
 3. **A save.** The game writes a save through the engine's own save system,
    into the per-game location Enginehost's save-root mapping gives it, and
    reads it back on relaunch (the harness's HOME-and-relaunch step doubles
-   as the save check). Families whose engine plugin does not implement a
+   as the save check). Families whose core does not implement a
    save system yet say so instead of pretending.
 
 **Redistribution rule.** Every game the suite fetches by URL must be
@@ -45,7 +45,7 @@ The suite has two kinds of fixture:
 
 ## The games
 
-| Family | Plugin line | Game | Source | Licence | Size | Exercises |
+| Family | Core line | Game | Source | Licence | Size | Exercises |
 | --- | --- | --- | --- | --- | --- | --- |
 | renpy | line-7.3 … line-8.5 | `test-games/renpy` (ours) | this repo | MIT | 1.9 KB source | animate + click-advance + menu choice + `renpy.save` |
 | godot | plugin/4.0 … plugin/4.7 | `test-games/godot` (ours) | this repo | MIT | 3.0 KB source | animate + key flip + `user://` save |
@@ -73,7 +73,7 @@ exercises in its own header. Assembly notes:
   pieces (`renpy/`, `lib/`, `renpy.py`, exactly what the SDK's own
   "Build Distributions" produces for a game), because Enginehost's
   detection expects the `renpy/` runtime dir next to `game/`. The script
-  is script-language only, so the same game runs on every plugin line
+  is script-language only, so the same game runs on every core line
   from 7.3 to 8.5. `config.save_directory` is fixed
   (`enginehost-conformance-renpy`) so the save root it lands in is
   deterministic. A launcher can also build the folder once and share the
@@ -89,29 +89,29 @@ exercises in its own header. Assembly notes:
 - **love2d** — `test-games/love2d` is an unpacked LÖVE game: `main.lua`
   plus `conf.lua` declaring `function love.conf`, which is the exact
   unpacked shape Enginehost's detection rule keys on (zip it and it is
-  also a `.love`). LÖVE 11 API, matching the plugin's 11 capability
+  also a `.love`). LÖVE 11 API, matching the core's 11 capability
   series. `t.identity` fixes the save directory name under the save root.
   Any key, mouse button or touch flips the phase **and writes the save**,
   so the harness's single `KEYCODE_ENTER`/`BUTTON_A` event both changes
   the frame and creates the save; the relaunch then reads it back.
 - **html** — `test-games/html/index.html` is shaped like a compiled Twine
   2 story (`tw-storydata` with `tw-passagedata` passages), which is what
-  the plugin's `compiled-html` context runs, but its runtime is a minimal
+  the core's `compiled-html` context runs, but its runtime is a minimal
   original one, so no third-party story format is redistributed. Only the
   save link's passage is written to the story's `localStorage`, which the
-  Twine plugin maps into the Enginehost save directory; the next launch
+  Twine core maps into the Enginehost save directory; the next launch
   resumes from there. Enter/Space activates the first link, which is how
   the harness's key event reaches the story. **Observed while writing this:**
-  the html plugin's *published* lines (`plugin/2.0-2.12`, `plugin/stable`)
+  the html core's *published* lines (`plugin/2.0-2.12`, `plugin/stable`)
   correctly declare `engine: html`, but its `plugin-core` branch has
   drifted to `engine: "twine"` (`dev.enginehost.twine.2_12.v1`), a family
-  name nothing in the host or the engines-database knows. The plugin owner
+  name nothing in the host or the engines-database knows. The core owner
   should reconcile that before the conformance suite runs against a
   plugin-core build.
 - **nscripter** — `test-games/nscripter/0.txt` is a plain-text NScripter
   script in pure ASCII, so it runs under the engine's sjis, gbk and utf8
   script encodings alike. It follows the same pattern as the nscripter
-  plugin's own headless test game (`tests/game/0.txt` in the plugin repo).
+  core's own headless test game (`tests/game/0.txt` in the core repo).
   Note for detection: a folder with only `0.txt` does not trip
   Enginehost's nscripter rule (it wants `0.txt` plus an `.nsa` archive,
   or `nscript.dat`); the conformance launcher passes an inline config
@@ -135,7 +135,7 @@ map, built with RPG Maker 2000 and 2003.
   `TestGame-2000` first; `TestGame-2003` for the 2003 context. The repo
   also carries `TestGame-EasyRPG`, `TestGame-Maniac` and
   `TestGame-PowerMode2003`, which exercise engine extensions the current
-  plugin does not need for basic conformance.)
+  core does not need for basic conformance.)
 - Licence: GPL-3.0 (the repo's `COPYING`); redistribution is what the
   repo exists for.
 - Size: the git repository is ~30 MB including full history; a shallow
@@ -143,7 +143,7 @@ map, built with RPG Maker 2000 and 2003.
   fetch.
 - Exercises: map rendering, movement, menus and the save system, per the
   suite's own design.
-- Needs a rig check: whether `TestGame-2000` boots on the plugin with no
+- Needs a rig check: whether `TestGame-2000` boots on the core with no
   RTP installed (the suites ship their own assets, but the exact RTP
   independence must be observed, not assumed; if an RTP is required, the
   run should use the EasyRPG RTP replacement with the `rtpPaths` option
@@ -166,13 +166,13 @@ community's own demo game, made by the engine's project for this purpose
   response), and save/restore through the stock template's F5/F7 keys —
   the same keys Enginehost's `ags` controller map binds.
 - Caveat: the repository holds the **project source**, not a compiled
-  game. A one-time compile with the AGS editor (the plugin line is
+  game. A one-time compile with the AGS editor (the core line is
   3.6.3.15) produces the game folder (`acsetup.cfg` plus data files) the
   suite runs; the built copy of this project can be redistributed under
   the same licence.
 - Also observed while writing this: the engines-database row for `ags`
   still says "No enginehost plugin yet" with `enginehost: null`, but an
-  AGS plugin exists, is registered in the plugins index and has
+  AGS core exists, is registered in the plugins index and has
   releases. The database row should be updated by whoever owns it; until
   then the conformance launcher passes the engine/context inline.
 
@@ -189,7 +189,7 @@ game expects. The krkrz org carries it converted to UTF-8.
   contributors, "modification and redistribution free"
   (改変・配布は自由です) -- stated in the repository README and in
   `startup.tjs` itself. The underlying engine licence (the licence in the
-  plugin repository's `LICENSE`) likewise permits redistribution with
+  core repository's `LICENSE`) likewise permits redistribution with
   notice.
 - Size: ~430 KB unpacked (the system scripts; the repository has 7
   commits).
@@ -198,7 +198,7 @@ game expects. The krkrz org carries it converted to UTF-8.
   click-wait (input response) -- and its `*start|スタート` label names a
   save bookmark, so the KAG save menu is the save path to check.
 - Needs a rig check: the package is the kirikiriZ-adjusted variant, and
-  `startup.tjs` guards the Z-only plugin links behind `@if (kirikiriz)`,
+  `startup.tjs` guards the Z-only core links behind `@if (kirikiriz)`,
   so the 2.31-based runtime (Kirikiroid2Yuri) skips them -- but whether
   the system scripts lean on other Z-only behaviour must be observed,
   not assumed.
@@ -226,15 +226,15 @@ this family has no redistributable fixture.
 ### rpgmaker, contexts mv/mz
 
 Same situation and same specification: one minimal MV and one minimal MZ
-project (the deployed `www` folder is what the plugin runs), original
+project (the deployed `www` folder is what the core runs), original
 assets only, save via the menu. The editor requirement is unavoidable;
-the enginehost plugin is the WebView shell and the game ships its own
+the enginehost core is the WebView shell and the game ships its own
 deployed JS engine, so any such project is fully redistributable once
 built from original content.
 
 ### flash_air, contexts swf and air
 
-The plugin is a Ruffle 0.4.1 fork declaring both contexts
+The core is a Ruffle 0.4.1 fork declaring both contexts
 (`ruffle-0.4.1-swf`, `ruffle-0.4.1-air`, runtime version 0.4.1, any
 engine version accepted). No tiny game-like SWF with a clear redistribution
 licence was found: Ruffle's own `tests/swfs` are regression fixtures of
@@ -242,8 +242,8 @@ mixed provenance, and the demo page ships no redistributable game.
 
 Specified fixture: a minimal self-authored ActionScript source — an
 animated square, a key/button response, a `SharedObject` save — compiled
-in the flash-air plugin's CI with a free compiler (Apache Royale or
-swftools' `as3compile`; the choice is the plugin owner's), producing one
+in the flash-air core's CI with a free compiler (Apache Royale or
+swftools' `as3compile`; the choice is the core owner's), producing one
 `.swf` for the `swf` context and one unpacked AIR layout (`META-INF/`
 plus `mimetype` plus the SWF) for the `air` context. Needs that compiler
 decision and a rig check before layer 1b can run this family.
@@ -261,7 +261,7 @@ authoring path exists for a free one:
   (2026-09-24 rig logs, `docs/plugin-catalog.md`), so the family's row in
   the emulator workflow should expect "boots to a visible frame and
   answers nothing" until that defect is fixed.
-- **catsystem2** — the plugin is a scene player; it does not run the
+- **catsystem2** — the core is a scene player; it does not run the
   compiled KCS system script, so there is no title screen, no menu and
   no save system to exercise yet. Games are commercial `.int` archives
   keyed to each game's own executable. The conformance run uses a scene
@@ -272,7 +272,7 @@ authoring path exists for a free one:
   container, so a scene cannot be authored from plain text. What it can
   exercise today: background/character/dialogue render (frames) and
   tap-to-advance (input). Save: not applicable to this engine yet.
-- **cmvs** — the plugin reads extracted PS2/PS3 dialogue scripts only
+- **cmvs** — the core reads extracted PS2/PS3 dialogue scripts only
   (no choices, graphics, CPZ archives or save state). No freely
   redistributable CMVS sample exists; the MIT-licensed dumper
   repositories the engine work was based on
@@ -293,5 +293,5 @@ authoring path exists for a free one:
 - mkxp-z, mv/mz, flash_air fixtures: blocked as described above.
 - Two database/plugin inconsistencies observed while writing this:
   `ags` has no enginehost mapping in the engines-database despite a
-  registered plugin, and the html plugin's plugin-core declares a
+  registered core, and the html core's plugin-core declares a
   `twine` family the host does not know. Both are for their owners.

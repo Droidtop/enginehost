@@ -52,7 +52,7 @@ class ProblemReportTest {
         val text = ProblemReport.compose(
             game = "A Game", engine = "Godot 4.1", symptomHeading = "What happens", symptom = "It does not start",
             details = "mail me at me@example.org",
-            environment = "Plugin: godot 1.0\nDevice: X\nsaved at /storage/emulated/0/Secret/x",
+            environment = "Core: godot 1.0\nDevice: X\nsaved at /storage/emulated/0/Secret/x",
             logHeading = "Log", log = "err from 10.0.0.7 in $secretGame", hide = listOf(secretGame),
         )
         for (secret in listOf("me@example.org", "Secret", "10.0.0.7", secretGame)) {

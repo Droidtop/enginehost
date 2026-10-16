@@ -52,7 +52,7 @@ every origin never reaches a device over the network.
 The older hierarchy (an offline primary seed whose root certifies each
 repository's raw key, `enginehost-public-key.json`) is the legacy format.
 Releases still carry its signature beside the v1 one during the transition and
-installed plugins signed only that way keep running, but once the root is
+installed cores signed only that way keep running, but once the root is
 pinned a new install or update needs v1.
 
 Every applicable release contains one or more `*.enginehost.tar.xz` engine
@@ -78,7 +78,7 @@ the Refresh button and the scheduled update pass alike:
    every registered repository's releases -- tag, stream, publication time,
    and each asset's name, URL, size and sha256 -- and is regenerated there by
    a workflow with a token, on a schedule and on a `plugin-published` dispatch
-   that every Droidtop plugin repository sends when it publishes. The
+   that every Droidtop core repository sends when it publishes. The
    generator verifies what it lists (each manifest's signature against the
    origin's key, the key against the root or the third-party list, both
    ABIs); how repositories register is droidtop-platforms
@@ -129,7 +129,7 @@ and, during the transition, its legacy key document. On every fetch of the
 index, Enginehost verifies each against the root key compiled into the APK
 and adds the origin as official when it verifies
 (`PluginOriginStore.learnOfficial`): a repository Droidtop registers after
-this build shipped appears on the Plugins screen at the next refresh, with
+this build shipped appears on the Cores screen at the next refresh, with
 the Official badge, and cannot be removed by the person, exactly like a
 compiled-in one. The index's own `trust` field is not consulted; only the
 root's signature makes an origin official, so nothing the index says (or
@@ -191,7 +191,7 @@ serial is part of what the root signs. The index accepts the new key only
 with a higher serial than the one it pinned and records every accepted key
 in droidtop-platforms `plugins/key-history.json`; Enginehost does the same
 check itself and never goes back to a lower serial. The key it replaces
-stays with the origin as superseded: plugins installed and approved under
+stays with the origin as superseded: cores installed and approved under
 it keep running, keep their Official badge and their approval, and are not
 prompted for again, while updates signed by the new key are offered as
 ordinary updates (each approved as always) and anything new must carry the
@@ -204,7 +204,7 @@ new releases of that origin until they are updated.
 Third party) that starts signing with another key shows "This repository now
 signs with a different key" on its source card after a refresh. "Review the
 new key" shows the pinned and the published fingerprints; accepting pins the
-new key as if the repository were added anew, so plugins installed under the
+new key as if the repository were added anew, so cores installed under the
 old key stop running until they are installed again and approved. A
 third-party repository can move only to a key the third-party list names,
 and the list changes only by a reviewed edit to `third-party.json`.
@@ -214,11 +214,11 @@ and the list changes only by a reviewed edit to `third-party.json`.
 droidtop-platforms keeps a list of third-party maintainers
 (`plugins/third-party.json`: who they are, their GitHub account, their keys,
 their repositories), and their registered repositories are in the index
-marked `third-party` with the maintainer and the listed key. The Plugins
+marked `third-party` with the maintainer and the listed key. The Cores
 screen offers them under **Quick add third-party repositories**, in the
 Sources fold (whose toggle says how many are waiting to be added). Adding one
 shows a trust prompt naming the maintainer and the key's fingerprint and
-saying that Droidtop has not reviewed the plugins; accepting fetches the key
+saying that Droidtop has not reviewed the cores; accepting fetches the key
 document the repository itself publishes and pins it only when it is the key
 the list names (`ThirdPartyListing`). The origin is then an ordinary custom
 origin with a record of where it came from, removable from the same place,
@@ -226,7 +226,7 @@ and a repository dropped from the list stays until the person removes it,
 marked "No longer listed".
 
 Its bundles are **Third party** wherever trust is shown: the badge on the
-Installed plugins screen with the maintainer's name, and the release card's
+Installed cores screen with the maintainer's name, and the release card's
 meta line in the store. They are never Official, and like every other bundle
 each one waits for the person's approval before it runs. Why the design looks
 like this, and what it does not protect against:
@@ -254,12 +254,12 @@ against the_question, the demo visual novel the official Ren'Py SDK 8.0.3
 itself ships with its scripts compiled by that SDK.
 
 Signing is one mechanism, Enginehost's reusable workflow
-`.github/workflows/sign-engine-bundle.yml`. A plugin repository's build job
+`.github/workflows/sign-engine-bundle.yml`. A core repository's build job
 never sees its signing key: it tars the unsigned `payload/` and
 `bundle-metadata.json` and uploads them, and a `sign` job calls the reusable
 workflow pinned to a full Enginehost commit SHA (and passes the same SHA as
 `tooling-sha`). The signing script therefore comes from a reviewed commit, and
-no engine SDK, Gradle plugin or third-party action shares a runner with the key.
+no engine SDK, Gradle core or third-party action shares a runner with the key.
 Why: `docs/security/2026-09-24-ci-supply-chain.md`.
 
 Every repository publishes on three streams, and the release envelope
@@ -345,7 +345,7 @@ replace another bundle.
   (format v1); or, for the legacy format, the key pinned for that origin -- and
   every payload byte matches the signed manifest (engine-bundle-format.md
   "Signatures").
-- **Official** means a certificate Droidtop Core issued for that origin signed
+- **Official** means a certificate the Droidtop CA issued for that origin signed
   it (format v1), or, for the legacy format, the official root certified that
   origin/key pair; Enginehost verified either itself, whether built in or
   learned from the plugins index as above.
@@ -363,7 +363,7 @@ replace another bundle.
 A valid signature proves who published bytes; it does not grant those bytes
 Enginehost's permissions.
 
-## Buriko (OpenBGI) plugin verification (2026-09-24 rig logs dq-buriko-04/05/06)
+## Buriko (OpenBGI) core verification (2026-09-24 rig logs dq-buriko-04/05/06)
 
 Build 96 (`plugin/0.0.1`) reaches the title screen at ~15 s (logo at ~15 s,
 full-screen white by 20 s), confirming faster boot timing vs. earlier builds
@@ -373,7 +373,7 @@ logo fades out (~30 s) the screen stays black; Thread 2 never logs "has ended"
 and continues printing `Stack underflow!` (12 occurrences by 60 s). The
 runtime activity (`BundledActivityProxy`) remains up until force-stopped
 (at 60 s in dq-buriko-06, at 120 s in dq-buriko-05). This is a stall, not a
-crash — refers to the plugin owner (`agent buriko` notes, BRIEF.md).
+crash — refers to the core owner (`agent buriko` notes, BRIEF.md).
 Remaining work: the title screen renders (dq-buriko-06) but the engine
 waits in a message/poll loop; the exact stop reason is the engine-side
 stub/opcode path past title._bp (Grp0 0xB7 window-content build) not being

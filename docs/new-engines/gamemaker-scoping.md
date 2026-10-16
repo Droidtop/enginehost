@@ -1,4 +1,4 @@
-# GameMaker engine plugin: scoping
+# GameMaker core: scoping
 
 Step zero of any GameMaker effort: the written scope the 2026-09-25
 new-engine census asked for before committing to what it priced as a
@@ -16,7 +16,7 @@ that "no portable interpreter exists".
 ## What a GameMaker game actually is
 
 Three materially different products carry the GameMaker name, and they
-are not one plugin's worth of engine:
+are not one core's worth of engine:
 
 - **GameMaker Classic (5.x-8.1, 1999-2011).** A single `.exe` holding
   the engine, all assets and the game logic ("the executable contains
@@ -59,13 +59,13 @@ likely majority VM, genuinely unknown until each title's data file is
 inspected -- a cheap, codeless measurement (a data file with VM code
 present vs one without, or no data file at all).
 
-**Can one plugin cover both? No, and not as a matter of effort.** VM
+**Can one core cover both? No, and not as a matter of effort.** VM
 output is one bounded, community-documented bytecode and asset format
 behind a generic runner: a reimplementation target like any Enginehost
 engine. YYC output is per-title native code: the same category as Unity
 IL2CPP, uninterpretable at any size, permanently on the Wine path.
 From Enginehost's side these are different engines that share a name,
-so even a built plugin would cover only part of the family, and any
+so even a built core would cover only part of the family, and any
 routing must split it per title on the data-file test above.
 
 ## Candidate runtimes and licensing
@@ -81,7 +81,7 @@ routing must split it per title on the data-file test above.
 Two corrections to the census's own GameMaker note fall out of this
 table, recorded here because the census is what the next reader will
 check: UndertaleModTool is GPL-3.0, not the MIT the census assumed --
-its code cannot be lifted into a non-GPL plugin, though reading its
+its code cannot be lifted into a non-GPL core, though reading its
 wiki as a format specification is unaffected; and the "open GMS
 bytecode interpreter" the census hoped to find in the RE community does
 not exist -- a 2026-09-29 search of GitHub for projects that run
@@ -95,7 +95,7 @@ format, the GML VM and the runner's builtin library, with
 UndertaleModTool's wiki and byte-exact reader as the format reference
 and OpenGMK as proof the older generation was reproducible at all.
 (Historical footnote: YoYo open-sourced its GameMaker 8-era web-player
-plugin in mid-2011 and then deprecated it for HTML5 export; no
+core in mid-2011 and then deprecated it for HTML5 export; no
 maintained descendant was found.)
 
 ## Android precedent outside YoYo's own exporter
@@ -127,7 +127,7 @@ KiriKiri work already done", and the upstream evidence supports it:
   GLSL ES shader surface, and the same magnitude of builtin library --
   interpreted this time rather than precompiled.
 
-So, on the census's small-to-large scale: **a first playable plugin,
+So, on the census's small-to-large scale: **a first playable core,
 scoped hard to one Studio bytecode line and a bounded builtin set
 proven against the actual census titles, is medium-large. The whole
 family (Classic exes plus GMS 1 plus GMS 2.x) is large.** YYC is not
@@ -151,13 +151,13 @@ that row and makes the call explicit:
   rule. GameMaker's exclusion from Enginehost is a build-cost decision,
   not a category decision -- the first engine in that SPEC row for which
   that is true. (The engine sandbox, `docs/engine-sandbox.md`, would
-  treat a clean-room VM like any other native engine plugin; it adds no
+  treat a clean-room VM like any other native core; it adds no
   cost specific to this engine.)
 
 **VM-mode GameMaker is in-principle Enginehost territory; YYC-mode
 never is; and today both stay on the Wine path because the cost is not
-justified.** If a plugin is ever built, droidtop's routing must split
-the family per title on the data-file test, and the plugin declares the
+justified.** If a core is ever built, droidtop's routing must split
+the family per title on the data-file test, and the core declares the
 bytecode eras it actually implements -- the same capability shape as
 any other engine family.
 
@@ -179,5 +179,5 @@ What would reopen this page, and nothing else:
 2. **An open Studio-era runtime appearing.** OpenGMK adding `data.win`
    support or an Android target is the signal: either one converts the
    effort from a clean-room medium-large to something Enginehost's
-   existing plugin shapes can package (a GPL-2.0 fork line, the xsystem4
+   existing core shapes can package (a GPL-2.0 fork line, the xsystem4
    shape), and this page gets rescoped, not merely revisited.

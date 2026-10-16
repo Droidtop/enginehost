@@ -55,7 +55,7 @@ class RuntimeActivity : FragmentActivity() {
         val gameFolder = intent.getStringExtra(EXTRA_PATH)?.let(::File)
             ?: return failAndFinish("Runtime launch omitted the game path")
         val expectedBundle = intent.getStringExtra(EXTRA_PLUGIN_BUNDLE)
-            ?: return failAndFinish("Runtime launch omitted the selected plugin")
+            ?: return failAndFinish("Runtime launch omitted the selected core")
         // Made and checked by the planner; not worked out a second time here.
         val saveFolder = intent.getStringExtra(EXTRA_SAVE_PATH)?.let(::File)
             ?: return failAndFinish("Runtime launch omitted the save folder")
@@ -70,12 +70,12 @@ class RuntimeActivity : FragmentActivity() {
         val resolved = PluginRegistry.resolve(
             this, config.engine, config.engineContext, config.engineVersion,
             config.runtimeRequirements, config.pluginVersionConstraint,
-        ) ?: return failAndFinish("The selected plugin is no longer compatible or installed")
+        ) ?: return failAndFinish("The selected core is no longer compatible or installed")
         if (resolved.plugin.bundleId != expectedBundle) {
-            return failAndFinish("Plugin resolution changed before runtime startup; retry the launch")
+            return failAndFinish("Core resolution changed before runtime startup; retry the launch")
         }
         if (!PluginTrustStore(this).isApproved(resolved.plugin)) {
-            return failAndFinish("Plugin approval is missing")
+            return failAndFinish("Core approval is missing")
         }
         if (resolved.plugin.isolatable) {
             // An isolated runtime reaches bundle files only as descriptors the
@@ -138,10 +138,10 @@ class RuntimeActivity : FragmentActivity() {
             // The module recognised its own "content I cannot read"
             // failure. The user is told only that a patch is needed --
             // not which file -- and supplies one themselves.
-            Log.w(TAG, "Plugin reported a required patch", e)
+            Log.w(TAG, "Core reported a required patch", e)
             offerPatch(e.requiredFile())
         } catch (e: Throwable) {
-            Log.e(TAG, "Plugin startup failed", e)
+            Log.e(TAG, "Core startup failed", e)
             failAndFinish(STARTUP_FAILED + (e.message ?: e.javaClass.simpleName))
         }
     }
@@ -188,7 +188,7 @@ class RuntimeActivity : FragmentActivity() {
                 check(it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION)
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "Plugin verification failed", e)
+            Log.e(TAG, "Core verification failed", e)
             return failAndFinish(STARTUP_FAILED + (e.message ?: e.javaClass.simpleName))
         }
         Log.i(TAG, "verified bundle ${resolved.plugin.bundleId} for isolated launch, apiVersion ${verifiedManifest.apiVersion}")
@@ -258,7 +258,7 @@ class RuntimeActivity : FragmentActivity() {
     }
 
     private fun callPlugin(phase: String, block: EnginePlugin.() -> Unit) {
-        runCatching { plugin?.block() }.onFailure { Log.e(TAG, "Plugin $phase failed", it) }
+        runCatching { plugin?.block() }.onFailure { Log.e(TAG, "Core $phase failed", it) }
     }
 
     /**
@@ -337,7 +337,7 @@ class RuntimeActivity : FragmentActivity() {
 
     companion object {
         private const val TAG = "enginehost-runtime"
-        const val STARTUP_FAILED = "Plugin startup failed: "
+        const val STARTUP_FAILED = "Core startup failed: "
         private const val REQUEST_PATCH = 0x9a71
         const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
         /** On a failed startup's result: the sentence the runtime has for the launch screen. */

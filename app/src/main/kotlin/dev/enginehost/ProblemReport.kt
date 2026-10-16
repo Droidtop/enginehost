@@ -50,7 +50,7 @@ data class ProblemReport(
 ) {
     /** The part of the report Enginehost fills in about the machine and the plugin. */
     fun environment(): String = buildString {
-        appendLine("Plugin: $plugin")
+        appendLine("Core: $plugin")
         appendLine("Enginehost: $host")
         append(device)
         if (settings.isNotBlank()) {
@@ -140,10 +140,10 @@ data class ProblemReport(
             val saves = SaveLocationStore(context)
             val callers = CallerAccessStore(context).all().values
             listOfNotNull(
-                updates.frequency.takeIf { it != PluginUpdateCheck.Frequency.DAILY }?.let { "Plugin update checks: ${it.name.lowercase()}" },
-                "Plugin updates install automatically".takeIf { updates.installAutomatically },
-                updates.stream.takeIf { it != PluginStream.STABLE }?.let { "Plugin releases: ${it.name.lowercase()}" },
-                "Plugin checks skip metered connections".takeIf { updates.unmeteredOnly },
+                updates.frequency.takeIf { it != PluginUpdateCheck.Frequency.DAILY }?.let { "Core update checks: ${it.name.lowercase()}" },
+                "Core updates install automatically".takeIf { updates.installAutomatically },
+                updates.stream.takeIf { it != PluginStream.STABLE }?.let { "Core releases: ${it.name.lowercase()}" },
+                "Core checks skip metered connections".takeIf { updates.unmeteredOnly },
                 "Saves go to a folder the person chose".takeIf { saves.root() != saves.defaultRoot() },
                 saves.overrides().size.takeIf { it > 0 }?.let { "$it engines keep saves in their own folder" },
                 callers.count { it == CallerDecision.ALLOW }.takeIf { it > 0 }?.let { "$it apps always allowed to launch games" },

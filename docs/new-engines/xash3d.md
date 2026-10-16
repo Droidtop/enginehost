@@ -1,15 +1,15 @@
-# Xash3D FWGS (GoldSrc) plugin: scope
+# Xash3D FWGS (GoldSrc) core: scope
 
 The cheapest new-engine item in the 2026-09-25 engine census (its GoldSrc
 cluster and its recommendation list's item 3): 10 census rows are GoldSrc
 games,
 and the open replacement runtime is actively maintained and already ships
-Android builds upstream. This page is the written scope for that plugin --
+Android builds upstream. This page is the written scope for that core --
 upstream Android build, the native libraries a bundle must carry, the
 licence facts a signed payload must state, the mapping onto Enginehost's
 launch path, and the ABI check. No repository, no code and no host change
 in this step; `docs/plugin-scaffolds/ags.md` remains the full template for
-the plugin step (the AGS scaffold plan, written against the same bundle
+the core step (the AGS scaffold plan, written against the same bundle
 contract), and this page defers to it for the workflow skeleton instead of
 duplicating it.
 
@@ -85,7 +85,7 @@ archive); the release job repackages the artifacts into the GitHub
 release on every push to master (the `continuous` tag the README points
 installers at). So "upstream ships Android builds" is a per-push green CI
 fact, not a stale release asset. That is evidence the toolchain builds; it
-is not evidence a game runs -- the rig check belongs to the plugin step,
+is not evidence a game runs -- the rig check belongs to the core step,
 same as AGS.
 
 ## (b) Native libraries, and where the game logic comes from
@@ -106,7 +106,7 @@ else. The per-ABI native set the upstream Gradle project packages:
 - The Half-Life **game logic**, built from `FWGS/hlsdk-portable`'s
   `mobile_hacks` branch with `-DANDROID_APK=ON` -- the server and client
   libraries for the `valve` gamedir. GoldSrc games ship Windows x86
-  `hl.dll`/`client.dll`, which no Android ABI can load, so the plugin
+  `hl.dll`/`client.dll`, which no Android ABI can load, so the core
   cannot run a single title without these; the exact `.so` names are read
   from the hlsdk Android build output when the wrapper repo is created.
   `hlsdk-portable` also carries restored source for the Half-Life
@@ -116,7 +116,7 @@ else. The per-ABI native set the upstream Gradle project packages:
 The `xash-extras` submodule is mounted as APK assets by the Gradle
 project (`assets.directories.add(.../xash-extras)`); the wrapper's
 resource APK carries it the same way. The bundle's `lib/<abi>` set is
-whatever this same build produces per ABI -- the plugin repo builds the
+whatever this same build produces per ABI -- the core repo builds the
 upstream configuration, it does not invent a second one.
 
 ## (c) Licence: what a signed payload must state
@@ -162,8 +162,8 @@ reading the host extras directly). The `plugin-api` alternative means
 tearing SDLActivity's Activity-ness into a host-attachable view -- the
 godot-fragment surgery -- and buys nothing for a first bundle; the entry
 class survives unchanged into that later shape. As an activity-transport
-plugin it stays on the engine sandbox's layer 1
-(`docs/engine-sandbox.md`: activity-transport plugins are layer-1-only
+core it stays on the engine sandbox's layer 1
+(`docs/engine-sandbox.md`: activity-transport cores are layer-1-only
 until the host-side rewrite that document scopes), where the `:runtime`
 seccomp filter blocks IP sockets: the engine's network features (master
 server, server browser, the NAT-bypass, self-update) are dead inside
@@ -189,12 +189,12 @@ equivalent:
 **Saves: no routing change.** Xash3D writes saves and config inside the
 game tree (`<basedir>/<gamedir>/SAVE/`, `config.cfg` beside it) -- an
 engine that saves beside the game keeps doing so, and the host's
-`dev.enginehost.runtime.SAVE_PATH` extra stays unused by this plugin. The
+`dev.enginehost.runtime.SAVE_PATH` extra stays unused by this core. The
 `XASH3D_RODIR` read-only-dir
 mechanism stays upstream's answer for read-only installs and is not wired
 up by a first bundle.
 
-**Host-side ride-alongs when the plugin lands, none of them new
+**Host-side ride-alongs when the core lands, none of them new
 mechanisms:**
 
 1. The shared database row gains its `enginehost` mapping
@@ -218,7 +218,7 @@ task-root/class-loader assumptions the launch screen has to survive.
 
 ## (e) Manifest fields, and the ABI check
 
-First bundle, modelled on the two shipped plugins' metadata (the creating
+First bundle, modelled on the two shipped cores' metadata (the creating
 repo finalises the ids):
 
 ```json
@@ -278,7 +278,7 @@ elsewhere (its desktop builds are 64-bit) and the per-ABI configure takes
 the ABI straight from Gradle, so the fork's change is adding `x86_64` to
 that one set -- but nobody upstream builds the Android/x86_64 combination
 today, not in CI and not in a release, so the first green x86_64 build of
-engine + menu + renderers + hlsdk `mobile_hacks` is this plugin repo's own
+engine + menu + renderers + hlsdk `mobile_hacks` is this core repo's own
 first proof, not a reuse of upstream's. The packing step still asserts
 both required ABIs in the payload (the rule is per-bundle, not
 per-upstream), and the rig check runs the result: arm64 hardware and the
@@ -300,5 +300,5 @@ x86_64 emulator, single-player Half-Life.
   titles actually need is in the private census sheet and is the creating
   repo's first decision after the bundle runs.
 - **The full licence audit, the first x86_64 build, and the rig check**
-  (System.exit quirk included) -- all named above, all part of the plugin
+  (System.exit quirk included) -- all named above, all part of the core
   step, none provable from this session.

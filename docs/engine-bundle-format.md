@@ -1,5 +1,19 @@
 # Engine bundle format, version 1
 
+**Cores** (decided 2026-10-16, owner: "Yeah, let's switch to cores. We're
+clearly 'RetroArch for VNs', no need to hide it"). An engine bundle installed
+in Enginehost is a *core*, in everything a person or developer reads: the app,
+these docs, release notes. Identifiers that other code, files or apps depend
+on keep the old word, because renaming them would break compatibility for no
+reader's benefit: Kotlin names (`EnginePlugin`, `PluginCatalog`, ...),
+manifest fields (`pluginVersion`, `pluginVersions`, `runtimeTransport:
+plugin`), the JWS `typ` `droidtop-plugin+jws` and the URN
+`urn:droidtop:plugin:`, droidtop-platforms' `plugins/` folder and its plugins
+index, and these docs' file names. Repository names and the `plugin-core` and
+`plugin/<line>` branches change in a separate, coordinated step
+(Droidtop/tracker#550). The Droidtop CA is a certificate identifier and is
+named only where signing is explained.
+
 An engine bundle is one XZ-compressed POSIX tar archive named
 `*.enginehost.tar.xz`. It is self-verifying: the signature and all information
 needed to verify it are members of the archive, not required sidecar files.
@@ -51,19 +65,19 @@ pre-release. Versions published before this (`X.Y.<run>`, the CI run number
 in the third place) are read as `X.Y.0-<run>` (`Version.parsePlugin`, decided 2026-09-29,
 Droidtop/tracker#126): `1.0.57` is `1.0.0-57`, so a line's next patch bump
 (`1.0.1-1`, `0.9.1-1`) orders above every legacy build and is offered as an update.
-Every revision of a plugin's code bumps its declared version (owner,
+Every revision of a core's code bumps its declared version (owner,
 2026-10-01: "We need to update the version string with every revision from
-now on", after a crash could not be pinned to a build of the "v1.0" plugin):
+now on", after a crash could not be pinned to a build of the "v1.0" core):
 a patch at minimum. The app shows the whole string (`1.0.1-3`) wherever it
-names a plugin build. The `version` job of `sign-engine-bundle.yml` enforces
-the rule for every plugin repository that calls it:
+names a core build. The `version` job of `sign-engine-bundle.yml` enforces
+the rule for every core repository that calls it:
 `scripts/check-declared-version.py` finds the newest release already
 published for the bundle id and fails the build when the declared version is
 below it, or equal to it while any file outside documentation and CI wiring
 (`.github/`, `docs/`, `*.md`, `LICENSE`, the key and origin documents)
 differs from the commit that release was built from. A re-run of the published
 commit, and a declared version above everything published, pass.
-Only plugin bundle versions and the `pluginVersions` allowlist use this reading;
+Only core bundle versions and the `pluginVersions` allowlist use this reading;
 engine and runtime versions do not. The one script
 that emits this form is `scripts/build-engine-bundle.py`, run by the pinned
 `sign-engine-bundle.yml` job: it reads the calling repository's releases and
@@ -79,7 +93,7 @@ Each capability declares the exact `runtimeVersion` bundled. Compatibility can
 be advertised as exact `supportedVersions`, inclusive `supportedRanges`, and/or
 `supportedSeries`. A series is a dotted component prefix: `"8.2"` matches
 `8.2`, `8.2.1`, and `8.2.1.24030407`, but never `8.3`. This lets version-line
-plugins track the newest revision in a line while retaining the game's full
+cores track the newest revision in a line while retaining the game's full
 detected version for diagnostics and regression analysis.
 
 `payloadSha256` is SHA-256 over each regular payload file in manifest/tar order:
@@ -108,7 +122,7 @@ its signed digest and the launch is refused if it no longer matches. A bundle
 installed before stamps existed is hashed in full on its first launch.
 
 `resourceApks` is an optional array of signed payload paths. Enginehost attaches
-each listed APK's compiled resources to the runtime before loading the plugin
+each listed APK's compiled resources to the runtime before loading the core
 entrypoint. A path may appear in both `dexFiles` and `resourceApks`; this lets a
 single embedded runtime APK carry code, resources, assets, and JNI libraries
 without being installed as a separate Android package. Native libraries remain
@@ -131,11 +145,11 @@ A bundle carries **every ABI it supports, in one archive**: `lib/arm64-v8a/` and
 upstream provides them. Enginehost picks the directory at load time from
 `Build.SUPPORTED_ABIS`, in the device's own order of preference, so there is no
 per-architecture bundle, channel or download to choose between: one bundle
-installs on the console and on an x86_64 device or emulator alike. A plugin whose
+installs on the console and on an x86_64 device or emulator alike. A core whose
 upstream cannot yet produce a second ABI says so in its metadata `notes` (which
 the manifest passes through verbatim) and in its BRIEF, naming the prebuilt that
 is missing and the upstream it would come from; it does not quietly ship one ABI
-and leave the host to fail at `System.loadLibrary`. A plugin with no native code
+and leave the host to fail at `System.loadLibrary`. A core with no native code
 at all carries no `lib/` directory and is architecture-agnostic.
 
 Enginehost enforces its side of this at install: a bundle whose payload carries
@@ -168,7 +182,7 @@ listOf("--package-id", "0x80", "--allow-reserved-package-id") }`).
 Enginehost reads the id out of `resources.arsc` and refuses to load a
 bundle that collides, rather than letting it surface as a wrong resource.
 
-Enginehost attaches each APK's loader to every `Resources` object a plugin
+Enginehost attaches each APK's loader to every `Resources` object a core
 can reasonably resolve from — the runtime activity's and the application's.
 An engine that keeps `context.applicationContext` therefore finds its own
 resources without the bundle having to attach anything itself.
@@ -202,7 +216,7 @@ droidtop and gamegrab have roots of their own, derived the same way; none of
 them is trusted here.
 
 - **The Enginehost signing root's public key** is the one anchor Enginehost
-  pins for its own plugins: `app/src/main/assets/trust/enginehost-root.pub`, a
+  pins for its own cores: `app/src/main/assets/trust/enginehost-root.pub`, a
   PEM `PUBLIC KEY` block (SubjectPublicKeyInfo), byte for byte the file
   published at Droidtop/tracker `coordination/signing/roots/enginehost-root.pub`.
   The anchor is the key, not the root's self-signed certificate (owner,
@@ -240,7 +254,7 @@ them is trusted here.
   RSA of 2048 bits or more (`RS256`); `basicConstraints` CA:FALSE or absent;
   `keyUsage` present with digitalSignature and without keyCertSign;
   `extendedKeyUsage` containing the purpose:
-  `2.25.230248497294207031301727532441854392946.1` plugin bundles, `.2` catalog
+  `2.25.230248497294207031301727532441854392946.1` core bundles, `.2` catalog
   indexes, `.3` revocation lists.
 - **Identity**, as `subjectAltName` URIs:
   `urn:droidtop:origin:<owner>/<repo>` (the bundle's GitHub origin, lower case;
@@ -303,7 +317,7 @@ The legacy `enginehost-bundle.sig` is accepted:
 The legacy verifier is `LegacyBundleSignatures.kt` and the official-root key
 documents in `PluginOriginKeys.kt`. They are deleted, with the manifest's
 `signing` block and the signing workflow's `ENGINEHOST_SIGNING_KEY_PEM`, in
-the release after every official plugin has shipped a release signed in v1.
+the release after every official core has shipped a release signed in v1.
 Until then a revocation list stops a legacy key by its SubjectPublicKeyInfo
 SHA-256.
 
@@ -324,7 +338,7 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   revocation-list certificate. It applies to every root-anchored chain and to
   legacy official and developer keys.
 - **An added repository's list**, catalog `<owner>/<repo>`, is `revocations.jws`
-  on its plugin branch, under the key the person pinned; read at most once a
+  on its core branch, under the key the person pinned; read at most once a
   day per repository (GitHub API allowance). It applies only to that origin.
 - A list replaces the one held only with a higher `sequence`, so an old list
   cannot be replayed to un-revoke, and its own signer must not be revoked by
@@ -334,12 +348,12 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
 
 ### Signing, provisioning and the owner's steps
 
-- CI signs in `.github/workflows/sign-engine-bundle.yml`: v1 when the plugin
+- CI signs in `.github/workflows/sign-engine-bundle.yml`: v1 when the core
   repository sets `ENGINEHOST_CERTIFICATE_KEY_PEM` and commits
   `enginehost-signing-certificate.pem`, legacy when it sets
   `ENGINEHOST_SIGNING_KEY_PEM`, both during the transition. The signed bundle
   is verified to the pinned root before it leaves the job.
-- The owner derives the Enginehost signing root from Droidtop Core, outside
+- The owner derives the Enginehost signing root from the Droidtop CA, outside
   this repository. `scripts/provision-signing-certificates.py`, run by the
   owner where the root's key is (`--root-key`, `--root-certificate`), derives
   each repository's key deterministically (HKDF-SHA256 over the root's raw
@@ -354,7 +368,7 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   it. With the root pinned, a third party's new releases need it too.
 - The root's key is pinned (2026-10-15). It replaced a direct pin of Droidtop
   Core's key, which no release ever carried a certificate for. From the build
-  that carries it, official plugins install and update only with a v1
+  that carries it, official cores install and update only with a v1
   signature (owner's choice, the strict rule as specified: no legacy gap
   window); installed ones keep running. Provisioned on 2026-10-15: every
   official repository's `ENGINEHOST_CERTIFICATE_KEY_PEM` secret, and the
@@ -362,7 +376,7 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   each repository commits to plugin-core as `enginehost-signing-certificate.pem`.
   Left to the owner: sign and publish the first `plugins/revocations.jws` when
   something is revoked, and hand the developer certificate and its key to the
-  developer; once every official plugin has a v1 release, drop
+  developer; once every official core has a v1 release, drop
   `ENGINEHOST_SIGNING_KEY_PEM` and delete the legacy verifier.
 
 ## Declared options
@@ -399,12 +413,12 @@ An unrecognised `type` falls back to the free-text editor rather than being
 rejected, so a bundle declaring a type a given Enginehost build predates
 stays usable.
 
-## Runtime components (subplugins)
+## Runtime components (parts of a core installed on their own)
 
 Some games need more than a stock engine: Goodbye Eternity is a Godot 4.5
 game whose scenes are Spine animations, and its own desktop exports are
 custom Godot builds with EsotericSoftware's `spine_godot` runtime compiled
-in. An engine plugin must therefore be able to load extensions to its
+in. A core must therefore be able to load extensions to its
 engine. Spine is the first; the format treats it as a general concept so
 the next one follows the same path.
 
@@ -443,7 +457,7 @@ bundle, not a second trust mechanism. What differs is in the manifest:
 ```
 
 - `kind` is `component` (absent means `engine`).
-- `component` names the engine whose plugins load it, the component's
+- `component` names the engine whose cores load it, the component's
   ecosystem-scoped name (`spine-godot`, not `spine`) and its version (the
   component's compatibility line as its own ecosystem defines it: for
   spine-godot, the Spine editor major.minor whose exported skeletons it
@@ -454,9 +468,9 @@ bundle, not a second trust mechanism. What differs is in the manifest:
   declare a `license` too, and is shown the same way.
 - It has no `dexFiles`, no `entrypoint` and no `capabilities`: Enginehost runs
   no code of a component and no game runs on one. Its native code is loaded
-  by the engine plugin, into the engine's own runtime process, so it carries
+  by the core, into the engine's own runtime process, so it carries
   the trust weight of engine code and is approved like it.
-- Its payload layout is the loading plugin's business. Native libraries sit
+- Its payload layout is the loading core's business. Native libraries sit
   under the top-level `lib/<abi>/` so the installer's ABI check and the
   plugins index's both-ABIs rule apply to it as to any bundle.
 
@@ -506,12 +520,12 @@ bundle (and installs it first when the launch asked for automatic installs).
 Its card says what it is ("Spine 4.2 runtime"), which engine versions load it
 and which licence it carries. After it is approved the launch resumes.
 
-The plugin learns what the launch loads from
+The core learns what the launch loads from
 `EnginePluginSession.runtimeComponents()` (carried and separate together) and
 where each separate one is from `EnginePluginSession.runtimeComponentDirectory(name)`:
 the verified, read-only root of the component bundle. Every component bundle a
 launch loads is verified (signature, pinned signer, payload stamps) together
-with the engine bundle before the plugin starts. An isolated runtime
+with the engine bundle before the core starts. An isolated runtime
 (docs/engine-sandbox.md, "Layer 2") reaches bundle files only through
 descriptors, which components do not have yet, so a sandboxed engine that
 would need one is refused at launch with the component named.
@@ -519,7 +533,7 @@ would need one is refused at launch with the component named.
 Selection among capabilities that serve the game prefers the one that loads
 the fewest carried components the game did not ask for
 (`EngineCapability.unrequestedComponents`, after version specificity and
-before plugin version).
+before core version).
 
 ### Godot: components are GDExtensions
 
@@ -536,7 +550,7 @@ game's resources name them, the same guarantee a compiled-in module gives.
 spine-runtimes builds its extension flavor officially
 (`spine_godot_extension.gdextension`, `build-extension.sh`, godot-cpp).
 
-So the Godot plugin's wrapper (`GodotComponents`, plugin-core of
+So the Godot core's wrapper (`GodotComponents`, plugin-core of
 enginehost-godot-plugin) registers a host `GodotPlugin` whose
 `getPluginGDExtensionLibrariesPaths()` returns, for each component of the
 launch, `<component root>/godot-<series>/<name>.gdextension` for the engine's
@@ -602,12 +616,12 @@ libraries; the game's file in the pack is left as it is. A game whose
 `.gdextension` already names an Android library needs no component.
 
 **What stays out.** Extensions that exist only as Windows DLLs with no source
-cannot be built for Android; detection records the requirement and plugin
+cannot be built for Android; detection records the requirement and core
 selection fails before launch with the component named.
 
 ### Adding a runtime component
 
-1. **Build it** as its own line of the engine's plugin repository (Godot:
+1. **Build it** as its own line of the engine's core repository (Godot:
    `enginehost/lines/component-<name>-<version>/` on plugin-core, composed like
    any line, Enginehost docs/plugin-lines.md). Its workflow builds the
    component from its upstream source at a pinned revision for every engine
@@ -625,8 +639,8 @@ selection fails before launch with the component named.
 ### Host services added after apiVersion 1 shipped
 
 `EnginePluginSession.runtimeComponents()` (2026-10-02): what the launch
-loads beside the engine, so a plugin that loads components knows which
-(above). A plugin that may run on an older Enginehost catches
+loads beside the engine, so a core that loads components knows which
+(above). A core that may run on an older Enginehost catches
 `NoSuchMethodError` and uses `runtimeRequirements()` instead, which the
 capability was selected against.
 
@@ -634,12 +648,12 @@ capability was selected against.
 verified root of the separately installed component bundle providing
 `name` for this launch, null for a component the engine carries itself. An
 older Enginehost never selects a capability that needs a separate
-component (it does not read `loadsComponents`), so a plugin that reaches
+component (it does not read `loadsComponents`), so a core that reaches
 this call on one can only be loading nothing.
 
 `EngineHost.fail(message)` (2026-09-25): ends the runtime because the engine
 could not start, and the launch screen shows `message` with Report a problem,
-the same end as a plugin whose `onCreate` throws. For an engine that learns of
+the same end as a core whose `onCreate` throws. For an engine that learns of
 the failure only after `onCreate` returned (Godot 4.0 and 4.1 start inside the
 fragment's view) and would otherwise show its own alert over a black screen.
 Same compatibility rule as `restart`: fall back to `finish()` on an older host.
@@ -653,25 +667,25 @@ de-initialised in place. Godot reaches it two ways: a game's
 the engine's own restart arrives at `onGodotRestartRequested`. Upstream's app
 answers both by killing its process and relaunching, the first with `args` as
 the new instance's command line. So the arguments travel: the next run's
-plugin reads them from `restartArguments()` (empty on any other launch). The
+core reads them from `restartArguments()` (empty on any other launch). The
 runtime finishes with a result the launch screen beneath it recognises, the
 launch screen waits for the old runtime process to go, and plans the launch
-again from the same intent. A plugin that may run on an older Enginehost
+again from the same intent. A core that may run on an older Enginehost
 catches `IncompatibleClassChangeError` (the call fails to link as
 `NoSuchMethodError` when the host's interface does not declare it) and falls
 back to `finish()`: the game closes
-instead of sitting on a dead screen. Plugins that run as a bundled Activity
+instead of sitting on a dead screen. Cores that run as a bundled Activity
 (`runtimeTransport: activity`) have no host object and are not covered by
 this.
 
-## Controller input for android-activity plugins
+## Controller input for android-activity cores
 
 Enginehost owns the controller map: a set of actions per engine, a global
 binding for each, and per-engine overrides, all edited in Enginehost's
-controller settings. A plugin never hardcodes what a pad button does.
+controller settings. A core never hardcodes what a pad button does.
 
 The action ids are the engine's own, in the engine's own vocabulary, because
-that is what a plugin has to translate and what a person has to recognise:
+that is what a core has to translate and what a person has to recognise:
 `rgss_c` and `rgss_b` for RPG Maker XP/VX/VX Ace, `easyrpg_decision` and
 `easyrpg_shift` for 2000/2003, `mvmz_ok` and `mvmz_pageup` for MV/MZ, Ren'Py's
 `pad_a` and `pad_leftx`, Godot's `joy_a` and `joy_axis_left_x`, CatSystem2's
@@ -680,7 +694,7 @@ that is what a plugin has to translate and what a person has to recognise:
 names). Adventure Game Studio has no pad model, but its inputs have names:
 `ags_mouse_left` (`eMouseLeft`), `ags_wheel_north`, `ags_key_escape`
 (`eKeyEscape`), with `ags_pointer_x`/`ags_pointer_y` steering the cursor, and
-the plugin turns each into that click, key or movement. An engine with no input model of its own (KiriKiri,
+the core turns each into that click, key or movement. An engine with no input model of its own (KiriKiri,
 Buriko, Flash, HTML) takes the shared fallback set: `up`, `down`, `left`,
 `right`, `confirm`, `cancel`, `menu`, `skip`, `auto`, `history`, `quick_save`,
 `quick_load`, `page_previous`, `page_next`, the stick axes and the triggers.
@@ -719,7 +733,7 @@ needs read flags the engine does not keep, so it could only behave as 08 and
 one of the two is enough. **22 Outerの中央移動** re-centres a desktop window,
 which does not exist here. **23/24 メニュー増減** are 03/04 in a value context
 -- the original's own factory map binds all four to Up and Down -- so
-`cmvs_cursor_up` and `cmvs_cursor_down` drive them, and a plugin should treat
+`cmvs_cursor_up` and `cmvs_cursor_down` drive them, and a core should treat
 them as one input, exactly as the engine does.
 
 The set is chosen by engine family, except that `rpgmaker` names three
@@ -728,12 +742,12 @@ unrelated runtimes, so its sets are chosen by family and context together:
 `rpgmaker/2003` are EasyRPG; `rpgmaker/mv` and `rpgmaker/mz` are the web
 runtime.
 
-Because the ids differ per engine, a plugin and a host may disagree about the
+Because the ids differ per engine, a core and a host may disagree about the
 set without either being broken, and both directions degrade the same way: an
-id a plugin does not know is ignored, and an id a plugin expects but does not
+id a core does not know is ignored, and an id a core expects but does not
 receive is read exactly as `{"type":"none"}`. So an older host paired with a
-newer plugin loses the new actions rather than misfiring them, and a newer host
-paired with an older plugin sends actions the plugin drops.
+newer core loses the new actions rather than misfiring them, and a newer host
+paired with an older core sends actions the core drops.
 
 Every action ships with a real default binding. `{"type":"none"}` is something
 a person chooses, never something Enginehost hands them.
@@ -742,15 +756,15 @@ a person chooses, never something Enginehost hands them.
 
 One button combination never reaches an engine: the host menu shortcut, Select
 + Start out of the box and changeable by the person in Settings, Controller.
-Enginehost sees every pad event before the engine does, in both plugin shapes,
+Enginehost sees every pad event before the engine does, in both core shapes,
 and takes that combination for its own in-game menu. This is not something a
-plugin opts into or can refuse, and it holds whether or not bypass is on.
+core opts into or can refuse, and it holds whether or not bypass is on.
 
-What a plugin sees: the press that completes the combination never arrives, nor
+What a core sees: the press that completes the combination never arrives, nor
 does anything done with those buttons until they are all released. If one of
 them had already been pressed and delivered before the combination completed,
-the host sends that button's release, so a plugin is never left holding a
-button down. No plugin code changes; a plugin that binds Select or Start simply
+the host sends that button's release, so a core is never left holding a
+button down. No core code changes; a core that binds Select or Start simply
 finds that pressing both together belongs to the host.
 
 ### Engines that handle the controller themselves
@@ -758,16 +772,16 @@ finds that pressing both together belongs to the host.
 Ren'Py, Godot, LÖVE and EasyRPG have controller support of their own worth using, so
 their scopes carry a **Bypass controller mappings** toggle, on by default.
 While it is on the runtime intent carries **no** `CONTROLLER_BINDINGS` extra at
-all: the absence of the extra is the contract, and a plugin that finds no map
+all: the absence of the extra is the contract, and a core that finds no map
 behaves exactly as it does on an older host that never sent one. Their default
 maps are the engine's own defaults, so turning bypass off changes nothing until
 the person actually remaps something.
 
-A plugin never needs to read the toggle: it reads the extra, or finds it
+A core never needs to read the toggle: it reads the extra, or finds it
 missing.
 
-Plugin-api plugins receive the mapped actions through `onControllerEvent`.
-Plugins on the android-activity transport receive the resolved map as the
+Plugin-api cores receive the mapped actions through `onControllerEvent`.
+Cores on the android-activity transport receive the resolved map as the
 `dev.enginehost.runtime.CONTROLLER_BINDINGS` extra, a JSON object from action
 id to binding, one of
 
@@ -775,20 +789,20 @@ id to binding, one of
 - `{"type":"axis","axis":<MotionEvent axis>,"direction":-1|0|1}`
 - `{"type":"none"}`
 
-Such a plugin matches incoming pad events against that map and translates each
+Such a core matches incoming pad events against that map and translates each
 action into whatever its engine understands (a keyboard key, an engine input, a
-touch); the translation from action to engine input is the plugin's, the choice
+touch); the translation from action to engine input is the core's, the choice
 of button is the person's.
 
 A digital action bound to an axis with direction `-1` or `+1` fires when that
-axis crosses the plugin's threshold in that sign and releases when it comes
+axis crosses the core's threshold in that sign and releases when it comes
 back, so the four directions can live on a stick or on the hat
 (`AXIS_HAT_X`/`AXIS_HAT_Y`) as easily as on the d-pad's keys. Direction `0` is
 an analogue binding: the axis is read whole, as the stick axes are.
 
 `{"type":"none"}` means the action is bound to nothing, and it is a binding
 like any other rather than a missing entry -- every action appears in the map
-whatever its binding. A plugin treats a `none` action as an input the person
+whatever its binding. A core treats a `none` action as an input the person
 will never send: an engine feature driven entirely by such actions (KiriKiri's
 pointer emulation on `left_x`/`left_y`, say) is off, and nothing raw is read in
 its place.
@@ -814,18 +828,18 @@ bundle whose wrapper is a native or scripted process for a mobile-Linux host.
   Android bundle by mistake. v2 bundles have no `hostType`: their manifest
   lists platforms instead.
 
-This is what lets v1 grow non-Android plugins later without a second manifest
+This is what lets v1 grow non-Android cores later without a second manifest
 format; v2 below is the portable-core route for engines that do not need a
 wrapper at all.
 
 ## Bundle format v2: portable engine bundles (later work, decided 2026-09-11)
 
 Everything above describes **v1**: an Android bundle (dex, an entry class on the
-Android plugin API, often a bundled Activity, `runtime.apk`, `lib/<abi>`). v1
+Android core API, often a bundled Activity, `runtime.apk`, `lib/<abi>`). v1
 stays. It is the right shape for engines that genuinely need Android glue of
 their own, and nothing here deprecates it.
 
-**v2 is a second plugin type, platform-neutral.** The direction (user,
+**v2 is a second core type, platform-neutral.** The direction (user,
 2026-09-11): shift wrapper code into the Enginehost mainline whenever possible,
 so a bundle can be an engine core and nothing else, and the same bundle can one
 day run under a mobile-Linux host.
@@ -845,37 +859,37 @@ day run under a mobile-Linux host.
   hotkey and the trust/verify path. The Android host implements this once;
   a Linux host would implement the same interface once.
 - **The core-facing interface:** a small, versioned C ABI (the contract is the
-  header, shipped with the host and vendored by plugins): create/destroy,
+  header, shipped with the host and vendored by cores): create/destroy,
   frame step, input events, audio callback, save/load hooks, and the
   capability/verdict reporting (SUPPORTED, quirks, UNSUPPORTED_*,
   REQUIRES_WINE) so a core says what it can run before it runs it.
-- **Migration rule:** a v1 plugin becomes v2 by deleting its wrapper, not by
+- **Migration rule:** a v1 core becomes v2 by deleting its wrapper, not by
   rewriting its core. Where a v1 wrapper holds behaviour every engine needs
   (pointer emulation, backlog UI hooks, save-slot UI, font fallback,
   encoding conversion, archive mounts), that behaviour moves into the host
-  mainline first, as a service any plugin type can use.
+  mainline first, as a service any core type can use.
 - **Sequencing:** later work. Nothing in v1 changes now. The prerequisites
-  are: the core-vs-wrapper audit per plugin (which code is Android, which is
+  are: the core-vs-wrapper audit per core (which code is Android, which is
   engine), the host services listed above extracted from wrappers that
   already carry them (KiriKiri's pointer and navigation layer is the first
   candidate), and then the v2 manifest and loader beside the v1 ones. The
   catalog lists both types; the host picks the v2 payload for its platform
   and architecture the way it picks `lib/<abi>` today.
 
-## Sandboxing and the plugin contract (2026-09-25, later work)
+## Sandboxing and the core contract (2026-09-25, later work)
 
-Engine sandbox layer 2 (`docs/engine-sandbox.md`) runs a v1 plugin's
+Engine sandbox layer 2 (`docs/engine-sandbox.md`) runs a v1 core's
 `:runtime` under `android:isolatedProcess="true"` with the host brokering
 all file access. That needs a bundle-manifest signal, since not every
-plugin's native code has been audited or given the file-broker callback
+core's native code has been audited or given the file-broker callback
 seam layer 2 requires (`docs/engine-sandbox.md`'s per-plugin-shape audit):
 a v1 bundle will gain an optional per-capability or per-bundle field
-naming that the plugin's `:runtime` may be started isolated (the exact
+naming that the core's `:runtime` may be started isolated (the exact
 name and shape, e.g. `"isolatable": true`, is decided when the first
-plugin lands it — see `docs/engine-sandbox.md`'s "first milestone").
+core lands it — see `docs/engine-sandbox.md`'s "first milestone").
 Additive and versioned the same way `hostType` is above: an older host
 that does not understand the field ignores it and keeps using the
-unisolated path, and a plugin that omits it is never asked to run
+unisolated path, and a core that omits it is never asked to run
 isolated. Not present in any shipped bundle yet; recorded here so the
 field, when it lands, matches the shape decided in `docs/engine-sandbox.md`
 rather than being improvised in the same change that adds it.
@@ -890,14 +904,14 @@ the game folder's broker is writable for such a bundle and read-only for
 every other (`docs/engine-sandbox.md`, "Saves beside the game"). An in-process
 launch, and a host older than this field, ignore it.
 
-## `runtimeTransport: android-activity` is deprecated for official plugins (2026-09-27)
+## `runtimeTransport: android-activity` is deprecated for official cores (2026-09-27)
 
 Sandbox layer 2 (`docs/engine-sandbox.md`, "Single transport") only fits
 `runtimeTransport: plugin`: an isolated Android service must be a `<service>`,
 never an `<activity>`, so a bundle whose own Activity is what the OS starts
 and resumes cannot be isolated no matter what else is built. The owner's
 decision is not a second isolation mechanism for this transport -- it is
-that official plugins stop using it. Each `android-activity` official plugin
+that official cores stop using it. Each `android-activity` official core
 (currently `enginehost-love2d-plugin`, `enginehost-kirikiri-plugin`,
 `enginehost-nscripter-plugin`, `enginehost-ags-plugin`,
 `enginehost-rpgmaker-mkxp-z-plugin`, and Godot, pending its own audit) is
@@ -908,23 +922,23 @@ interface it already expects, backed by a host-owned Activity instead of its
 own. `runtimeTransport: android-activity` itself is not removed from this
 schema in this pass -- existing shipped bundles on it still load exactly as
 before, and it is not rejected at install or launch time -- but no *new*
-official plugin should be authored against it, and each existing one is
+official core should be authored against it, and each existing one is
 migrated in the order `docs/engine-sandbox.md`'s roadmap item 6 now gives.
 
 **Sandbox support (`isolatable: true`) is a mandatory goal for every official
-plugin**, not an opt-in some plugins get and others skip -- it is what
+core**, not an opt-in some cores get and others skip -- it is what
 "official plugin" means once each engine's migration and file-access audit
 is rig-confirmed. The per-launch "Run unsandboxed?" warning
 (`docs/engine-sandbox.md`, "The sandbox is on by default") is unchanged by
-this decision and keeps showing, on every launch, for every plugin that has
+this decision and keeps showing, on every launch, for every core that has
 not yet reached `isolatable: true` -- it is not weakened, delayed, or made
 conditional on a migration being "in progress."
 
-**Running unsandboxed for custom/third-party plugins is an option the owner
+**Running unsandboxed for custom/third-party cores is an option the owner
 raised, not a decision, and nothing in this pass builds it.** A third-party
-plugin that cannot or does not migrate has no sandbox-off switch today, and
+core that cannot or does not migrate has no sandbox-off switch today, and
 `EngineBundlePackage`'s existing validation
 (`isolatable requires runtimeTransport: plugin`) is unchanged. If a
-deliberate, user-facing way to run such a plugin unsandboxed is ever built,
+deliberate, user-facing way to run such a core unsandboxed is ever built,
 it needs its own owner decision, its own pass of this document, and is out
 of scope here.

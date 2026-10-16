@@ -1,4 +1,4 @@
-# XNA / FNA / MonoGame engine plugin: scoping
+# XNA / FNA / MonoGame core: scoping
 
 Step 1 of the XNA-family effort (the census's new-engine recommendations,
 the family's batch of 18 titles, Droidtop/tracker#23): this page is the
@@ -11,11 +11,11 @@ names but cannot run: `EngineNames.kt:27` maps `xna-fna-monogame` to
 nothing here runs", so today a detected folder comes out `hosted = false`
 (`EngineDetector.kt:88,129`) and Play answers with the cannot-run
 sentence (`DetectedConfig.kt:55`). Making the family runnable therefore
-touches the platform registry row as well as a new plugin repo.
+touches the platform registry row as well as a new core repo.
 
 The evidence behind this scope: `docs/engine-bundle-format.md` and
 `docs/plugin-catalog.md` read in full; `docs/plugin-scaffolds/ags.md`
-(the AGS effort's step 1) as the model for shape and depth; the plugin
+(the AGS effort's step 1) as the model for shape and depth; the core
 API in `plugin-api/src/main/java/dev/enginehost/api/`; the host's launch
 path (`GameRunner.kt`, `EnginehostComponentFactory.kt`,
 `RuntimeActivity.kt`, `PluginCapabilities.kt`, `ControllerBindings.kt`);
@@ -26,7 +26,7 @@ default branches: `FNA-XNA/FNA` (master), `FNA-NET/FNA` (main, with its
 its `MonoGame.Framework.Android.csproj`, `Platform/Android/`,
 `.github/workflows/main.yml`), `MonoGame/MonoGame.Library.OpenAL` (its
 pinned `kcat/openal-soft` submodule), `kcat/openal-soft` (COPYING), and
-`0x0ade/XnaToFna`. The two shipped plugin repos are the structural
+`0x0ade/XnaToFna`. The two shipped core repos are the structural
 precedents, as they were for AGS: `Droidtop/enginehost-godot-plugin`
 (`plugin/4.5`) and `Droidtop/enginehost-kirikiri-plugin`
 (`plugin/stable`).
@@ -72,7 +72,7 @@ the Windows and Linux x64 runners, MonoGame's own
 packs and (on push) deploys the NuGet packages. The upstream is not an
 Android APK, though: MonoGame ships as a **framework that** a game's own
 project compiles against. There is no upstream "player" that opens a
-folder the way AGS Player does -- that role is the plugin's.
+folder the way AGS Player does -- that role is the core's.
 
 **Native libraries.** A MonoGame-based wrapper APK carries three sets
 of native code, all enumerated into the bundle's `files` list by the
@@ -93,7 +93,7 @@ packing step rather than by this page:
 The FNA.NET path instead carries SDL3, FNA3D, FAudio, Theorafile and
 dav1dfile prebuilts from `FNA.NET.NativeAssets`, for arm64-v8a only.
 
-**The games themselves are managed IL, and that decides the plugin's
+**The games themselves are managed IL, and that decides the core's
 shape.** The census's 18 titles are Windows builds: the game's own
 managed assembly (a `.exe` of pure IL), `Content/` XNB assets, and one
 framework's DLLs beside it -- stock XNA 4.0's `Microsoft.Xna.Framework.*`,
@@ -140,8 +140,8 @@ routes the launch through the host-declared `BundledActivityProxy`, and
 `EnginehostComponentFactory.instantiateActivity` (lines 20-79) requires
 `runtimeTransport == "android-activity"`, re-verifies the installed
 bundle, attaches the `resourceApks`, and instantiates the `entrypoint`
-class through the plugin's dex loader with the bundle's `lib/<abi>` on
-its native library path (lines 63-69). The KiriKiri plugin is the
+class through the core's dex loader with the bundle's `lib/<abi>` on
+its native library path (lines 63-69). The KiriKiri core is the
 shipped precedent for this shape, and the AGS plan
 (`docs/plugin-scaffolds/ags.md` (b)) is the full argument.
 
@@ -173,10 +173,10 @@ Mono runtime against the bundle's `lib/<abi>` and managed assemblies,
 then hands over to managed code that constructs the game and its
 `AndroidGameWindow` against itself, preserving the
 `AndroidGameActivity` contract upstream's platform layer asserts on.
-This bootstrap shim is wrapper work in the plugin repo, not host work;
+This bootstrap shim is wrapper work in the core repo, not host work;
 nothing about it widens the sandbox (the engine still runs in the
 `:runtime` process under the app's UID, and an activity-transport
-plugin stays layer 1 per `docs/engine-sandbox.md`).
+core stays layer 1 per `docs/engine-sandbox.md`).
 
 **The alternative, for the record: `plugin-api`.** `MonoGameAndroidGameView`
 is a `GLSurfaceView`, and a `ViewGroup display()` from
@@ -294,13 +294,13 @@ more precisely:
   (`docs/engine-bundle-format.md:252-256`, the godot Spine precedent):
   the notice and licence text in the payload, the component named in
   `licenses`, the openal-soft revision pinned in `source`, and the
-  plugin repository carrying the corresponding source offer the LGPL
-  asks for. This is the first LGPL component in a plugin payload, and
+  core repository carrying the corresponding source offer the LGPL
+  asks for. This is the first LGPL component in a core payload, and
   it is why the bundle's licence list is built from the files read in
   full, not from the census's one-line summary.
 - Unverified so far, to be read in the licence audit step: which ABIs
   `MonoGame.Library.OpenAL` actually ships prebuilts for (the Android
-  rule holds only if all four are there or the plugin builds them from
+  rule holds only if all four are there or the core builds them from
   its pinned submodule), and the .NET for Android runtime's own
   notices. The audit is not done until every bundled component's notice
   has been read -- the same rule the AGS plan set for its native tree.
@@ -308,9 +308,9 @@ more precisely:
   target at all: `Platform/OpenAL.targets` pulls it into DesktopGL
   only, so it is not in the payload.)
 
-## (d) First CI workflow, modeled on the existing plugin repos' own structure
+## (d) First CI workflow, modeled on the existing core repos' own structure
 
-The plugin repo is `Droidtop/enginehost-monogame-plugin`, created when
+The core repo is `Droidtop/enginehost-monogame-plugin`, created when
 this plan executes: a fork of `MonoGame/MonoGame` with the enginehost
 wrapper layered on, per the branch model -- `plugin-core` for the
 wrapper trunk (bundle metadata, the bootstrap Activity, the managed
@@ -391,7 +391,7 @@ detected folder.
   A green build is not proof a game runs, and on-device checking is not
   available from here.
 - **Deliberately untouched in this step:** the engine sandbox
-  (`docs/engine-sandbox.md` -- an activity-transport plugin is layer-1
+  (`docs/engine-sandbox.md` -- an activity-transport core is layer-1
   only until the host-side rewrite that document scopes), CatSystem2,
   the host's detection, naming and controller code, and `vendor/`
   (the platform submodule is pinned, never edited here).

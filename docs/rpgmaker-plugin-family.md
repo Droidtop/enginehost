@@ -1,11 +1,11 @@
 # RPG Maker plugin-family layout
 
-**First rule, for this family as for every engine plugin:** plugin-core is
+**First rule, for this family as for every core:** plugin-core is
 authoritative. Every line is exactly its upstream commit plus plugin-core,
 generated and checked by droidtop-platforms' `tools/plugin_line.py`; nothing
 is authored on a line. See [plugin-lines.md](plugin-lines.md).
 
-RPG Maker is one Enginehost plugin family, not one interpreter. Every engine
+RPG Maker is one Enginehost core family, not one interpreter. Every engine
 bundle below declares `engine: rpgmaker`; Enginehost's normal capability
 resolver combines all installed bundles into that family. No dispatcher bundle
 or umbrella source repository is required.
@@ -28,7 +28,7 @@ branch model where an upstream exists:
 - the upstream-facing branch follows the engine project;
 - `plugin-core` is an orphan branch that contains only the portable
   Android/enginehost changeset: `enginehost/` metadata and integration, the
-  plugin workflow, the repository key document, and the wrapper's hooks into
+  core workflow, the repository key document, and the wrapper's hooks into
   the engine's own Android project (an activity, a manifest, a build file).
   Never engine sources. It builds nothing by itself, so its workflow does
   not run on pushes to it (since 2026-09-03; the previous engine-carrying
@@ -71,7 +71,7 @@ optional top-level `pluginVersion` remains only a plugin-release allowlist.
 
 Runtime-owned options may include Ruby ABI, RTP search paths, entry point,
 renderer, audio, fonts, script preload/postload, input, and named compatibility
-profiles. Plugins must validate their own options and must not allow them to
+profiles. Cores must validate their own options and must not allow them to
 change `engine`, `engineContext`, `engineVersion`, the resolved capability, or
 the authoritative game path.
 
@@ -99,7 +99,7 @@ so enginehost neither bundles them nor downloads them on the user's behalf.
 What enginehost does instead is own them once for the whole family:
 
 - One **RTP store**, kept by the host, with one slot per generation
-  (`2000`, `2003`, `xp`, `vx`, `vxace`). A game whose plugin reports a
+  (`2000`, `2003`, `xp`, `vx`, `vxace`). A game whose core reports a
   missing RTP, or the user from settings, is pointed at the official download
   page (`https://www.rpgmakerweb.com/run-time-package`) and asked to hand the
   downloaded file to enginehost.
@@ -111,11 +111,11 @@ What enginehost does instead is own them once for the whole family:
   Unpacking therefore needs an Inno Setup extractor (innoextract, C++,
   buildable with the NDK) and an NSIS extractor (7-Zip's NSIS handler). A
   user who already has an extracted RTP folder can point at that instead.
-- Every `rpgmaker` plugin receives the slot for its context as the
+- Every `rpgmaker` core receives the slot for its context as the
   `rtpPaths` option, filled in by the host below the game's own config and
-  the caller's, the way detected `runtimeRequirements` are. No plugin knows
-  where the store lives, and no plugin ships or fetches RTP content.
+  the caller's, the way detected `runtimeRequirements` are. No core knows
+  where the store lives, and no core ships or fetches RTP content.
 
 Until the store exists, a game that needs an RTP fails inside the engine with
-the engine's own missing-file message; that is the plugin working correctly
-on incomplete input, not a plugin bug.
+the engine's own missing-file message; that is the core working correctly
+on incomplete input, not a core bug.

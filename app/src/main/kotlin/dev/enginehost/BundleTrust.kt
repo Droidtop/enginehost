@@ -6,7 +6,7 @@ import java.io.FileNotFoundException
 /**
  * The Enginehost signing root's public key, the one anchor of every official
  * chain: `assets/trust/enginehost-root.pub`, a PEM `PUBLIC KEY` block. The
- * owner derives the root from Droidtop Core, which Enginehost never pins
+ * owner derives the root from the Droidtop CA, which Enginehost never pins
  * (Droidtop/tracker#550); its private key stays on the owner's machine. A
  * build without the file pins no root: no official v1 signature can be
  * verified, and [BundleVerifier] keeps accepting the legacy format for new

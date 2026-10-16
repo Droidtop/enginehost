@@ -45,7 +45,7 @@ Unix sockets, netlink and files are untouched: logd, netd and the
 framework need them. The WebView's network stack runs in the app process,
 so the web engines (MV/MZ, HTML, Flash) lose the network with everything
 else. Their game content never used it: they serve the game folder
-through `shouldInterceptRequest`. The MV/MZ plugin's `allowNetwork` option
+through `shouldInterceptRequest`. The MV/MZ core's `allowNetwork` option
 is inert under the sandbox, by the rule above.
 
 Nothing in the host's own `:runtime` code uses the network (catalog,
@@ -108,11 +108,11 @@ differently; `RuntimeActivity`'s dispatch has always been the one
 unconditional check, `if (resolved.plugin.isolatable)`.
 
 A bundle that does not declare it -- everything except the CatSystem2
-milestone below, today -- runs the way every plugin ran before layer 2
+milestone below, today -- runs the way every core ran before layer 2
 existed: in `:runtime`, with this app's own all-files and network access
 for as long as it plays. `LaunchActivity`, the one screen every entry
 point passes through (droidtop's `LAUNCH` intent, Enginehost's own
-library, Game setup's Test), asks about this before any plugin code
+library, Game setup's Test), asks about this before any core code
 runs, on every single launch: a sheet naming what unsandboxed access
 means in plain terms (shared storage and the network, the same as the
 app itself), "Run unsandboxed" and Cancel, Cancel first and so the pad's
@@ -128,28 +128,28 @@ reading silence as consent. Enginehost only; droidtop is unaffected.
 recommendation that users not install unsandboxed plugins" (tracker#482,
 decision 4 on tracker#470). The per-run sheet above is a red warning
 (`Sheet.warning`: red title over a red plate, "Run unsandboxed" in red) and
-recommends not installing engine plugins that cannot run sandboxed.
+recommends not installing cores that cannot run sandboxed.
 `UnsandboxedWarning` asks the same way, Cancel first, before a catalog
 install (`PluginInstaller.install`, which also serves droidtop's
-install-on-launch) and before an update from Plugins (Update, Update all) or
+install-on-launch) and before an update from Cores (Update, Update all) or
 a game page. A bundle picked from storage can only be read once installed,
 so it gets the warning straight after, offering to remove it again first.
 The automatic pass never installs such an update quietly; it stays pending
-for the warning. The Unsandboxed badge on the Plugins and catalog cards is
+for the warning. The Unsandboxed badge on the Cores and catalog cards is
 red. Layer 1's best-effort path (above) is the sandbox library's to replace
 (tracker#470, tracker#26).
 
-### Audit: what breaks per plugin shape
+### Audit: what breaks per core shape
 
-Today every v1 plugin, of both transports, runs inside one process,
+Today every v1 core, of both transports, runs inside one process,
 `:runtime` (`app/src/main/AndroidManifest.xml`, `RuntimeActivity` and
 `BundledActivityProxy`, both `android:process=":runtime"`). That process
 is the app's own UID: full `MANAGE_EXTERNAL_STORAGE`, `INTERNET` (narrowed
 by layer 1's seccomp filter, not by any UID change), and the app's private
 data directory. Layer 2 moves that process's privilege to nothing and
-re-derives, per plugin shape, how it still does its job.
+re-derives, per core shape, how it still does its job.
 
-**`runtimeTransport: activity` plugins are Activities by construction.**
+**`runtimeTransport: activity` cores are Activities by construction.**
 `EnginehostComponentFactory` requires `runtimeTransport == RUNTIME_TRANSPORT_ACTIVITY`
 before it will instantiate a bundle's own Activity class as
 `BundledActivityProxy`, and that Activity is what the OS starts, resumes,
@@ -160,17 +160,17 @@ plugin's own Activity is the window" with "the plugin's own View or engine
 loop runs inside an isolated Service and a host-owned Activity (today's
 `RuntimeActivity`) is what the OS actually starts," the same
 surface-and-input relationship layer 2 already gives plugin-api-transport
-plugins. Until an activity-transport plugin is rewritten to stop being an
-Activity, it stays on layer 1 only. No activity-transport plugin is
+cores. Until an activity-transport core is rewritten to stop being an
+Activity, it stays on layer 1 only. No activity-transport core is
 targeted by the first milestone (see below); this is deliberately later
 work and is called out again in the roadmap.
 
-**`runtimeTransport: plugin` (plugin-api transport) plugins already have
+**`runtimeTransport: plugin` (plugin-api transport) cores already have
 the right shape for a service boundary.** `RuntimeActivity.onCreate` loads
-the bundle's dex with `PluginDexLoader`, constructs the plugin class, and
+the bundle's dex with `PluginDexLoader`, constructs the core class, and
 calls `EnginePlugin.onCreate(EnginePluginSession)` in-process
 (`app/src/main/kotlin/dev/enginehost/RuntimeActivity.kt`). Nothing in
-`EnginePlugin` or `EnginePluginSession` requires an Activity: the plugin
+`EnginePlugin` or `EnginePluginSession` requires an Activity: the core
 gets a `ViewGroup display()` to attach a `View` into, an `EngineHost` for
 host services, and Strings/File for the game path and save directory
 (`plugin-api/src/main/java/dev/enginehost/api/EnginePluginSession.java`).
@@ -181,7 +181,7 @@ that do not survive a process boundary as they are today:
   A `View` object cannot cross Binder; only tokens/surfaces can
   (`Surface`, `SurfaceControl`, `IBinder` for `SurfaceControlViewHost`).
 - `session.gamePath()` and `host().saveDirectory()` are `String`/`File`
-  the plugin is expected to open directly (`new File(gamePath, name)`,
+  the core is expected to open directly (`new File(gamePath, name)`,
   `fopen`). An isolated UID cannot open either: shared-storage paths are
   arbitrated by the FUSE daemon (`sdcardfs`/`MediaProvider` FUSE) against
   the *calling UID's* storage permissions, which an isolated UID never
@@ -190,14 +190,14 @@ that do not survive a process boundary as they are today:
   `0700`-owned by the main UID and unreadable by any other UID, isolated
   or not.
 
-So plugin-api-transport plugins are the shape layer 2 fits without a
+So plugin-api-transport cores are the shape layer 2 fits without a
 second Activity rewrite: everything else in `EnginePlugin` (lifecycle
 calls, controller events, `EngineHost.log/rumbleController/restart/fail`)
 is already ordinary Binder-shaped data, once `display()` and file access
 are replaced. This is why the first milestone (below) targets this
 transport.
 
-**Native engines doing their own `open`/`stat`.** A plugin-api plugin's
+**Native engines doing their own `open`/`stat`.** A plugin-api core's
 JNI layer routinely bypasses `EngineFileSystem` (which exists but is
 explicitly optional, "for engines that do not require mmap/native
 paths") and does POSIX I/O straight from C. CatSystem2 is a concrete,
@@ -215,8 +215,8 @@ it is not a JNI-specific hole, just the same wall reached from C instead
 of `java.io.File`.
 
 **WebView inside an isolated service (HTML, MV/MZ).** Both web-hosted
-plugins already read the game folder through one seam rather than scattered
-`fopen`s: the HTML plugin's `GameServer.shouldInterceptRequest`
+cores already read the game folder through one seam rather than scattered
+`fopen`s: the HTML core's `GameServer.shouldInterceptRequest`
 (`enginehost-html-plugin/app/src/main/java/dev/enginehost/plugin/html/GameServer.java`)
 answers every resource request itself from `File`/`FileInputStream`
 against the game folder, serving the game as `https://game.enginehost.local`
@@ -297,7 +297,7 @@ transport that needs no `Surface` or `SurfaceControlViewHost` handoff at
 all. This does not generalize to a GPU-driven engine (Godot, SDL,
 anything using `GLSurfaceView`/Vulkan), which must use one of the two
 mechanisms above; it is specific to why CatSystem2 is a genuinely small
-first step and not a template for every plugin.
+first step and not a template for every core.
 
 Input travels the direction it already does: `RuntimeControllerRouter`
 normalizes controller/touch events on the host side today and calls
@@ -316,7 +316,7 @@ declared Android permission for any app, isolated or not, and isolated
 processes are already relied on elsewhere (WebView's own render process,
 Chrome) to reach `AAudioService`/`AudioFlinger` for exactly this. Expected
 to work unchanged; the milestone rig check (below) confirms it rather than
-assuming it, since it is the one piece of this plugin's behavior that
+assuming it, since it is the one piece of this core's behavior that
 depends on the isolated UID reaching a system service and not just on
 file/surface plumbing this doc controls directly.
 
@@ -345,12 +345,12 @@ before the milestone lands; see the file service design's "the bundle's
 own files" bullet.
 
 **Saves.** Already narrower than game files: the save directory is
-per-game, host-chosen, and the plugin only ever gets a `File` --
+per-game, host-chosen, and the core only ever gets a `File` --
 `session.host().saveDirectory()` -- and writes under it (CatSystem2:
 `cs2_system_set_save_folder`; MV/MZ and Ren'Py: their own save-path
 option). It moves onto the same host-broker FD path as the game folder,
 scoped read-write instead of read-only, and needs no new design beyond
-"same broker, different open mode, different root." The HTML plugin's
+"same broker, different open mode, different root." The HTML core's
 `LocalStorageBridge` already writes exactly one file
 (`localStorage.json`) there today and is the simplest case to prove the
 broker against.
@@ -405,9 +405,9 @@ which is the entire point.
   would have to intercept every libc entry point an engine's C code might
   call (`open`, `open64`, `openat`, `fopen`, `opendir`, `stat`/`stat64`,
   `access`, ...) uniformly across NDK/bionic versions, and still misses
-  anything a plugin reaches via a statically-linked or vendored libc
-  (several plugins vendor third-party decoders as static libraries). It
-  is also invisible at review time: nothing in the plugin's own source
+  anything a core reaches via a statically-linked or vendored libc
+  (several cores vendor third-party decoders as static libraries). It
+  is also invisible at review time: nothing in the core's own source
   says which calls are intercepted, which conflicts with "one mechanism
   per job, not two" once a per-plugin native shim exists anyway.
 - A PLT/GOT hook (patch each library's import table at load time) is
@@ -419,13 +419,13 @@ which is the entire point.
 - Every native engine already funnels its file access through a small
   number of its own functions, not raw libc calls scattered through game
   logic: CatSystem2 through `cs2_files`/`cs2_saves`, and the pattern holds
-  wherever a plugin has any file abstraction at all (`EngineFileSystem`
-  exists in the Java API for exactly the plugins that use it). Adding one
+  wherever a core has any file abstraction at all (`EngineFileSystem`
+  exists in the Java API for exactly the cores that use it). Adding one
   host-callback seam to that existing layer -- `cs2_files_open` gains an
   optional "open by callback" path that takes a small vtable of
   `list`/`open`/`stat`/`close` function pointers wired from JNI to the
-  Binder broker, used instead of `opendir`/`fopen` when the plugin runs
-  isolated -- is a few dozen lines in one file per plugin, visible in
+  Binder broker, used instead of `opendir`/`fopen` when the core runs
+  isolated -- is a few dozen lines in one file per core, visible in
   review, and does not depend on linker behavior. This is the "VFS layer
   the plugin ABI already has" this doc's audit above found: it already
   exists per-engine in embryonic form (a single files-abstraction module),
@@ -452,11 +452,11 @@ platform, without the objections above:
   rewrites the library's own undefined references, static archives linked
   into it included, so vendored decoders are covered; nothing depends on
   the dynamic linker, `LD_PRELOAD` or patching an import table. It is
-  visible in each plugin's build file.
+  visible in each core's build file.
 - **One implementation, in the host.** The forwarder only forwards: to
   Enginehost's table when one is bound, to libc when not (an in-process
   launch, or an older host). The table is `app/src/main/cpp/isolated_vfs.c`
-  in `libenginehost_sandbox.so`, bound into each plugin library as the
+  in `libenginehost_sandbox.so`, bound into each core library as the
   isolated runtime loads it (`isolated_native_bridge.c` calls the library's
   `enginehost_vfs_bind`). Fixing it fixes every engine at once.
 - **Same paths as in-process.** The isolated runtime is now given the game
@@ -479,7 +479,7 @@ platform, without the objections above:
 - **Limits.** Calls made from inside another shared library are not
   wrapped: an engine that uses one (`libc++_shared.so`, a separately loaded
   SDL) links it statically into the wrapped library. Java code in the
-  plugin cannot use `java.io.File` on these folders from the isolated UID;
+  core cannot use `java.io.File` on these folders from the isolated UID;
   it uses `gameBroker()`/`saveBroker()`. A C++ static initialiser that opens
   a game file while the library is still loading runs before the bind.
 - **Tested.** `app/src/test/native/run.sh` builds the layer exactly as it is
@@ -488,7 +488,7 @@ platform, without the objections above:
   a broker over temporary directories, in CI before the Gradle build.
 
 CatSystem2's and CMVS's own broker seams (`cs2_broker`, `cmvs_broker`) do
-the same job by hand and become a second mechanism once those plugins link
+the same job by hand and become a second mechanism once those cores link
 the forwarder; they are to be replaced by it and deleted, not kept beside it.
 
 #### Engines with a libretro core (2026-10-10)
@@ -501,11 +501,11 @@ one (`PLAYER_TARGET_PLATFORM=libretro`), as does onscripter-yuri
 `plugin-native/libretro/` is the frontend half of the libretro API, once:
 `enginehost_libretro.c` runs the core on its own thread at the frame rate it
 asks for, keeps the newest frame (converted to ARGB_8888 at the size of the
-first one) for the plugin's `step()`, resamples the core's sound into the
+first one) for the core's `step()`, resamples the core's sound into the
 host's audio ring (calling a core that uses `SET_AUDIO_CALLBACK` whenever the
 ring has room), answers input from one RetroPad, a pointer and a mouse, and
-gives core options their defaults overridden by what the plugin passes.
-`LibretroPlugin.java` is the plugin side; a plugin subclasses it to say which
+gives core options their defaults overridden by what the core passes.
+`LibretroPlugin.java` is the core side; a core subclasses it to say which
 contexts it runs, what the core loads, its options and its action-to-button
 map. The core, the frontend and the file layer link into one library. A core
 asking for a GPU context (`SET_HW_RENDER`) is refused, as an isolated process
@@ -564,18 +564,18 @@ a path string ordinary path-based loading APIs accept -- `DexClassLoader`
 for the dex (`PluginDexLoader`, unchanged mechanism, just fed a
 `/proc/self/fd` path instead of a real one) and, for each native
 library, `PluginDexLoader.findLibrary(name)` resolving straight to its
-`/proc/self/fd` path so the plugin's own unmodified
+`/proc/self/fd` path so the core's own unmodified
 `System.loadLibrary(name)` call finds it exactly as it would a real
 directory search. No `android_dlopen_ext`/`ANDROID_DLEXT_USE_LIBRARY_FD`
 native bootstrap needed: `ClassLoader.findLibrary` is a documented,
 ordinary extension point built for exactly this, and going through the
 normal `System.load`/`Runtime.nativeLoad` path (rather than a raw
-`dlopen`) is what keeps native-method resolution working for the plugin's
-own `native` declarations without touching the plugin at all -- a raw
+`dlopen`) is what keeps native-method resolution working for the core's
+own `native` declarations without touching the core at all -- a raw
 `dlopen_ext` call would load the bytes but not register the library
-against the plugin's classloader, leaving every `native` method
+against the core's classloader, leaving every `native` method
 unresolved unless each one were re-bound by hand with `RegisterNatives`,
-which does not scale across plugins. This route needs no minSdk above
+which does not scale across cores. This route needs no minSdk above
 26 (Enginehost's own floor): `DexClassLoader`'s `librarySearchPath`
 constructor argument and `findLibrary` override have existed since
 before `isolatedProcess` did, and `/proc/self/fd` path resolution is
@@ -689,8 +689,8 @@ Work still to land, in order, none of it done yet:
 1. A new isolated `<service>` in `app/src/main/AndroidManifest.xml`
    (`android:process=":runtime_isolated"` or similar, `android:isolatedProcess="true"`,
    `android:exported="false"`), bound by `RuntimeActivity` (or a small
-   successor that keeps owning the window) instead of loading the plugin's
-   dex in-process, gated behind a per-plugin flag so every other plugin's
+   successor that keeps owning the window) instead of loading the core's
+   dex in-process, gated behind a per-plugin flag so every other core's
    `RuntimeActivity` path is unchanged -- see the manifest/ABI addition
    below.
 2. `IEngineFileBroker` AIDL, implemented host-side against the resolved
@@ -703,13 +703,13 @@ Work still to land, in order, none of it done yet:
 4. `cs2_files`'s callback seam in `enginehost-catsystem2-plugin`
    (`src/files.c`, `src/save.c`, wired from a new JNI entry point), on its
    `plugin/0.1` branch, built for both `arm64-v8a` and `x86_64` as every
-   plugin ships.
+   core ships.
 5. The manifest/plugin-contract addition this step's instructions ask
    for: a new optional bundle-manifest field (`docs/engine-bundle-format.md`)
-   naming the plugin's isolation support, e.g. `"isolatable": true` on a
+   naming the core's isolation support, e.g. `"isolatable": true` on a
    capability or bundle, additive and versioned so a host that does not
    understand it (an older Enginehost) ignores it and keeps using the
-   unisolated path, and a plugin that does not declare it is never asked
+   unisolated path, and a core that does not declare it is never asked
    to run isolated. This is a manifest/doc-level decision recorded now;
    it is **not implemented in code this pass** -- landing an unused field
    with no host behavior behind it yet is dead weight, and the host-side
@@ -768,9 +768,9 @@ first frame's.)
 ### Audio
 
 An isolated process cannot reach `AudioFlinger` (dq-sandbox-03, above),
-so a plugin's own audio path can never simply keep working the way its
+so a core's own audio path can never simply keep working the way its
 in-process one does -- unlike file access, where a broker can make a
-real read/write happen on the plugin's behalf, there is no "ask the host
+real read/write happen on the core's behalf, there is no "ask the host
 to open my AAudio stream for me" primitive; AAudio session negotiation
 is bound to the process that opens it. So audio crosses the isolation
 boundary the same way frames do in this milestone (see "First
@@ -786,7 +786,7 @@ as `audioBuffer`, alongside `audioSampleRate` (picked from
 `AudioTrack.getNativeOutputSampleRate`, the host's own real output
 rate). `EngineHost.isolatedAudioBuffer()`/`isolatedAudioSampleRate()`
 (plugin-api, default `null`/`0` so no existing `EngineHost` has to
-change to keep compiling) hand that descriptor and rate to the plugin
+change to keep compiling) hand that descriptor and rate to the core
 exactly like `gameBroker()`/`saveBroker()` do for files. The isolated
 side (`IsolatedRuntimeService.init()`) never opens AAudio: it passes the
 fd straight through to native code.
@@ -819,7 +819,7 @@ boundary. `IsolatedRuntimeHost.destroy()` and `IsolatedRuntimeService`/`close_se
 on both sides tear the bridge down (stop/join the thread, unmap, close
 the fd) whenever the launch itself ends, not only on success.
 
-A host older than API 30, or one that cannot make the shared region at all (or a plugin
+A host older than API 30, or one that cannot make the shared region at all (or a core
 built before this addition, or a game that reaches a broken audio path
 for its own reasons) still plays: `EngineHost.isolatedAudioBuffer()`
 answers `null`, `open_sound_bridged()` logs and returns without ever
@@ -832,7 +832,7 @@ on anything the isolated process cannot reach.
 touching a system service the isolated process cannot reach):**
 
 - **Input** (pad, pointer): already fully host-normalized before it
-  reaches the plugin. `IsolatedRuntimeHost` reads real input in
+  reaches the core. `IsolatedRuntimeHost` reads real input in
   `:runtime` and forwards it over `IEngineRuntimeService.onControllerEvent`/
   `onPointerMove`/`onPointerUp` -- the isolated side never touches
   `InputManager` or a `View`'s own input dispatch at all. No change
@@ -842,8 +842,8 @@ touching a system service the isolated process cannot reach):**
   side asks the host to vibrate rather than holding a `Vibrator` of its
   own. No change needed.
 - **Sensors**: not used by CatSystem2 at all (no accelerometer/gyro call
-  anywhere in `src/` or `jni.c`). Nothing to bridge for this plugin;
-  revisit for a future plugin that does read a sensor.
+  anywhere in `src/` or `jni.c`). Nothing to bridge for this core;
+  revisit for a future core that does read a sensor.
 - **Fonts**: already file-broker-only. `cs2_font_open_beside_via_broker`
   (`src/font.c`) reads a loose font file the same way `cs2_files`/`cs2_save`
   do -- a broker round-trip, no system service (no `FontManager`, no
@@ -977,7 +977,7 @@ still-open death.**
 Host and isolated sides both touched (`IEngineRuntimeService.aidl`,
 `IsolatedRuntimeHost.kt`, `IsolatedRuntimeService.kt`, commit `054b9f4`
 on `main`); nothing changed in `enginehost-catsystem2-plugin`, since
-`EngineStepDriven.step(int[])`'s own contract for a plugin is unchanged
+`EngineStepDriven.step(int[])`'s own contract for a core is unchanged
 -- only the isolated glue's own transport for it changed. Every
 `android.system.Os`/`OsConstants` surface this pass relies on
 (`memfd_create`'s flags parameter, `MFD_ALLOW_SEALING`'s absence from
@@ -1051,7 +1051,7 @@ Scenario Select, a cutscene and a CG scene, reproduced twice -- the
 frame-transfer fix (`054b9f4`) was the actual cause, confirmed rather
 than assumed. Saves are still unverified: the rig could not find how to
 open CatSystem2's own Save UI by controller or touch input; noted as a
-possible CatSystem2 controls/input-mapping gap for that plugin's own
+possible CatSystem2 controls/input-mapping gap for that core's own
 work, not a sandbox issue, and still needs checking once reachable.
 
 emulator-5560 (API 34) still hit `SecurityException: Writable dex file
@@ -1146,8 +1146,8 @@ The `F_GET_SEALS` readback log stays.
 
 Saves are still unverified on a real game: the rig could not find how
 to open CatSystem2's own Save UI by controller or touch input on
-BlueStacks -- flagged as a possible CatSystem2 plugin input-mapping gap
-for that plugin's own controls work, not a sandbox issue, and still
+BlueStacks -- flagged as a possible CatSystem2 core input-mapping gap
+for that core's own controls work, not a sandbox issue, and still
 open.
 
 **dq-sandbox-08: the previous pass's "apparent pass" was the bug, not a
@@ -1165,7 +1165,7 @@ Checked every candidate the coordinator named for a file reaching the
 loader outside `ownedCopy()`'s reach: CatSystem2's own
 `bundle-metadata.json` declares exactly one dex file
 (`"dexFiles": ["classes.dex"]`) and no separate plugin-api jar, ruling
-out a second dex or an extra jar for this plugin specifically; every
+out a second dex or an extra jar for this core specifically; every
 path handed to the loader is built from `dexSources`/`nativeLibrarySources`
 (the sealed copies), never the raw received descriptors, so nothing in
 this app's own Kotlin builds a path from the wrong source. The one real
@@ -1247,7 +1247,7 @@ different mechanism for isolated launches, recorded as such in
 
 **The cost, weighed against the options the instruction offered:**
 `InMemoryDexClassLoader` is `final` and cannot override `findLibrary`
-the way `PluginDexLoader` does, so a plugin's native library can no
+the way `PluginDexLoader` does, so a core's native library can no
 longer bind its own native methods the ordinary way under isolation.
 Of the two named options --
 
@@ -1258,30 +1258,30 @@ Of the two named options --
    in the first place, established back in dq-sandbox-03), so there is
    no such directory to point it at.
 2. A small, versioned plugin-API contract where the host loads the
-   library and the plugin exports a registration entry point that
-   `RegisterNatives`s its own classes given the plugin's `ClassLoader`
-   -- chosen, since CatSystem2 is this project's own plugin and can
+   library and the core exports a registration entry point that
+   `RegisterNatives`s its own classes given the core's `ClassLoader`
+   -- chosen, since CatSystem2 is this project's own core and can
    adopt the contract directly.
 
 New `IsolatedNativeBridge` (Kotlin) + `isolated_native_bridge.c`:
-`dlopen`s the plugin's own `.so` directly (still by descriptor -- a
+`dlopen`s the core's own `.so` directly (still by descriptor -- a
 real `dlopen()` of a real path is not subject to "safer dynamic code
 loading" at all, that check is dex/jar/apk-specific per Android's own
 docs, but *is* still subject to the SELinux denial reopening the
 bundle's own raw fd hits, dq-sandbox-05 -- `ownedCopy()`'s sealed copy
 stays for the native library for exactly that reason, unrelated to
 sealing's original, now-abandoned dex purpose) and `dlsym`s a single,
-fixed, non-JNI-style symbol every isolatable plugin exports --
+fixed, non-JNI-style symbol every isolatable core exports --
 `enginehost_register_natives(JNIEnv*, jclass)`, never named
 `Java_..._method`, so the JVM never tries to auto-bind it -- calling it
-once with the plugin's own `Class` object, already correctly resolved
+once with the core's own `Class` object, already correctly resolved
 by ordinary Java reflection on the Kotlin side. No `FindClass`, so no
 ambiguity about which classloader's native-method table the binding
 lands in. CatSystem2's own implementation
 (`enginehost-catsystem2-plugin` commit `b64134e`, `plugin/0.1`) does
 nothing but call `RegisterNatives` with the same function pointers this
 file already defines for the ordinary JNI auto-binding path -- no
-plugin *behaviour* changed, only how those pointers get bound under
+core *behaviour* changed, only how those pointers get bound under
 isolation. Its static initialiser's own
 `System.loadLibrary("catsystem2")` now catches
 `UnsatisfiedLinkError` -- but a review point caught before any rig
@@ -1294,7 +1294,7 @@ called first, disconnected from this static block entirely. Fixed
 (`enginehost-catsystem2-plugin` commit `a34dee6`): a small
 `isIsolatedProcess()` check, reading `/proc/self/cmdline` the same way
 `EnginehostApplication.isIsolatedRuntimeProcess()` does on the host side
-(this plugin has no dependency on that app code to share the check with
+(this core has no dependency on that app code to share the check with
 directly, so it reads the same information the same way instead) --
 the static block now rethrows unless it is actually running isolated.
 
@@ -1310,7 +1310,7 @@ time, specifically to exercise the `isIsolatedProcess()` fix above.
 **dq-sandbox-10 results: BlueStacks confirmed on the new mechanism, and
 emulator-5560's dex loading is fully clean for the first time -- one
 more path-based open stood in the way of the rest.** BlueStacks: a
-clean pass on two separate plugin builds, the native engine genuinely
+clean pass on two separate core builds, the native engine genuinely
 running (archive key, 25 archives, `main.kcs` booting, 44-57fps), no
 `UnsatisfiedLinkError` anywhere -- confirms both the
 `InMemoryDexClassLoader` switch and the `RegisterNatives` bridge work
@@ -1342,7 +1342,7 @@ writable-dex rejection at all), but two things blocked a full run:
    value, plus a `Content-Length`-vs-actual-bytes mismatch warning,
    since dq-sandbox-10 found nothing in logcat said what either side of
    the comparison actually was.
-2. **With the old plugin build still installed, native library loading
+2. **With the old core build still installed, native library loading
    hit the expected `UnsatisfiedLinkError` -- then a fresh, different
    problem:** an `avc` denial reopening the native library's own sealed
    memfd copy *by path*, for `IsolatedNativeBridge`'s own `dlopen()`
@@ -1357,28 +1357,28 @@ writable-dex rejection at all), but two things blocked a full run:
    read the fd Binder already cleared" reasoning already applied to the
    dex, applied here to the one remaining path-based open in the whole
    isolated launch sequence. Since `IsolatedRuntimeService`, the bridge,
-   and the plugin's own native code all run in the same isolated
+   and the core's own native code all run in the same isolated
    process, the fd crosses as a plain `Int`, no Binder or descriptor
    duplication involved at this hop at all.
 
 Neither fix is confirmed on a rig as of this writing -- dq-sandbox-11
-(emulator-5560, including a plugin update through the UI) is what will
+(emulator-5560, including a core update through the UI) is what will
 say whether the native-library fix actually clears the avc denial and
 whether the digest-mismatch hardening changed anything about this rig's
 own update behaviour.
 
 **Design note, not a bug, recorded so it is not mistaken for a gap
-later:** an isolatable plugin has no unsandboxed launch path at all --
+later:** an isolatable core has no unsandboxed launch path at all --
 consistent with the owner's own sandbox-on-by-default decision (see
 "The sandbox is on by default" above), so `CatSystem2Plugin`'s static
 initializer's own isolation-rethrow branch cannot currently be
-exercised through Enginehost's UI for an isolatable plugin. Left as is:
+exercised through Enginehost's UI for an isolatable core. Left as is:
 the branch is real dead code only in the sense that nothing in this
 app's own UI can reach it today, not because the reasoning is wrong.
 
 **dq-sandbox-11 results: the digest mismatch and the memfd-reopen avc
 denial are BOTH fixed -- and a third, more consequential bug surfaced
-in their place.** Plugin update: fixed, build 60 installed with
+in their place.** Core update: fixed, build 60 installed with
 expected and actual digests matching. `android_dlopen_ext`: fixed, no
 avc at all. But the isolated launch still died, with the exact
 `UnsatisfiedLinkError` `a34dee6`'s fix exists to swallow --
@@ -1451,12 +1451,12 @@ below). On BlueStacks (API 28), CatSystem2 runs its own game logic
 inside `android:isolatedProcess="true"`, under a fresh UID with none of
 the host's permissions, and plays for minutes at a time through real
 menus, a cutscene and a CG scene with no crash. This section is the map
-of what that took, dq by dq, for whoever picks up the next plugin.
+of what that took, dq by dq, for whoever picks up the next core.
 
 **What's confirmed working on a real device, not just CI:**
 
 - **BlueStacks (API 28), fully confirmed end to end:** the isolated
-  service boots, loads the plugin's own dex and native library entirely
+  service boots, loads the core's own dex and native library entirely
   by descriptor, never a path the isolated process resolves itself --
   originally via the plain host-opened descriptor reopened by
   `/proc/self/fd` path (proven since dq-sandbox-03), now via
@@ -1483,7 +1483,7 @@ of what that took, dq by dq, for whoever picks up the next plugin.
   distinct from the app's own there too (99019, 99021, 99005 across
   different runs), and the isolated service does boot and reach ART's
   own dex-loading code -- but no run on this rig has yet produced a
-  plugin that actually finished loading and started playing. What
+  core that actually finished loading and started playing. What
   looked like success in dq-sandbox-07 was a bug (see below), not a
   pass.
 - Game and save file access work end to end through the host-brokered
@@ -1519,7 +1519,7 @@ app-UID-only `codeCacheDir` and onto the isolated-UID-accessible
 `cacheDir`, plus a per-input seal-state assertion log) is reasoned from
 the evidence but **unconfirmed on a rig as of dq-sandbox-09 being
 queued.** The honest status: emulator-5560 has never yet hosted a
-successfully-loaded isolated CatSystem2 plugin. Nothing about
+successfully-loaded isolated CatSystem2 core. Nothing about
 BlueStacks' own confirmed-working status is affected by any of this --
 that platform never depended on `ownedCopy()`, the sealed-memfd path,
 or the API-30+ gate at all.
@@ -1529,7 +1529,7 @@ or the API-30+ gate at all.
 - **Saves are unverified on a real game.** dq-sandbox-06 and
   dq-sandbox-07 both tried and could not find how to open CatSystem2's
   own Save UI by controller or touch input on BlueStacks. This may be a
-  CatSystem2 plugin input-mapping gap (its own controls work, not this
+  CatSystem2 core input-mapping gap (its own controls work, not this
   milestone's), or it may need a different input sequence not yet
   tried -- either way, the actual save/load round-trip this milestone's
   own acceptance criteria calls for has not been demonstrated on a real
@@ -1556,7 +1556,7 @@ or the API-30+ gate at all.
   that had nothing to do with the seal mechanism it was nominally
   testing. See the dedicated emulator-5560 note above for the full
   chain and the current, still-unconfirmed state.
-- **This milestone covers one plugin, on one confirmed platform.**
+- **This milestone covers one core, on one confirmed platform.**
   CatSystem2 was chosen deliberately as the easiest real case (a
   software pixel buffer, no real surface, one native file-access seam)
   -- see "First milestone" above for why. Nothing here has been
@@ -1619,7 +1619,7 @@ CmvsPlugin's own wrapper had no touch input path AT ALL before this pass
 `ScreenView` and the isolated `EngineStepDriven` path. CMVS also had no
 Android audio output at all before this pass, in-process or isolated,
 even though the engine's own `cmvs_session_mix` has supported it since
-before this plugin existed; both the AAudio path and the isolated
+before this core existed; both the AAudio path and the isolated
 shared-ring path were added together rather than adding only the
 isolated half and leaving the in-process launch worse off than the
 isolated one.
@@ -1632,7 +1632,7 @@ host-side (Enginehost) change was needed for any of it -- `isolatable:
 true` in the bundle's own metadata is the whole switch
 (`RuntimeActivity.onCreate`: `if (resolved.plugin.isolatable) return
 startIsolatedRuntime(...)`, no consent prompt and no unsandboxed
-fallback for an isolatable plugin, confirmed by reading Enginehost's own
+fallback for an isolatable core, confirmed by reading Enginehost's own
 source rather than assumed).
 
 Wrapper changes on `enginehost-cmvs-plugin`'s `plugin-core`
@@ -1673,7 +1673,7 @@ isolated process reached and stayed at a distinct uid (`u0_i28`) for
 redrawing on a tap -- `nativePointer`/`nativeTouch` also bind correctly
 now), and logcat showed `cmvs: session open, 1280x720, in start.ps3`
 from the isolated pid with no `UnsatisfiedLinkError` and nothing FATAL.
-A non-CMVS launch (Noble Works, KiriKiri -- a different plugin
+A non-CMVS launch (Noble Works, KiriKiri -- a different core
 repository) was run immediately after as a regression check and reached
 a real composited frame the same way, unaffected by this fix. Full
 account: `coordination/agents/cmvssandbox/LOG.md`.
@@ -1717,7 +1717,7 @@ class BundledActivityProxy : Activity()
 `android:isolatedProcess` attribute (`AndroidManifest.xml:122-125`, compare
 `IsolatedRuntimeService`'s own declaration two entries down at
 `AndroidManifest.xml:137-140`, which does carry both). Setting
-`isolatable: true` in either plugin's `bundle-metadata.json` today would be
+`isolatable: true` in either core's `bundle-metadata.json` today would be
 a no-op read by nothing: `GameRunner` never inspects `isolatable` before
 choosing `BundledActivityProxy`, so the flag would sit there unread and the
 launch would proceed exactly as unsandboxed as it does now, which is worse
@@ -1745,7 +1745,7 @@ next pass through this document does not re-derive it:**
   split does not yet answer: `envdata` (the engine's global settings file)
   is deliberately excluded from the save directory and read and written
   *beside the game* on every launch (`ScriptParser.cpp:359`, `:384` --
-  already called out as an open question in this plugin's own
+  already called out as an open question in this core's own
   `ENGINEHOST.md`, "One file does not"). A broker whose game-folder side is
   read-only, matching CatSystem2 and CMVS, would break that write outright;
   this needs either a narrow write exception for that one file or the
@@ -1766,11 +1766,11 @@ next pass through this document does not re-derive it:**
   single-module broker swap; the actual seam needs its own dedicated audit
   once there is an isolated activity host to route it into.
 
-### Single transport: `android-activity` plugins migrate onto plugin-api, not a parallel isolation path (owner decision, 2026-09-27)
+### Single transport: `android-activity` cores migrate onto plugin-api, not a parallel isolation path (owner decision, 2026-09-27)
 
 The plan this document carried up to commit 2a54421 was to give
-`android-activity` plugins their *own* isolation mechanism: a host-owned
-Activity plus an isolated service the plugin's Activity-shaped code would be
+`android-activity` cores their *own* isolation mechanism: a host-owned
+Activity plus an isolated service the core's Activity-shaped code would be
 rehosted inside, alongside the existing plugin-api mechanism CatSystem2 and
 CMVS already prove. The owner rejected that after this document's own
 roadmap surfaced it: two isolation mechanisms for two transports is exactly
@@ -1778,46 +1778,46 @@ the "two mechanisms for one job" this project's own standing rule (this
 file's earlier sections, and `AGENT-RULES.md`) says not to keep. The
 decision, plainly:
 
-1. **One plugin model for every official plugin.** Enginehost owns the
+1. **One core model for every official core.** Enginehost owns the
    Activity, the window, input and the UI; the engine is a library the
-   plugin's own `EnginePlugin` implementation drives -- `EngineStepDriven`
+   core's own `EnginePlugin` implementation drives -- `EngineStepDriven`
    or a real rendering surface, the file broker, frames, and the audio ring
    -- the exact shape `runtimeTransport: plugin` (CatSystem2, CMVS) already
    has and is already isolatable by construction. There is no second
-   transport to isolate; there is one transport every official plugin is
+   transport to isolate; there is one transport every official core is
    migrated onto.
 2. **Engines that currently own their own Activity (SDL's
    `SDLActivity`/`GameActivity`, KiriKiri's `KR2Activity`, AGS's
    `AGSRuntimeActivity`, mkxp-z's and LOVE's own `MainActivity`/
-   `GameActivity`) are migrated onto the plugin transport** via a
+   `GameActivity`) are migrated onto the core transport** via a
    per-engine-family adapter that presents the engine's own native code
    with the same interface it already expects, backed by the host-provided
    surface and input instead of a real Activity. They stop owning a
    screen; nothing about the engine's own C/C++ changes.
-3. **Sandbox support is a mandatory goal for every official plugin.**
-   `isolatable: true` is not a nice-to-have some plugins opt into -- it is
+3. **Sandbox support is a mandatory goal for every official core.**
+   `isolatable: true` is not a nice-to-have some cores opt into -- it is
    what "official plugin" is now defined to mean, once each engine's own
    migration and file-access audit is done and rig-confirmed. The
    per-launch "Run unsandboxed?" warning (this document, "The sandbox is on
-   by default") stays exactly as it is for as long as any official plugin
+   by default") stays exactly as it is for as long as any official core
    has not yet made that migration: it is the user's awareness guarantee,
    not a setting, and nothing about this decision changes when or how it
    shows.
-4. **Running unsandboxed for custom/third-party plugins is an open option
-   the owner raised, not a decision.** A third-party plugin author who has
+4. **Running unsandboxed for custom/third-party cores is an open option
+   the owner raised, not a decision.** A third-party core author who has
    not done an activity migration and cannot get `isolatable: true` may, in
    principle, need a way to ship anyway -- but this document does not
    propose a mechanism for it, and none is built. `EngineBundlePackage`'s
    existing validation (`isolatable requires runtimeTransport: plugin`)
    is unchanged; there is no sandbox-off switch anywhere in this pass, and
-   the per-launch warning for a plugin that is not isolatable is not
-   conditioned on a plugin's own claim about itself. If this is ever acted
+   the per-launch warning for a core that is not isolatable is not
+   conditioned on a core's own claim about itself. If this is ever acted
    on, it needs its own owner decision and its own pass of this document,
    not an inference from this paragraph.
 
 This does not reopen or contradict the file-access audits already recorded
 above for NScripter and KiriKiri, or the transport/family facts recorded in
-each plugin's own `ENGINEHOST.md` (LOVE's, quoted below) -- it changes what
+each core's own `ENGINEHOST.md` (LOVE's, quoted below) -- it changes what
 those engines are migrated *onto*. Everywhere above that says "the
 activity-isolation rewrite" or "roadmap item 6" now means this migration,
 not a second isolation mechanism; item 6 below is rewritten accordingly.
@@ -1825,11 +1825,11 @@ not a second isolation mechanism; item 6 below is rewritten accordingly.
 #### What actually couples an SDL-based engine to owning an Activity
 
 Checked directly against the vendored SDL2 Android glue in this project's
-own plugin repos (`android_SDL_android.c`, the C side of `org.libsdl.app.SDLActivity`)
+own core repos (`android_SDL_android.c`, the C side of `org.libsdl.app.SDLActivity`)
 rather than assumed from upstream SDL's usual shape, because the answer
 determines how invasive the adapter has to be:
 
-**Confirmed via the plugin repos' own vendored source: SDL's native side never
+**Confirmed via the core repos' own vendored source: SDL's native side never
 hardcodes the Java class it talks to.** `SDL_JAVA_INTERFACE(nativeSetupJNI)`
 (`enginehost-kirikiri-plugin/thirdparty/patch/sdl2/android_SDL_android.c:535`,
 identical shape confirmed present in `enginehost-love2d-plugin`,
@@ -1858,7 +1858,7 @@ and 4 controller methods (`pollInputDevices`, `pollHapticDevices`, `hapticRun`,
 `hapticStop`).
 
 **This means "the engine is built around owning an Activity" is a property of
-each plugin's own vendored `SDLActivity.java` subclass (LOVE's `GameActivity`,
+each core's own vendored `SDLActivity.java` subclass (LOVE's `GameActivity`,
 645 lines; mkxp-z's `MainActivity`, 918 lines; AGS's `AGSRuntimeActivity` plus
 `EngineHostAgsActivity`; KiriKiri's `KR2Activity`), not of the engine's C/C++ or
 of SDL's own native glue.** Nothing in `android_SDL_android.c` calls
@@ -1883,7 +1883,7 @@ window/Activity to act on (`setOrientation`, `minimizeWindow`,
 the adapter answers these as host-mediated no-ops or host-delegated calls
 (orientation is Enginehost's own to decide, not a game's; IME text input
 routes through Enginehost's own soft-keyboard handling the same way any other
-plugin's text entry would, not built in this pass; `openURL`/`requestPermission`
+core's text entry would, not built in this pass; `openURL`/`requestPermission`
 are exactly the kind of thing an isolated, no-permissions process must never
 be handed regardless of transport, so these two answer "denied" unconditionally
 under isolation and are not itself a regression -- an activity-transport SDL
@@ -1911,7 +1911,7 @@ in place of `SDLActivity.onCreate` doing so today. Concretely:
   declared `native` in `SDLActivity.java` and implemented by the same
   `android_SDL_android.c`) are called directly by the adapter's own
   `onControllerEvent`/pointer handling -- `RuntimeControllerRouter` already
-  normalizes pad/touch input host-side for every plugin
+  normalizes pad/touch input host-side for every core
   (`EngineControllerEvent`); the adapter's job is translating that
   normalized event into the SDL key/mouse call an upstream `SDLActivity`
   subclass's own `dispatchKeyEvent`/`onTouchEvent` override would have made,
@@ -1920,7 +1920,7 @@ in place of `SDLActivity.onCreate` doing so today. Concretely:
   `EngineHostAgsActivity.setDigital`, quoted in this repo, already calls
   `SDLActivity.onNativeKeyDown`/`onNativeMouse` directly rather than through
   any Activity input-dispatch path) -- this pass generalizes a pattern this
-  project's own plugins already use, it does not invent a new one.
+  project's own cores already use, it does not invent a new one.
 - **Audio** crosses through the same shared-memory ring `IsolatedAudioBridge`
   already implements for CatSystem2/CMVS (this document, "Audio"), not
   AAudio directly: the adapter's `audioOpen`/`audioWriteShortBuffer`/etc.
@@ -1939,7 +1939,7 @@ in place of `SDLActivity.onCreate` doing so today. Concretely:
   scattered `fopen`, so this is the same shape of seam, not a new kind.
 - **Controller/haptics polling** (`pollInputDevices`, `pollHapticDevices`,
   `hapticRun`/`hapticStop`) already have a host-side answer for every other
-  plugin (`RuntimeControllerRouter`, `EngineHost.rumbleController`) and are
+  core (`RuntimeControllerRouter`, `EngineHost.rumbleController`) and are
   wired the same way, not through Android's `InputManager`/`Vibrator`
   directly (which an isolated UID cannot reach for `Vibrator` the ordinary
   way either -- already solved, this document's "Vibrator: already bridged").
@@ -1969,7 +1969,7 @@ into `IsolatedRuntimeHost.start()` today) creates a `SurfaceView`, waits for
 other AIDL `in`/`out` argument this project already sends across (`ParcelFileDescriptor`,
 `IBinder`s) -- to the isolated service via a new `IEngineRuntimeService`
 method (`setGameSurface(in Surface surface)`, mirroring `setFrameBuffer`'s
-own shape and added the same way: additive, called once, only for a plugin
+own shape and added the same way: additive, called once, only for a core
 whose capability declares it renders onto a surface rather than a pixel
 buffer). The isolated side's `SdlEnginePlugin.getNativeSurface()` returns
 that received `Surface` object directly to the native call site;
@@ -2127,7 +2127,7 @@ Consequences, decided here:
 The owner's answer to the above: "we can sandbox the code ourselves, we
 don't have to have android do it". The engine stays in `:runtime`, so it
 keeps the GPU, the window and audio, and the process confines itself before
-any plugin code loads, after Chromium's Linux broker
+any core code loads, after Chromium's Linux broker
 (`sandbox/linux/syscall_broker`) and minijail's seccomp policies. Since
 2026-10-14 the code is the sandbox library Enginehost shares with droidtop
 (`vendor/sandbox`, bi0shacker001/sandbox, GPL-3.0-or-later, pinned as a
@@ -2250,7 +2250,7 @@ handful of genuinely `SDLActivity`-specific methods (`createSDLSurface()`,
 `getArguments()`, `getLibraries()`) onto the new adapter class instead --
 real, mechanical, and scoped, but touching two vendored files, not one new
 shim class -- or (b) a plugin-api addition letting a non-isolated launch's
-plugin obtain the real host `Activity` (`RuntimeActivity` itself, already a
+core obtain the real host `Activity` (`RuntimeActivity` itself, already a
 genuine, properly attached `FragmentActivity`) through `EnginePluginSession`/
 `EngineHost` -- nullable, isolated launches keep getting `null`, matching
 this document's existing nullable-under-isolation pattern
@@ -2261,13 +2261,13 @@ which is worse than not shipping it, and this document's own "no hacky time
 pressure" and "accuracy over deference" rules say to record the real
 finding rather than force something through to claim the milestone met.
 
-**Status of this pass's actual LOVE work: investigation only, no plugin
+**Status of this pass's actual LOVE work: investigation only, no core
 repo commit.** `enginehost-love2d-plugin` is unchanged. What is built and
 CI-green is the engine-agnostic host-side piece two sections up (`usesSurface()`/
 `setGameSurface()`, `IsolatedRuntimeHost`/`IsolatedRuntimeService`,
 `EnginePlugin`'s two new default methods) -- real, useful regardless of
 which of (a)/(b) above the next pass picks, and already covers the case
-where a plugin's own Surface need is architecturally simple enough not to
+where a core's own Surface need is architecturally simple enough not to
 require `SDLSurface`'s specific machinery at all. The SDL family
 specifically needs the follow-on work named above before a first real
 conversion attempt, not before its design is understood.
@@ -2284,7 +2284,7 @@ chosen as the first plugin-api milestone: smallest surface, not a coin flip.
   repository already carries and does not own outright), and its file
   access shape (PhysFS mounting a `.love` zip or a fused executable) --
   more already-recorded groundwork than any other `android-activity`
-  plugin has.
+  core has.
 - `GameActivity` itself is 645 lines, the smallest of the four SDL-based
   wrapper subclasses checked this pass (mkxp-z's `MainActivity`: 918;
   AGS's own Activity plus `EngineHostAgsActivity`: comparable combined
@@ -2317,7 +2317,7 @@ surface-handoff rig check above actually passing on a real game, the same
 gate CatSystem2's own `isolatable: true` waited on.
 
 
-### Roadmap: the remaining plugins, in order
+### Roadmap: the remaining cores, in order
 
 1. **CatSystem2** (above) -- proves the broker and the native-callback
    seam end to end on the simplest surface shape.
@@ -2342,7 +2342,7 @@ gate CatSystem2's own `isolatable: true` waited on.
 5. **Flash/AIR (`enginehost-flash-air-plugin`)** -- same web-hosted shape
    as above if it also runs inside a WebView-equivalent runtime; audit
    before assuming.
-6. **`runtimeTransport: activity` plugins (SDL/Godot's Activity path:
+6. **`runtimeTransport: activity` cores (SDL/Godot's Activity path:
    `enginehost-love2d-plugin`, `enginehost-kirikiri-plugin`,
    `enginehost-nscripter-plugin`, `enginehost-ags-plugin`,
    `enginehost-rpgmaker-mkxp-z-plugin`, and Godot itself)** migrate onto

@@ -1,20 +1,20 @@
-# LÖVE engine plugin: scaffold plan
+# LÖVE core: scaffold plan
 
 LÖVE is one of the engines the census's new-engine recommendations
 (Droidtop/tracker#26, the batch whose 18 title classes are the coverage
 goal) name for this library. This page is the written plan for its
-Enginehost plugin. It differs from the AGS plan one directory over
-(`docs/plugin-scaffolds/ags.md`) in one thing: the LÖVE plugin already
+Enginehost core. It differs from the AGS plan one directory over
+(`docs/plugin-scaffolds/ags.md`) in one thing: the LÖVE core already
 exists. `Droidtop/enginehost-love2d-plugin` -- a fork of the official
 `love2d/love-android` -- has carried the wrapper since 2026-09-25,
 publishes a bundle on every green push (tags `love2d-11-v1-unstable`,
 `love2d-11-v1-testing` in its release history), and was the first
-SDL-family plugin migrated onto the plugin-api transport. So this step
-is documentation only: no code, no host change, nothing in the plugin
+SDL-family core migrated onto the plugin-api transport. So this step
+is documentation only: no code, no host change, nothing in the core
 repository. The plan records the scaffold's decisions with the evidence
 they were checked against, and maps what remains. The sandbox
 (`docs/engine-sandbox.md`) and CatSystem2 are untouched, as is the host,
-which knew LÖVE before any plugin existed: `EngineDetector.kt`'s `love2d`
+which knew LÖVE before any core existed: `EngineDetector.kt`'s `love2d`
 detection (the `LoveGame` reader in `EngineFormats.kt`, which finds an
 unpacked `main.lua` folder, a `.love` zip, or a fused `love.exe` and
 reads the version the game's own `conf.lua` sets `t.version` to),
@@ -22,7 +22,7 @@ reads the version the game's own `conf.lua` sets `t.version` to),
 `ControllerBindings.kt`'s `love` action set.
 
 The evidence behind this plan: `docs/engine-bundle-format.md` and
-`docs/plugin-catalog.md` read in full; the plugin API in
+`docs/plugin-catalog.md` read in full; the core API in
 `plugin-api/src/main/java/dev/enginehost/api/`; the host's launch path
 (`RuntimeActivity.kt`, `PluginRegistry.kt`, `GameRunner.kt`);
 `docs/engine-sandbox.md`'s "Single transport", "First conversion: LOVE"
@@ -32,7 +32,7 @@ repositories: `Droidtop/enginehost-love2d-plugin` at its `plugin-core`
 `Droidtop/enginehost-rpgmaker-mkxp-z-plugin` and
 `Droidtop/enginehost-rpgmaker-easyrpg-plugin` at their `plugin-core`
 branches as structural references -- the two shipped SDL-family bundles
-whose manifest and workflow shapes the LÖVE plugin follows (both carry
+whose manifest and workflow shapes the LÖVE core follows (both carry
 `.github/workflows/android-plugin.yml` and the same `runtime.apk`
 payload shape).
 
@@ -42,7 +42,7 @@ The engine is `love2d/love` (zlib, `license.txt`). Its Android port is
 `love2d/love-android`: an upstream project in its own right, not a
 community fork -- it is the port whose APKs love2d.org's own releases
 page distributes, with its own wiki and issue tracker -- and it is what
-the plugin fork's `main` tracks. The port's `11.5` tree (release commit
+the core fork's `main` tracks. The port's `11.5` tree (release commit
 `7a32a370`, what the `plugin/11.5` line pins) has this shape:
 
 - `love/` -- an Android **library** module that builds the whole native
@@ -73,7 +73,7 @@ lands (see "what comes next").
 it as `LICENSE.enginehost.txt`). mpg123 and OpenAL Soft are
 **LGPL-2.1-or-later** and ship as their own shared libraries precisely
 so they can be swapped independently -- the bundle's licence table
-(`enginehost/LICENSES.md` in the plugin repo) is the audit, and the
+(`enginehost/LICENSES.md` in the core repo) is the audit, and the
 corresponding source for everything is the branch it was built from. The
 remaining bundled components (SDL2, LuaJIT, FreeType, libogg,
 libvorbis, libtheora, libmodplug, Oboe, ...) keep their own licences,
@@ -98,15 +98,15 @@ inside a bundled Activity). The owner's 2026-09-27 **Single transport**
 decision -- `docs/engine-bundle-format.md`'s "runtimeTransport:
 android-activity is deprecated for official plugins",
 `docs/engine-sandbox.md`'s "Single transport" -- moved every official
-plugin onto `runtimeTransport: plugin-api`, and LOVE was the first
+core onto `runtimeTransport: plugin-api`, and LOVE was the first
 SDL-family conversion (`docs/engine-sandbox.md`, "First conversion:
 LOVE": smallest wrapper of the four SDL engines checked --
 `GameActivity` is 645 lines -- and the most already-recorded
 groundwork). The entrypoint is now `org.love2d.android.EngineHostGamePlugin`
-(`love/src/main/java/`, in the plugin repo), implementing
+(`love/src/main/java/`, in the core repo), implementing
 `dev.enginehost.api.EnginePlugin` (`plugin-api/.../EnginePlugin.java`):
 the host's `RuntimeActivity` owns the window and instantiates the
-plugin through the bundle's dex loader (`RuntimeActivity.kt:116`),
+core through the bundle's dex loader (`RuntimeActivity.kt:116`),
 hands it an `EnginePluginSession` (`RuntimeActivity.kt:88`) and drives
 its lifecycle (`callPlugin`, `RuntimeActivity.kt:221`). The mapping,
 upstream to host:
@@ -117,10 +117,10 @@ upstream to host:
 | `GameActivity.getGamePath()`'s native-called entry | `GameActivity.setEnginehostGame` -- an in-tree seam; when the first plugin-api build left this JNI-called entry unset, the rig caught the NPE (see below) |
 | PhysFS mounts the game | unchanged: a folder by path with a trailing separator, a `.love` or a fused exe by file path -- the wrapper computes exactly that string |
 | saves under the system application-data folder | `EngineHost.saveDirectory()`, handed down as `ENGINEHOST_LOVE_SAVE_PARENT` (the save patch, below) |
-| `SDLActivity`, the Activity Android starts | `RuntimeActivity`; the plugin attaches a real `SDLSurface` into `session.display()`, drives SDL's static lifecycle itself, and the vendored `SDLActivity`/`SDLSurface` carry a scoped line-branch patch routing the genuinely-Activity-shaped calls through `SDLActivity.sHostActivity` = `EngineHost.activity()` |
+| `SDLActivity`, the Activity Android starts | `RuntimeActivity`; the core attaches a real `SDLSurface` into `session.display()`, drives SDL's static lifecycle itself, and the vendored `SDLActivity`/`SDLSurface` carry a scoped line-branch patch routing the genuinely-Activity-shaped calls through `SDLActivity.sHostActivity` = `EngineHost.activity()` |
 | libraries from the app package | `SDL.loadLibrary` for `c++_shared`, `mpg123`, `openal`, `love` -- resolved from the bundle's `lib/<abi>` on the dex loader's native path |
 | the pad, read through SDL's own enumeration | `onControllerEvent`: every event arrives already resolved to LÖVE's own `love.gamepad` name (`love_a`, `love_leftx`, ...), which the wrapper turns into the exact SDL key or axis call |
-| the game ends | `sOnGameEnded` -> `EngineHost.finish()`; unlike the activity transport it replaces, the plugin holds the host object, so `EngineHost.fail(message)` also covers a late engine failure |
+| the game ends | `sOnGameEnded` -> `EngineHost.finish()`; unlike the activity transport it replaces, the core holds the host object, so `EngineHost.fail(message)` also covers a late engine failure |
 
 The seams this adds up to, as the line's own history records them
 (`b58bb121`, "Seams for Enginehost: game path, save folder, both ABIs,
@@ -161,7 +161,7 @@ resource id"; then the transport migration):
   reports each action as the SDL button or axis LÖVE's game code
   already reads -- one mapping UI for every engine, no second
   bypass-vs-map concept; the host menu shortcut (Select+Start out of
-  the box) is reserved as for every plugin.
+  the box) is reserved as for every core.
 
 **Not yet isolatable.** This is the non-isolated half of the Single
 transport migration, deliberately first: it proves the transport change
@@ -256,7 +256,7 @@ device runs none of) is unaffected either way.
 
 ## (d) The first CI workflow, as it shipped
 
-The plugin repo follows the org's branch model: `main` tracks upstream
+The core repo follows the org's branch model: `main` tracks upstream
 (kept fast-forwardable), `plugin-core` is the wrapper changeset alone,
 and `plugin/11.5` is the upstream `11.5` release with `plugin-core`
 merged in and the line's seams applied. Only `plugin/**` branches

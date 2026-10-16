@@ -2,8 +2,8 @@
 """Issue format-v1 signing certificates under the Enginehost signing root (Droidtop/tracker#550).
 
 Run by the owner, on the machine holding the Enginehost signing root's key,
-never in CI. The owner derives that root from Droidtop Core outside this
-repository; Core itself signs nothing Enginehost reads. Everything here is
+never in CI. The owner derives that root from the Droidtop CA outside this
+repository; the CA itself signs nothing Enginehost reads. Everything here is
 reproducible: deriving the root again and running this again yields the same
 signing keys.
 

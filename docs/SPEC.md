@@ -1,10 +1,10 @@
 # Enginehost UI decisions
 
-## Engine plugin line selection
+## Core line selection
 
-Engine version detection may select an installed plugin line only when its
+Engine version detection may select an installed core line only when its
 major and minor components match the detected version. Missing or malformed
-detection, and a detected line with no installed plugin, must not silently
+detection, and a detected line with no installed core, must not silently
 fall back to a nearby line. The host can present nearest installed lines as
 explicit alternatives, but choosing one requires a person to select it.
 
@@ -47,7 +47,7 @@ on Home is lost to a rotation.
 ## Three destinations: Library, Cores, Settings
 
 The app is organised around three destinations, always the same three
-(`Destination`): the Library (Home), Cores (the installed plugins, with
+(`Destination`): the Library (Home), Cores (the installed cores, with
 updates and Add) and Settings (which now also holds Controller). Adding games
 is the Library's one primary action, in its header, not a place. The Library,
 Cores and Settings screens draw a `DestinationBar` around their content: a bar
@@ -61,8 +61,8 @@ content. The hint row names L1/R1 where it has the room (windows 480dp wide and
 up) and the buttons answer everywhere a bar is drawn. Opening another destination
 from Cores or Settings replaces that screen, so back always lands on the
 Library. "Cores" is the destination's name and its heading, with the line that
-cores are the plugins that run a game engine; trust, update and error text keep
-"plugin" for the signed bundle. A Cores screen showing one just-installed plugin
+cores are the cores that run a game engine; trust, update and error text keep
+"plugin" for the signed bundle. A Cores screen showing one just-installed core
 (`EXTRA_BUNDLE`) is opened inside a flow and draws no bar.
 
 ## An empty library leads to a next step
@@ -153,7 +153,7 @@ page itself (`GameSectionsLoader`, drawn by `GameSectionsView`):
   its sandbox state. A fixed build is the per-game override `pluginVersion`.
 - **Update the core**: shown when the catalogs already on the device hold a newer
   build of the core and the game is not fixed to one; it installs through the quiet
-  path Plugins' Update uses, and the same-key approval carries over. It is a row,
+  path Cores' Update uses, and the same-key approval carries over. It is a row,
   not the primary button, so Play stays Play while an update waits.
 - **Options**: one row per option the core declares (`DeclaredOptionsReader`),
   showing the value this game runs on and its source: engine default, the game's own
@@ -211,11 +211,11 @@ open (rig, Enginehost dev-289: input dispatching timed out waiting for the focus
 is filed against the screen that was in front, PluginTrustActivity, because the new window had
 not taken focus yet). A newer redraw drops an older read.
 
-## Add a plugin has Install all
+## Add a core has Install all
 
-After the catalog's cards, when the chosen channel offers two or more plugins that are not
+After the catalog's cards, when the chosen channel offers two or more cores that are not
 installed, "Install all (N)" installs each one's newest build through the same path as its
-card's button, then opens Plugins. It approves nothing (each new plugin waits for its own
+card's button, then opens Cores. It approves nothing (each new core waits for its own
 approval there) and asks first, with the red warning, when any of them cannot run sandboxed.
 The channel stays Stable unless the person changes it, so the one-press path is the stable
 set. It is not offered while the screen picks an engine for one game (tracker#23, the shape

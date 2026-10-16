@@ -131,7 +131,7 @@ object EngineDetector {
         "ags" -> ags(row.id, row, tree)
         "love2d" -> love(row.id, row, tree)
         "gamemaker" -> gameMaker(tree)
-        else -> EngineDetection(row.id, evidence = "Recognized ${row.id}; no Enginehost plugin runs it")
+        else -> EngineDetection(row.id, evidence = "Recognized ${row.id}; no Enginehost core runs it")
     }.copy(hosted = false)
 
     /** Scripting backend as the context, the player's architecture, and the Unity version from its data. */

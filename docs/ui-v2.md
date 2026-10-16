@@ -10,7 +10,7 @@ The owner, 2026-09-28: "Our current UI is INFINITELY better than what we started
 but it's also likely an accumulation of stuff... this very much doesn't feel like software
 an end user should be touching." Enginehost's actual end user rarely opens the app on
 purpose: their main contact with it is "a game launched from my frontend" (droidtop, or
-another caller). The exceptions are occasional: approving a new plugin, picking up an
+another caller). The exceptions are occasional: approving a new core, picking up an
 update, reporting a game that misbehaves. Everything in this app should read from that
 person's side, not from the side of whoever is verifying a signing key.
 
@@ -21,17 +21,17 @@ vocabulary and coverage gaps below.
 
 ## Landed: the updater rework (Droidtop/tracker#23)
 
-Home > Plugins now opens the installed list (`PluginTrustActivity`, titled Plugins). Add in its
-header opens the catalog (titled Add a plugin), which no longer has a button back to the list. The
+Home > Cores now opens the installed list (`PluginTrustActivity`, titled Cores). Add in its
+header opens the catalog (titled Add a core), which no longer has a button back to the list. The
 installed list comes first and Updates after it (owner, 2026-09-29: the screen opens on what the
-person has, not on churn); each row names the plugin's line and the version it updates to, the same
+person has, not on churn); each row names the core's line and the version it updates to, the same
 line naming the installed cards use ("Ren'Py 8.5.x: 1.0.1-2", not "Ren'Py: build N"), with one
 Update per row and an Update all that is shown whenever any update exists, pad-reachable like every
 other button. They install through `PluginInstaller.installQuietly`, the same path the automatic
 pass uses. An approval carries to
 an update signed by the same key from the same repository (`PluginTrustStore.carryApproval`); a
 different key, a different repository or a denied build still asks, and the installer still refuses
-anything but a strictly newer build. Each card says whether the plugin runs in a sandbox.
+anything but a strictly newer build. Each card says whether the core runs in a sandbox.
 
 ## 0. Raw internal engine ids in the configurator (rig-confirmed, highest priority)
 
@@ -58,7 +58,7 @@ behind the same disclosure.
 
 Task: `tasks/p1-v2-eh-configurator-plain-names.md`.
 
-## 1. The Plugins entry is backwards
+## 1. The Cores entry is backwards
 
 **Today:** Home's "Plugins" button (`MainActivity.kt:52-54`, `pluginCatalogButton`) opens
 `PluginCatalogActivity` directly — a browse-every-release, manage-sources, quick-add-third-party-repo
@@ -66,13 +66,13 @@ screen. The list of what is actually *installed*, and the approve/deny/uninstall
 tap further in, behind a secondary "Manage plugins" button (`PluginCatalogActivity.kt:88-90`,
 `installedPluginsButton` → `PluginTrustActivity`).
 
-For someone who almost never adds a plugin, this means the app's main plugin door opens onto a
+For someone who almost never adds a core, this means the app's main core door opens onto a
 release catalog, source list and Quick add panel before they ever see what they have.
 
-**Before:** Home → Plugins → catalog (browse/sources/quick-add) → *(button)* → installed list (trust,
+**Before:** Home → Cores → catalog (browse/sources/quick-add) → *(button)* → installed list (trust,
 approve, uninstall).
 
-**After:** Home → Plugins → installed list, with badges and update state on each card, and one
+**After:** Home → Cores → installed list, with badges and update state on each card, and one
 **Add** action that opens the catalog. The catalog becomes the secondary screen, reached only when
 someone actually wants to browse or add — exactly the owner's 2026-09-27 direction
 (`/root/coordination/opencode/tasks/p1-eh-updater-rework.md`, point 1), not yet built.
@@ -86,11 +86,11 @@ Task: `tasks/p1-v2-eh-plugins-installed-first.md`.
 ("N plugin updates are available") that deep-links into the catalog — where an update is just
 one more state a release card can be in (`PluginCatalogActivity.kt:571-604`, the button reads
 "Update to build N"), mixed in among every other release, official or not, installed or not.
-There is no "Updates" list, and no "Update all". Updating three plugins means finding each one's
+There is no "Updates" list, and no "Update all". Updating three cores means finding each one's
 card in the full catalog and tapping it three times.
 
 **After:** a dedicated Updates section on the (now-primary) installed-plugins screen: every
-plugin with a newer signed build from its own origin, "Update all" plus per-row update, nothing
+core with a newer signed build from its own origin, "Update all" plus per-row update, nothing
 else mixed in. The full catalog stays reachable from Add for anyone who wants to browse past what
 they already run.
 
@@ -105,7 +105,7 @@ so the replacement is unapproved until the user approves that exact new archive.
 update, even a patch release from the exact origin and key someone already trusted, is a fresh
 approval prompt.
 
-The owner's spec (updater-rework task, point 3) asks for the opposite: approving a plugin trusts
+The owner's spec (updater-rework task, point 3) asks for the opposite: approving a core trusts
 future updates signed with the *same* key; a key or origin change still prompts. That is a real
 security property (verified signature continuity), not a weakening — it removes a prompt that
 teaches "tap approve" reflexively without changing what is actually being verified.
@@ -121,11 +121,11 @@ prompt; downgrade → warn.
 ## 4. Sandboxing is a real property with no badge
 
 **Today:** `InstalledPlugin.isolatable` and `EngineBundlePackage.isolatable`
-(`PluginRegistry.kt:42`, `EngineBundlePackage.kt:38-39`) already carry whether a plugin runs
+(`PluginRegistry.kt:42`, `EngineBundlePackage.kt:38-39`) already carry whether a core runs
 isolated, and `LaunchActivity.kt:153` already gates the extra unsandboxed-launch warning on it.
 But `PluginTrustActivity`'s own card — the one screen whose whole job is "should I trust this
 plugin" — shows only the trust-provenance badge (Official / Third-party / Community / Ultimate)
-and never says whether the code inside runs isolated. Deciding to approve a plugin is exactly
+and never says whether the code inside runs isolated. Deciding to approve a core is exactly
 where "does this run in its own process" belongs.
 
 **After:** a second, small "Supports sandboxing" (or "Runs unsandboxed") badge on every installed
@@ -154,16 +154,16 @@ Two real gaps sit next to it, both visible on the rig:
   security-relevant allow/block list buried in irrelevant system apps, named by package id, is
   exactly the "internals exposed rather than tasks" pattern, on the one screen where getting the
   right app matters most.
-- **No plugin is approved by default, even Official ones** (`eh3-trust.png`): every bundled,
-  Official-badged plugin on a fresh install shows "Trust: Waiting for your approval", so the
-  first visit to Plugins is a wall of identical Approve/Deny/Uninstall decisions before anything
+- **No core is approved by default, even Official ones** (`eh3-trust.png`): every bundled,
+  Official-badged core on a fresh install shows "Trust: Waiting for your approval", so the
+  first visit to Cores is a wall of identical Approve/Deny/Uninstall decisions before anything
   can run. Deciding to trust Official releases as a group (a "Trust all Official" action, or
   auto-approving Official on install, which is a straightforward provenance check the app already
   makes) would remove that wall without touching third-party or Community trust, which should
   stay exactly as deliberate as it is now.
 
 Task: `tasks/p2-v2-eh-caller-picker-filter.md` (Add an app), `tasks/p2-v2-eh-official-trust-default.md`
-(bulk/default trust for Official plugins). No task for the Allow/Ask/Block state itself — it
+(bulk/default trust for Official cores). No task for the Allow/Ask/Block state itself — it
 already does what was asked.
 
 ## 6. Raw internals in plain settings rows
@@ -175,7 +175,7 @@ already does what was asked.
   to check for an update. The commit hash answers "which platforms snapshot shipped in this
   build", a question only someone debugging a classification dispute asks.
 - `PluginTrustActivity`'s build line (`PluginTrustActivity.kt:63-67`) always shows
-  `owner/repo` for the origin next to the version, even for Official plugins where the badge
+  `owner/repo` for the origin next to the version, even for Official cores where the badge
   already says "Official" — the repo slug adds nothing for that read, only for Community/Third-party.
 
 Both are minor next to items 1-5, but they are exactly the "accumulation" pattern the owner named:

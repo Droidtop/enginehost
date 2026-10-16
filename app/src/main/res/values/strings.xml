@@ -44,7 +44,7 @@
     <string name="nav_settings">Settings</string>
     <string name="hint_sections">Sections</string>
     <string name="enginehost_settings">Settings</string>
-    <string name="browse_plugins">Plugins</string>
+    <string name="browse_plugins">Cores</string>
     <string name="needs_native_access">Launching needs folder access; game setup still works without it</string>
     <string name="game_folder_unavailable">That game folder is not available right now</string>
     <string name="remove_game_title">Remove from Enginehost?</string>
@@ -59,7 +59,7 @@
     <string name="action_edit_config">Game setup</string>
     <string name="action_remove">Remove from list</string>
     <string name="launch_needs_config">A few details could not be read from the game. Check them, then save or test.</string>
-    <string name="unhosted_engine">This is a %1$s game. No Enginehost plugin runs %1$s games, so it cannot be started here.</string>
+    <string name="unhosted_engine">This is a %1$s game. No Enginehost core runs %1$s games, so it cannot be started here.</string>
     <string name="unhosted_unity">This is a Unity game%1$s. Enginehost cannot run it: Unity\'s engine is closed source, and no Unity runtime exists for Android to run the game with.</string>
     <string name="unhosted_unity_il2cpp">This is a Unity game%1$s, built with IL2CPP for %2$s. Enginehost cannot run it: IL2CPP turned the game\'s scripts into machine code for that processor, and Unity\'s engine is closed source, so there is nothing an Android runtime could load in its place.</string>
     <string name="unhosted_unity_mono">This is a Unity game%1$s with Mono scripts, built for %2$s. Enginehost cannot run it: the scripts themselves are portable .NET, but they need Unity\'s own engine, which is closed source and comes with the game only as that PC player. No Unity runtime exists for Android to run them with.</string>
@@ -120,7 +120,7 @@
     <string name="platform_archive">Archive</string>
     <string name="platform_unknown">Not recognised</string>
     <string name="support_runs">Runs here</string>
-    <string name="support_plugin">Needs a plugin</string>
+    <string name="support_plugin">Needs a core</string>
     <string name="support_none">Not supported here</string>
     <string name="sort_name">Name</string>
     <string name="sort_added">Recently added</string>
@@ -136,15 +136,15 @@
     <string name="arch_dos">DOS</string>
     <string name="arch_dotnet">.NET</string>
 
-    <!-- Plugin install progress -->
+    <!-- Core install progress -->
     <string name="downloading_progress">Downloading… %2$d of %3$d MB</string>
     <string name="downloading_progress_unknown">Downloading… %2$d MB</string>
     <string name="installing">Installing…</string>
 
-    <!-- Plugin trust -->
+    <!-- Core trust -->
     <string name="trust_title">Cores</string>
-    <string name="trust_intro">Cores are the plugins that run a game engine. A plugin runs inside Enginehost with its file access, so approve the ones you trust.</string>
-    <string name="trust_empty">No plugins installed yet. Use Add to find some.</string>
+    <string name="trust_intro">Cores run game engines, the way RetroArch cores run emulators. A core runs inside Enginehost with its file access, so approve the ones you trust.</string>
+    <string name="trust_empty">No cores installed yet. Use Add to find some.</string>
     <string name="updates_heading">Updates</string>
     <string name="update_all">Update all</string>
     <string name="install_all">Install all (%1$d)</string>
@@ -178,18 +178,18 @@
     <string name="deny">Deny</string>
     <string name="uninstall">Uninstall</string>
 
-    <!-- Plugin catalog -->
-    <string name="catalog_title">Add a plugin</string>
-    <string name="catalog_intro">One plugin per engine. Install what your games need.</string>
-    <string name="origin_url_hint">https://github.com/owner/plugin-repo</string>
+    <!-- Core catalog -->
+    <string name="catalog_title">Add a core</string>
+    <string name="catalog_intro">One core per engine. Install what your games need.</string>
+    <string name="origin_url_hint">https://github.com/owner/repo</string>
     <string name="add_custom_origin">Add</string>
-    <string name="origin_added">Source added. Refresh to see its plugins.</string>
+    <string name="origin_added">Source added. Refresh to see its cores.</string>
     <string name="origin_key_import_failed">Could not import the repository key</string>
     <string name="install_from_file">Install from a file</string>
     <string name="refresh_all">Refresh</string>
     <string name="refreshing">Refreshing…</string>
     <string name="refreshing_message">Checking for releases…</string>
-    <string name="refreshed_ok">Every installed plugin is up to date.</string>
+    <string name="refreshed_ok">Every installed core is up to date.</string>
     <string name="refreshed_partial">Refreshed; %1$s unavailable — %2$s</string>
     <string name="catalog_rate_limited_until">GitHub rate limit, try again after %1$s.</string>
     <string name="catalog_rate_limited">GitHub rate limit reached; try again later.</string>
@@ -198,11 +198,11 @@
     <string name="origins_heading">Sources</string>
     <string name="sources_toggle">Sources (%1$d)</string>
     <string name="sources_hide">Hide sources</string>
-    <string name="filtered_compatible">Plugins that run this game.</string>
-    <string name="filtered_no_match">Nothing published runs this game yet. Every plugin is listed.</string>
-    <string name="filtered_missing_component">This game needs %1$s, which no plugin here provides. %2$s</string>
-    <string name="component_carried">Plugins here carry %1$s %2$s.</string>
-    <string name="component_carried_none">No plugin here carries %1$s.</string>
+    <string name="filtered_compatible">Cores that run this game.</string>
+    <string name="filtered_no_match">Nothing published runs this game yet. Every core is listed.</string>
+    <string name="filtered_missing_component">This game needs %1$s, which no core here provides. %2$s</string>
+    <string name="component_carried">Cores here carry %1$s %2$s.</string>
+    <string name="component_carried_none">No core here carries %1$s.</string>
     <string name="component_title">%1$s %2$s runtime</string>
     <string name="component_serves">For %1$s %2$s</string>
     <string name="component_license_line">Its own licence: %1$s. You read it before you allow it.</string>
@@ -215,7 +215,7 @@
     <string name="releases_not_loaded">Not loaded yet. Refresh to fetch releases.</string>
     <string name="releases_none_published">Nothing published yet. Check again later.</string>
     <string name="releases_unavailable">The catalog could not be loaded. %1$s</string>
-    <string name="releases_stream_empty">No plugins on the %1$s channel yet.</string>
+    <string name="releases_stream_empty">No cores on the %1$s channel yet.</string>
     <string name="switch_to_stream">Switch to %1$s</string>
     <string name="catalog_stream_label">Channel</string>
     <string name="installed">Installed</string>
@@ -237,15 +237,15 @@
     <string name="origins_all_heading">All sources</string>
     <string name="sources_toggle_third_party">Sources (%1$d) · %2$d to quick add</string>
     <string name="quick_add_heading">Quick add third-party repositories</string>
-    <string name="quick_add_intro">Repositories Droidtop lists with their maintainer and signing key. Listed is not reviewed: each plugin still asks for your approval before it runs, and none is marked Official.</string>
+    <string name="quick_add_intro">Repositories Droidtop lists with their maintainer and signing key. Listed is not reviewed: each core still asks for your approval before it runs, and none is marked Official.</string>
     <string name="quick_add_empty">No third-party repositories are listed yet.</string>
     <string name="quick_add_not_loaded">Refresh to load the list.</string>
     <string name="quick_add_maintainer">Maintained by %1$s</string>
     <string name="quick_add_added">Added</string>
-    <string name="quick_add_delisted">No longer listed. Its plugins keep working until you remove it.</string>
+    <string name="quick_add_delisted">No longer listed. Its cores keep working until you remove it.</string>
     <string name="quick_add_add">Add</string>
     <string name="quick_add_prompt_title">Add %1$s?</string>
-    <string name="quick_add_prompt_message">Maintained by %1$s, not by Droidtop.\n\nSigning key\n%2$s\n\nDroidtop lists who maintains this repository and which key signs it; it has not reviewed the plugins. Each one still asks for your approval before it runs, and none of them is marked Official.</string>
+    <string name="quick_add_prompt_message">Maintained by %1$s, not by Droidtop.\n\nSigning key\n%2$s\n\nDroidtop lists who maintains this repository and which key signs it; it has not reviewed the cores. Each one still asks for your approval before it runs, and none of them is marked Official.</string>
     <string name="quick_add_trust">Trust this key and add</string>
     <string name="quick_add_adding">Checking the repository\'s key…</string>
     <string name="quick_add_done">%1$s added.</string>
@@ -254,9 +254,9 @@
     <string name="origin_key_review">Review the new key</string>
     <string name="origin_key_changed_unlisted">The third-party list does not name this key. It can be accepted once Droidtop lists it.</string>
     <string name="origin_key_changed_title">New key for %1$s</string>
-    <string name="origin_key_changed_message">Pinned key\n%1$s\n\nNow published\n%2$s\n\nEnginehost cannot tell a planned key change from someone else taking the repository over. Accepting treats it as a new source: plugins installed from it under the old key stop running until you install them again and approve them.</string>
+    <string name="origin_key_changed_message">Pinned key\n%1$s\n\nNow published\n%2$s\n\nEnginehost cannot tell a planned key change from someone else taking the repository over. Accepting treats it as a new source: cores installed from it under the old key stop running until you install them again and approve them.</string>
     <string name="origin_key_changed_accept">Trust the new key</string>
-    <string name="origin_key_replaced">New key pinned. Install this source\'s plugins again to keep using them.</string>
+    <string name="origin_key_replaced">New key pinned. Install this source\'s cores again to keep using them.</string>
     <string name="verifying_bundle">Verifying…</string>
 
     <!-- Settings -->
@@ -316,7 +316,7 @@
     <string name="choose_folder">Choose folder</string>
     <string name="migrate_saves">Move old saves here</string>
     <string name="use_default_internal">Use internal storage</string>
-    <string name="engine_save_none_installed">No plugins installed yet.</string>
+    <string name="engine_save_none_installed">No cores installed yet.</string>
     <string name="engine_save_uses_shared">Shared folder</string>
     <string name="use_shared_save_folder">Use the shared folder</string>
     <string name="browser_start">Browse from</string>
@@ -407,7 +407,7 @@
     <string name="choose_game_folder">Choose game folder</string>
     <string name="no_folder_selected">No folder chosen</string>
     <string name="detection_waiting">Detection starts once a folder is chosen.</string>
-    <string name="browse_all_plugin_engines">Choose the engine from the plugin list</string>
+    <string name="browse_all_plugin_engines">Choose the engine from the core list</string>
     <string name="label_engine_family">Engine</string>
     <string name="label_engine_context">Variant</string>
     <string name="label_engine_version">Engine version</string>
@@ -415,15 +415,15 @@
     <string name="label_runtimes">Script engine the game carries</string>
     <string name="variant_standard">Standard</string>
     <string name="game_folder_line">Folder: %1$s · show location</string>
-    <string name="label_plugin_versions">Plugin builds</string>
+    <string name="label_plugin_versions">Core builds</string>
     <string name="label_exec_file">Entry file</string>
     <string name="label_options">Options</string>
-    <string name="options_help">Engine-specific settings, passed to the plugin as written.</string>
+    <string name="options_help">Engine-specific settings, passed to the core as written.</string>
     <string name="value_not_set">Not set</string>
     <string name="pick_engine_title">Engine</string>
     <string name="pick_context_title">Variant</string>
     <string name="pick_runtimes_title">Script engine the game carries</string>
-    <string name="pick_plugin_version_title">Plugin builds</string>
+    <string name="pick_plugin_version_title">Core builds</string>
     <string name="pick_exec_title">Entry file</string>
     <string name="other_custom">Other…</string>
     <string name="custom_constraint">Custom…</string>
@@ -434,7 +434,7 @@
     <string name="exec_up">.. (up one folder)</string>
     <string name="exec_unavailable">This folder cannot be browsed; type the file\'s relative path instead.</string>
     <string name="ok">OK</string>
-    <string name="no_installed_choices">No installed plugin offers choices here; enter a value.</string>
+    <string name="no_installed_choices">No installed core offers choices here; enter a value.</string>
     <string name="add_option">Add option</string>
     <string name="option_custom">Custom option…</string>
     <string name="option_key_prompt">Option key</string>
@@ -456,8 +456,8 @@
     <string name="ignored_invalid_caller">Ignored an invalid caller config: %1$s</string>
     <string name="scanning_selected">Reading the folder…</string>
     <string name="scanning_supplied">Reading the folder…</string>
-    <string name="engine_not_identified">Engine not recognised. Choose it from the plugin list or enter it.</string>
-    <string name="detection_failed_choose">Could not read the folder: %1$s. Choose the engine from the plugin list.</string>
+    <string name="engine_not_identified">Engine not recognised. Choose it from the core list or enter it.</string>
+    <string name="detection_failed_choose">Could not read the folder: %1$s. Choose the engine from the core list.</string>
     <string name="detection_failed_manual">Could not read the folder: %1$s. Enter the engine.</string>
     <string name="detected_engine">%1$s · %2$s</string>
     <string name="plugin_selected_manually">Engine chosen by hand; check the version before saving.</string>
@@ -490,7 +490,7 @@
         <item>Every week</item>
         <item>Every month</item>
     </string-array>
-    <string name="updates_stream_label">Plugin releases</string>
+    <string name="updates_stream_label">Core releases</string>
     <string-array name="plugin_stream_entries">
         <item>Stable</item>
         <item>Testing</item>
@@ -499,10 +499,10 @@
     <string name="updates_unmetered_only">Only on Wi‑Fi</string>
     <string name="updates_last_checked">Last checked %1$s</string>
     <string name="updates_never_checked">Not checked yet</string>
-    <string name="updates_install_plugins_automatically">Install plugin updates automatically</string>
+    <string name="updates_install_plugins_automatically">Install core updates automatically</string>
 
-    <!-- GitHub token for plugin sources -->
-    <string name="github_token_row">GitHub token for plugin sources</string>
+    <!-- GitHub token for core sources -->
+    <string name="github_token_row">GitHub token for core sources</string>
     <string name="github_token_hint">Not set — updates use the public rate</string>
     <string name="github_token_set">Set token</string>
     <string name="github_token_edit">Edit</string>
@@ -544,12 +544,12 @@
     <string name="report_engine_hint">Engine and version</string>
     <string name="report_symptom_label">What happens</string>
     <string name="report_details_hint">Anything else worth knowing</string>
-    <string name="report_environment_heading">Plugin and device</string>
+    <string name="report_environment_heading">Core and device</string>
     <string name="report_log_heading">Log</string>
     <string name="report_include_log">Include the log, recent events and crash data</string>
     <string name="report_include_log_note">Without the log and crash data, a report is unlikely to be fixed: it says what the engine actually did, and nobody else has your copy of the game.</string>
     <string name="report_log_hint">No log was found for this game</string>
-    <string name="report_no_plugin">No plugin resolved</string>
+    <string name="report_no_plugin">No core resolved</string>
     <string name="report_share">Share report</string>
     <string name="report_share_note">No account needed. Send it by email or message, or paste it wherever you got Enginehost from.</string>
     <string name="report_share_subject">Enginehost problem: %1$s</string>
@@ -578,20 +578,20 @@
     </string-array>
 
     <plurals name="plugin_updates_available">
-        <item quantity="one">%d plugin update is available</item>
-        <item quantity="other">%d plugin updates are available</item>
+        <item quantity="one">%d core update is available</item>
+        <item quantity="other">%d core updates are available</item>
     </plurals>
 
     <plurals name="stream_plugin_count">
-        <item quantity="one">%1$s has %2$d plugin</item>
-        <item quantity="other">%1$s has %2$d plugins</item>
+        <item quantity="one">%1$s has %2$d core</item>
+        <item quantity="other">%1$s has %2$d cores</item>
     </plurals>
     <string name="launch_needs_all_files">Enginehost is not allowed to use all files, which it needs to read games and keep their saves. Allow it in Android\'s settings (Apps, Enginehost, All files access), then try again.</string>
     <string name="launch_save_folder_unusable">Enginehost cannot keep saves in %1$s: the folder cannot be created or written to. If it is on a memory card, check that the card is inserted and mounted, or choose another save folder in Enginehost\'s settings, then try again.</string>
     <string name="sandbox_consent_title">Warning: this engine runs without a sandbox</string>
-    <string name="sandbox_consent_message">%1$s has no sandboxed runtime yet. Run it anyway and its code has Enginehost\'s own access while it runs: it can read and write anything on shared storage and use the network, the same as the app itself. We recommend not installing engine plugins that cannot run sandboxed. This is asked every time; nothing is remembered.</string>
-    <string name="unsandboxed_install_title">Warning: this plugin can\'t run sandboxed</string>
-    <string name="unsandboxed_install_message">%1$s can\'t run in Enginehost\'s sandbox. While a game plays, its code has Enginehost\'s own access: it can read and write anything on shared storage and use the network. We recommend not installing engine plugins that cannot run sandboxed.</string>
+    <string name="sandbox_consent_message">%1$s has no sandboxed runtime yet. Run it anyway and its code has Enginehost\'s own access while it runs: it can read and write anything on shared storage and use the network, the same as the app itself. We recommend not installing cores that cannot run sandboxed. This is asked every time; nothing is remembered.</string>
+    <string name="unsandboxed_install_title">Warning: this core can\'t run sandboxed</string>
+    <string name="unsandboxed_install_message">%1$s can\'t run in Enginehost\'s sandbox. While a game plays, its code has Enginehost\'s own access: it can read and write anything on shared storage and use the network. We recommend not installing cores that cannot run sandboxed.</string>
     <string name="unsandboxed_install_anyway">Install anyway</string>
     <string name="unsandboxed_install_cancelled">Not installed</string>
     <string name="unsandboxed_remove">Remove it</string>
