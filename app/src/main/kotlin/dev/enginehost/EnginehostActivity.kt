@@ -5,6 +5,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.widget.AdapterView
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
@@ -228,9 +229,21 @@ abstract class EnginehostActivity : AppCompatActivity() {
         return if (window.decorView.isInTouchMode) primaryAction() ?: focused else focused ?: primaryAction()
     }
 
-    /** Shows [target] as the selection (leaving touch mode) and presses it. */
+    /**
+     * Shows [target] as the selection (leaving touch mode) and presses it.
+     * A focused list or grid holds focus itself and selects a row inside, so
+     * A presses that row: performClick on the list did nothing, and A on the
+     * library grid opened no game (review, 2026-10-16).
+     */
     private fun press(target: View) {
         if (!target.isFocused) target.requestFocusFromTouch()
+        if (target is AdapterView<*>) {
+            val position = target.selectedItemPosition
+            if (position != AdapterView.INVALID_POSITION) {
+                target.performItemClick(target.selectedView, position, target.getItemIdAtPosition(position))
+            }
+            return
+        }
         target.performClick()
     }
 
