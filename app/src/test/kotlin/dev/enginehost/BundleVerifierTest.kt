@@ -61,14 +61,20 @@ class BundleVerifierTest {
     }
 
     @Test
-    fun `once the root is pinned, a legacy signature serves only an installed bundle's launch`() {
+    fun `once the root is pinned, a legacy signature is refused at every moment, a launch included`() {
         val sources = Sources(pki.anchor)
         val legacyOnly = BundleSignatures(null, legacySignature)
-        for (moment in listOf(VerificationMoment.CATALOG, VerificationMoment.CATALOG_INSTALL, VerificationMoment.FILE_INSTALL)) {
+        for (moment in VerificationMoment.values()) {
             refused("legacy at $moment with the root pinned") { verify(legacyOnly, moment, sources) }
         }
-        assertEquals(0, verify(legacyOnly, VerificationMoment.LAUNCH, sources).format)
-        assertEquals(1, sources.legacyAsked)
+        assertEquals(0, sources.legacyAsked)
+        // At launch the reason tells the person what to do.
+        try {
+            verify(legacyOnly, VerificationMoment.LAUNCH, sources)
+            fail("a legacy-only core launched with the root pinned")
+        } catch (refusal: IllegalArgumentException) {
+            assertEquals(BundleVerifier.LEGACY_INSTALLED, refusal.message)
+        }
     }
 
     @Test

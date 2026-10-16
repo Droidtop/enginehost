@@ -230,7 +230,12 @@ class PluginTrustActivity : EnginehostActivity() {
             "${getString(R.string.signer_label)}: ${plugin.signerIdentity}"
         val change = trust.changeSinceApproval(plugin)
         card.findViewById<TextView>(R.id.trustState).text =
-            "${getString(R.string.trust_state_label)}: ${getString(stateLabel(state, change))}"
+            if (plugin.legacySigned && EnginehostRoot.get(this) != null) {
+                // Deprecated: it will not start, and the card says what to do (owner, 2026-10-16).
+                getString(R.string.trust_state_legacy)
+            } else {
+                "${getString(R.string.trust_state_label)}: ${getString(stateLabel(state, change))}"
+            }
 
         if (ultimateBuild) {
             // The primary developer's key proves origin more strongly than any

@@ -63,6 +63,14 @@ data class InstalledPlugin(
     /** Compatibility alias while callers migrate from package terminology. */
     val packageName: String get() = bundleId
     val signerIdentity: String = signerFingerprints.sorted().joinToString("+")
+
+    /**
+     * Installed with only the legacy signature: a v0 signer, or a record from
+     * before signers were recorded, which predates format v1. Such a core no
+     * longer starts once the root is pinned; it is removed and installed again
+     * ([BundleVerifier.LEGACY_INSTALLED]).
+     */
+    val legacySigned: Boolean get() = signer == null || signer.format == 0
 }
 
 data class ResolvedPlugin(

@@ -101,15 +101,20 @@ interface BundleTrustSources {
  * origin, the JWS decides alone: there is no falling back to the legacy
  * signature beside it, so a bad v1 signature is never rescued by an old one.
  *
- * The legacy signature is bounded: an installed bundle keeps verifying with it
- * at launch until it is updated, and a new install or catalog entry may use
- * it only while this build pins no root key (without one, no v1 official
- * bundle can be verified, and refusing legacy would leave nothing
- * installable). With the root pinned, every new install and update needs a
- * v1 signature.
+ * The legacy signature is deprecated (owner, 2026-10-16). It is accepted only
+ * while this build pins no root key (without one, no v1 official bundle can
+ * be verified, and refusing legacy would leave nothing installable). With
+ * the root pinned it is refused at every moment: an install, an update, and
+ * the launch of a core installed with it, which says to remove the core and
+ * install it again ([LEGACY_INSTALLED]).
  */
 object BundleVerifier {
     const val ENGINEHOST_CATALOG = "enginehost"
+
+    /** Why an installed core signed only the legacy way does not start, and what to do about it. */
+    const val LEGACY_INSTALLED =
+        "this core was installed with an old signature that Enginehost no longer accepts. " +
+            "Remove it on Cores and install it again from Add."
 
     fun verify(
         manifestBytes: ByteArray,
@@ -129,8 +134,14 @@ object BundleVerifier {
             if (jws != null) "This build pins no certificate this bundle's signature can be verified to"
             else "This bundle carries no v1 signature"
         }
-        require(moment == VerificationMoment.LAUNCH || root == null) {
-            "New installs and updates need a v1 signature; this bundle carries only the legacy one"
+        // Legacy keys are deprecated (owner, 2026-10-16: "Detect legacy
+        // plugins if someone DOES have one installed, and instruct the user
+        // to delete the old one and download the new one"): with the root
+        // pinned, a legacy-only signature is refused at every moment, a
+        // launch included, and the reason says what to do.
+        require(root == null) {
+            if (moment == VerificationMoment.LAUNCH) LEGACY_INSTALLED
+            else "New installs and updates need a v1 signature; this bundle carries only the legacy one"
         }
         return sources.legacy(manifestBytes, origin, legacy, moment)
     }

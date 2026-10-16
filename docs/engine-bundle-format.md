@@ -306,15 +306,19 @@ under, so an update under the same certificate key carries an approval
 
 ### Legacy signatures
 
-The legacy `enginehost-bundle.sig` is accepted:
+Legacy keys are deprecated (owner, 2026-10-16: "Deprecate legacy keys. One
+droidtop installation currently exists, and it's mine. Detect legacy plugins
+if someone DOES have one installed, and instruct the user to delete the old
+one and download the new one"). The legacy `enginehost-bundle.sig` is
+accepted only while this build pins no root key, where nothing else could be
+verified. With the root pinned it is refused at every moment:
 
-- at the launch of a bundle already installed with it, until that bundle is
-  updated;
-- for a new install, update or catalog entry **only while this build pins no
-  root key**. With the root pinned, every new install and update needs a v1
-  signature. (Droidtop's rule is "new installs require v1" from the start;
-  Enginehost's transition differs because without a pinned root nothing at all
-  could be installed otherwise.)
+- a new install, update or catalog entry needs a v1 signature;
+- a core already installed with only the legacy signature does not start.
+  Its card on Cores, and the launch's error, say to remove it and install it
+  again (`BundleVerifier.LEGACY_INSTALLED`, `InstalledPlugin.legacySigned`).
+  Every published official stable build has a v1-signed release to install
+  instead, the same build re-signed where it predates v1.
 
 The legacy verifier is `LegacyBundleSignatures.kt` and the official-root key
 documents in `PluginOriginKeys.kt`. They are deleted, with the manifest's

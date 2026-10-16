@@ -168,6 +168,7 @@
     <string name="trust_state_signer_changed">Waiting for your approval: a different key signed this build than the one you approved</string>
     <string name="trust_state_origin_changed">Waiting for your approval: this build comes from a different repository than the one you approved</string>
     <string name="trust_state_approved">Approved</string>
+    <string name="trust_state_legacy">Installed with an old signature that Enginehost no longer accepts, so it will not start. Remove it and install it again from Add.</string>
     <string name="trust_state_denied">Denied</string>
     <string name="origin_label">Origin</string>
     <string name="origin_verified">%1$s (verified)</string>
