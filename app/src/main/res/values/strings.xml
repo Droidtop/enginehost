@@ -328,6 +328,8 @@
     <string name="not_now">Not now</string>
     <string name="migration_failed">Move failed: %1$s</string>
     <string name="migration_result">Moved %1$d files; %2$d conflicts kept in place; %3$d failed</string>
+    <string name="migration_progress">Moving saves… %1$d files so far. This keeps going if you close this.</string>
+    <string name="migration_running">Saves are still being moved. Try again when that has finished.</string>
 
     <!-- Controller settings -->
     <string name="no_controller">No controller connected. Defaults can still be edited.</string>

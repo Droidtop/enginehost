@@ -97,45 +97,14 @@ class SaveLocationStore(context: Context) {
         "Enginehost/saves",
     )
 
-    fun migrate(source: File, destination: File = saveRoot()): MigrationResult {
-        val from = source.canonicalFile
-        val to = destination.canonicalFile
-        if (!from.exists() || from == to) return MigrationResult(0, 0, 0)
-        require(!to.toPath().startsWith(from.toPath())) { "The destination cannot be inside the source" }
-
-        var copied = 0
-        var conflicts = 0
-        var failures = 0
-        from.walkBottomUp().forEach { item ->
-            val relative = item.relativeTo(from)
-            val target = File(to, relative.path)
-            if (item.isDirectory) {
-                if (!target.exists() && !target.mkdirs()) failures++
-            } else {
-                try {
-                    target.parentFile?.mkdirs()
-                    if (target.exists()) {
-                        if (sameContents(item, target)) item.delete() else conflicts++
-                    } else {
-                        FileInputStream(item).use { input ->
-                            FileOutputStream(target).use { output -> input.copyTo(output) }
-                        }
-                        if (sameContents(item, target)) {
-                            copied++
-                            item.delete()
-                        } else {
-                            target.delete()
-                            failures++
-                        }
-                    }
-                } catch (_: Exception) {
-                    failures++
-                }
-            }
-        }
-        from.walkBottomUp().filter { it.isDirectory }.forEach { it.delete() }
-        return MigrationResult(copied, conflicts, failures)
-    }
+    /**
+     * Moves every save under [source] to [destination], keeping a file that
+     * differs at the destination in place as a conflict. Walks and copies the
+     * whole tree, so it runs off the main thread; before each file, [onFile]
+     * is told how many have been handled so far.
+     */
+    fun migrate(source: File, destination: File = saveRoot(), onFile: (Int) -> Unit = {}): MigrationResult =
+        moveSaves(source, destination, onFile)
 
     data class MigrationResult(val copied: Int, val conflicts: Int, val failures: Int)
 
@@ -152,6 +121,48 @@ class SaveLocationStore(context: Context) {
          * has no Robolectric, so nothing holding a Context can be.
          */
         fun saveRootFor(root: File): File = ensureUsable(File(root, "saves"))
+
+        /** [migrate] without the Context: the move itself, testable for the same reason. */
+        fun moveSaves(source: File, destination: File, onFile: (Int) -> Unit = {}): MigrationResult {
+            val from = source.canonicalFile
+            val to = destination.canonicalFile
+            if (!from.exists() || from == to) return MigrationResult(0, 0, 0)
+            require(!to.toPath().startsWith(from.toPath())) { "The destination cannot be inside the source" }
+
+            var copied = 0
+            var conflicts = 0
+            var failures = 0
+            from.walkBottomUp().forEach { item ->
+                val relative = item.relativeTo(from)
+                val target = File(to, relative.path)
+                if (item.isDirectory) {
+                    if (!target.exists() && !target.mkdirs()) failures++
+                } else {
+                    onFile(copied + conflicts + failures)
+                    try {
+                        target.parentFile?.mkdirs()
+                        if (target.exists()) {
+                            if (sameContents(item, target)) item.delete() else conflicts++
+                        } else {
+                            FileInputStream(item).use { input ->
+                                FileOutputStream(target).use { output -> input.copyTo(output) }
+                            }
+                            if (sameContents(item, target)) {
+                                copied++
+                                item.delete()
+                            } else {
+                                target.delete()
+                                failures++
+                            }
+                        }
+                    } catch (_: Exception) {
+                        failures++
+                    }
+                }
+            }
+            from.walkBottomUp().filter { it.isDirectory }.forEach { it.delete() }
+            return MigrationResult(copied, conflicts, failures)
+        }
 
         /**
          * The decision the Context-bound half of this store makes, on a

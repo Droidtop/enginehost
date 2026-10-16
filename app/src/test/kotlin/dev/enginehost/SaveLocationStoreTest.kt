@@ -95,4 +95,27 @@ class SaveLocationStoreTest {
         assertEquals(root, SaveLocationStore.saveFolderFor(root, makeConfig(engine = "renpy", saveFolder = "left over")))
         assertEquals(root, SaveLocationStore.saveFolderFor(root, makeConfig(saveFolder = null)))
     }
+
+    @Test
+    fun `moving saves counts every file, keeps a differing one in place and empties the source`() {
+        val source = temporaryFolder.newFolder("old")
+        val destination = temporaryFolder.newFolder("new")
+        File(source, "game-a").mkdirs()
+        File(source, "game-a/1.save").writeText("one")
+        File(source, "game-a/2.save").writeText("two")
+        File(source, "game-b").mkdirs()
+        File(source, "game-b/kept.save").writeText("mine")
+        File(destination, "game-b").mkdirs()
+        File(destination, "game-b/kept.save").writeText("theirs")
+        val seen = mutableListOf<Int>()
+
+        val result = SaveLocationStore.moveSaves(source, destination) { seen += it }
+
+        assertEquals(SaveLocationStore.MigrationResult(copied = 2, conflicts = 1, failures = 0), result)
+        assertEquals(listOf(0, 1, 2), seen.sorted())
+        assertEquals("one", File(destination, "game-a/1.save").readText())
+        assertEquals("theirs", File(destination, "game-b/kept.save").readText())
+        assertEquals("mine", File(source, "game-b/kept.save").readText())
+        assertTrue(!File(source, "game-a").exists())
+    }
 }

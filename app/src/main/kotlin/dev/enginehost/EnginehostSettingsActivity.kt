@@ -245,6 +245,10 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     }
 
     private fun changeRoot(newRoot: File) {
+        if (migrating) {
+            Toast.makeText(this, R.string.migration_running, Toast.LENGTH_LONG).show()
+            return
+        }
         val oldSaves = runCatching { store.saveRoot() }.getOrNull()
         runCatching { store.selectRoot(newRoot) }.onFailure {
             Toast.makeText(this, it.message, Toast.LENGTH_LONG).show()
@@ -261,16 +265,39 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         }
     }
 
+    /** A save move is running; another, or a new save root, waits for it. */
+    private var migrating = false
+
+    /**
+     * Moves the saves from [source] to the new root on a worker: it copies
+     * and verifies the whole tree, which on the main thread froze the
+     * screen for as long as that took (review, 2026-10-16). A sheet counts
+     * the files; closing it leaves the move running, and its result comes
+     * as a message either way.
+     */
     private fun migrate(source: File) {
-        val result = runCatching { store.migrate(source) }.getOrElse {
-            Toast.makeText(this, getString(R.string.migration_failed, it.message), Toast.LENGTH_LONG).show()
-            return
-        }
-        Toast.makeText(
-            this,
-            getString(R.string.migration_result, result.copied, result.conflicts, result.failures),
-            Toast.LENGTH_LONG,
-        ).show()
+        if (migrating) return
+        migrating = true
+        val count = layoutInflater.inflate(R.layout.item_hint, null) as TextView
+        count.text = getString(R.string.migration_progress, 0)
+        val sheet = Sheet(this).title(R.string.move_saves_title).content(count).show()
+        Thread {
+            val result = runCatching {
+                store.migrate(source) { done ->
+                    if (done % PROGRESS_EVERY == 0) runOnUiThread { count.text = getString(R.string.migration_progress, done) }
+                }
+            }
+            runOnUiThread {
+                migrating = false
+                if (isDestroyed) return@runOnUiThread
+                if (sheet.isShowing) sheet.dismiss()
+                val message = result.fold(
+                    { getString(R.string.migration_result, it.copied, it.conflicts, it.failures) },
+                    { getString(R.string.migration_failed, it.message) },
+                )
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
+        }.start()
     }
 
     private fun refresh() {
@@ -404,5 +431,8 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         private const val REQUEST_ENGINE_FOLDER = 100
         /** How long an app update may sit with the installer, this screen in front, before the button comes back. */
         private const val HAND_OVER_TIMEOUT_MS = 60_000L
+
+        /** How many saved files between two updates of the move's count. */
+        private const val PROGRESS_EVERY = 25
     }
 }
