@@ -27,8 +27,8 @@ the full rules are [engine-bundle-format.md](engine-bundle-format.md)
 "Signatures"):
 
 ```
-Droidtop Core            the owner's CA key; never pinned or used by any app
-  └ Enginehost signing root    derived from Core by the owner; its public key is
+Droidtop CA              the owner's CA key; never pinned or used by any app
+  └ Enginehost signing root    derived from the CA by the owner; its public key is
       │                        app/src/main/assets/trust/enginehost-root.pub
       ├ one certificate per official repository, naming its origin
       ├ the developer certificate (urn:enginehost:developer)
@@ -272,7 +272,10 @@ Every repository publishes on three streams, and the release envelope
   `channel=testing`) because it runs real games but has not been lived with.
   Tag `<line>-testing`, marked pre-release.
 - `stable`: promoted with `channel=stable` once the build has been used with
-  real games on hardware. Tag `<line>`, a full release.
+  real games on hardware. Tag `<line>`, a full release. A stable build that
+  predates signature format v1 is re-signed, not rebuilt, as `<line>-resigned`
+  beside it (docs/engine-bundle-format.md, "Signing, provisioning and the
+  owner's steps").
 
 The person chooses the most adventurous stream they want in enginehost's
 Settings (stable by default); the catalog and the update check offer that
@@ -340,8 +343,8 @@ replace another bundle.
 ## Provenance, official status, and approval
 
 - **Verified provenance** means the bundle's signature verifies to the anchor
-  for its declared GitHub origin -- its certificate chain to the pinned Droidtop
-  Core certificate, or to the key a person pinned for a repository they added
+  for its declared GitHub origin -- its certificate chain to the pinned Enginehost
+  signing root's key, or to the key a person pinned for a repository they added
   (format v1); or, for the legacy format, the key pinned for that origin -- and
   every payload byte matches the signed manifest (engine-bundle-format.md
   "Signatures").

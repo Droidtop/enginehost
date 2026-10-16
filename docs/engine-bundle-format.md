@@ -205,8 +205,8 @@ The hierarchy (owner, 2026-10-15: "enginehost gets its key separately derived
 from the ca, then plugins are derived from that"):
 
 ```
-Droidtop Core            the owner's CA key; never pinned or used by any app
-  └ Enginehost signing root    P-256, derived from Core by the owner; pinned here
+Droidtop CA              the owner's CA key; never pinned or used by any app
+  └ Enginehost signing root    P-256, derived from the CA by the owner; pinned here
       ├ one certificate per official repository   (purpose .1, its origin)
       ├ the developer certificate                 (purpose .1, urn:enginehost:developer)
       └ the revocation-list signer                (purpose .3, catalog enginehost)
@@ -222,14 +222,14 @@ them is trusted here.
   The anchor is the key, not the root's self-signed certificate (owner,
   2026-10-15: "The cert exists on the local machine. It will not be
   uploaded." / "Pubkeys will be committed, but allow the coordinator to do
-  that."). The root is derived from Core's private key, not certified by
-  Core, so nothing public links the two; that link is the owner's word.
+  that."). The root is derived from the CA's private key, not certified by
+  the CA, so nothing public links the two; that link is the owner's word.
 - **The walk stops at the root.** A chain is the signing certificate, then at
   most two intermediates. Its last certificate must verify under the root's
   key, and no certificate in it may carry the root's key. With no pinned
   certificate there is no issuer name to compare; the signature decides.
-  Nothing above the root is read, needed or trusted: a certificate Droidtop
-  Core signed directly is refused, as is one under droidtop's or gamegrab's
+  Nothing above the root is read, needed or trusted: a certificate the Droidtop
+  CA signed directly is refused, as is one under droidtop's or gamegrab's
   root.
 - **Extended key usage is read from the extension's DER**, not through
   `X509Certificate.getExtendedKeyUsage()`: Android's provider (Conscrypt,
@@ -366,8 +366,18 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   repository: `scripts/make-publisher-certificate.py` makes a self-signed
   certificate for that key naming the origin, and the same build options use
   it. With the root pinned, a third party's new releases need it too.
-- The root's key is pinned (2026-10-15). It replaced a direct pin of Droidtop
-  Core's key, which no release ever carried a certificate for. From the build
+- **Re-signing a stable release** (owner, 2026-10-16): the September stable
+  releases carry only the legacy signature, and their code was verified on
+  hardware when promoted, so they are re-signed instead of rebuilt.
+  `.github/workflows/resign-engine-release.yml` (dispatched per repository)
+  runs `scripts/resign-engine-bundle.py`: it adds `enginehost-bundle.jws`, a
+  JWS over the unchanged manifest bytes, after the legacy signature and
+  writes every other member back unchanged. It then verifies the result both
+  ways and publishes it as a new stable release, `<tag>-resigned`, beside the
+  published one, which is left as it is. Code and build number are the same;
+  only the archive digest differs.
+- The root's key is pinned (2026-10-15). It replaced a direct pin of the
+  Droidtop CA's key, which no release ever carried a certificate for. From the build
   that carries it, official cores install and update only with a v1
   signature (owner's choice, the strict rule as specified: no legacy gap
   window); installed ones keep running. Provisioned on 2026-10-15: every

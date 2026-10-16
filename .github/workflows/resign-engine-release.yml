@@ -1,0 +1,208 @@
+name: Re-sign a stable engine release
+
+# Adds a format-v1 signature to the bundle of an already published stable
+# release and publishes the result as a new stable release beside it
+# (owner, 2026-10-16, Droidtop/tracker#550). The September stable releases carry
+# only the legacy signature, which Enginehost no longer accepts for an install;
+# their code was verified on hardware when they were promoted, so they are
+# re-signed rather than rebuilt: the manifest bytes, and with them every payload
+# file's digest and the build number, stay exactly as published, and the
+# published release is left as it is. scripts/resign-engine-bundle.py does it.
+#
+# A core repository calls it from a dispatch-only workflow, pinned by commit:
+#
+#   on:
+#     workflow_dispatch:
+#       inputs:
+#         source-tag: { description: "The stable release to re-sign", required: true }
+#   jobs:
+#     resign:
+#       permissions:
+#         contents: write
+#       uses: Droidtop/enginehost/.github/workflows/resign-engine-release.yml@<sha>
+#       with:
+#         tooling-sha: <the same sha>
+#         source-tag: ${{ inputs.source-tag }}
+#       secrets:
+#         ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
+#         PLATFORMS_DISPATCH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
+#
+# As in sign-engine-bundle.yml and publish-engine-bundle.yml, the job holding
+# the key only reads and uploads an artifact, and the job that writes the
+# release never sees the key.
+on:
+  workflow_call:
+    inputs:
+      tooling-sha:
+        description: Full commit SHA of Droidtop/enginehost whose scripts/ re-sign; the commit this workflow is pinned to.
+        type: string
+        required: true
+      source-tag:
+        description: The published stable release whose bundle is re-signed.
+        type: string
+        required: true
+      tag:
+        description: Tag of the new stable release (default <source-tag>-resigned).
+        type: string
+        default: ""
+      repository-certificate:
+        description: The repository's committed signing certificate, relative to its root.
+        type: string
+        default: enginehost-signing-certificate.pem
+    secrets:
+      ENGINEHOST_CERTIFICATE_KEY_PEM:
+        description: The private key of the repository's signing certificate.
+        required: true
+      PLATFORMS_DISPATCH_TOKEN:
+        description: Lets the publish job ask droidtop-platforms to reindex; without it the index picks the release up on its schedule.
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  resign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the inputs
+        env:
+          TOOLING_SHA: ${{ inputs.tooling-sha }}
+          SOURCE_TAG: ${{ inputs.source-tag }}
+          TAG: ${{ inputs.tag }}
+          CERTIFICATE: ${{ inputs.repository-certificate }}
+        run: |
+          set -euo pipefail
+          [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
+          [[ "$SOURCE_TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad source tag '$SOURCE_TAG'" >&2; exit 1; }
+          [[ -z "$TAG" || "$TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad tag '$TAG'" >&2; exit 1; }
+          [[ "$CERTIFICATE" =~ ^[A-Za-z0-9._/-]+$ && "$CERTIFICATE" != *..* ]] || { echo "bad certificate path '$CERTIFICATE'" >&2; exit 1; }
+      - name: Check out the repository's signing certificate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: repository
+          persist-credentials: false
+          sparse-checkout: ${{ inputs.repository-certificate }}
+          sparse-checkout-cone-mode: false
+      - name: Check out the signing tooling and the pinned root key
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: Droidtop/enginehost
+          ref: ${{ inputs.tooling-sha }}
+          path: enginehost-tooling
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            app/src/main/assets/trust
+      - name: Download the stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ inputs.source-tag }}
+        run: |
+          set -euo pipefail
+          release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$SOURCE_TAG")"
+          # Only a published stable release: a draft or a pre-release is a
+          # testing or unstable build, which is rebuilt, not re-signed.
+          printf '%s' "$release" | python3 -c 'import json,sys; r=json.load(sys.stdin); sys.exit(0 if not r["draft"] and not r["prerelease"] else 1)' \
+            || { echo "::error::$SOURCE_TAG is not a published stable release" >&2; exit 1; }
+          mkdir -p source
+          printf '%s' "$release" | python3 -c 'import json,sys; [print(a["id"], a["name"]) for a in json.load(sys.stdin)["assets"]]' |
+          while read -r id name; do
+            case "$name" in
+              *.enginehost.tar.xz|enginehost-release.json|enginehost-component.json|enginehost-public-key.json)
+                [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad asset name '$name'" >&2; exit 1; }
+                gh api "repos/$GITHUB_REPOSITORY/releases/assets/$id" -H 'Accept: application/octet-stream' > "source/$name" ;;
+            esac
+          done
+          ls -l source
+          test -n "$(find source -name '*.enginehost.tar.xz' -print -quit)"
+      - name: Re-sign
+        env:
+          ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
+          CERTIFICATE: repository/${{ inputs.repository-certificate }}
+          ROOT_KEY: enginehost-tooling/app/src/main/assets/trust/enginehost-root.pub
+        run: |
+          set -euo pipefail
+          test -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" || { echo "::error::ENGINEHOST_CERTIFICATE_KEY_PEM is not set" >&2; exit 1; }
+          test -f "$CERTIFICATE" || { echo "::error::$CERTIFICATE is not committed" >&2; exit 1; }
+          test -f "$ROOT_KEY"
+          key="$RUNNER_TEMP/certificate-key.pem"
+          trap 'rm -f "$key"' EXIT
+          (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$key")
+          envelope="$(find source \( -name enginehost-release.json -o -name enginehost-component.json \) -print -quit)"
+          test -f "$envelope"
+          mkdir -p output
+          for bundle in source/*.enginehost.tar.xz; do
+            python3 enginehost-tooling/scripts/resign-engine-bundle.py "$bundle" \
+              --certificate-key "$key" --certificate-chain "$CERTIFICATE" \
+              --output output --release-envelope "$envelope"
+            # The envelope now carries this bundle's jws; the next bundle (if
+            # any) adds its own to the same file.
+            envelope="output/$(basename "$envelope")"
+          done
+          for bundle in output/*.enginehost.tar.xz; do
+            python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --root-key "$ROOT_KEY" --require-v1
+            # The legacy signature is still the published one.
+            if [ -f source/enginehost-public-key.json ]; then
+              python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" \
+                --repository-key source/enginehost-public-key.json
+            fi
+          done
+          [ ! -f source/enginehost-public-key.json ] || cp source/enginehost-public-key.json output/
+          cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: resigned
+          path: output/*
+          if-no-files-found: error
+
+  publish:
+    needs: resign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: resigned
+          path: release
+      - name: Publish the re-signed stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ inputs.source-tag }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag="${TAG:-$SOURCE_TAG-resigned}"
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::release $tag already exists" >&2
+            exit 1
+          fi
+          source="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$SOURCE_TAG")"
+          title="$(printf '%s' "$source" | python3 -c 'import json,sys; r=json.load(sys.stdin); print(r["name"] or r["tag_name"])')"
+          # The new tag points at the commit the source tag names, so the
+          # release says truthfully which source its code was built from.
+          commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_TAG" --jq .sha)"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          envelope="$(find release \( -name enginehost-release.json -o -name enginehost-component.json \) -print -quit)"
+          python3 - "$envelope" <<'PY'
+          import json, sys
+          path = sys.argv[1]
+          data = json.load(open(path))
+          data["channel"] = "stable"
+          json.dump(data, open(path, "w"), sort_keys=True, separators=(",", ":"))
+          PY
+          notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), re-signed in signature format v1 (Droidtop/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now also carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, beside the legacy signature. Install it through Enginehost."
+          gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$commit" \
+            --title "$title (v1-signed)" --notes "$notes" --draft
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+      - name: Ask droidtop-platforms to reindex
+        env:
+          GH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "No PLATFORMS_DISPATCH_TOKEN; the plugins index picks this release up on its schedule."
+            exit 0
+          fi
+          gh api repos/Droidtop/droidtop-platforms/dispatches \
+            -f event_type=plugin-published -f "client_payload[repo]=$GITHUB_REPOSITORY"
