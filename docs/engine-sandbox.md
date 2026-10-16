@@ -74,6 +74,18 @@ the fallback.
   exported service. The filter cannot see any of that.
 - **Files.** Nothing in this layer narrows file access; see below.
 
+## Stack size under the sandbox
+
+A sandboxed core runs its engine on whichever thread calls it, and an
+isolated runtime's calls arrive on a binder thread, whose stack is 1 MB.
+Upstream engine code written for a desktop main thread (8 MB) often keeps
+large arrays on the stack. CMVS's broker index kept two 256 KB listings per
+directory level and overflowed it on the console (Droidtop/tracker#558,
+CMVS engine `48639b2`). So a core keeps no array of 32 KB or more on the
+stack: allocate it, and free it on every return. catsystem2's key search
+followed (engine `8014211`), checked with a 64 KB-stack probe that the old
+code fails and the new one passes.
+
 ## Files: why there is no in-process answer
 
 MANAGE_EXTERNAL_STORAGE is the UID's, and a path is a pointer a filter

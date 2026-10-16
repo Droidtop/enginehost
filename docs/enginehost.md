@@ -130,3 +130,51 @@ Unit tests cover header sniffing, launch ranking, archive rules, registry-derive
 roots, dedupe, the incremental and resumable store contract, and the query builder, all on synthetic
 folders and byte headers. The database, the list and the sheets have no unit tests; they need a device
 check (see the tracker).
+
+## Decisions of 2026-10-16
+
+Each is the owner's words, or the coordinator's relay of them, with what was done and where it
+lives. The owner's standing rule, the same day: "Spec documents need to be updated with decisions."
+
+- **Cores, and the positioning.** Owner: "Yeah, let's switch to cores. We're clearly 'RetroArch
+  for VNs', no need to hide it". Engine plugins are *cores* in everything a person or developer
+  reads; the README says Enginehost is to visual-novel and PC-game engines what RetroArch is to
+  emulators. The identifiers kept for compatibility are listed at the top of
+  `engine-bundle-format.md`. Enginehost `8e8fb45`.
+- **The Droidtop CA is not shown.** Owner: "Droidtop Core is a certificate identifier. It's
+  should never appear surfaced to the user, or in our code". No UI string, code comment or test
+  names it; the signing docs call it the Droidtop CA.
+- **Signing root, expiry, legacy.** The Enginehost signing root, derived from the CA ("enginehost
+  gets its key separately derived from the ca, then plugins are derived from that"), and "Can we
+  ignore its expiration date? We don't want older plugins to be invalidated" are in
+  `engine-bundle-format.md` "Signatures" (Enginehost `e9e354d`, `419594b`). Legacy keys: "Deprecate
+  legacy keys. One droidtop installation currently exists, and it's mine. Detect legacy plugins if
+  someone DOES have one installed, and instruct the user to delete the old one and download the new
+  one": a core installed with only the legacy signature does not start, and its card and the
+  launch say to remove it and install it again (`engine-bundle-format.md` "Legacy signatures").
+- **Re-signing stable builds.** Owner: "we need to resign all the stable builds", each published
+  as a new stable release beside the original rather than replacing its assets (the owner's
+  choice). `engine-bundle-format.md` "Signing, provisioning and the owner's steps"; Enginehost
+  `96d2541`, `cfde265`; eight `<tag>-resigned` releases (Droidtop/tracker#550). Promoting other
+  v1 builds to stable is the local agent's re-signing, not this repository's: the owner, "Cores
+  ... are already being resigned by a local agent. It's a non-issue".
+- **Several builds of a line.** Owner: "Users should not be tied to only one plugin version. This
+  is one of the benefits of not using apks." / "Several builds can be installed. That's why
+  there's a plugin version requirement in the enginehost spec. If a newer version has a
+  regression, or certain versions have bugs, we can blacklist or filter them". `SPEC.md` "Several
+  builds of a line, side by side"; Enginehost `c7b0baa`.
+- **Trust stays per build.** The owner chose to keep a decision bound to one exact build, with an
+  approval carried to a same-key update and a denial never carried, over trusting a whole line
+  (Droidtop/tracker#23).
+- **No large arrays on a core's stack.** Relayed from the coordinator after the CMVS crash
+  (Droidtop/tracker#558): catsystem2's 256 KB and 128 KB listings move to the heap, as CMVS's did.
+  The rule is in `engine-sandbox.md` "Stack size under the sandbox"; catsystem2 engine `8014211`.
+- **Repository renames (planned, not done).** The repositories become `enginehost-<x>-core`,
+  with a successor map so installed cores keep updating. Owner: "It's still the same engine
+  plugim, just renamed. We change nothing about the crypto": origins in manifests and
+  certificates, keys and certificates all stay; only the location changes. Branches: `plugin-core`
+  becomes `core-wrapper` (owner: "rename to core-wrapper") and `plugin/<version>` becomes
+  `core/<version>`. The plan is on Droidtop/tracker#550; the renames wait for the owner's go.
+- **Godot packs on SMB shares.** Owner: "Redo it properly". Waiting on a rig reproduction of how
+  the share is mounted and what fails before any code: the September fix's diagnosis (native
+  `open()` fails where Java's succeeds, in one process) does not hold as written.
