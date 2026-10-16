@@ -169,12 +169,19 @@ lives. The owner's standing rule, the same day: "Spec documents need to be updat
 - **No large arrays on a core's stack.** Relayed from the coordinator after the CMVS crash
   (Droidtop/tracker#558): catsystem2's 256 KB and 128 KB listings move to the heap, as CMVS's did.
   The rule is in `engine-sandbox.md` "Stack size under the sandbox"; catsystem2 engine `8014211`.
-- **Repository renames (planned, not done).** The repositories become `enginehost-<x>-core`,
-  with a successor map so installed cores keep updating. Owner: "It's still the same engine
-  plugim, just renamed. We change nothing about the crypto": origins in manifests and
-  certificates, keys and certificates all stay; only the location changes. Branches: `plugin-core`
-  becomes `core-wrapper` (owner: "rename to core-wrapper") and `plugin/<version>` becomes
-  `core/<version>`. The plan is on Droidtop/tracker#550; the renames wait for the owner's go.
+- **Repository renames: not now.** Owner: "nope. no need to rename repos yet, that's largely
+  cosmetic". If they happen, the earlier plan stands: `enginehost-<x>-core` with a successor map,
+  and "It's still the same engine plugim, just renamed. We change nothing about the crypto";
+  `plugin-core` becomes `core-wrapper`, `plugin/<version>` becomes `core/<version>`.
+- **Automatic updates keep every build.** Asked whether an update should remove the build it
+  supersedes, the owner: "No. Multiple builds are allowed. this lets users pick plugin versions
+  based on regressions, not just newest". An update installs beside the builds already there
+  (`SPEC.md` "Several builds of a line, side by side"); nothing changed in code.
+- **Godot's stable releases come back.** The three Godot stable releases (`godot-v44-v1`,
+  `godot-v45-v1`, `godot-v46-v1`) had been left as drafts; the owner said yes to publishing them
+  again and re-signing them as the other eight were. Godot's `publish-drafted-stable.yml` does the
+  publishing, since a session cannot edit releases.
 - **Godot packs on SMB shares.** Owner: "Redo it properly". Waiting on a rig reproduction of how
-  the share is mounted and what fails before any code: the September fix's diagnosis (native
+  the share is mounted and what fails before any code, which the owner gave to the coordinator
+  ("probably ask the coordinator to do that"): the September fix's diagnosis (native
   `open()` fails where Java's succeeds, in one process) does not hold as written.
