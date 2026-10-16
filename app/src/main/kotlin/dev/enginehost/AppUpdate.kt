@@ -87,17 +87,52 @@ object AppUpdate {
         onError: (String) -> Unit,
         onHandedOver: () -> Unit,
     ) {
+        // The work holds the application, not the screen, and every callback
+        // runs on the main thread and only while the screen still exists: the
+        // download can outlast the screen that started it (review, 2026-10-16).
+        val context = activity.applicationContext
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        fun post(block: () -> Unit) = main.post { if (!activity.isDestroyed) block() }
         Thread {
             runCatching {
-                onStatus(activity.getString(R.string.app_update_downloading, info.versionName))
-                val apk = download(activity, info)
-                onStatus(activity.getString(R.string.app_update_handing_to_installer))
-                commitSession(activity, apk)
-                onHandedOver()
+                val downloading = context.getString(R.string.app_update_downloading, info.versionName)
+                post { onStatus(downloading) }
+                val apk = download(context, info)
+                val handing = context.getString(R.string.app_update_handing_to_installer)
+                post { onStatus(handing) }
+                commitSession(context, apk)
+                post(onHandedOver)
             }.onFailure { error ->
-                onError(error.message ?: activity.getString(R.string.app_update_failed))
+                android.util.Log.w(TAG, "App update failed", error)
+                val message = context.getString(R.string.app_update_failed)
+                post { onError(message) }
             }
         }.start()
+    }
+
+    private const val TAG = "enginehost-app-update"
+
+    /** Screens waiting on an install session they handed over; see [sessionEnded]. */
+    private val sessionListeners = java.util.concurrent.CopyOnWriteArrayList<(String) -> Unit>()
+
+    fun addSessionEndListener(listener: (String) -> Unit) {
+        sessionListeners += listener
+    }
+
+    fun removeSessionEndListener(listener: (String) -> Unit) {
+        sessionListeners -= listener
+    }
+
+    /**
+     * The installer ended a session without installing (failed, aborted, or
+     * its confirmation could not be shown): tells the screens waiting on it,
+     * on the main thread, and answers whether any was. Before this a failure
+     * was only a toast, and the screen kept waiting for its hand-over to end.
+     */
+    internal fun sessionEnded(message: String): Boolean {
+        val listeners = sessionListeners.toList()
+        listeners.forEach { it(message) }
+        return listeners.isNotEmpty()
     }
 
     private fun download(context: Context, info: Info): File {
@@ -161,20 +196,28 @@ object AppUpdate {
  */
 class AppUpdateStatusReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
+        val failed = context.getString(R.string.app_update_failed)
+        fun ended() {
+            if (!AppUpdate.sessionEnded(failed)) {
+                android.widget.Toast.makeText(context, failed, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+        when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION")
-                val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
+                val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return ended()
                 confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                runCatching { context.startActivity(confirm) }
+                runCatching { context.startActivity(confirm) }.onFailure { ended() }
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
-            else -> android.widget.Toast.makeText(
-                context,
-                intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-                    ?: context.getString(R.string.app_update_failed),
-                android.widget.Toast.LENGTH_LONG,
-            ).show()
+            else -> {
+                // The installer's own text is for the log, not the person.
+                android.util.Log.w(
+                    "enginehost-app-update",
+                    "Install session ended with status $status: ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}",
+                )
+                ended()
+            }
         }
     }
 }

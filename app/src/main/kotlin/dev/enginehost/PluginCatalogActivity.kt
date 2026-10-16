@@ -44,7 +44,24 @@ class PluginCatalogActivity : EnginehostActivity() {
     private var autoAttempted = false
     /** One automatic refresh per visit when the stored catalogs are old, so an install never picks a build that is no longer current. */
     private var staleRefreshAttempted = false
-    private var requestedConfig: EngineConfig? = null
+    @Volatile private var requestedConfig: EngineConfig? = null
+
+    /** Whether [requestedConfig] was read; it is read once, by the first render's worker. */
+    @Volatile private var requestedRead = false
+
+    /**
+     * The game this catalog was opened for: its config, read off the main
+     * thread, since reading a Godot game's config walks its folder for the
+     * pack (review, 2026-10-16). The launch passes the detected document as
+     * the caller config for a folder without enginehost.json.
+     */
+    private fun readRequested() {
+        if (requestedRead) return
+        requestedConfig = intent.getStringExtra(EXTRA_GAME_PATH)?.let { path ->
+            runCatching { EngineConfigReader.resolve(File(path), intent.getStringExtra(EXTRA_CALLER_CONFIG)) }.getOrNull()
+        }
+        requestedRead = true
+    }
 
     /**
      * Everything a redraw needs from disk, read together on a worker thread and then drawn from. Reading
@@ -91,11 +108,6 @@ class PluginCatalogActivity : EnginehostActivity() {
         cache = PluginCatalogCache(this)
         directory = OriginDirectory(this)
         updateCheck = PluginUpdateCheck(this)
-        intent.getStringExtra(EXTRA_GAME_PATH)?.let { path ->
-            requestedConfig = runCatching {
-                EngineConfigReader.resolve(File(path), intent.getStringExtra(EXTRA_CALLER_CONFIG))
-            }.getOrNull()
-        }
         setContentView(R.layout.activity_plugin_catalog)
         wireBackButton()
         statusText = findViewById(R.id.statusText)
@@ -157,7 +169,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             }.onFailure { error ->
                 runOnUiThread {
                     addOriginButton.isEnabled = true
-                    toast(error.message ?: getString(R.string.origin_key_import_failed))
+                    toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
                 }
             }
         }.start()
@@ -170,6 +182,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         catalogStreamValue.text = streamName(updateCheck.stream)
         val generation = ++renderGeneration
         Thread {
+            readRequested()
             val read = runCatching { readSnapshot() }.getOrNull() ?: return@Thread
             runOnUiThread {
                 if (isDestroyed || isFinishing || generation != renderGeneration) return@runOnUiThread
@@ -307,7 +320,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                         runOnUiThread {
                             whenDone()
                             render()
-                            toast(error.message ?: getString(R.string.origin_key_import_failed))
+                            toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
                         }
                     }
                 }.start()
@@ -355,7 +368,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                                 }
                                 .onFailure { error ->
                                     whenDone()
-                                    toast(error.message ?: getString(R.string.origin_key_import_failed))
+                                    toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
                                 }
                         }
                         .onCancel(whenDone)
@@ -364,7 +377,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             }.onFailure { error ->
                 runOnUiThread {
                     whenDone()
-                    toast(error.message ?: getString(R.string.origin_key_import_failed))
+                    toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
                 }
             }
         }.start()
@@ -843,7 +856,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                             R.string.install_all_done,
                             plugins.size - failures.size,
                             failures.size,
-                            failures.last().message.orEmpty(),
+                            ErrorText.of(this, failures.last(), R.string.core_install_failed),
                         ),
                     )
                 }

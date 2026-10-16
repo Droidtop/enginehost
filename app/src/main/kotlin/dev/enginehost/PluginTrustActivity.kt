@@ -69,12 +69,30 @@ class PluginTrustActivity : EnginehostActivity() {
         super.onDestroy()
     }
 
+    /** Bumped per render so a list read for an older one cannot be drawn. */
+    private var listGeneration = 0
+
+    /**
+     * Reads the installed bundles off the main thread (each is a directory
+     * and a manifest to parse) and draws them. Reading them on the main
+     * thread stalled the screen on every return to it (review, 2026-10-16).
+     */
     private fun render() {
-        list.removeAllViews()
+        val generation = ++listGeneration
         val requestedPackage = intent.getStringExtra(EXTRA_BUNDLE)
-        val plugins = PluginRegistry.discoverAll(this).filter {
-            requestedPackage == null || it.bundleId == requestedPackage
-        }
+        Thread {
+            val plugins = runCatching {
+                PluginRegistry.discoverAll(this).filter { requestedPackage == null || it.bundleId == requestedPackage }
+            }.getOrDefault(emptyList())
+            runOnUiThread {
+                if (isDestroyed || generation != listGeneration) return@runOnUiThread
+                showPlugins(plugins, requestedPackage)
+            }
+        }.start()
+    }
+
+    private fun showPlugins(plugins: List<InstalledPlugin>, requestedPackage: String?) {
+        list.removeAllViews()
         emptyState.visibility = if (plugins.isEmpty()) View.VISIBLE else View.GONE
         // One card per installed build: several builds of a line can sit side
         // by side, each approved, denied and removed on its own. A line's
@@ -158,7 +176,7 @@ class PluginTrustActivity : EnginehostActivity() {
             updates.forEach { update ->
                 runCatching { PluginInstaller.installQuietly(this, update) }.onFailure {
                     failed++
-                    lastError = it.message.orEmpty()
+                    lastError = ErrorText.of(this, it, R.string.core_install_failed)
                 }
             }
             runOnUiThread {
@@ -279,9 +297,13 @@ class PluginTrustActivity : EnginehostActivity() {
             isEnabled = state != PluginTrustState.DENIED && plugin.signerIdentity.isNotBlank()
             setOnClickListener { trust.deny(plugin); render() }
         }
-        card.findViewById<Button>(R.id.uninstallButton).setOnClickListener {
-            PluginRegistry.uninstall(this@PluginTrustActivity, plugin)
-            render()
+        card.findViewById<Button>(R.id.uninstallButton).setOnClickListener { button ->
+            // Removing deletes the bundle's whole tree: off the main thread.
+            button.isEnabled = false
+            Thread {
+                runCatching { PluginRegistry.uninstall(this@PluginTrustActivity, plugin) }
+                runOnUiThread { if (!isDestroyed) render() }
+            }.start()
         }
         list.addView(card)
     }

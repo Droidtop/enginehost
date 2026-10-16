@@ -163,6 +163,7 @@ class MainActivity : EnginehostActivity() {
                 appUpdate?.let { lines += getString(R.string.app_update_available, it) }
                 findViewById<TextView>(R.id.updateNotice).apply {
                     visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
+                    if (findViewById<LinearLayout>(R.id.shelves).visibility != View.VISIBLE) grid.nextFocusUpId = upFromList()
                     if (lines.isNotEmpty()) {
                         text = lines.joinToString("\n")
                         setOnClickListener {
@@ -171,6 +172,7 @@ class MainActivity : EnginehostActivity() {
                                     Intent(this@MainActivity, PluginTrustActivity::class.java)
                                 } else {
                                     Intent(this@MainActivity, EnginehostSettingsActivity::class.java)
+                                        .putExtra(EnginehostSettingsActivity.EXTRA_APP_UPDATE, true)
                                 },
                             )
                         }
@@ -179,6 +181,15 @@ class MainActivity : EnginehostActivity() {
             }
         }
     }
+
+    /**
+     * Where Up from the list goes when no shelf is above it: the update
+     * notice while it shows, else Add games. It pointed at the list itself,
+     * so with no shelf the pad could not leave the list upwards (review,
+     * 2026-10-16).
+     */
+    private fun upFromList(): Int =
+        if (findViewById<View>(R.id.updateNotice).visibility == View.VISIBLE) R.id.updateNotice else R.id.addGamesButton
 
     /** The game a shelf card stands for, held as the card's tag so Y can play it. */
     private class ShelfGame(val path: String)
@@ -200,7 +211,7 @@ class MainActivity : EnginehostActivity() {
     private fun drawShelves(loaded: LibraryBrowser.Shelves?) {
         val container = findViewById<LinearLayout>(R.id.shelves)
         container.removeAllViews()
-        grid.nextFocusUpId = R.id.gameGrid
+        grid.nextFocusUpId = upFromList()
         if (loaded == null || !browser.filter.unfiltered) {
             container.visibility = View.GONE
             return

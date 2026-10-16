@@ -81,7 +81,7 @@ object GameRunner {
         } catch (e: UnusableSaveFolderException) {
             return Plan.Failure(context.getString(R.string.launch_save_folder_unusable, e.folder.absolutePath), retry = true)
         } catch (e: IllegalArgumentException) {
-            return Plan.Failure(e.message ?: context.getString(R.string.launch_save_folder_invalid_name))
+            return Plan.Failure(ErrorText.of(context, e, R.string.launch_save_folder_invalid_name))
         }
         val resolved = PluginRegistry.resolve(
             context, config.engine, config.engineContext, config.engineVersion,

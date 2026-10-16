@@ -34,7 +34,7 @@ object PluginInstaller {
                 val next = afterInstall(activity, installed)
                 activity.runOnUiThread { next() }
             }.onFailure { error ->
-                activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
+                activity.runOnUiThread { onError(ErrorText.of(activity, error, R.string.core_install_failed)) }
             }
         }
     }
@@ -93,7 +93,7 @@ object PluginInstaller {
                 val next = afterInstall(activity, installed)
                 activity.runOnUiThread { UnsandboxedWarning.afterFileInstall(activity, installed) { next() } }
             }.onFailure { error ->
-                activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
+                activity.runOnUiThread { onError(ErrorText.of(activity, error, R.string.core_install_failed)) }
             }
         }
     }

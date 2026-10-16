@@ -29,7 +29,8 @@ class GameSectionsView(
 
     fun show(sections: GameSections) {
         container.removeAllViews()
-        sections.core?.let { addCore(sections, it) }
+        val core = sections.core
+        if (core != null) addCore(sections, core) else sections.pinned?.let { addMissingPin(sections, it) }
         sections.update?.let { addUpdate(it, sections.core) }
         sections.options.forEach { addOption(it) }
         if (sections.core != null) addControls(sections)
@@ -60,6 +61,20 @@ class GameSectionsView(
         row(
             activity.getString(R.string.section_core),
             activity.getString(R.string.core_value, version, which),
+        ) { changeCore(sections) }
+    }
+
+    /**
+     * A build fixed for this game that is not installed: nothing resolves,
+     * so there is no core to show, but the row stays, so the person can
+     * see why and choose another build or the newest (review, 2026-10-16:
+     * the row disappeared, and with it the way back).
+     */
+    private fun addMissingPin(sections: GameSections, pinned: String) {
+        val version = runCatching { PluginVersions.display(Version.parsePlugin(pinned)) }.getOrDefault(pinned)
+        row(
+            activity.getString(R.string.section_core),
+            activity.getString(R.string.core_value, version, activity.getString(R.string.core_fixed_missing)),
         ) { changeCore(sections) }
     }
 
@@ -99,7 +114,7 @@ class GameSectionsView(
             activity.runOnUiThread {
                 if (activity.isDestroyed) return@runOnUiThread
                 if (failure != null) {
-                    Toast.makeText(activity, failure.message ?: core?.bundleId.orEmpty(), Toast.LENGTH_LONG).show()
+                    Toast.makeText(activity, ErrorText.of(activity, failure, R.string.core_install_failed), Toast.LENGTH_LONG).show()
                 }
                 onChanged()
             }

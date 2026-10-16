@@ -175,7 +175,7 @@ class LaunchActivity : EnginehostActivity() {
         val testing = intent.getBooleanExtra(EXTRA_TESTING, false)
         Thread {
             val plan = runCatching { GameRunner.plan(this, gameFolder, inlineJson, autoInstall, testing) }
-                .getOrElse { GameRunner.Plan.Failure(it.message ?: getString(R.string.launch_plan_failed), retry = true) }
+                .getOrElse { GameRunner.Plan.Failure(ErrorText.of(this, it, R.string.launch_plan_failed), retry = true) }
             runOnUiThread {
                 planning = false
                 if (isDestroyed || isFinishing) return@runOnUiThread
@@ -337,9 +337,8 @@ class LaunchActivity : EnginehostActivity() {
         restartArguments = null
         runCatching { startActivityForResult(plan.intent, REQUEST_RUNTIME) }
             .onFailure {
-                val message = "Failed to enter the Enginehost runtime: ${it.message}"
-                Log.e(TAG, message)
-                showFailure(message, retry = true)
+                Log.e(TAG, "Failed to enter the Enginehost runtime", it)
+                showFailure(getString(R.string.launch_runtime_failed), retry = true)
                 return
             }
         runtimeStarted = true

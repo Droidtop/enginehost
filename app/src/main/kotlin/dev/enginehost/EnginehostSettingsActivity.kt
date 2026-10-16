@@ -133,7 +133,11 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             startActivity(Intent(this, CallerAccessSettingsActivity::class.java))
         }
         findViewById<View>(R.id.githubTokenRow).setOnClickListener { showTokenSheet() }
-        refresh()
+        // Home's notice of a newer Enginehost opens this screen to install it:
+        // check at once, so the Install button is there (review, 2026-10-16).
+        if (savedInstanceState == null && intent.getBooleanExtra(EXTRA_APP_UPDATE, false)) checkAppUpdate()
+        // onResume, which always follows, draws the rows: drawing them here
+        // too read the installed cores twice on every opening.
     }
 
     override fun onResume() {
@@ -151,64 +155,80 @@ class EnginehostSettingsActivity : EnginehostActivity() {
 
     private fun checkAppUpdate() {
         val row = findViewById<View>(R.id.appVersionRow)
-        val lastChecked = findViewById<TextView>(R.id.lastCheckedValue)
-        val installButton = findViewById<Button>(R.id.installAppUpdateButton)
         row.isEnabled = false
-        lastChecked.setText(R.string.app_update_checking)
+        findViewById<TextView>(R.id.lastCheckedValue).setText(R.string.app_update_checking)
         // "Check now" is the whole pass -- plugins, detection rules and the
-        // app -- so the home screen's notice is current afterwards too.
-        updateCheck.run { }
-        Thread {
-            val result = runCatching { AppUpdate.fetch(this) }
-            runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                row.isEnabled = true
-                refreshLastChecked()
-                result.onSuccess { info ->
-                    if (info.versionCode > AppUpdate.installedVersionCode(this)) {
-                        installButton.visibility = View.VISIBLE
-                        installButton.text = getString(R.string.app_update_install, info.versionName)
-                        installButton.setOnClickListener {
-                            installButton.isEnabled = false
-                            fun ready() {
-                                installButton.isEnabled = true
-                                installButton.text = getString(R.string.app_update_install, info.versionName)
-                            }
-                            AppUpdate.downloadAndInstall(
-                                this,
-                                info,
-                                onStatus = { status -> runOnUiThread { installButton.text = status } },
-                                onError = { message ->
-                                    runOnUiThread {
-                                        ready()
-                                        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                                    }
-                                },
-                                onHandedOver = {
-                                    runOnUiThread {
-                                        endHandOver = {
-                                            endHandOver = null
-                                            ready()
-                                            Toast.makeText(this, R.string.app_update_not_installed, Toast.LENGTH_LONG).show()
-                                        }
-                                        // With no installer screen in front of this one the
-                                        // system answered without asking; give it a minute.
-                                        installButton.postDelayed({
-                                            if (hasWindowFocus()) endHandOver?.invoke()
-                                        }, HAND_OVER_TIMEOUT_MS)
-                                    }
-                                },
-                            )
-                        }
-                    } else {
-                        installButton.visibility = View.GONE
-                        Toast.makeText(this, R.string.app_update_none, Toast.LENGTH_LONG).show()
-                    }
-                }.onFailure { error ->
-                    Toast.makeText(this, error.message ?: getString(R.string.app_update_failed), Toast.LENGTH_LONG).show()
-                }
+        // app -- so the home screen's notice is current afterwards too. The
+        // pass reads the newest build first and says it here; this screen
+        // used to fetch it a second time on its own.
+        updateCheck.run(onApp = { result -> runOnUiThread { showAppUpdate(result) } }) { }
+    }
+
+    private fun showAppUpdate(result: Result<AppUpdate.Info>) {
+        if (isDestroyed || isFinishing) return
+        findViewById<View>(R.id.appVersionRow).isEnabled = true
+        refreshLastChecked()
+        val installButton = findViewById<Button>(R.id.installAppUpdateButton)
+        result.onSuccess { info ->
+            if (info.versionCode > AppUpdate.installedVersionCode(this)) {
+                installButton.visibility = View.VISIBLE
+                installButton.isEnabled = sessionEnd == null
+                if (sessionEnd == null) installButton.text = getString(R.string.app_update_install, info.versionName)
+                installButton.setOnClickListener { startAppInstall(info) }
+            } else {
+                installButton.visibility = View.GONE
+                Toast.makeText(this, R.string.app_update_none, Toast.LENGTH_LONG).show()
             }
-        }.start()
+        }.onFailure {
+            Toast.makeText(this, R.string.app_update_check_failed, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Set while an install session is handed over; the installer's failure ends it ([AppUpdate.sessionEnded]). */
+    private var sessionEnd: ((String) -> Unit)? = null
+
+    private fun startAppInstall(info: AppUpdate.Info) {
+        val installButton = findViewById<Button>(R.id.installAppUpdateButton)
+        installButton.isEnabled = false
+        val ended: (String) -> Unit = { message ->
+            endAppInstall(info)
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
+        sessionEnd = ended
+        AppUpdate.addSessionEndListener(ended)
+        AppUpdate.downloadAndInstall(
+            this,
+            info,
+            onStatus = { status -> installButton.text = status },
+            onError = ended,
+            onHandedOver = {
+                endHandOver = {
+                    endAppInstall(info)
+                    Toast.makeText(this, R.string.app_update_not_installed, Toast.LENGTH_LONG).show()
+                }
+                // With no installer screen in front of this one the
+                // system answered without asking; give it a minute.
+                installButton.postDelayed({
+                    if (hasWindowFocus()) endHandOver?.invoke()
+                }, HAND_OVER_TIMEOUT_MS)
+            },
+        )
+    }
+
+    /** The install did not happen: the button offers it again. */
+    private fun endAppInstall(info: AppUpdate.Info) {
+        sessionEnd?.let(AppUpdate::removeSessionEndListener)
+        sessionEnd = null
+        endHandOver = null
+        findViewById<Button>(R.id.installAppUpdateButton).apply {
+            isEnabled = true
+            text = getString(R.string.app_update_install, info.versionName)
+        }
+    }
+
+    override fun onDestroy() {
+        sessionEnd?.let(AppUpdate::removeSessionEndListener)
+        super.onDestroy()
     }
 
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")
@@ -229,7 +249,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             }
             requestCode == REQUEST_BROWSER_START -> runCatching { browserStartStore.select(uri) }
                 .onSuccess { refresh() }
-                .onFailure { Toast.makeText(this, it.message, Toast.LENGTH_LONG).show() }
+                .onFailure { Toast.makeText(this, ErrorText.of(this, it, R.string.folder_unusable_choice), Toast.LENGTH_LONG).show() }
             requestCode >= REQUEST_ENGINE_FOLDER -> {
                 val engine = engines.getOrNull(requestCode - REQUEST_ENGINE_FOLDER) ?: return
                 val folder = StorageFolder.absolutePath(uri)
@@ -238,7 +258,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 } else {
                     runCatching { store.selectRootFor(engine, folder) }
                         .onSuccess { refresh() }
-                        .onFailure { Toast.makeText(this, it.message, Toast.LENGTH_LONG).show() }
+                        .onFailure { Toast.makeText(this, ErrorText.of(this, it, R.string.folder_unusable_choice), Toast.LENGTH_LONG).show() }
                 }
             }
         }
@@ -251,7 +271,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         }
         val oldSaves = runCatching { store.saveRoot() }.getOrNull()
         runCatching { store.selectRoot(newRoot) }.onFailure {
-            Toast.makeText(this, it.message, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, ErrorText.of(this, it, R.string.folder_unusable_choice), Toast.LENGTH_LONG).show()
         }.onSuccess {
             refresh()
             if (oldSaves != null && oldSaves.canonicalFile != store.saveRoot().canonicalFile && oldSaves.exists()) {
@@ -293,7 +313,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 if (sheet.isShowing) sheet.dismiss()
                 val message = result.fold(
                     { getString(R.string.migration_result, it.copied, it.conflicts, it.failures) },
-                    { getString(R.string.migration_failed, it.message) },
+                    { getString(R.string.migration_failed, ErrorText.of(this, it, R.string.folder_unusable_choice)) },
                 )
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             }
@@ -322,15 +342,29 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         )
     }
 
+    /** Bumped per refresh so an engine list read for an older one is dropped. */
+    private var engineRowsGeneration = 0
+
     /**
      * One row per engine family that can actually run something here: the
      * installed plugins decide the list, so a person never sees a folder
      * setting for an engine they do not have. A family that lost its last
      * plugin but still has an override keeps its row until the override is
-     * cleared, so the setting can always be undone.
+     * cleared, so the setting can always be undone. The installed engines are
+     * read off the main thread, where every bundle's manifest is parsed.
      */
     private fun refreshEngineRows() {
-        val installed = PluginRegistry.discover(this).map { it.info.engine }
+        val generation = ++engineRowsGeneration
+        Thread {
+            val installed = runCatching { PluginRegistry.discover(this).map { it.info.engine } }.getOrDefault(emptyList())
+            runOnUiThread {
+                if (isDestroyed || generation != engineRowsGeneration) return@runOnUiThread
+                showEngineRows(installed)
+            }
+        }.start()
+    }
+
+    private fun showEngineRows(installed: List<String>) {
         engines = (installed + store.overrides().keys).distinct().sortedBy { EngineNames.family(it) }
         engineSaveRows.removeAllViews()
         val inflater = LayoutInflater.from(this)
@@ -425,6 +459,8 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     }
 
     companion object {
+        /** Opened from Home's app update notice: check for the update at once. */
+        const val EXTRA_APP_UPDATE = "dev.enginehost.settings.APP_UPDATE"
         private const val REQUEST_FOLDER = 30
         private const val REQUEST_BROWSER_START = 31
         /** Per-engine folder picks: this plus the row's index in [engines]. */

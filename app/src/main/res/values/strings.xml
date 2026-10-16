@@ -282,6 +282,7 @@
     <string name="core_value">%1$s · %2$s</string>
     <string name="core_newest">newest that fits</string>
     <string name="core_fixed">fixed for this game</string>
+    <string name="core_fixed_missing">fixed for this game, not installed</string>
     <string name="core_use_newest">Newest that fits</string>
     <string name="core_use_newest_detail">Follows updates to the core.</string>
     <string name="core_update_value">Build %1$s is available. Your approval carries over.</string>
@@ -326,7 +327,7 @@
     <string name="move_saves_message">Copies saves to the new folder and removes the originals once each copy is verified.</string>
     <string name="migrate">Move</string>
     <string name="not_now">Not now</string>
-    <string name="migration_failed">Move failed: %1$s</string>
+    <string name="migration_failed">The saves could not be moved: %1$s</string>
     <string name="migration_result">Moved %1$d files; %2$d conflicts kept in place; %3$d failed</string>
     <string name="migration_progress">Moving saves… %1$d files so far. This keeps going if you close this.</string>
     <string name="migration_running">Saves are still being moved. Try again when that has finished.</string>
@@ -521,10 +522,11 @@
     <string name="app_update_available">Enginehost %1$s is available</string>
     <string name="app_update_checking">Checking…</string>
     <string name="app_update_none">This is the newest build</string>
+    <string name="app_update_check_failed">Could not reach the update server. Check the connection, then try again.</string>
     <string name="app_update_install">Install Enginehost %1$s</string>
     <string name="app_update_downloading">Downloading Enginehost %1$s…</string>
     <string name="app_update_handing_to_installer">Handing over to the Android installer…</string>
-    <string name="app_update_failed">Update failed</string>
+    <string name="app_update_failed">Enginehost could not be updated. Check the connection, then press Install to try again.</string>
     <string name="app_update_not_installed">Android did not install the update. Press Install to try again.</string>
     <!-- Launch screen: shown from the tap until the engine draws its first frame. -->
     <string name="launch_starting">Starting…</string>
@@ -633,6 +635,10 @@
     <string name="caller_access_allow_anyway">Allow this app</string>
     <string name="caller_access_running_refused">A game is already running, and this app is not allowed to bring it forward. Allow it under Settings, App launch access.</string>
     <string name="launch_plan_failed">Enginehost could not prepare this game.</string>
+    <string name="launch_runtime_failed">The game's engine could not be started. Try again.</string>
+    <string name="error_network">Could not reach the server. Check the connection, then try again.</string>
+    <string name="core_install_failed">The core could not be installed.</string>
+    <string name="folder_unusable_choice">That folder cannot be used here. Choose another one.</string>
     <string name="launch_save_folder_invalid_name">The save folder name in the game\'s configuration is not valid.</string>
     <string name="launch_exec_file_missing">The game\'s entry file \"%1$s\" does not exist in the game folder.</string>
     <string name="earlier_saves_title">Saves from an earlier Enginehost</string>

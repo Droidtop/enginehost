@@ -84,7 +84,7 @@ class PluginUpdateCheck(private val context: Context) {
             now - preferences.getLong(LAST_ATTEMPT, 0L) >= RETRY_AFTER_FAILURE_MS
         Thread {
             val due = scheduled || catalogsStale()
-            if (!due || (unmeteredOnly && isMetered())) onPending(pending()) else run(onPending)
+            if (!due || (unmeteredOnly && isMetered())) onPending(pending()) else run(onPending = onPending)
         }.start()
     }
 
@@ -95,11 +95,27 @@ class PluginUpdateCheck(private val context: Context) {
             .any { cache.isStale(it, CATALOG_MAX_AGE_MS) }
     }
 
-    /** Runs the pass now, regardless of schedule or network. */
-    fun run(onPending: (List<AvailablePlugin>) -> Unit) {
+    /**
+     * Runs the pass now, regardless of schedule or network. [onApp] is told
+     * what the newest Enginehost build is as soon as that is known, first in
+     * the pass, so Check now shows it without fetching it a second time.
+     */
+    fun run(onApp: ((Result<AppUpdate.Info>) -> Unit)? = null, onPending: (List<AvailablePlugin>) -> Unit) {
         val started = System.currentTimeMillis()
         preferences.edit().putLong(LAST_ATTEMPT, started).apply()
         Thread {
+            // The pass asks what the newest Enginehost build is -- one small
+            // unauthenticated download, remembered so the home screen can say
+            // an app update exists. Failure is as silent as a failed catalog
+            // fetch. Its answer is also what says the pass reached the network.
+            val app = runCatching { AppUpdate.fetch(context) }.onSuccess { info ->
+                preferences.edit()
+                    .putLong(APP_VERSION_CODE, info.versionCode)
+                    .putString(APP_VERSION_NAME, info.versionName)
+                    .putLong(LAST_REACHED, started)
+                    .apply()
+            }
+            onApp?.invoke(app)
             val installed = PluginRegistry.discoverAll(context)
             val origins = installed.map { it.origin }.filter(String::isNotBlank).distinct()
             val cache = PluginCatalogCache(context)
@@ -116,18 +132,6 @@ class PluginUpdateCheck(private val context: Context) {
             // fix was published. Validate-before-replace inside
             // EngineRegistryStore.update means a bad download changes nothing.
             runCatching { EngineRegistryStore.update(context) }
-            // The same pass also asks what the newest Enginehost build is --
-            // one more small unauthenticated download, remembered so the
-            // home screen can say an app update exists. Failure is as silent
-            // as a failed catalog fetch.
-            // Its answer is also what says the pass reached the network.
-            runCatching { AppUpdate.fetch(context) }.onSuccess { info ->
-                preferences.edit()
-                    .putLong(APP_VERSION_CODE, info.versionCode)
-                    .putString(APP_VERSION_NAME, info.versionName)
-                    .putLong(LAST_REACHED, started)
-                    .apply()
-            }
             val updates = PluginUpdates.updatesFor(
                 installed,
                 cache.loadAll(origins).filter { it.stream.offeredTo(stream) },
