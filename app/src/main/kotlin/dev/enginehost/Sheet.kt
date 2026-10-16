@@ -51,6 +51,9 @@ class Sheet(private val activity: Activity) {
     private var onCancel: (() -> Unit)? = null
     private var onDismiss: (() -> Unit)? = null
 
+    /** The row the pad starts on: the current value, else the first. */
+    private var padStart: View? = null
+
     /**
      * A warning rather than a question: a red title over a red plate, for
      * what the owner asked to be a "big red warning" (tracker#482). Its
@@ -139,7 +142,7 @@ class Sheet(private val activity: Activity) {
         HintRow.fill(
             hints,
             listOfNotNull(
-                Hint("A", R.string.hint_select) { dialog.currentFocus?.performClick() }.takeIf { choices.isNotEmpty() },
+                Hint("A", R.string.hint_select) { pressA(dialog) }.takeIf { choices.isNotEmpty() },
                 Hint("B", R.string.back) { dialog.cancel() },
             ),
         )
@@ -156,6 +159,7 @@ class Sheet(private val activity: Activity) {
         dialog.setOnKeyListener { _, keyCode, event -> onKey(dialog, keyCode, event) }
         place(dialog)
         dialog.show()
+        padStart = firstFocus
         firstFocus?.requestFocus()
         return dialog
     }
@@ -174,12 +178,24 @@ class Sheet(private val activity: Activity) {
                 true
             }
             KeyEvent.KEYCODE_BUTTON_A -> {
-                if (up) dialog.currentFocus?.performClick()
+                if (up) pressA(dialog)
                 true
             }
             KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y -> true
             else -> false
         }
+    }
+
+    /**
+     * A presses the focused row. A sheet opened by touch has none (touch mode
+     * gives no focus), and A did nothing (review, 2026-10-16); there the first
+     * A shows the selection on the row the pad starts on, and the next presses
+     * it, so A never picks a row the person has not seen selected.
+     */
+    private fun pressA(dialog: Dialog) {
+        val focused = dialog.currentFocus
+        val touch = dialog.window?.decorView?.isInTouchMode == true
+        if (focused != null && !touch) focused.performClick() else padStart?.requestFocusFromTouch()
     }
 
     /** Bottom edge, full width, upright; right edge, full height, capped width, in landscape. */

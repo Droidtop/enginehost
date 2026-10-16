@@ -97,7 +97,8 @@ object GameSectionsLoader {
     private fun savesOf(context: Context, folder: File, config: EngineConfig): SavesInfo {
         val place = SaveFolders.placeOf(config.engine, config.engineContext)
         if (place == SaveFolders.Place.BESIDE_THE_GAME) return SavesInfo(true, folder, 0L, -1L)
-        val saves = SaveLocationStore(context).saveFolderFor(config)
+        // Located, not made: a folder that is not there yet simply has nothing in it.
+        val saves = SaveLocationStore(context).saveFolderPathFor(config)
         var latest = 0L
         var bytes = 0L
         var seen = 0

@@ -638,6 +638,9 @@
     <string name="launch_runtime_failed">The game\'s engine could not be started. Try again.</string>
     <string name="error_network">Could not reach the server. Check the connection, then try again.</string>
     <string name="core_install_failed">The core could not be installed.</string>
+    <string name="scan_request_title">Look for games here?</string>
+    <string name="scan_request_message">%1$s asks Enginehost to look for games in %2$s.</string>
+    <string name="scan_request_scan">Look for games</string>
     <string name="folder_unusable_choice">That folder cannot be used here. Choose another one.</string>
     <string name="launch_save_folder_invalid_name">The save folder name in the game\'s configuration is not valid.</string>
     <string name="launch_exec_file_missing">The game\'s entry file \"%1$s\" does not exist in the game folder.</string>

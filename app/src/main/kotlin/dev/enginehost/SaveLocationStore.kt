@@ -45,6 +45,13 @@ class SaveLocationStore(context: Context) {
     fun saveFolderFor(config: EngineConfig): File = saveFolderFor(saveRootFor(config.engine), config)
 
     /**
+     * Where [saveFolderFor] puts [config]'s saves, without making the folder:
+     * for a screen that only shows the place. Viewing a game's page made its
+     * save folder (review, 2026-10-16); only a launch should.
+     */
+    fun saveFolderPathFor(config: EngineConfig): File = locateSaveFolder(File(rootFor(config.engine), "saves"), config)
+
+    /**
      * Saves an earlier Enginehost kept for this game in a folder of its own
      * that the game folder does not have: for an engine that saves beside
      * the game and was given a host folder instead until the save policy
@@ -173,10 +180,16 @@ class SaveLocationStore(context: Context) {
          * testable.
          */
         fun saveFolderFor(root: File, config: EngineConfig): File {
+            val folder = locateSaveFolder(root, config)
+            return if (folder == root) root else ensureUsable(folder)
+        }
+
+        /** The folder [saveFolderFor] makes usable beneath [root], only located: nothing is created. */
+        fun locateSaveFolder(root: File, config: EngineConfig): File {
             if (!SaveFolders.applies(config.engine, config.engineContext)) return root
             val name = config.saveFolder ?: return root
             require(SaveFolders.isPlainName(name)) { "A save folder must be a single folder name" }
-            return ensureUsable(File(root, name))
+            return File(root, name)
         }
 
         private fun ensureUsable(folder: File): File = folder.also {

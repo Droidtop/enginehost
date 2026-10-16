@@ -67,28 +67,8 @@ class LaunchEntryActivity : Activity() {
         setResult(RESULT_OK, Intent().putExtra(EXTRA_ENDED, wasRunning))
     }
 
-    /**
-     * [LaunchCaller.Droidtop] only when Android's own record of who
-     * started this activity names droidtop's package under droidtop's own
-     * signing certificate ([TrustedCallers]). [LaunchCaller.Unknown] when
-     * the intent this activity received supplied its own `EXTRA_REFERRER`
-     * or `EXTRA_REFERRER_NAME` -- ordinary extras any caller can set on
-     * the intent it sends, which `Activity.getReferrer()` prefers over
-     * Android's own record, so neither is trusted here -- or when there is
-     * no referrer at all (the shape `adb shell am start` takes). Otherwise
-     * [LaunchCaller.App] with the real, system-attributed package.
-     */
-    private fun caller(): LaunchCaller {
-        if (intent.hasExtra(Intent.EXTRA_REFERRER) || intent.hasExtra(Intent.EXTRA_REFERRER_NAME)) {
-            return LaunchCaller.Unknown
-        }
-        val callerPackage = referrer?.host ?: return LaunchCaller.Unknown
-        return if (TrustedCallers.isDroidtop(packageManager, callerPackage)) {
-            LaunchCaller.Droidtop
-        } else {
-            LaunchCaller.App(callerPackage)
-        }
-    }
+    /** Who started this activity: [LaunchCaller.of]. */
+    private fun caller(): LaunchCaller = LaunchCaller.of(this)
 
     companion object {
         const val ACTION_END_GAME = "dev.enginehost.END_GAME"

@@ -19,11 +19,15 @@ object TestingConfigRow {
     private const val TAG = "enginehost.testing-config-row"
 
     /** Puts the row right after [after], or removes it when nothing is pending. [onChanged] runs after Keep or Discard. */
-    fun show(activity: Activity, after: View, folder: File, onChanged: () -> Unit) {
+    fun show(activity: Activity, after: View, folder: File, onChanged: () -> Unit) =
+        show(activity, after, folder, TestingConfigStore.of(activity).get(folder), onChanged)
+
+    /** [show] with [pending] already read, by a caller that reads it off the main thread. */
+    fun show(activity: Activity, after: View, folder: File, pending: TestingConfigStore.Pending?, onChanged: () -> Unit) {
         val parent = after.parent as? ViewGroup ?: return
         parent.findViewWithTag<View>(TAG)?.let(parent::removeView)
+        if (pending == null) return
         val store = TestingConfigStore.of(activity)
-        val pending = store.get(folder) ?: return
         val stamp = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(pending.savedAt))
         val row = LayoutInflater.from(activity).inflate(R.layout.item_action_button, parent, false) as Button
         row.tag = TAG
@@ -33,17 +37,28 @@ object TestingConfigRow {
                 .title(R.string.testing_pending_title)
                 .message(activity.getString(R.string.testing_pending_message, stamp))
                 .choice(R.string.testing_keep) {
-                    val message = runCatching { store.keep(folder) }.fold(
-                        onSuccess = { activity.getString(R.string.testing_kept, CONFIG_FILE_NAME) },
-                        onFailure = { it.message ?: activity.getString(R.string.could_not_save) },
-                    )
-                    Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
-                    onChanged()
+                    // Keep writes the game's enginehost.json: not on the main thread.
+                    Thread {
+                        val message = runCatching { store.keep(folder) }.fold(
+                            onSuccess = { activity.getString(R.string.testing_kept, CONFIG_FILE_NAME) },
+                            onFailure = { ErrorText.of(activity, it, R.string.could_not_save) },
+                        )
+                        activity.runOnUiThread {
+                            if (activity.isDestroyed) return@runOnUiThread
+                            Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
+                            onChanged()
+                        }
+                    }.start()
                 }
                 .choice(R.string.testing_discard) {
-                    store.discard(folder)
-                    Toast.makeText(activity, R.string.testing_discarded, Toast.LENGTH_LONG).show()
-                    onChanged()
+                    Thread {
+                        runCatching { store.discard(folder) }
+                        activity.runOnUiThread {
+                            if (activity.isDestroyed) return@runOnUiThread
+                            Toast.makeText(activity, R.string.testing_discarded, Toast.LENGTH_LONG).show()
+                            onChanged()
+                        }
+                    }.start()
                 }
                 .show()
         }

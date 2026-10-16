@@ -35,6 +35,25 @@ sealed class LaunchCaller {
 
     companion object {
         const val UNKNOWN_KEY = "(unrecognized caller)"
+
+        /**
+         * Who started [activity], by Android's own record. [Droidtop] only
+         * when that record names droidtop's package under droidtop's own
+         * signing certificate ([TrustedCallers]). [Unknown] when the intent
+         * supplied its own `EXTRA_REFERRER` or `EXTRA_REFERRER_NAME` --
+         * ordinary extras any caller can set, which `Activity.getReferrer()`
+         * prefers over Android's own record, so neither is trusted -- or
+         * when there is no referrer at all (the shape `adb shell am start`
+         * takes). Otherwise [App] with the real, system-attributed package.
+         * Shared by every exported entry that acts on what a caller names:
+         * `LAUNCH` and `SCAN`.
+         */
+        fun of(activity: android.app.Activity): LaunchCaller {
+            val intent = activity.intent
+            if (intent.hasExtra(Intent.EXTRA_REFERRER) || intent.hasExtra(Intent.EXTRA_REFERRER_NAME)) return Unknown
+            val callerPackage = activity.referrer?.host ?: return Unknown
+            return if (TrustedCallers.isDroidtop(activity.packageManager, callerPackage)) Droidtop else App(callerPackage)
+        }
     }
 }
 

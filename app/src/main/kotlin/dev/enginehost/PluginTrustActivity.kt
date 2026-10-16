@@ -255,8 +255,12 @@ class PluginTrustActivity : EnginehostActivity() {
         card.findViewById<TextView>(R.id.signerValue).text =
             "${getString(R.string.signer_label)}: ${plugin.signerIdentity}"
         val change = trust.changeSinceApproval(plugin)
+        // A core signed only the legacy way never starts while the root is
+        // pinned; its card offers Remove alone, not a decision that changes
+        // nothing (review, 2026-10-16).
+        val legacyRefused = plugin.legacySigned && EnginehostRoot.get(this) != null
         card.findViewById<TextView>(R.id.trustState).text =
-            if (plugin.legacySigned && EnginehostRoot.get(this) != null) {
+            if (legacyRefused) {
                 // Deprecated: it will not start, and the card says what to do (owner, 2026-10-16).
                 getString(R.string.trust_state_legacy)
             } else {
@@ -296,6 +300,10 @@ class PluginTrustActivity : EnginehostActivity() {
         card.findViewById<Button>(R.id.denyButton).apply {
             isEnabled = state != PluginTrustState.DENIED && plugin.signerIdentity.isNotBlank()
             setOnClickListener { trust.deny(plugin); render() }
+        }
+        if (legacyRefused) {
+            card.findViewById<View>(R.id.approveButton).visibility = View.GONE
+            card.findViewById<View>(R.id.denyButton).visibility = View.GONE
         }
         card.findViewById<Button>(R.id.uninstallButton).setOnClickListener { button ->
             // Removing deletes the bundle's whole tree: off the main thread.

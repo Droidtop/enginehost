@@ -83,7 +83,7 @@ class GameScanActivity : EnginehostActivity() {
 
         val requested = intent.getStringExtra(EXTRA_PATH)?.let { File(it).absoluteFile }?.takeIf { it.isDirectory }
         when {
-            requested != null -> startScan(requested, full = false)
+            requested != null && savedInstanceState == null -> scanRequested(requested)
             ScanController.state.root != null -> showRoot(ScanController.state.root!!)
             else -> Thread {
                 val last = library.lastScanRoot()
@@ -95,6 +95,31 @@ class GameScanActivity : EnginehostActivity() {
     override fun onResume() {
         super.onResume()
         ScanController.observe(observer)
+    }
+
+    /**
+     * Only another app starts this screen with a folder (`dev.enginehost.SCAN`).
+     * It scanned at once, whoever asked (review, 2026-10-16). Now the person's
+     * decisions for `LAUNCH` callers apply here too: droidtop and a caller
+     * they allowed scan at once, a caller they blocked does not, and anyone
+     * else is asked first, with the folder named.
+     */
+    private fun scanRequested(folder: File) {
+        val caller = LaunchCaller.of(this)
+        val decision = if (caller == LaunchCaller.Droidtop) CallerDecision.ALLOW else CallerAccessStore(this).decisionFor(caller.storeKey)
+        when (decision) {
+            CallerDecision.ALLOW -> startScan(folder, full = false)
+            CallerDecision.BLOCK -> Unit
+            null -> {
+                val name = if (caller is LaunchCaller.App) CallerLabels.of(packageManager, caller.packageName) else getString(R.string.caller_access_unknown_label)
+                Sheet(this)
+                    .title(R.string.scan_request_title)
+                    .message(getString(R.string.scan_request_message, name, folder.absolutePath))
+                    .choice(R.string.not_now) {}
+                    .choice(R.string.scan_request_scan) { startScan(folder, full = false) }
+                    .show()
+            }
+        }
     }
 
     override fun onPause() {

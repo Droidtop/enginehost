@@ -28,6 +28,10 @@ class GameSectionsView(
     private val library = GameLibraryStore(activity.applicationContext)
 
     fun show(sections: GameSections) {
+        // Redrawing replaces every row; the pad keeps its place by row index,
+        // where it used to lose its row after every option change (review,
+        // 2026-10-16).
+        val focused = container.focusedChild?.let(container::indexOfChild) ?: -1
         container.removeAllViews()
         val core = sections.core
         if (core != null) addCore(sections, core) else sections.pinned?.let { addMissingPin(sections, it) }
@@ -36,6 +40,12 @@ class GameSectionsView(
         if (sections.core != null) addControls(sections)
         sections.saves?.let { addSaves(it) }
         addHistory(sections.history)
+        if (focused >= 0 && container.childCount > 0) {
+            (focused.coerceAtMost(container.childCount - 1) downTo 0)
+                .map(container::getChildAt)
+                .firstOrNull { it.isFocusable }
+                ?.requestFocus()
+        }
     }
 
     private fun row(title: CharSequence, value: CharSequence, chevron: Boolean = true, onClick: (() -> Unit)? = null): View {

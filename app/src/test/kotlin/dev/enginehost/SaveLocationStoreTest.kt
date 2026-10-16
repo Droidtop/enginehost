@@ -118,4 +118,15 @@ class SaveLocationStoreTest {
         assertEquals("mine", File(source, "game-b/kept.save").readText())
         assertTrue(!File(source, "game-a").exists())
     }
+
+    @Test
+    fun `locating a game's save folder creates nothing`() {
+        val root = temporaryFolder.newFolder("root")
+        val config = makeConfig(engine = "html", saveFolder = "my-game")
+        val located = SaveLocationStore.locateSaveFolder(root, config)
+        assertEquals(SaveLocationStore.saveFolderFor(root, config), located)
+        assertTrue(File(root, "my-game").delete())
+        SaveLocationStore.locateSaveFolder(root, config)
+        assertTrue(!File(root, "my-game").exists())
+    }
 }

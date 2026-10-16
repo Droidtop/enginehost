@@ -122,7 +122,9 @@ fast scroll. A row's status line says builds, architecture, what this device can
 a plugin" is the only caution colour.
 
 Droidtop (or any caller) can still open a scan at a folder it knows with `dev.enginehost.SCAN` and a
-`path` extra.
+`path` extra. Droidtop's scan starts at once; another app's follows the person's `LAUNCH` decision for
+that caller (allowed: at once; blocked: not at all) and otherwise asks first, naming the app and the
+folder (review, 2026-10-16).
 
 ### Verified and not
 

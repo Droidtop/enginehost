@@ -81,7 +81,12 @@ class LaunchActivity : EnginehostActivity() {
                 override fun handleOnBackPressed() = cancel()
             },
         )
-        if (savedInstanceState == null) launch() else showTitle(null)
+        // Recreated with no runtime started (planning was under way, or a
+        // failure or a question was showing), nothing would carry the screen
+        // past "Starting…": the old planning result went to the screen that
+        // was destroyed. It plans again (review, 2026-10-16). With a runtime
+        // started, this screen waits for its result as before.
+        if (savedInstanceState == null || !runtimeStarted) launch() else showTitle(null)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

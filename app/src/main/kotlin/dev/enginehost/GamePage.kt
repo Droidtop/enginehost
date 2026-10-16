@@ -88,13 +88,25 @@ class GamePage(
         }
     }
 
+    /**
+     * Bumped per refresh. A refresh answers only while it is the newest, so
+     * an older one (onResume racing a change on the page) cannot land last
+     * and put back a stale Play state or favourite mark (review, 2026-10-16).
+     */
+    private var generation = 0
+
     /** Reads the game's state and its sections again, for when setup or a choice on this page may have changed them. */
     fun refresh() {
         val game = folder ?: return
+        val current = ++generation
         showFolderLine()
-        showTestingRow(game)
         showTitle(game, null)
         Thread {
+            // The testing configuration is a file: read here, not on the main thread.
+            val testing = runCatching { TestingConfigStore.of(activity).get(game) }.getOrNull()
+            activity.runOnUiThread {
+                if (!activity.isDestroyed && current == generation && folder == game) showTestingRow(game, testing)
+            }
             val isFavourite = runCatching { GameLibraryStore(activity.applicationContext).isFavourite(game) }.getOrDefault(false)
             val status = GameStatus.of(activity, game)
             // The art is the game's own icon (GameIcon), read from the same
@@ -102,7 +114,7 @@ class GamePage(
             // removable storage, so this stays off the thread that is drawing.
             val art = status.config?.let { GameIcon.load(game, it) }
             activity.runOnUiThread {
-                if (activity.isDestroyed || activity.isFinishing || folder != game) return@runOnUiThread
+                if (activity.isDestroyed || activity.isFinishing || folder != game || current != generation) return@runOnUiThread
                 showTitle(game, status.title)
                 showFavourite(isFavourite)
                 primary = status.primary
@@ -126,26 +138,26 @@ class GamePage(
                     }
                 }
                 showPlate(art, status)
-                loadSections(game, status)
+                loadSections(game, status, current)
             }
         }.start()
     }
 
     /** The sections read the plugin catalogs and the save folder, so they come a moment after the page, off the main thread. */
-    private fun loadSections(game: File, status: GameStatus) {
+    private fun loadSections(game: File, status: GameStatus, current: Int) {
         Thread {
             val sections = runCatching { GameSectionsLoader.load(activity.applicationContext, game, status) }.getOrNull()
                 ?: return@Thread
             activity.runOnUiThread {
-                if (activity.isDestroyed || activity.isFinishing || folder != game) return@runOnUiThread
+                if (activity.isDestroyed || activity.isFinishing || folder != game || current != generation) return@runOnUiThread
                 GameSectionsView(activity, root.findViewById(R.id.gameSections), game) { refresh() }.show(sections)
             }
         }.apply { isDaemon = true }.start()
     }
 
     /** A pending testing configuration from Game setup, with Keep and Discard one press away. */
-    private fun showTestingRow(game: File) {
-        TestingConfigRow.show(activity, playButton, game) { showTestingRow(game) }
+    private fun showTestingRow(game: File, pending: TestingConfigStore.Pending?) {
+        TestingConfigRow.show(activity, playButton, game, pending) { refresh() }
     }
 
     private fun showTitle(game: File, configTitle: String?) {
