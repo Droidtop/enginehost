@@ -76,6 +76,14 @@ class PluginCatalogActivity : EnginehostActivity() {
      */
     private val installing = mutableSetOf<String>()
 
+    /** Leaving the catalog a launch stopped at, with no install running, ends that launch. */
+    override fun onDestroy() {
+        if (isFinishing && intent.getBooleanExtra(PendingPluginLaunchStore.EXTRA_RESUMES, false) && !PluginInstaller.isInstalling()) {
+            PendingPluginLaunchStore(this).clear()
+        }
+        super.onDestroy()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = getString(R.string.catalog_title)

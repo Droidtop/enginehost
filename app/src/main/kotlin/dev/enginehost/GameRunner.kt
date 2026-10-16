@@ -64,61 +64,14 @@ object GameRunner {
         autoInstallPlugin: Boolean = false,
         testing: Boolean = false,
     ): Plan {
-        // Before anything reads the folder or starts a runtime: a game folder
-        // that is not there (a card that is not mounted, a folder moved or
-        // deleted since it was added) is a sentence, not a crash. Checked
-        // nowhere else, the Ren'Py runtime found it itself on its engine
-        // thread and aborted the process through a JNI pending exception
-        // (rig, 2026-09-24), and every other engine had its own outcome.
-        // Without the all-files grant (a fresh install started straight from
-        // a frontend) Enginehost can neither read a game on shared storage nor
-        // make its save folder, and the folder check below would wrongly call
-        // a present folder missing. Asked first, for that reason.
-        if (!StorageFolder.hasNativePathAccess()) {
-            return Plan.Failure(context.getString(R.string.launch_needs_all_files), retry = true)
+        val read = when (val step = readConfig(context, gameFolder, inlineJson, testing)) {
+            is ConfigRead.Stop -> return step.plan
+            is ConfigRead.Ready -> step
         }
-        if (!gameFolder.isDirectory) {
-            return Plan.Failure(context.getString(R.string.launch_folder_missing, gameFolder.absolutePath), retry = true)
-        }
-        // A folder with no config of its own runs on what its files imply,
-        // in memory: detection fills the config, the caller's inline config
-        // fills what detection leaves, and the result travels to the runtime
-        // as this launch's inline config. Nothing is written into the game
-        // folder; only Game setup does that, when the person saves. Only a
-        // folder that leaves a question open goes to the editor.
-        val testingJson = if (testing) {
-            TestingConfigStore.of(context).get(gameFolder)?.config?.toString()
-                ?: return Plan.Failure(context.getString(R.string.testing_config_gone))
-        } else {
-            null
-        }
-        val hasFolderConfig = testingJson != null || File(gameFolder, CONFIG_FILE_NAME).isFile
-        // An engine nothing here runs (Unity above all) is said plainly,
-        // with why, rather than sent to Game setup to be asked questions
-        // no answer to which could make it start.
-        val launchJson = if (hasFolderConfig) {
-            inlineJson
-        } else {
-            when (val detected = DetectedConfig.forLaunch(context, gameFolder, inlineJson)) {
-                is DetectedConfig.Launch.Document -> detected.json
-                is DetectedConfig.Launch.Unhosted ->
-                    return Plan.Failure(UnhostedEngine.explain(context, detected.detection))
-                DetectedConfig.Launch.Open -> return Plan.Detour(
-                    Intent(context, ConfigEditorActivity::class.java).apply {
-                        putExtra(ConfigEditorActivity.EXTRA_PATH, gameFolder.absolutePath)
-                        inlineJson?.let { putExtra(ConfigEditorActivity.EXTRA_CONFIG, it) }
-                    },
-                    notice = R.string.launch_needs_config,
-                )
-            }
-        }
-        // The person's own choices for this game, from the library database; layered over the folder's file.
-        val overridesJson = runCatching { GameLibraryStore(context).overridesFor(gameFolder) }.getOrNull()
-        val config = try {
-            EngineConfigReader.resolve(gameFolder, launchJson, testingJson, overridesJson)
-        } catch (e: InvalidEngineConfigException) {
-            return Plan.Failure(e.message ?: "Invalid $CONFIG_FILE_NAME")
-        }
+        val config = read.config
+        val launchJson = read.launchJson
+        val testingJson = read.testingJson
+        val overridesJson = read.overridesJson
         // The save root can be on a card that is not mounted, or a folder
         // chosen once and gone since; that is a sentence too, not an
         // exception out of the launch screen.
@@ -150,15 +103,17 @@ object GameRunner {
                 trust.state(installed) == PluginTrustState.PENDING && missing[component.name] == component.version
             }
             if (waiting != null) {
-                PendingPluginLaunchStore(context).save(gameFolder, inlineJson, waiting.bundleId, testing)
+                PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing)
                 return Plan.Detour(
                     Intent(context, PluginTrustActivity::class.java)
-                        .putExtra(PluginTrustActivity.EXTRA_BUNDLE, waiting.bundleId),
+                        .putExtra(PluginTrustActivity.EXTRA_BUNDLE, waiting.bundleId)
+                        .putExtra(PendingPluginLaunchStore.EXTRA_RESUMES, true),
                 )
             }
-            PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing = testing)
+            PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing)
             return Plan.Detour(
                 Intent(context, PluginCatalogActivity::class.java).apply {
+                    putExtra(PendingPluginLaunchStore.EXTRA_RESUMES, true)
                     putExtra(PluginCatalogActivity.EXTRA_GAME_PATH, gameFolder.absolutePath)
                     launchJson?.let { putExtra(PluginCatalogActivity.EXTRA_CALLER_CONFIG, it) }
                     putExtra(PluginCatalogActivity.EXTRA_AUTOINSTALL, autoInstallPlugin)
@@ -166,10 +121,11 @@ object GameRunner {
             )
         }
         if (!PluginTrustStore(context).isApproved(resolved.plugin)) {
-            PendingPluginLaunchStore(context).save(gameFolder, inlineJson, resolved.plugin.bundleId, testing)
+            PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing)
             return Plan.Detour(
                 Intent(context, PluginTrustActivity::class.java)
-                    .putExtra(PluginTrustActivity.EXTRA_BUNDLE, resolved.plugin.bundleId),
+                    .putExtra(PluginTrustActivity.EXTRA_BUNDLE, resolved.plugin.bundleId)
+                    .putExtra(PendingPluginLaunchStore.EXTRA_RESUMES, true),
             )
         }
         // The config's execFile, when specified, must exist under the game folder.
@@ -213,6 +169,123 @@ object GameRunner {
         }
         return Plan.Runtime(intent, config, resolved, saves.earlierSavesFor(config, gameFolder))
     }
+
+    /** What [readConfig] found: the config a launch runs on, or the plan that stops it first. */
+    private sealed class ConfigRead {
+        class Ready(
+            val config: EngineConfig,
+            val launchJson: String?,
+            val testingJson: String?,
+            val overridesJson: String?,
+        ) : ConfigRead()
+
+        class Stop(val plan: Plan) : ConfigRead()
+    }
+
+    /**
+     * The config a launch of [gameFolder] runs on: its enginehost.json, or
+     * (Test) its testing configuration, or for a folder with neither what
+     * its files imply, in memory; the caller's inline config and the
+     * person's overrides on top. Reads only: nothing is written, no pending
+     * launch is kept and no save folder is made, so the game page and the
+     * pending-launch check share it with [plan].
+     */
+    private fun readConfig(context: Context, gameFolder: File, inlineJson: String?, testing: Boolean): ConfigRead {
+        // Before anything reads the folder or starts a runtime: a game folder
+        // that is not there (a card that is not mounted, a folder moved or
+        // deleted since it was added) is a sentence, not a crash. Checked
+        // nowhere else, the Ren'Py runtime found it itself on its engine
+        // thread and aborted the process through a JNI pending exception
+        // (rig, 2026-09-24), and every other engine had its own outcome.
+        // Without the all-files grant (a fresh install started straight from
+        // a frontend) Enginehost can neither read a game on shared storage nor
+        // make its save folder, and the folder check below would wrongly call
+        // a present folder missing. Asked first, for that reason.
+        if (!StorageFolder.hasNativePathAccess()) {
+            return ConfigRead.Stop(Plan.Failure(context.getString(R.string.launch_needs_all_files), retry = true))
+        }
+        if (!gameFolder.isDirectory) {
+            return ConfigRead.Stop(Plan.Failure(context.getString(R.string.launch_folder_missing, gameFolder.absolutePath), retry = true))
+        }
+        // A folder with no config of its own runs on what its files imply,
+        // in memory: detection fills the config, the caller's inline config
+        // fills what detection leaves, and the result travels to the runtime
+        // as this launch's inline config. Nothing is written into the game
+        // folder; only Game setup does that, when the person saves. Only a
+        // folder that leaves a question open goes to the editor.
+        val testingJson = if (testing) {
+            TestingConfigStore.of(context).get(gameFolder)?.config?.toString()
+                ?: return ConfigRead.Stop(Plan.Failure(context.getString(R.string.testing_config_gone)))
+        } else {
+            null
+        }
+        val hasFolderConfig = testingJson != null || File(gameFolder, CONFIG_FILE_NAME).isFile
+        // An engine nothing here runs (Unity above all) is said plainly,
+        // with why, rather than sent to Game setup to be asked questions
+        // no answer to which could make it start.
+        val launchJson = if (hasFolderConfig) {
+            inlineJson
+        } else {
+            when (val detected = DetectedConfig.forLaunch(context, gameFolder, inlineJson)) {
+                is DetectedConfig.Launch.Document -> detected.json
+                is DetectedConfig.Launch.Unhosted ->
+                    return ConfigRead.Stop(Plan.Failure(UnhostedEngine.explain(context, detected.detection)))
+                DetectedConfig.Launch.Open -> return ConfigRead.Stop(
+                    Plan.Detour(
+                        Intent(context, ConfigEditorActivity::class.java).apply {
+                            putExtra(ConfigEditorActivity.EXTRA_PATH, gameFolder.absolutePath)
+                            inlineJson?.let { putExtra(ConfigEditorActivity.EXTRA_CONFIG, it) }
+                        },
+                        notice = R.string.launch_needs_config,
+                    ),
+                )
+            }
+        }
+        // The person's own choices for this game, from the library database; layered over the folder's file.
+        val overridesJson = runCatching { GameLibraryStore(context).overridesFor(gameFolder) }.getOrNull()
+        val config = try {
+            EngineConfigReader.resolve(gameFolder, launchJson, testingJson, overridesJson)
+        } catch (e: InvalidEngineConfigException) {
+            return ConfigRead.Stop(Plan.Failure(e.message ?: "Invalid $CONFIG_FILE_NAME"))
+        }
+        return ConfigRead.Ready(config, launchJson, testingJson, overridesJson)
+    }
+
+    /** The config [plan] would run [gameFolder] on, or null where [plan] stops or detours before choosing a core. */
+    fun launchConfig(context: Context, gameFolder: File, inlineJson: String? = null, testing: Boolean = false): EngineConfig? =
+        (readConfig(context, gameFolder, inlineJson, testing) as? ConfigRead.Ready)?.config
+
+    /**
+     * Whether [plugin], now approved, is what a launch of [pending]'s game
+     * resolves to: the core itself, or a component that launch loads.
+     * Approving or installing an unrelated core must not start the game a
+     * person left earlier (review, 2026-10-16).
+     */
+    fun resolvesWith(context: Context, pending: PendingPluginLaunch, plugin: InstalledPlugin): Boolean {
+        val config = launchConfig(context, File(pending.gamePath), pending.callerConfig, pending.testing) ?: return false
+        val resolved = PluginRegistry.resolve(
+            context, config.engine, config.engineContext, config.engineVersion,
+            config.runtimeRequirements, config.pluginVersionConstraint,
+        ) ?: return false
+        return (listOf(resolved.plugin) + resolved.components).any { it.archiveSha256 == plugin.archiveSha256 }
+    }
+
+    /**
+     * After [plugin] was installed or approved: the pending launch it lets
+     * start, taken from the store, or null when there is none, it is stale,
+     * [plugin] is not approved, or the game does not resolve to it. Reads
+     * bundles; call it off the main thread.
+     */
+    fun pendingLaunchFor(context: Context, plugin: InstalledPlugin): PendingPluginLaunch? {
+        val store = PendingPluginLaunchStore(context)
+        val pending = store.peek() ?: return null
+        if (!PluginTrustStore(context).isApproved(plugin) || !resolvesWith(context, pending, plugin)) return null
+        return store.take()
+    }
+
+    /** Starts [pending]'s game, as the launch that stopped for a core would have. */
+    fun resume(context: Context, pending: PendingPluginLaunch) =
+        run(context, File(pending.gamePath), pending.callerConfig, testing = pending.testing)
 
     /**
      * The entry file [config] names that [gameFolder] does not have, for an

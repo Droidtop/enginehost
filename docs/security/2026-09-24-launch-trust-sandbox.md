@@ -161,6 +161,12 @@ bundle can start a game another app asked for earlier (audit R-4). The
 person is on the trust screen either way; the effect is a surprising
 launch, not a bypass.
 
+The pending launch half is closed (2026-10-16): a pending launch resumes
+only when the approved or installed core is what its game resolves to
+(`GameRunner.resolvesWith`), only within ten minutes of the stop or the
+last install for it, and is dropped when the person leaves the catalog or
+trust screen it stopped at with no install running.
+
 ### L4: the published debug build is debuggable (Low, open)
 
 The debug APK is signed with the same key as the release APK, so either

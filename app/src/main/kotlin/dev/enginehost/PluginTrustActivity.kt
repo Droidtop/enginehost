@@ -61,6 +61,14 @@ class PluginTrustActivity : EnginehostActivity() {
         render()
     }
 
+    /** Leaving the screen a launch stopped at, with no install running, ends that launch. */
+    override fun onDestroy() {
+        if (isFinishing && intent.getBooleanExtra(PendingPluginLaunchStore.EXTRA_RESUMES, false) && !PluginInstaller.isInstalling()) {
+            PendingPluginLaunchStore(this).clear()
+        }
+        super.onDestroy()
+    }
+
     private fun render() {
         list.removeAllViews()
         val requestedPackage = intent.getStringExtra(EXTRA_BUNDLE)
@@ -250,13 +258,21 @@ class PluginTrustActivity : EnginehostActivity() {
             isEnabled = state != PluginTrustState.APPROVED && plugin.signerIdentity.isNotBlank()
             setOnClickListener {
                 trust.approve(plugin)
-                val pending = PendingPluginLaunchStore(this@PluginTrustActivity).consumeFor(plugin.bundleId)
-                if (pending != null) {
-                    GameRunner.run(this@PluginTrustActivity, java.io.File(pending.gamePath), pending.callerConfig, testing = pending.testing)
-                    finish()
-                } else {
-                    render()
-                }
+                isEnabled = false
+                // The launch that stopped here resumes only if the game now
+                // resolves to this core; finding out reads bundles.
+                Thread {
+                    val pending = runCatching { GameRunner.pendingLaunchFor(this@PluginTrustActivity, plugin) }.getOrNull()
+                    runOnUiThread {
+                        if (isDestroyed) return@runOnUiThread
+                        if (pending != null) {
+                            GameRunner.resume(this@PluginTrustActivity, pending)
+                            finish()
+                        } else {
+                            render()
+                        }
+                    }
+                }.start()
             }
         }
         card.findViewById<Button>(R.id.denyButton).apply {
@@ -333,12 +349,12 @@ class PluginTrustActivity : EnginehostActivity() {
          * brings the whole Cores list forward: opening a one-core screen on
          * top of it left the page listing only the updated core until Back.
          */
-        fun afterInstall(context: Context, installed: InstalledPlugin): Intent =
+        fun afterInstall(context: Context, installed: InstalledPlugin, resumesLaunch: Boolean = false): Intent =
             if (PluginTrustStore(context).isApproved(installed)) {
                 Intent(context, PluginTrustActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             } else {
                 Intent(context, PluginTrustActivity::class.java).putExtra(EXTRA_BUNDLE, installed.bundleId)
-            }
+            }.putExtra(PendingPluginLaunchStore.EXTRA_RESUMES, resumesLaunch)
     }
 }

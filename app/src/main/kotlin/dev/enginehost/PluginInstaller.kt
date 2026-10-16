@@ -28,17 +28,52 @@ object PluginInstaller {
         onError: (String) -> Unit,
         onStatus: ((String) -> Unit)?,
     ) {
-        Thread {
+        inFlight(activity) {
             runCatching {
                 val installed = installQuietly(activity, plugin, onStatus)
-                PendingPluginLaunchStore(activity).peek()?.let {
-                    PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
-                }
-                activity.runOnUiThread { activity.startActivity(PluginTrustActivity.afterInstall(activity, installed)) }
+                val next = afterInstall(activity, installed)
+                activity.runOnUiThread { next() }
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }
+        }
+    }
+
+    /** Installs started from a screen and not finished yet ([PendingPluginLaunchStore.EXTRA_RESUMES]). */
+    private val running = java.util.concurrent.atomic.AtomicInteger()
+
+    fun isInstalling(): Boolean = running.get() > 0
+
+    private fun inFlight(activity: Activity, work: () -> Unit) {
+        running.incrementAndGet()
+        Thread {
+            try {
+                work()
+            } finally {
+                running.decrementAndGet()
+            }
         }.start()
+    }
+
+    /**
+     * What follows an install, worked out off the main thread and run on it:
+     * the launch that stopped for this core when the core is approved and
+     * the game resolves to it, else the trust screen. A launch still pending
+     * gets a fresh while to be approved in.
+     */
+    private fun afterInstall(activity: Activity, installed: InstalledPlugin): () -> Unit {
+        val store = PendingPluginLaunchStore(activity)
+        store.touch()
+        val resume = runCatching { GameRunner.pendingLaunchFor(activity, installed) }.getOrNull()
+        val stillPending = resume == null && store.peek() != null
+        return {
+            if (resume != null) {
+                GameRunner.resume(activity, resume)
+                if (activity.intent.getBooleanExtra(PendingPluginLaunchStore.EXTRA_RESUMES, false)) activity.finish()
+            } else {
+                activity.startActivity(PluginTrustActivity.afterInstall(activity, installed, stillPending))
+            }
+        }
     }
 
     /**
@@ -50,23 +85,17 @@ object PluginInstaller {
      * prompt as a downloaded one -- picking it locally buys no extra privilege.
      */
     fun installFromFile(activity: Activity, uri: Uri, onError: (String) -> Unit) {
-        Thread {
+        inFlight(activity) {
             runCatching {
                 val archive = copyIn(activity, uri)
                 val installed = EngineBundleInstaller.install(activity, archive)
                 archive.delete()
-                PendingPluginLaunchStore(activity).peek()?.let {
-                    PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
-                }
-                activity.runOnUiThread {
-                    UnsandboxedWarning.afterFileInstall(activity, installed) {
-                        activity.startActivity(PluginTrustActivity.afterInstall(activity, installed))
-                    }
-                }
+                val next = afterInstall(activity, installed)
+                activity.runOnUiThread { UnsandboxedWarning.afterFileInstall(activity, installed) { next() } }
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }
-        }.start()
+        }
     }
 
     /**
