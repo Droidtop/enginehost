@@ -54,8 +54,10 @@ SHA-256 digest.
 
 Within one `bundleId`, `pluginVersion` is the total order on builds: a
 release with the same ID from the same origin and a strictly higher
-`pluginVersion` is an update and replaces the older build in place, while a
-new ID (a new series, or a deliberate `-vN` bump) coexists. `pluginVersion` is `X.Y.Z-N`
+`pluginVersion` is an update. It is installed beside the older builds, which
+stay until removed (several builds of a line coexist, SPEC.md "Several builds
+of a line, side by side"); a new ID (a new series, or a deliberate `-vN` bump)
+is a separate line. `pluginVersion` is `X.Y.Z-N`
 (decided 2026-09-28, Droidtop/tracker#126): the version the repository
 declares, then N, a per-version build counter -- the first published build of
 a declared version is `-1`, the next `-2`, and a new declared version starts

@@ -68,8 +68,14 @@ class PluginTrustActivity : EnginehostActivity() {
             requestedPackage == null || it.bundleId == requestedPackage
         }
         emptyState.visibility = if (plugins.isEmpty()) View.VISIBLE else View.GONE
-        plugins.sortedWith(compareBy({ it.info.engine }, { it.info.pluginVersion }, { it.bundleId }))
-            .forEach { plugin -> addPlugin(plugin) }
+        // One card per installed build: several builds of a line can sit side
+        // by side, each approved, denied and removed on its own. A line's
+        // builds stay together, newest first.
+        plugins.sortedWith(
+            compareBy<InstalledPlugin>({ it.info.engine }, { it.bundleId })
+                .thenByDescending { it.info.pluginVersion }
+                .thenBy { it.archiveSha256 },
+        ).forEach { plugin -> addPlugin(plugin) }
         // Showing one plugin (just installed) is not the place for the updates of the others.
         if (requestedPackage == null) renderUpdates(plugins) else updatesPanel.visibility = View.GONE
     }
@@ -253,7 +259,7 @@ class PluginTrustActivity : EnginehostActivity() {
             setOnClickListener { trust.deny(plugin); render() }
         }
         card.findViewById<Button>(R.id.uninstallButton).setOnClickListener {
-            PluginRegistry.uninstall(this@PluginTrustActivity, plugin.bundleId)
+            PluginRegistry.uninstall(this@PluginTrustActivity, plugin)
             render()
         }
         list.addView(card)

@@ -186,6 +186,9 @@ object GameRunner {
         val intent = Intent(context, runtimeClass).apply {
             putExtra(RuntimeActivity.EXTRA_PATH, gameFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE, resolved.plugin.bundleId)
+            // Which build: several builds of one line can be installed, and the
+            // runtime must load the one planned and approved here.
+            putExtra(RuntimeActivity.EXTRA_PLUGIN_ARCHIVE, resolved.plugin.archiveSha256)
             putExtra(RuntimeActivity.EXTRA_SAVE_PATH, saveFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_ENGINE, config.engine)
             putExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT, config.engineContext ?: DEFAULT_ENGINE_CONTEXT)

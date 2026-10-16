@@ -71,7 +71,10 @@ class RuntimeActivity : FragmentActivity() {
             this, config.engine, config.engineContext, config.engineVersion,
             config.runtimeRequirements, config.pluginVersionConstraint,
         ) ?: return failAndFinish("The selected core is no longer compatible or installed")
-        if (resolved.plugin.bundleId != expectedBundle) {
+        val expectedArchive = intent.getStringExtra(EXTRA_PLUGIN_ARCHIVE)
+        if (resolved.plugin.bundleId != expectedBundle ||
+            (expectedArchive != null && !resolved.plugin.archiveSha256.equals(expectedArchive, ignoreCase = true))
+        ) {
             return failAndFinish("Core resolution changed before runtime startup; retry the launch")
         }
         if (!PluginTrustStore(this).isApproved(resolved.plugin)) {
@@ -350,6 +353,9 @@ class RuntimeActivity : FragmentActivity() {
          */
         const val EXTRA_RESTART_ARGUMENTS = "dev.enginehost.runtime.RESTART_ARGUMENTS"
         const val EXTRA_PLUGIN_BUNDLE = "dev.enginehost.runtime.PLUGIN_BUNDLE"
+
+        /** The archive digest of the build the planner chose, among the builds of that bundle installed. */
+        const val EXTRA_PLUGIN_ARCHIVE = "dev.enginehost.runtime.PLUGIN_ARCHIVE"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
         /** Game setup's Test: the testing configuration standing in for the folder's (see TestingConfigStore). */
         const val EXTRA_TESTING_CONFIG = "dev.enginehost.runtime.TESTING_CONFIG"

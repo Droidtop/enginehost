@@ -183,6 +183,11 @@ object PluginResolver {
                     .thenBy { it.capability.unrequestedComponents(runtimeRequirements) }
                     .thenByDescending { it.plugin.info.pluginVersion }
                     .thenBy { it.plugin.bundleId }
+                    // Two copies of one build (a re-signed archive beside the
+                    // one it replaces, left by an interrupted install) still
+                    // rank the same way every time, so the planner and the
+                    // runtime agree on which one loads.
+                    .thenBy { it.plugin.archiveSha256 }
                     .thenBy { it.capability.id },
             )
     }
@@ -287,18 +292,17 @@ object PluginRegistry {
         )
     }
 
-    fun uninstall(context: Context, bundleId: String): Boolean {
-        // Every directory carrying the ID, not just the first: an interrupted
-        // in-place update can briefly leave a superseded build alongside the
-        // new one (see EngineBundleInstaller), and uninstalling means all of it.
-        val installed = discoverAll(context).filter { it.bundleId == bundleId }
-        if (installed.isEmpty()) return false
-        return installed
-            .map { plugin ->
-                plugin.directory.walkBottomUp().forEach { it.setWritable(true, true) }
-                plugin.directory.deleteRecursively().also { BundleStamps(context).forget(plugin.directory) }
-            }
-            .all { it }
+    /**
+     * Removes one installed build: [plugin]'s own directory. Several builds of
+     * a line can be installed side by side, and each is removed on its own;
+     * the others, and the person's decisions about them, stay.
+     */
+    fun uninstall(context: Context, plugin: InstalledPlugin): Boolean {
+        val directory = plugin.directory.canonicalFile
+        // Only a directory this registry lists, never a path handed in from elsewhere.
+        if (discoverAll(context).none { it.directory.canonicalFile == directory }) return false
+        directory.walkBottomUp().forEach { it.setWritable(true, true) }
+        return directory.deleteRecursively().also { BundleStamps(context).forget(directory) }
     }
 
     /** Every installed build that could run [config], best first, one entry per bundle build. */

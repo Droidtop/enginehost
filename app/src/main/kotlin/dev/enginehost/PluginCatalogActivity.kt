@@ -694,11 +694,11 @@ class PluginCatalogActivity : EnginehostActivity() {
                 row.findViewById<TextView>(R.id.buildLabel).text =
                     getString(R.string.release_build_line, PluginVersions.display(build.info.pluginVersion), streamName(build.stream))
                 val installButton = row.findViewById<Button>(R.id.buildInstallButton)
-                // The installer only replaces a build with a newer one; a build that is not newer than
-                // what is installed says so here instead of failing after the press (tracker#23).
-                if (installed.isNotEmpty() && installed.none { PluginUpdates.isNewerBuildOf(it, build.manifest) }) {
-                    val same = installed.any { it.info.pluginVersion == build.info.pluginVersion }
-                    installButton.setText(if (same) R.string.installed else R.string.release_build_older_than_installed)
+                // Any build can be installed beside the ones there (owner, 2026-10-16: "Users should
+                // not be tied to only one plugin version"); a game's pluginVersion allowlist picks
+                // among them. Only the very build already installed says so instead.
+                if (isInstalledBuild(installed, build)) {
+                    installButton.setText(R.string.installed)
                     installButton.isEnabled = false
                 }
                 installButton.setOnClickListener { view ->
@@ -734,13 +734,13 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
         } else {
             val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
-            // A strictly newer build of an installed bundle is an update; the
-            // installer replaces in place and the trust prompt re-appears for
-            // the new archive before it can run.
-            val update = installed.isNotEmpty() &&
-                installed.all { PluginUpdates.isNewerBuildOf(it, plugin.manifest) }
+            // A build newer than the newest installed one is an update. It is
+            // added beside the builds already there, and waits for approval
+            // unless it carries one from a same-key build of this line.
+            val installedIdle = isInstalledBuild(installed, plugin)
+            val update = !installedIdle && installed.isNotEmpty() &&
+                PluginUpdates.isNewerBuildOf(installed.maxBy { it.info.pluginVersion }, plugin.manifest)
             val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
-            val installedIdle = installed.isNotEmpty() && !update
             val idleLabel = when {
                 installedIdle -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
@@ -748,7 +748,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                 else -> getString(R.string.install)
             }
             button.text = idleLabel
-            button.isEnabled = (installed.isEmpty() || update) && supportedApi
+            button.isEnabled = !installedIdle && supportedApi
             if (installedIdle) {
                 // "Installed" is the card's status, not a disabled action,
                 // so it wears its own pairing instead of the disabled
@@ -761,7 +761,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
             // The registry is the truth: once the bundle is there, its
             // install from this screen is over, whatever the button said.
-            if (installed.isNotEmpty() && !update) installing.remove(plugin.bundleId)
+            if (installedIdle) installing.remove(plugin.bundleId)
             if (plugin.bundleId in installing) {
                 button.isEnabled = false
                 button.setText(R.string.installing)
@@ -916,6 +916,18 @@ class PluginCatalogActivity : EnginehostActivity() {
     }
 
     private fun isInstalled(bundleId: String): Boolean = snapshot?.installed.orEmpty().any { it.bundleId == bundleId }
+
+    /**
+     * Whether [build] itself is installed: the same archive. A catalog entry
+     * without a digest falls back to the same build number. The same build
+     * under another signature (a re-signed stable build) is not installed;
+     * installing it replaces the copy there.
+     */
+    private fun isInstalledBuild(installed: List<InstalledPlugin>, build: AvailablePlugin): Boolean {
+        val digest = build.archiveSha256
+            ?: return installed.any { PluginUpdates.isSameBuild(it, build.manifest) }
+        return installed.any { it.archiveSha256.equals(digest, ignoreCase = true) }
+    }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)

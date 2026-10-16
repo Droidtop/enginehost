@@ -97,6 +97,49 @@ class PluginUpdatesTest {
     }
 
     @Test
+    fun `with several builds of a line installed, an update is measured against the newest`() {
+        // 1 and 3 installed side by side: 2 is older than the newest, so it
+        // is not an update; 4 is, and it is offered once, not once per build.
+        val updates = PluginUpdates.updatesFor(
+            listOf(installed(pluginVersion = "1"), installed(pluginVersion = "3")),
+            listOf(available(manifest(pluginVersion = "2")), available(manifest(pluginVersion = "4"))),
+        )
+        assertEquals(1, updates.size)
+        assertEquals(Version.parse("4"), updates.values.single().info.pluginVersion)
+        assertTrue(
+            PluginUpdates.updatesFor(
+                listOf(installed(pluginVersion = "1"), installed(pluginVersion = "3")),
+                listOf(available(manifest(pluginVersion = "2"))),
+            ).isEmpty(),
+        )
+    }
+
+    @Test
+    fun `newestPerLine keeps one build per bundle and repository`() {
+        val newest = PluginUpdates.newestPerLine(
+            listOf(
+                installed(pluginVersion = "1"), installed(pluginVersion = "3"), installed(pluginVersion = "2"),
+                installed(bundleId = "dev.enginehost.renpy.8_5.v1", pluginVersion = "1"),
+            ),
+        )
+        assertEquals(2, newest.size)
+        assertEquals(Version.parse("3"), newest.single { it.bundleId == "dev.enginehost.renpy.8_2.v1" }.info.pluginVersion)
+    }
+
+    @Test
+    fun `the same build number of the same line is the same build, whatever its archive`() {
+        assertTrue(PluginUpdates.isSameBuild(installed(pluginVersion = "2"), manifest(pluginVersion = "2")))
+        assertFalse(PluginUpdates.isSameBuild(installed(pluginVersion = "1"), manifest(pluginVersion = "2")))
+        assertFalse(
+            PluginUpdates.isSameBuild(
+                installed(pluginVersion = "2"),
+                manifest(pluginVersion = "2", origin = "https://github.com/someone/fork"),
+            ),
+        )
+        assertTrue(PluginUpdates.isSameLine(installed(pluginVersion = "9"), manifest(pluginVersion = "1")))
+    }
+
+    @Test
     fun `updatesFor is empty when nothing newer is published`() {
         assertTrue(
             PluginUpdates.updatesFor(

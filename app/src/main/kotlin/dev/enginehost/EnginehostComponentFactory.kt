@@ -28,8 +28,12 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val context = EnginehostApplication.instance
         val bundleId = intent.getStringExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE)
             ?: error("Bundled runtime omitted its bundle ID")
-        val installed = PluginRegistry.discover(context).firstOrNull { it.bundleId == bundleId }
-            ?: error("The selected engine bundle is not installed")
+        // The exact build the planner chose: several builds of one line can be
+        // installed side by side, and only that one was resolved and approved.
+        val archive = intent.getStringExtra(RuntimeActivity.EXTRA_PLUGIN_ARCHIVE)
+        val installed = PluginRegistry.discover(context).firstOrNull {
+            it.bundleId == bundleId && (archive == null || it.archiveSha256.equals(archive, ignoreCase = true))
+        } ?: error("The selected engine bundle is not installed")
         require(installed.runtimeTransport == RUNTIME_TRANSPORT_ACTIVITY)
         require(PluginTrustStore(context).isApproved(installed)) { "Engine bundle approval is missing" }
         val manifest = InstalledBundleVerifier.verify(context, installed)

@@ -244,23 +244,25 @@ object EngineBundleInstaller {
             // runtime's own native library path is built from, so an install
             // can never disagree with the load-time choice it mirrors.
             requireRunnableAbis(manifest.bundleId, manifest.carriedAbis, Build.SUPPORTED_ABIS.toList())
-            // Every directory carrying this bundle ID, not just the first:
-            // a crash between a previous replacement's rename and its cleanup
-            // can leave a superseded build behind, and treating the whole set
-            // here makes a retried install remove it rather than trip on it.
+            // Several builds of one line live side by side (owner, 2026-10-16:
+            // "Several builds can be installed"), each in its own directory, and
+            // a game's pluginVersion allowlist picks among them at launch. An
+            // install therefore adds a build. It replaces only the same build
+            // under another signature (a stable build re-signed in format v1:
+            // same code, new archive), and the very same archive is refused.
             val existing = PluginRegistry.discoverAll(context).filter { it.bundleId == manifest.bundleId }
             existing.forEach { previous ->
                 require(previous.archiveSha256 != archiveSha) { "Bundle ${manifest.bundleId} is already installed" }
-                // Same line, different bytes: only a strictly newer build from
-                // the same origin may replace what is there. It keeps an
-                // approval only when signed by the same key as the approved
-                // build (PluginTrustStore.carryApproval below); any other
-                // replacement is re-approved before it ever executes.
-                require(PluginUpdates.isNewerBuildOf(previous, manifest)) {
-                    "Bundle ${manifest.bundleId} build ${previous.info.pluginVersion} is already installed; " +
-                        "only a newer build from the same repository can replace it"
+                // One bundle ID is one repository's line; another repository
+                // publishing the same ID is not a build of it.
+                require(PluginUpdates.isSameLine(previous, manifest)) {
+                    "Bundle ${manifest.bundleId} is installed from another repository"
                 }
             }
+            // Approval still carries only from a build of this line signed by
+            // the same key (PluginTrustStore.carryApproval below); anything
+            // else waits for the person before it ever executes.
+            val replaced = existing.filter { PluginUpdates.isSameBuild(it, manifest) }
             File(staging, PluginRegistry.SIGNED_MANIFEST).writeBytes(manifest.rawBytes)
             extracted.signatures.legacy?.let { legacy ->
                 File(staging, PluginRegistry.SIGNED_SIGNATURE).writeText(Base64.getEncoder().encodeToString(legacy), Charsets.US_ASCII)
@@ -278,11 +280,11 @@ object EngineBundleInstaller {
             }
             val destination = File(root, "${manifest.bundleId}--${archiveSha.take(16).lowercase()}")
             require(staging.renameTo(destination)) { "Could not atomically install engine bundle" }
-            // Only after the replacement is fully installed. A crash between
-            // the rename and this cleanup at worst leaves the superseded build
-            // behind alongside the new one; the existing-set handling above
-            // clears it on the next install of a newer build.
-            existing.forEach { previous ->
+            // Only after the new archive is fully installed, and only the
+            // same build it re-signs. A crash between the rename and this
+            // cleanup leaves the old copy beside the new one, which a launch
+            // treats as two builds of the same version; Remove clears it.
+            replaced.forEach { previous ->
                 previous.directory.walkBottomUp().forEach { it.setWritable(true, true) }
                 previous.directory.deleteRecursively()
                 BundleStamps(context).forget(previous.directory)

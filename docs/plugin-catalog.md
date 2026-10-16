@@ -295,9 +295,11 @@ assets are up. Anything not yet proven stays a CI artifact.
 
 Within one bundle ID, `pluginVersion` orders builds: a release carrying the
 same `bundleId` from the same origin with a strictly higher `pluginVersion`
-is an update, and installing it replaces the older build in place. A
-different bundle ID -- a new engine series, or a deliberate `-vN` bump -- is
-a different bundle and coexists, exactly as before. A different origin
+is an update. Installing it adds it beside the builds already installed,
+which stay until the person removes them, and any older build in the catalog
+can be installed the same way; a game's `pluginVersion` allowlist picks among
+them (SPEC.md "Several builds of a line, side by side"). A different bundle ID
+-- a new engine series, or a deliberate `-vN` bump -- is a separate line. A different origin
 publishing an already-installed bundle ID is never an update; its signature
 would not match the pinned key anyway.
 
@@ -336,9 +338,10 @@ older games may require it. GitHub itself permits deletion, so this is a project
 retention promise, not a property of GitHub.
 
 Every bundle has a unique `bundleId`. Any number of compatible or historical
-bundles can coexist in Enginehost-private storage, and the user can uninstall
-ones they do not need. Installing a newer wrapper build does not silently
-replace another bundle.
+bundles can coexist in Enginehost-private storage, several builds of one
+bundle among them, and the user can remove each build they do not need.
+Installing a build replaces nothing but the same build under another
+signature.
 
 ## Provenance, official status, and approval
 

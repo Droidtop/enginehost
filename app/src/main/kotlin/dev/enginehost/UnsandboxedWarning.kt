@@ -51,7 +51,7 @@ object UnsandboxedWarning {
                 .warning()
                 .title(R.string.unsandboxed_install_title)
                 .message(activity.getString(R.string.unsandboxed_install_message, lineName(installed.info)))
-                .choice(R.string.unsandboxed_remove) { Thread { PluginRegistry.uninstall(activity, installed.bundleId) }.start() }
+                .choice(R.string.unsandboxed_remove) { Thread { PluginRegistry.uninstall(activity, installed) }.start() }
                 .choice(R.string.unsandboxed_keep, Sheet.Tone.DANGER) { keep() }
                 .onCancel { keep() }
                 .show()

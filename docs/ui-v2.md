@@ -111,12 +111,14 @@ security property (verified signature continuity), not a weakening — it remove
 teaches "tap approve" reflexively without changing what is actually being verified.
 
 **After:** an update whose signer key and origin match the currently-approved build installs and
-runs without a new prompt; a key or origin change (or a downgrade — see below) still stops and
-asks, with the two fingerprints shown side by side (the pattern `reviewChangedKey` in
-`PluginCatalogActivity.kt` already uses for an origin's key change).
+runs without a new prompt; a key or origin change still stops and asks, with the two fingerprints
+shown side by side (the pattern `reviewChangedKey` in `PluginCatalogActivity.kt` already uses for
+an origin's key change).
 
 Task: `tasks/p1-v2-eh-trust-carryover.md`, with unit tests: same key → no prompt; different key →
-prompt; downgrade → warn.
+prompt. (Downgrades: superseded 2026-10-16. Several builds of a line are installed side by side
+and an older build is simply installed beside the newer ones; see SPEC.md "Several builds of a
+line, side by side".)
 
 ## 4. Sandboxing is a real property with no badge
 

@@ -24,10 +24,38 @@ person approved before is waiting for approval instead, its Trust line says
 which of the two changed: "a different key signed this build" or "this build
 comes from a different repository" (`PluginTrustStore.changeSinceApproval`; the
 last approved repository is kept per bundle for that). A first install says
-nothing extra. In the catalog's older-builds list a build that is not newer
-than the installed one is disabled and reads "Installed" or "Older than
-installed", because the installer refuses a downgrade and a press that can only
-fail is not offered.
+nothing extra.
+
+## Several builds of a line, side by side (decided 2026-10-16)
+
+Owner: "Users should not be tied to only one plugin version. This is one of the
+benefits of not using apks." / "Several builds can be installed. That's why
+there's a plugin version requirement in the enginehost spec. If a newer version
+has a regression, or certain versions have bugs, we can blacklist or filter
+them".
+
+- **An install adds a build.** Each build has its own directory
+  (`<bundleId>--<archive digest>`) and its own trust decision. The installer
+  refuses only the archive already installed, and a build of the same bundle ID
+  from another repository. It replaces only the same build under another
+  signature: the same line and build number, for example a stable build
+  re-signed in format v1 (`PluginUpdates.isSameBuild`).
+- **Updates:** a build newer than the newest one installed in that line
+  (`PluginUpdates.newestPerLine`). Installing it adds it; the older builds stay
+  until the person removes them, so a regression never strands anyone.
+- **Catalog:** every build is installable, older ones included. Only the
+  archive already installed reads "Installed".
+- **Cores screen:** one card per build, a line's builds together and newest
+  first, each with its own Approve, Deny and Remove.
+- **Launch:** `PluginResolver.ranked` picks the best approved build the game's
+  `pluginVersion` allowlist allows, which is how a game avoids a bad build.
+  The launch carries that build's archive digest
+  (`RuntimeActivity.EXTRA_PLUGIN_ARCHIVE`), so the runtime loads exactly the
+  build that was resolved and approved.
+- **Blocking a build for everyone** is not built yet. The signed revocation
+  list withdraws a certificate or key, which stops every build it signed.
+  Withdrawing one build alone needs a new field in that list, a signing format
+  change for the owner to decide (Droidtop/tracker#23).
 
 ## Layout follows the window, and Home keeps its place
 

@@ -228,7 +228,6 @@
     <string name="release_other_versions">Other versions (%1$d)</string>
     <string name="release_hide_other_versions">Hide other versions</string>
     <string name="release_build_line">%1$s · %2$s</string>
-    <string name="release_build_older_than_installed">Older than installed</string>
     <string name="stream_stable">Stable</string>
     <string name="stream_testing">Testing</string>
     <string name="stream_unstable">Unstable</string>
