@@ -635,7 +635,7 @@
     <string name="caller_access_allow_anyway">Allow this app</string>
     <string name="caller_access_running_refused">A game is already running, and this app is not allowed to bring it forward. Allow it under Settings, App launch access.</string>
     <string name="launch_plan_failed">Enginehost could not prepare this game.</string>
-    <string name="launch_runtime_failed">The game's engine could not be started. Try again.</string>
+    <string name="launch_runtime_failed">The game\'s engine could not be started. Try again.</string>
     <string name="error_network">Could not reach the server. Check the connection, then try again.</string>
     <string name="core_install_failed">The core could not be installed.</string>
     <string name="folder_unusable_choice">That folder cannot be used here. Choose another one.</string>
