@@ -120,7 +120,10 @@ a dead end. Detection reads the engine, version, entry file, title and save
 folder from the folder's own files; when all of that is evident the launch runs
 on that detected config in memory, with a caller's inline config filling what
 detection left open, and only a folder that leaves a question open is shown in
-the config editor with detection prefilled.
+the config editor with detection prefilled. The game's own screen reads the
+same detected config (`GameRunner.launchConfig`), so such a game shows the core
+it would run on, whether that core is approved, and its sections, exactly as a
+game with an `enginehost.json` does.
 
 Game setup's Test never touches that file. It stores what is on screen as the
 game's testing configuration, in Enginehost's own storage keyed by the game

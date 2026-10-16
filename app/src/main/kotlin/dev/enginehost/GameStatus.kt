@@ -67,24 +67,13 @@ class GameStatus(
             if (!folder.isDirectory) {
                 return GameStatus(false, context.getString(R.string.status_missing), primary = GamePrimary.FOLDER_MISSING)
             }
-            val overrides = runCatching { GameLibraryStore(context).overridesFor(folder) }.getOrNull()
-            val config = try {
-                EngineConfigReader.resolve(folder, null, null, overrides)
-            } catch (e: InvalidEngineConfigException) {
-                if (File(folder, CONFIG_FILE_NAME).isFile) {
-                    return GameStatus(false, context.getString(R.string.status_bad_config, e.message), primary = GamePrimary.SET_UP)
-                }
-                // No config of its own: Play runs on what detection implies, unless detection
-                // cannot say (Game setup asks) or the engine is one nothing here runs.
-                return when (val detected = DetectedConfig.forLaunch(context, folder, null)) {
-                    is DetectedConfig.Launch.Document ->
-                        GameStatus(false, context.getString(R.string.status_no_config))
-                    is DetectedConfig.Launch.Unhosted ->
-                        GameStatus(false, UnhostedEngine.explain(context, detected.detection), primary = GamePrimary.NOT_SUPPORTED)
-                    DetectedConfig.Launch.Open ->
-                        GameStatus(false, context.getString(R.string.status_needs_setup), primary = GamePrimary.SET_UP)
-                }
-            }
+            // The config Play runs on, read the way the launch reads it: the
+            // folder's enginehost.json, or for a folder without one what its
+            // files imply, in memory. A detected game is resolved and approved
+            // like any other and gets its sections, where it used to get a
+            // Play with no state behind it (review, 2026-10-16).
+            val config = runCatching { GameRunner.launchConfig(context, folder) }.getOrNull()
+                ?: return unread(context, folder)
             val resolved = runCatching {
                 PluginRegistry.resolve(
                     context, config.engine, config.engineContext, config.engineVersion,
@@ -102,6 +91,32 @@ class GameStatus(
                 },
             )
             return GameStatus(resolved != null && approved, text, config.engine, chip, config.title, config, primary, resolved?.plugin)
+        }
+
+        /** Why no config could be read for [folder], and what its button offers instead. */
+        private fun unread(context: Context, folder: File): GameStatus {
+            if (File(folder, CONFIG_FILE_NAME).isFile) {
+                val overrides = runCatching { GameLibraryStore(context).overridesFor(folder) }.getOrNull()
+                val problem = try {
+                    EngineConfigReader.resolve(folder, null, null, overrides)
+                    null
+                } catch (e: InvalidEngineConfigException) {
+                    e.message
+                }
+                if (problem != null) {
+                    return GameStatus(false, context.getString(R.string.status_bad_config, problem), primary = GamePrimary.SET_UP)
+                }
+            }
+            // No config of its own and none detected: Game setup asks, unless
+            // the engine is one nothing here runs.
+            return when (val detected = DetectedConfig.forLaunch(context, folder, null)) {
+                is DetectedConfig.Launch.Document ->
+                    GameStatus(false, context.getString(R.string.status_no_config))
+                is DetectedConfig.Launch.Unhosted ->
+                    GameStatus(false, UnhostedEngine.explain(context, detected.detection), primary = GamePrimary.NOT_SUPPORTED)
+                DetectedConfig.Launch.Open ->
+                    GameStatus(false, context.getString(R.string.status_needs_setup), primary = GamePrimary.SET_UP)
+            }
         }
     }
 }
