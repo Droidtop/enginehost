@@ -66,7 +66,24 @@ jobs:
           # app/build.gradle.kts as the versionCode so newer builds are
           # newer to Android and to the in-app update check.
           VERSION_REVISION: ${{ github.run_number }}
-        run: ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:assembleDebug --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+
+      # The compiler and test errors as one annotation, which the checks API
+      # serves to anyone who can read the run, where the full log needs a
+      # download that some sessions are refused.
+      - name: Say what failed
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/gradle.log"
+          [ -f "$log" ] || exit 0
+          errors="$(grep -E -A3 '^e: |^w: .*error|> Task .* FAILED| FAILED$|^\* What went wrong' "$log" | head -n 80)"
+          [ -n "$errors" ] || exit 0
+          errors="${errors//'%'/'%25'}"
+          errors="${errors//$'\r'/'%0D'}"
+          errors="${errors//$'\n'/'%0A'}"
+          echo "::error title=Gradle::${errors}"
 
       - name: Upload APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
