@@ -2,7 +2,6 @@ package dev.enginehost
 
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import java.io.File
@@ -35,12 +34,7 @@ object PluginInstaller {
                 PendingPluginLaunchStore(activity).peek()?.let {
                     PendingPluginLaunchStore(activity).setBundle(installed.bundleId)
                 }
-                activity.runOnUiThread {
-                    activity.startActivity(
-                        Intent(activity, PluginTrustActivity::class.java)
-                            .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
-                    )
-                }
+                activity.runOnUiThread { activity.startActivity(PluginTrustActivity.afterInstall(activity, installed)) }
             }.onFailure { error ->
                 activity.runOnUiThread { onError(error.message ?: "Engine bundle installation failed") }
             }
@@ -66,10 +60,7 @@ object PluginInstaller {
                 }
                 activity.runOnUiThread {
                     UnsandboxedWarning.afterFileInstall(activity, installed) {
-                        activity.startActivity(
-                            Intent(activity, PluginTrustActivity::class.java)
-                                .putExtra(PluginTrustActivity.EXTRA_BUNDLE, installed.bundleId),
-                        )
+                        activity.startActivity(PluginTrustActivity.afterInstall(activity, installed))
                     }
                 }
             }.onFailure { error ->

@@ -1,5 +1,6 @@
 package dev.enginehost
 
+import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
@@ -47,6 +48,12 @@ class PluginTrustActivity : EnginehostActivity() {
         openCatalogButton.setOnClickListener {
             startActivity(Intent(this, PluginCatalogActivity::class.java))
         }
+    }
+
+    /** Brought forward by [afterInstall]: show what the new intent asks for, the whole list. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
     }
 
     override fun onResume() {
@@ -307,5 +314,20 @@ class PluginTrustActivity : EnginehostActivity() {
 
     companion object {
         const val EXTRA_BUNDLE = "dev.enginehost.trust.BUNDLE"
+
+        /**
+         * Where an install lands. A core that still needs the person's
+         * decision opens on its own, as the approval prompt. Anything already
+         * approved (an update that carried its approval, an Official core)
+         * brings the whole Cores list forward: opening a one-core screen on
+         * top of it left the page listing only the updated core until Back.
+         */
+        fun afterInstall(context: Context, installed: InstalledPlugin): Intent =
+            if (PluginTrustStore(context).isApproved(installed)) {
+                Intent(context, PluginTrustActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            } else {
+                Intent(context, PluginTrustActivity::class.java).putExtra(EXTRA_BUNDLE, installed.bundleId)
+            }
     }
 }
