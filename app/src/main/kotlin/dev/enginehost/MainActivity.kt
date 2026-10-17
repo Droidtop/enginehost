@@ -163,7 +163,7 @@ class MainActivity : EnginehostActivity() {
                 appUpdate?.let { lines += getString(R.string.app_update_available, it) }
                 findViewById<TextView>(R.id.updateNotice).apply {
                     visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
-                    if (findViewById<LinearLayout>(R.id.shelves).visibility != View.VISIBLE) grid.nextFocusUpId = upFromList()
+                    if (this@MainActivity.findViewById<LinearLayout>(R.id.shelves).visibility != View.VISIBLE) grid.nextFocusUpId = upFromList()
                     if (lines.isNotEmpty()) {
                         text = lines.joinToString("\n")
                         setOnClickListener {
