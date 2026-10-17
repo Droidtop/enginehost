@@ -2146,6 +2146,18 @@ any core code loads, after Chromium's Linux broker
 submodule; Droidtop/tracker#470), which grew out of this prototype:
 `runtime_sandbox.c` only passes Enginehost's device list and policy to it.
 
+The pin moved to the library's `a40cc14` on 2026-10-17 (owner, through the
+coordinator: "make sure you're on the new library versions"). It adds
+brokered and direct network modes (`SBX_LOCK_NET_BROKERED`,
+`SBX_LOCK_INET`), folder listing, `chmod` and `utimens` for brokered
+folders, and a design note that a GPU host such as Enginehost keeps its
+app's own UID and opens its per-process devices itself (`own_opens`); a
+separate isolated UID is a mode a host chooses, not Android's isolation.
+Enginehost asks for none of the new modes: a core's lockdown is the same
+call with the same flags (none), so cores stay without network. The
+library's own suite passed at both commits on Linux x86_64, every one of
+the 120 checks at the old pin unchanged at the new one, with 67 new checks.
+
 - `sbx_lockdown()` installs a seccomp filter on every thread (TSYNC; a
   lockdown that misses a thread fails instead). Every system call that names
   a path traps; the SIGSYS handler sends it over a `SOCK_SEQPACKET` socket,
