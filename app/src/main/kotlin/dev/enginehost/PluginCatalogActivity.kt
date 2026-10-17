@@ -671,7 +671,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             visibility = if (plugin.stream == PluginStream.STABLE) View.GONE else View.VISIBLE
         }
         val sandboxBadge = card.findViewById<TextView>(R.id.sandboxBadge)
-        val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.manifest.isolatable) {
+        val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.manifest.sandboxed) {
             Triple(R.string.badge_sandboxed, R.color.eh_official_container, R.color.eh_on_official_container)
         } else {
             Triple(R.string.badge_unsandboxed, R.color.eh_danger_container, R.color.eh_on_danger_container)

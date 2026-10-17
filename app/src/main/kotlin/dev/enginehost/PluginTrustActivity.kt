@@ -217,7 +217,13 @@ class PluginTrustActivity : EnginehostActivity() {
             // A component runs inside the engine that loads it; that engine's
             // card says whether it is sandboxed.
             EngineNames.componentServes(this, it)
-        } ?: getString(if (plugin.isolatable) R.string.sandbox_yes else R.string.sandbox_no)
+        } ?: getString(
+            when {
+                plugin.isolatable -> R.string.sandbox_yes
+                plugin.lockdown -> R.string.sandbox_locked
+                else -> R.string.sandbox_no
+            },
+        )
         showLicense(card, plugin, state)
         card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId
         val details = card.findViewById<View>(R.id.trustDetails)
@@ -237,7 +243,7 @@ class PluginTrustActivity : EnginehostActivity() {
         badge.setTextColor(ContextCompat.getColor(this, onContainer))
 
         val sandboxBadge = card.findViewById<TextView>(R.id.sandboxBadge)
-        val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.isolatable) {
+        val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.sandboxed) {
             Triple(R.string.badge_sandboxed, R.color.eh_official_container, R.color.eh_on_official_container)
         } else {
             Triple(R.string.badge_unsandboxed, R.color.eh_danger_container, R.color.eh_on_danger_container)

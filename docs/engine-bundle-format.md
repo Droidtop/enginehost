@@ -917,8 +917,23 @@ Optional, boolean, default `false`, beside `isolatable`. `true` says the
 engine writes into the game folder itself, as its desktop original does
 (saves or settings beside the game). It only matters to an isolated launch:
 the game folder's broker is writable for such a bundle and read-only for
-every other (`docs/engine-sandbox.md`, "Saves beside the game"). An in-process
-launch, and a host older than this field, ignore it.
+every other (`docs/engine-sandbox.md`, "Saves beside the game"). The same holds
+for a locked-down launch (`lockdown`, below), so a core that saves beside the
+game declares it before it declares `lockdown`. An unconfined launch, and a host
+older than this field, ignore it.
+
+## `lockdown` (2026-10-17)
+
+Optional, boolean, default `false`, on either transport. `true` says the core
+runs correctly under the process lockdown: the sandbox library confining
+`:runtime` before the core's code loads, with every file through Enginehost's
+broker, no sockets and no other programs (`docs/engine-sandbox.md`, "The lockdown
+is how a core that cannot be isolated is sandboxed"). A launch of such a core is
+always locked down, and fails rather than run unconfined. Such a core counts as
+sandboxed: `isolatable` or `lockdown` spares it the every-launch "Run
+unsandboxed?" sheet and the install warning. A core sets it only after its rig
+check shows no refused path. A host older than this field ignores it, and asks
+as before.
 
 ## `runtimeTransport: android-activity` is deprecated for official cores (2026-09-27)
 

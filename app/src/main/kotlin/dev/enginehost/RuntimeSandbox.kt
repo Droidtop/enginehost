@@ -62,12 +62,15 @@ object RuntimeSandbox {
     }
 
     /**
-     * Process lockdown, the prototype (docs/engine-sandbox.md "Process
-     * lockdown"): off unless `debug.enginehost.lockdown` is 1 (`adb shell
-     * setprop`), so nobody meets it before the shared sandbox design is
-     * agreed.
+     * Whether a launch of [plugin] is locked down: always when the core
+     * declares `lockdown` (docs/engine-sandbox.md "The lockdown is how a core
+     * that cannot be isolated is sandboxed"), and for any core while
+     * `debug.enginehost.lockdown` is 1 (`adb shell setprop`), which is only
+     * for running a core's rig check before it declares it.
      */
-    fun lockdownRequested(): Boolean = runCatching {
+    fun locksDown(plugin: InstalledPlugin): Boolean = plugin.lockdown || lockdownRequested()
+
+    private fun lockdownRequested(): Boolean = runCatching {
         Class.forName("android.os.SystemProperties").getMethod("get", String::class.java)
             .invoke(null, "debug.enginehost.lockdown") == "1"
     }.getOrDefault(false)
@@ -86,7 +89,10 @@ object RuntimeSandbox {
      * none can make a socket, run a program or ptrace. Call before any
      * plugin code is loaded. False when the process could not be confined.
      */
-    fun lockdown(context: Context, game: File, gameWritable: Boolean, save: File, bundle: File): Boolean {
+    fun lockdown(context: Context, game: File, gameWritable: Boolean, save: File, bundles: List<File>): Boolean {
+        // Once per process: the activity transport's resource relaunch comes
+        // through here a second time, already confined.
+        if (confined) return true
         val pair = ParcelFileDescriptor.createReliableSocketPair()
         val served = try {
             val client = broker ?: context.contentResolver.acquireContentProviderClient(SandboxBrokerProvider.AUTHORITY)
@@ -98,7 +104,7 @@ object RuntimeSandbox {
                     putString(SandboxBrokerProvider.GAME, game.absolutePath)
                     putBoolean(SandboxBrokerProvider.GAME_WRITABLE, gameWritable)
                     putString(SandboxBrokerProvider.SAVE, save.absolutePath)
-                    putString(SandboxBrokerProvider.BUNDLE, bundle.absolutePath)
+                    putStringArray(SandboxBrokerProvider.BUNDLES, bundles.map { it.absolutePath }.toTypedArray())
                 },
             )?.getBoolean(SandboxBrokerProvider.SERVED) == true
         } catch (e: Exception) {
@@ -114,11 +120,16 @@ object RuntimeSandbox {
         val result = lockdown0(pair[1].detachFd(), OWN_OPENS)
         if (result == 0) Log.i(TAG, "Process locked down: files only through the broker, no sockets, no exec")
         else Log.w(TAG, "Process NOT locked down: errno ${-result}")
-        return result == 0
+        confined = result == 0
+        return confined
     }
 
+    /** Whether this process is locked down; it cannot be undone. */
+    @Volatile var confined = false
+        private set
+
     /** The broker's rules for one launch; see [lockdown]. */
-    internal fun policy(context: Context, game: String, gameWritable: Boolean, save: String, bundle: String): Map<String, Int> {
+    internal fun policy(context: Context, game: String, gameWritable: Boolean, save: String, bundles: List<String>): Map<String, Int> {
         val rules = LinkedHashMap<String, Int>()
         listOf(
             "/system", "/system_ext", "/product", "/vendor", "/odm", "/apex", "/linkerconfig",
@@ -137,10 +148,24 @@ object RuntimeSandbox {
         // Shader and plugin caches; the rest of the app's private data stays out.
         rules[context.cacheDir.absolutePath] = SBX_READ or SBX_WRITE
         rules[context.codeCacheDir.absolutePath] = SBX_READ or SBX_WRITE
-        rules[bundle] = SBX_READ
+        // The engine's bundle and each verified component bundle the launch loads.
+        bundles.forEach { rules[it] = SBX_READ }
+        // A WebView core: the WebView provider's code, and WebView's own
+        // profile folders in this app's data. Its renderer is a separate
+        // process Android isolates itself (docs/engine-sandbox.md).
+        webViewCode(context).forEach { rules[it] = SBX_READ }
+        context.dataDir.listFiles { file -> file.isDirectory && file.name.startsWith("app_webview") }.orEmpty()
+            .forEach { rules[it.absolutePath] = SBX_READ or SBX_WRITE }
+        rules[File(context.dataDir, "app_webview").absolutePath] = SBX_READ or SBX_WRITE
         rules[game] = if (gameWritable) SBX_READ or SBX_WRITE else SBX_READ
         rules[save] = SBX_READ or SBX_WRITE
         return rules
+    }
+
+    /** The current WebView provider's APK folder and native libraries, when there is one. */
+    private fun webViewCode(context: Context): List<String> {
+        val info = runCatching { android.webkit.WebView.getCurrentWebViewPackage()?.applicationInfo }.getOrNull() ?: return emptyList()
+        return listOfNotNull(info.sourceDir?.let { File(it).parent }, info.nativeLibraryDir)
     }
 
     /** The broker side, in the main process: serves [fd] on its own thread under [rules]. */
@@ -187,8 +212,8 @@ class SandboxBrokerProvider : ContentProvider() {
         val socket = extras.getParcelable<ParcelFileDescriptor>(SOCKET) ?: return null
         val game = extras.getString(GAME) ?: return null.also { socket.close() }
         val save = extras.getString(SAVE) ?: return null.also { socket.close() }
-        val bundle = extras.getString(BUNDLE) ?: return null.also { socket.close() }
-        val rules = RuntimeSandbox.policy(context!!, game, extras.getBoolean(GAME_WRITABLE), save, bundle)
+        val bundles = extras.getStringArray(BUNDLES)?.toList()?.takeIf { it.isNotEmpty() } ?: return null.also { socket.close() }
+        val rules = RuntimeSandbox.policy(context!!, game, extras.getBoolean(GAME_WRITABLE), save, bundles)
         val ok = RuntimeSandbox.serve(socket.detachFd(), rules)
         return Bundle().apply { putBoolean(SERVED, ok) }
     }
@@ -206,7 +231,7 @@ class SandboxBrokerProvider : ContentProvider() {
         const val GAME = "game"
         const val GAME_WRITABLE = "gameWritable"
         const val SAVE = "save"
-        const val BUNDLE = "bundle"
+        const val BUNDLES = "bundles"
         const val SERVED = "served"
     }
 }

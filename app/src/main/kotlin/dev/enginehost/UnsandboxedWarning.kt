@@ -23,7 +23,7 @@ object UnsandboxedWarning {
     fun beforeInstall(activity: Activity, plugins: List<AvailablePlugin>, proceed: () -> Unit, cancel: () -> Unit) {
         // A runtime component runs inside whichever engine loads it, so the
         // engine's own install is where this question belongs, not the component's.
-        val unsandboxed = plugins.filterNot { it.manifest.isolatable || it.manifest.component != null }
+        val unsandboxed = plugins.filterNot { it.manifest.sandboxed || it.manifest.component != null }
             .map { lineName(it.info) }.distinct()
         if (unsandboxed.isEmpty()) return proceed()
         val shown = runCatching {
@@ -45,7 +45,7 @@ object UnsandboxedWarning {
      * first. Keeping it, or closing the sheet, runs [keep].
      */
     fun afterFileInstall(activity: Activity, installed: InstalledPlugin, keep: () -> Unit) {
-        if (installed.isolatable || installed.component != null) return keep()
+        if (installed.sandboxed || installed.component != null) return keep()
         val shown = runCatching {
             Sheet(activity)
                 .warning()

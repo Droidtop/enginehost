@@ -208,7 +208,7 @@ class LaunchActivity : EnginehostActivity() {
                 HostEvents.record(
                     this,
                     "plan: ${plan.resolved.plugin.bundleId} runs ${plan.config.engine} ${plan.config.engineVersion}" +
-                        if (plan.resolved.plugin.isolatable) " sandboxed" else " not sandboxed",
+                        when { plan.resolved.plugin.isolatable -> " isolated"; plan.resolved.plugin.lockdown -> " locked down"; else -> " not sandboxed" },
                 )
                 showTitle(plan)
                 showStarting()
@@ -230,7 +230,9 @@ class LaunchActivity : EnginehostActivity() {
                 // Sandbox layer 2 is the default (owner, 2026-09-25): a
                 // plugin that cannot run isolated gets no silent pass. See
                 // offerSandboxConsent for why this asks again on every run.
-                if (!plan.resolved.plugin.isolatable) {
+                // Isolated or locked down is sandboxed (owner, 2026-10-17); only
+                // a core with neither is asked about.
+                if (!plan.resolved.plugin.sandboxed) {
                     offerSandboxConsent(plan)
                     return
                 }

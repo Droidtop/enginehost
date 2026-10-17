@@ -25,6 +25,23 @@ class EngineBundleManifestTest {
     }
 
     @Test
+    fun `lockdown is read from the manifest, on either transport, and counts as sandboxed`() {
+        // docs/engine-bundle-format.md "lockdown"; owner, 2026-10-17.
+        val keys = keyPair("secp256r1")
+        val plain = EngineBundleManifestReader.parse(manifest(keys.public.encoded))
+        assertEquals(false, plain.lockdown)
+        assertEquals(false, plain.sandboxed)
+        for (transport in listOf(RUNTIME_TRANSPORT_PLUGIN, RUNTIME_TRANSPORT_ACTIVITY)) {
+            val raw = JSONObject(manifest(keys.public.encoded).toString(Charsets.UTF_8))
+                .put("lockdown", true).put("runtimeTransport", transport).toString().toByteArray()
+            val parsed = EngineBundleManifestReader.parse(raw)
+            assertEquals(true, parsed.lockdown)
+            assertEquals(false, parsed.isolatable)
+            assertEquals(true, parsed.sandboxed)
+        }
+    }
+
+    @Test
     fun `signature does not survive a manifest change`() {
         val keys = keyPair("secp256r1")
         val raw = manifest(keys.public.encoded)

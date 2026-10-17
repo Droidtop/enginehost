@@ -2201,17 +2201,64 @@ the 120 checks at the old pin unchanged at the new one, with 67 new checks.
   Enginehost may have (MediaProvider, an intent with a URL). A same-UID
   sandbox cannot close that; the isolated runtime (another UID) can.
 
-It is off unless `debug.enginehost.lockdown` is 1 (`adb shell setprop`)
-and applies only to plugin-api launches that are not isolatable, while the
-shared design is agreed. The library's own CI runs its escape-attempt test
-on Linux and on the Android emulator at API 28 and 34.
+#### The lockdown is how a core that cannot be isolated is sandboxed (2026-10-17)
 
-A launch that needs a separately installed runtime component (component
-bundles, docs/engine-bundle-format.md) is refused under the lockdown with
-the component named: the broker's policy names the engine's bundle
-directory only, so the component's files would be unreachable once the
-process is confined. Widening the policy to the verified component
-directories is the fix when the lockdown leaves prototype.
+The owner's rule, through the coordinator: GPU apps use our sandbox library
+without Android isolation. Most cores cannot be isolated: they draw with GLES
+or Vulkan, which Android closes to isolated processes on every device (above),
+or with a WebView (Droidtop/tracker#550, the survey of 2026-10-17). For them
+the lockdown is the sandbox. Agreed with the owner on 2026-10-17 ("All that
+works"):
+
+- **A core declares it.** `"lockdown": true` in its manifest says the core runs
+  correctly locked down. A core sets it only after a rig run shows it does (see
+  the per-core steps below). It is valid on both transports.
+- **It counts as sandboxed.** A core is sandboxed when it is `isolatable` (layer
+  2, its own UID) or declares `lockdown`. Only a core with neither gets the
+  every-launch "Run unsandboxed?" sheet and the install warning; the badges and
+  the problem report say which of the two a core has.
+- **It is on by default.** A launch of a core that declares it is locked down
+  with no setting to turn that off. The process confines itself before any of
+  the core's code loads: for the plugin transport in `RuntimeActivity`, before
+  `loadPlugin`; for the activity transport in `EnginehostComponentFactory`, after
+  the bundle is verified and before its resources or dex files are opened. Once
+  per process: the activity transport's resource relaunch finds it already
+  confined. When the lockdown cannot be installed, the launch fails and says so;
+  a core that declares it never runs unconfined.
+- **No transport migration for this.** Locking down where each transport loads
+  is one mechanism called in two places. The activity-to-plugin migration (above)
+  stays on the roadmap only for a core that could ever be isolated; a GL core
+  gains nothing from it, since it stays non-isolatable either way.
+- **Components.** The broker's policy names every verified component bundle the
+  launch loads (read-only), beside the engine's own, so a launch with a
+  separately installed component is no longer refused.
+- **WebView.** The policy adds the current WebView provider's code (its APK
+  folder and native libraries, read-only) and WebView's own profile folders in
+  the app's data (`app_webview*`, read and write), so a WebView core starts
+  locked down. WebView's renderer is a separate process Android starts as an
+  isolated process of its own (`sandboxed_process`, SELinux `isolated_app`)
+  whenever WebView runs multiprocess, which every supported Android version
+  does: the page's code never runs in `:runtime`, and it is already
+  isolated by Android. The rig confirms both (step 4 below).
+- **`debug.enginehost.lockdown=1`** remains for one purpose: locking down a core
+  that does not declare it yet, to run its rig check before the flag is set.
+
+What the lockdown still does not close is unchanged: Binder (above).
+
+**Rig steps, per core** (each before its manifest sets `lockdown: true`):
+1. `adb shell setprop debug.enginehost.lockdown 1`, launch a game of the core,
+   play past the title screen, save, load, quit.
+2. `adb logcat -s EnginehostSandbox`: "Process locked down" appears, and note
+   every "refused" line (a path the core needs and the policy lacks).
+3. The game shows no network use: `adb shell cat /proc/<runtime pid>/net/tcp6`
+   lists none of its own connections.
+4. WebView cores (HTML, Twine, RPG Maker MV/MZ, Flash/AIR) also: `adb shell ps
+   -A | grep sandboxed_process` shows the renderer while the game runs, and
+   `adb shell ps -AZ | grep sandboxed_process` shows `isolated_app`.
+5. `adb shell setprop debug.enginehost.lockdown 0` afterwards. Send the refused
+   lines; a core whose run had none gets the flag.
+Ren'Py goes first (owner, 2026-10-17), then the rest of the GL and WebView
+cores in the survey's order.
 
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 

@@ -140,7 +140,7 @@ class PluginUpdateCheck(private val context: Context) {
             // it stays pending, for the warning on the Plugins screen (tracker#482).
             onPending(
                 updates.filterNot { update ->
-                    installAutomatically && update.manifest.isolatable &&
+                    installAutomatically && update.manifest.sandboxed &&
                         runCatching { PluginInstaller.installQuietly(context, update) }.isSuccess
                 },
             )
