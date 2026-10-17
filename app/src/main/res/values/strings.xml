@@ -155,6 +155,7 @@
     <string name="updates_done">Updated %1$d, %2$d failed: %3$s</string>
     <string name="sandbox_yes">Runs in a sandbox</string>
     <string name="sandbox_no">Runs without a sandbox</string>
+    <string name="sandbox_locked">Runs locked down: files only through Enginehost, no network, no other programs</string>
     <string name="open_plugin_catalog">Add</string>
     <string name="badge_official">Official</string>
     <string name="badge_ultimate">Ultimate</string>

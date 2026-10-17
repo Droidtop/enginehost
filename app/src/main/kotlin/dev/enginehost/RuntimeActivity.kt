@@ -104,18 +104,12 @@ class RuntimeActivity : FragmentActivity() {
                 InstalledBundleVerifier.verify(this, component)
                 checkNotNull(component.component).name to component.directory
             }
-            if (RuntimeSandbox.lockdownRequested()) {
-                // The broker's policy names one bundle directory, so a locked
-                // process could not open a separately installed component's
-                // files; refuse it by name, as the isolated runtime does above.
-                if (resolved.components.isNotEmpty()) {
-                    return failAndFinish(
-                        STARTUP_FAILED + "the process lockdown cannot load the separately installed " +
-                            resolved.components.mapNotNull { it.component }.joinToString { "${it.name} ${it.version}" } + " yet",
-                    )
-                }
+            // A core that declares it is always locked down before its code
+            // loads; it never runs unconfined (docs/engine-sandbox.md).
+            if (RuntimeSandbox.locksDown(resolved.plugin)) {
                 if (!RuntimeSandbox.lockdown(
-                        this, gameFolder, resolved.plugin.writesGameFolder, saveFolder, resolved.plugin.directory,
+                        this, gameFolder, resolved.plugin.writesGameFolder, saveFolder,
+                        listOf(resolved.plugin.directory) + resolved.components.map { it.directory },
                     )
                 ) {
                     return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")

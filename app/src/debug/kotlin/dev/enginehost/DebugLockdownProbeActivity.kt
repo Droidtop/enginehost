@@ -33,7 +33,7 @@ class DebugLockdownProbeActivity : Activity() {
         val save = File(cacheDir, "lockdown-probe-save").apply { mkdirs() }
         offMain { probes(game, save, "before") }
         File(game, "probe-write.txt").delete()
-        val locked = RuntimeSandbox.lockdown(this, game, false, save, File(filesDir, "engine-bundles-v1"))
+        val locked = RuntimeSandbox.lockdown(this, game, false, save, listOf(File(filesDir, "engine-bundles-v1")))
         Log.i(TAG, "lockdown: $locked")
         // A thread started after the lockdown, as every engine thread is.
         offMain { probes(game, save, "after") }

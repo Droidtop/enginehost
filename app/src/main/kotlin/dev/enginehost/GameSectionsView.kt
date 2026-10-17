@@ -99,7 +99,7 @@ class GameSectionsView(
             val version = plugin.info.pluginVersion.toString()
             sheet.choice(
                 PluginVersions.display(plugin.info.pluginVersion),
-                activity.getString(if (plugin.isolatable) R.string.badge_sandboxed else R.string.badge_unsandboxed),
+                activity.getString(if (plugin.sandboxed) R.string.badge_sandboxed else R.string.badge_unsandboxed),
                 current = sections.pinned == version,
             ) { setOverride("pluginVersion", version) }
         }

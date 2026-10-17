@@ -115,7 +115,7 @@ data class ProblemReport(
                 config = configText,
                 plugin = resolved?.let {
                     val p = it.plugin
-                    val sandbox = if (p.isolatable) "sandboxed" else "not sandboxed"
+                    val sandbox = when { p.isolatable -> "sandboxed (isolated)"; p.lockdown -> "sandboxed (locked down)"; else -> "not sandboxed" }
                     val origin = p.origin.ifBlank { "unknown origin" }
                     "${p.bundleId} ${PluginVersions.display(p.info.pluginVersion)} " +
                         "($origin, signer ${p.signerIdentity.ifBlank { "unsigned" }}, $sandbox)"

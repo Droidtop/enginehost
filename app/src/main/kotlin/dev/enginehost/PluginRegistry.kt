@@ -48,6 +48,14 @@ data class InstalledPlugin(
      * the game").
      */
     val writesGameFolder: Boolean = false,
+    /**
+     * Whether this bundle's code runs correctly under the process lockdown
+     * (the sandbox library, without Android isolation), on either transport.
+     * Declared by the bundle once a rig run shows it does; a launch of it is
+     * then always locked down (docs/engine-sandbox.md "The lockdown is how a
+     * core that cannot be isolated is sandboxed", owner 2026-10-17).
+     */
+    val lockdown: Boolean = false,
     /** Set for a runtime-component bundle, which no game runs directly ([ComponentSelection]). */
     val component: ComponentInfo? = null,
     /** The bundle's own licence, shown on the trust screen before approval. */
@@ -71,6 +79,9 @@ data class InstalledPlugin(
      * ([BundleVerifier.LEGACY_INSTALLED]).
      */
     val legacySigned: Boolean get() = signer == null || signer.format == 0
+
+    /** Isolated under its own UID, or locked down by the sandbox library: either is a sandbox (owner, 2026-10-17). */
+    val sandboxed: Boolean get() = isolatable || lockdown
 }
 
 data class ResolvedPlugin(
@@ -294,6 +305,7 @@ object PluginRegistry {
             },
             json.optBoolean("isolatable", false),
             writesGameFolder = json.optBoolean("writesGameFolder", false),
+            lockdown = json.optBoolean("lockdown", false),
             component = component,
             license = ComponentManifestReader.license(json.optJSONObject("license")),
             signer = json.optJSONObject("signer")?.let(BundleSigner::fromJson),
