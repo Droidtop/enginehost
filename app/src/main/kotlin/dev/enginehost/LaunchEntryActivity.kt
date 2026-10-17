@@ -73,6 +73,12 @@ class LaunchEntryActivity : Activity() {
     companion object {
         const val ACTION_END_GAME = "dev.enginehost.END_GAME"
         const val EXTRA_ENDED = "ended"
+
+        /** Sent to the launching app's package when its game ends (docs/contract.md, Droidtop/tracker#580). */
+        const val ACTION_GAME_ENDED = "dev.enginehost.GAME_ENDED"
+        const val EXTRA_GAME_PATH = "path"
+        const val EXTRA_SAVE_FOLDER = "saveFolder"
+        const val EXTRA_REASON = "reason"
         const val EXTRA_ERROR = "error"
         const val ERROR_UNTRUSTED_CALLER = "untrusted_caller"
     }

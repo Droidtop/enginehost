@@ -68,6 +68,7 @@ class LaunchActivity : EnginehostActivity() {
         runtimeCovered = savedInstanceState?.getBoolean(STATE_COVERED) ?: false
         runtimeStarted = savedInstanceState?.getBoolean(STATE_STARTED) ?: false
         runtimePlugin = savedInstanceState?.getString(STATE_PLUGIN)
+        savesIn = savedInstanceState?.getString(STATE_SAVES_IN)
         sessionStartedAt = savedInstanceState?.getLong(STATE_SESSION_AT) ?: 0L
         setContentView(R.layout.activity_launch)
         findViewById<Button>(R.id.cancelButton).setOnClickListener { cancel() }
@@ -95,6 +96,7 @@ class LaunchActivity : EnginehostActivity() {
         outState.putBoolean(STATE_STARTED, runtimeStarted)
         outState.putLong(STATE_SESSION_AT, sessionStartedAt)
         outState.putString(STATE_PLUGIN, runtimePlugin)
+        outState.putString(STATE_SAVES_IN, savesIn)
     }
 
     /** Earlier saves were offered on this screen and answered; a retry or restart does not ask again. */
@@ -337,6 +339,7 @@ class LaunchActivity : EnginehostActivity() {
         runtimeCovered = false
         lastCrash = null
         runtimePlugin = plan.resolved.plugin.bundleId
+        savesIn = plan.savesIn?.absolutePath
         // Only the run that follows a restart request carries its
         // arguments; a retry or a later launch starts clean.
         restartArguments?.let { plan.intent.putExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS, it) }
@@ -505,6 +508,7 @@ class LaunchActivity : EnginehostActivity() {
         }
         val reported = data?.getStringExtra(RuntimeActivity.EXTRA_ERROR)
         if (reported != null) {
+            reportGameEnded(GAME_ENDED_CRASHED)
             HostEvents.record(this, "runtime ended: reported an error: $reported")
             // The runtime knew what went wrong and said so. That sentence beats
             // anything a crash record could add.
@@ -514,6 +518,30 @@ class LaunchActivity : EnginehostActivity() {
         // Android records why a process ended a moment after delivering the
         // cancelled result for its activity; give the record time to exist.
         handler.postDelayed({ if (!isDestroyed && !isFinishing) classifyExit() }, EXIT_RECORD_DELAY_MS)
+    }
+
+    /** Where the running game's saves are, for the caller's game-ended report; null once reported. */
+    private var savesIn: String? = null
+
+    /**
+     * Tells the app that launched this game that it has ended, so it can
+     * upload its saves (docs/contract.md "A caller's save folder",
+     * Droidtop/tracker#580): `dev.enginehost.GAME_ENDED` to that caller's
+     * package and no other, once per run. A launch from inside Enginehost, or
+     * from a caller Android did not identify, reports to nobody.
+     */
+    private fun reportGameEnded(reason: String) {
+        val folder = savesIn ?: return
+        savesIn = null
+        val caller = intent.getStringExtra(EXTRA_CALLER_KEY)
+            ?.takeIf { it != LaunchCaller.UNKNOWN_KEY && it != LaunchCaller.IN_APP_KEY } ?: return
+        sendBroadcast(
+            Intent(LaunchEntryActivity.ACTION_GAME_ENDED).setPackage(caller)
+                .putExtra(LaunchEntryActivity.EXTRA_GAME_PATH, gameFolder.absolutePath)
+                .putExtra(LaunchEntryActivity.EXTRA_SAVE_FOLDER, folder)
+                .putExtra(LaunchEntryActivity.EXTRA_REASON, reason),
+        )
+        HostEvents.record(this, "game ended ($reason): told $caller")
     }
 
     /**
@@ -528,6 +556,7 @@ class LaunchActivity : EnginehostActivity() {
             return
         }
         val crash = CrashWatch.consume(this)
+        reportGameEnded(if (crash == null && runtimeCovered) GAME_ENDED_EXITED else GAME_ENDED_CRASHED)
         recordSession(
             when {
                 crash != null -> PlayHistory.EXIT_CRASHED
@@ -607,6 +636,9 @@ class LaunchActivity : EnginehostActivity() {
         private const val STATE_COVERED = "covered"
         private const val STATE_STARTED = "started"
         private const val STATE_PLUGIN = "plugin"
+        private const val STATE_SAVES_IN = "savesIn"
+        private const val GAME_ENDED_EXITED = "exited"
+        private const val GAME_ENDED_CRASHED = "crashed"
         const val EXTRA_PATH = "path"
         const val EXTRA_CONFIG = "config"
         const val EXTRA_AUTOINSTALL = "autoinstallPlugin"

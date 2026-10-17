@@ -27,6 +27,8 @@ object GameRunner {
             val config: EngineConfig,
             val resolved: ResolvedPlugin,
             val earlierSaves: EarlierSaves? = null,
+            /** Where the game's saves are: the game folder for an engine that saves beside it, else its save folder. */
+            val savesIn: java.io.File? = null,
         ) : Plan()
 
         /** The game cannot start; [retry] when trying again can help once the person has fixed what [message] names. */
@@ -76,8 +78,12 @@ object GameRunner {
         // chosen once and gone since; that is a sentence too, not an
         // exception out of the launch screen.
         val saves = SaveLocationStore(context)
+        // A caller's own save folder for this launch, when it named one that
+        // is taken (docs/contract.md "A caller's save folder"); it is exactly
+        // what the engine's system save locations mean.
+        val callerRoot = SaveRoot.usable(inlineJson)
         val saveFolder = try {
-            saves.saveFolderFor(config)
+            if (callerRoot != null) SaveLocationStore.saveFolderFor(callerRoot, config) else saves.saveFolderFor(config)
         } catch (e: UnusableSaveFolderException) {
             return Plan.Failure(context.getString(R.string.launch_save_folder_unusable, e.folder.absolutePath), retry = true)
         } catch (e: IllegalArgumentException) {
@@ -167,7 +173,9 @@ object GameRunner {
             testingJson?.let { putExtra(RuntimeActivity.EXTRA_TESTING_CONFIG, it) }
             overridesJson?.let { putExtra(RuntimeActivity.EXTRA_OVERRIDES, it) }
         }
-        return Plan.Runtime(intent, config, resolved, saves.earlierSavesFor(config, gameFolder))
+        val savesIn = if (SaveFolders.placeOf(config.engine, config.engineContext) == SaveFolders.Place.BESIDE_THE_GAME) gameFolder else saveFolder
+        // Earlier saves are offered from the person's own save location only.
+        return Plan.Runtime(intent, config, resolved, if (callerRoot == null) saves.earlierSavesFor(config, gameFolder) else null, savesIn)
     }
 
     /** What [readConfig] found: the config a launch runs on, or the plan that stops it first. */

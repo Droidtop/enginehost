@@ -166,7 +166,7 @@ may append fields the file omitted, including missing keys inside
 `options`, but can never override a value already present in the file.
 When the folder has no config file, the inline config is used by itself.
 
-### A caller's save folder: `saveRoot` (agreed 2026-10-17, not built yet)
+### A caller's save folder: `saveRoot` (2026-10-17)
 
 Owner, Droidtop/tracker#580: "we can pass data back and forth using the API,
 so we'll pass the save folder to the game using the normal config syntax, so
@@ -197,13 +197,17 @@ key:
 - **Engines that save beside the game** (KiriKiri, Buriko, CMVS, NScripter, RPG
   Maker 2000/2003 and XP/VX/VX Ace) ignore it, as they ignore the save root:
   Enginehost never changes where an engine saves.
-- **Game end.** When a game launched by an identified caller ends (Quit, the
-  game exiting, a crash, or `END_GAME`), Enginehost sends that caller's package,
-  and no other, the broadcast `dev.enginehost.GAME_ENDED` with the game folder
-  (`path`), the save folder the engine actually used (`saveFolder`, which tells
-  the caller whether its `saveRoot` was taken) and how it ended (`reason`:
-  `quit`, `exited`, `crashed`, `ended`). A caller Android does not identify gets
-  nothing.
+- **Game end.** When a game launched by an identified caller ends, Enginehost
+  sends that caller's package, and no other, the broadcast
+  `dev.enginehost.GAME_ENDED` once, with the game folder (`path`), where the
+  game's saves are (`saveFolder`: the save folder the engine was given, or the
+  game folder for an engine that saves beside the game; it tells the caller
+  whether its `saveRoot` was taken) and how it ended (`reason`: `exited` when the
+  game closed, by its own Quit, the in-game menu or `END_GAME`; `crashed` when it
+  crashed or failed). A launch from inside Enginehost, or from a caller Android
+  does not identify, reports to nobody. A launch that first went to the catalog
+  or trust screen for its core carries no caller once it resumes, and reports to
+  nobody either (`LaunchActivity.reportGameEnded`).
 
 ## On-device tools
 
