@@ -150,6 +150,45 @@ may append fields the file omitted, including missing keys inside
 `options`, but can never override a value already present in the file.
 When the folder has no config file, the inline config is used by itself.
 
+### A caller's save folder: `saveRoot` (agreed 2026-10-17, not built yet)
+
+Owner, Droidtop/tracker#580: "we can pass data back and forth using the API,
+so we'll pass the save folder to the game using the normal config syntax, so
+the game can load from and save to it." For a launcher that keeps a game's
+saves itself (droidtop's Steam Cloud sync), the inline config may carry one more
+key:
+
+```json
+{ "saveRoot": "/storage/emulated/0/Droidtop/cloud/123456" }
+```
+
+- **What it is.** An absolute path in shared storage. For that launch only, it
+  is exactly the folder the engine's system save locations mean: what the
+  person's save root and the engine's `saves` folder beneath it would otherwise
+  be. An engine that names its own folder inside the save root (Ren'Py, Godot)
+  names it inside this one, and `saveFolder` applies beneath it as usual. The
+  caller uploads the folder it named, as it is.
+- **Inline only, one launch only.** It is never read from a folder's
+  `enginehost.json`, never written anywhere, and never changes Settings > Saves.
+- **Who may pass it.** Any caller the person has allowed in App launch access;
+  droidtop has no standing of its own there (see "App launch access"). A launch
+  from inside Enginehost has no caller and so no `saveRoot`.
+- **What is refused.** A relative path, a path outside shared storage
+  (`/storage/emulated/<user>` or a removable volume), or one inside an app's
+  `Android/data` or `Android/obb`: the launch runs on the person's own save
+  location, as if the key were absent. A folder that does not exist is made; one
+  that cannot be made or written is treated the same way.
+- **Engines that save beside the game** (KiriKiri, Buriko, CMVS, NScripter, RPG
+  Maker 2000/2003 and XP/VX/VX Ace) ignore it, as they ignore the save root:
+  Enginehost never changes where an engine saves.
+- **Game end.** When a game launched by an identified caller ends (Quit, the
+  game exiting, a crash, or `END_GAME`), Enginehost sends that caller's package,
+  and no other, the broadcast `dev.enginehost.GAME_ENDED` with the game folder
+  (`path`), the save folder the engine actually used (`saveFolder`, which tells
+  the caller whether its `saveRoot` was taken) and how it ended (`reason`:
+  `quit`, `exited`, `crashed`, `ended`). A caller Android does not identify gets
+  nothing.
+
 ## On-device tools
 
 The first-class UI is a config creator built around Android's system folder
