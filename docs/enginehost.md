@@ -190,7 +190,10 @@ lives. The owner's standing rule, the same day: "Spec documents need to be updat
   `godot-v45-v1`, `godot-v46-v1`) had been left as drafts; the owner said yes to publishing them
   again and re-signing them as the other eight were. Godot's `publish-drafted-stable.yml` does the
   publishing, since a session cannot edit releases.
-- **Godot packs on SMB shares.** Owner: "Redo it properly". Waiting on a rig reproduction of how
-  the share is mounted and what fails before any code, which the owner gave to the coordinator
-  ("probably ask the coordinator to do that"): the September fix's diagnosis (native
-  `open()` fails where Java's succeeds, in one process) does not hold as written.
+- **Godot packs on SMB shares: closed, nothing to fix (2026-10-17).** The premise came from one
+  unverified commit message, "Godot plugin: use file descriptor for pack on SMB shares"
+  (`c7b1861d08`, left on `wip/repomove-2026-09-27-ehfix/plugin/4.5`), which the owner had said to
+  redo properly. No failing game was ever reported, and the owner: "I don't believe there's a
+  network share on the rp5 at the moment" / "Yep, close it". The coordinator's reproduction
+  (Droidtop/tracker#569) opened both Godot packs from a shared folder, and from Android 11 Godot
+  reads packs through Java, so the diagnosis did not hold either. No code changes.
