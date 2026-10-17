@@ -48,7 +48,7 @@ object CallerPicker {
 
     private val ORDER = compareBy<CallerCandidate>({ it.role.ordinal }, { it.label.lowercase() }, { it.packageName })
 
-    /** Launchable apps besides this one, droidtop and [exclude]. Queries the package manager for every app: not for the main thread. */
+    /** Launchable apps besides this one and [exclude], droidtop included. Queries the package manager for every app: not for the main thread. */
     fun load(context: Context, exclude: Set<String>): List<CallerCandidate> {
         val pm = context.packageManager
         val homes = runCatching {
@@ -60,7 +60,7 @@ object CallerPicker {
         return pm.queryIntentActivities(launcher, 0)
             .mapNotNull { it.activityInfo }
             .distinctBy { it.packageName }
-            .filter { it.packageName != context.packageName && it.packageName != TrustedCallers.DROIDTOP_PACKAGE && it.packageName !in exclude }
+            .filter { it.packageName != context.packageName && it.packageName !in exclude }
             .map { info ->
                 val app = info.applicationInfo
                 CallerCandidate(

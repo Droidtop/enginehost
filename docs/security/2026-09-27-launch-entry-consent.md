@@ -46,11 +46,16 @@ App launch access) lists every package with an explicit decision and lets
 a person change or remove one, or add a decision for an app that has not
 asked yet.
 
-**Verified droidtop** (`TrustedCallers`, unchanged from this document's
-first version) is never gated: `GameRunner.run`'s default `LaunchCaller`
-is `Droidtop`, and every in-app launch (library, config editor test run,
-trust-screen continuation) uses that default, so none of this applies to
-anything already inside Enginehost.
+**Verified droidtop** (`TrustedCallers`) was never gated until 2026-10-17,
+when the owner removed that: "Any forced approval violates the user's right
+to choice." Its signature now only identifies it (`LaunchCaller.Droidtop`,
+stored under its package name); it is asked about, listed, allowed and blocked
+like any other caller, for `LAUNCH` and `SCAN` alike. What is never gated is
+a launch from inside Enginehost: `GameRunner.run`'s default `LaunchCaller` is
+`InApp`, used by the library, Game setup's Test and a launch resuming after its
+core was installed, so none of this applies to anything already inside
+Enginehost. `END_GAME` and the capabilities provider's state query still
+answer droidtop alone, by signature: they identify, they launch nothing.
 
 **Caller identity** is exactly what the first version of this document
 built and is unchanged: `LaunchEntryActivity` trusts only the referrer
@@ -134,9 +139,9 @@ Fix: a `<queries>` block declaring the `LAUNCHER` intent (what
 android:name="dev.droidtop.app" />` -- the one that actually matters here,
 since it guarantees droidtop's visibility regardless of whether the
 `LAUNCHER` query would have caught it. With visibility restored,
-`isDroidtop` succeeds again and a real droidtop launch goes straight
-through as `LaunchCaller.Droidtop`, exactly as before this regression:
-no picker entry needed, because it is never gated in the first place.
+`isDroidtop` succeeds again and a real droidtop launch is identified as
+`LaunchCaller.Droidtop`. (At the time droidtop was never gated; since
+2026-10-17 it is, and it appears in the picker like any app.)
 
 Also added, from the same report: `CallerSightingsStore` records every
 real (non-droidtop, non-`Unknown`) caller `LaunchActivity` actually gates,

@@ -103,6 +103,15 @@ class CallerAccessTest {
         assertEquals(EffectiveAccess.Ask, access)
     }
 
+    @Test
+    fun `droidtop with no decision is asked about, and its decision is the person's`() {
+        // Owner, 2026-10-17: "Any forced approval violates the user's right to choice."
+        val key = LaunchCaller.Droidtop.storeKey
+        assertEquals(EffectiveAccess.Ask, EffectiveAccess.forCaller(key, stored = null, resolvesHttpHandler = neverResolvesHttp))
+        assertEquals(EffectiveAccess.Block(null), EffectiveAccess.forCaller(key, CallerDecision.BLOCK, neverResolvesHttp))
+        assertEquals(EffectiveAccess.Allow, EffectiveAccess.forCaller(key, CallerDecision.ALLOW, neverResolvesHttp))
+    }
+
     // -- LaunchCaller.storeKey --
 
     @Test
@@ -110,6 +119,7 @@ class CallerAccessTest {
         assertEquals(TrustedCallers.DROIDTOP_PACKAGE, LaunchCaller.Droidtop.storeKey)
         assertEquals(LaunchCaller.UNKNOWN_KEY, LaunchCaller.Unknown.storeKey)
         assertEquals("com.example.app", LaunchCaller.App("com.example.app").storeKey)
+        assertEquals(LaunchCaller.IN_APP_KEY, LaunchCaller.InApp.storeKey)
     }
 
     // -- CallerSightingsStore --

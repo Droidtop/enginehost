@@ -100,18 +100,18 @@ class GameScanActivity : EnginehostActivity() {
     /**
      * Only another app starts this screen with a folder (`dev.enginehost.SCAN`).
      * It scanned at once, whoever asked (review, 2026-10-16). Now the person's
-     * decisions for `LAUNCH` callers apply here too: droidtop and a caller
-     * they allowed scan at once, a caller they blocked does not, and anyone
-     * else is asked first, with the folder named.
+     * decision for that caller as a `LAUNCH` caller applies here too: allowed
+     * scans at once, blocked (by the person or the default blocklist) does
+     * not, and otherwise the person is asked first, with the folder named.
+     * droidtop is a caller like any other (owner, 2026-10-17).
      */
     private fun scanRequested(folder: File) {
         val caller = LaunchCaller.of(this)
-        val decision = if (caller == LaunchCaller.Droidtop) CallerDecision.ALLOW else CallerAccessStore(this).decisionFor(caller.storeKey)
-        when (decision) {
-            CallerDecision.ALLOW -> startScan(folder, full = false)
-            CallerDecision.BLOCK -> Unit
-            null -> {
-                val name = if (caller is LaunchCaller.App) CallerLabels.of(packageManager, caller.packageName) else getString(R.string.caller_access_unknown_label)
+        when (EffectiveAccess.forCaller(CallerAccessStore(this), packageManager, caller.storeKey)) {
+            EffectiveAccess.Allow -> startScan(folder, full = false)
+            is EffectiveAccess.Block -> Unit
+            EffectiveAccess.Ask -> {
+                val name = if (caller == LaunchCaller.Unknown) getString(R.string.caller_access_unknown_label) else CallerLabels.of(packageManager, caller.storeKey)
                 Sheet(this)
                     .title(R.string.scan_request_title)
                     .message(getString(R.string.scan_request_message, name, folder.absolutePath))

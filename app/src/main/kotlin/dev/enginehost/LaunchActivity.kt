@@ -122,8 +122,9 @@ class LaunchActivity : EnginehostActivity() {
     }
 
     /**
-     * Per-caller allow/ask/block (owner, 2026-09-27). Absent for droidtop and
-     * every in-app caller (GameRunner.run's default), which are never gated.
+     * Per-caller allow/ask/block (owner, 2026-09-27). Absent only for a launch
+     * from inside Enginehost (GameRunner.run's default, [LaunchCaller.InApp]);
+     * droidtop is asked about like any other app (owner, 2026-10-17).
      * True when the launch may go on now; false when it is waiting on a
      * prompt or refused, both of which come back through [launch] or end the
      * screen. See offerCallerAccessPrompt, showCallerBlocked.
@@ -636,7 +637,7 @@ class LaunchActivity : EnginehostActivity() {
             inlineJson: String?,
             autoInstallPlugin: Boolean,
             testing: Boolean = false,
-            caller: LaunchCaller = LaunchCaller.Droidtop,
+            caller: LaunchCaller = LaunchCaller.InApp,
         ) {
             val intent = Intent(context, LaunchActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             if (RunningGame.isRunning(gameFolder)) {
@@ -646,7 +647,7 @@ class LaunchActivity : EnginehostActivity() {
                 // launch screen to decide on, and a launch screen started for
                 // a prompt would clear the game that is running
                 // (Droidtop/tracker#44). Anything but Allow leaves it alone.
-                if (caller !is LaunchCaller.Droidtop &&
+                if (caller !is LaunchCaller.InApp &&
                     EffectiveAccess.forCaller(CallerAccessStore(context), context.packageManager, caller.storeKey) !is EffectiveAccess.Allow
                 ) {
                     Toast.makeText(context, R.string.caller_access_running_refused, Toast.LENGTH_LONG).show()
@@ -658,7 +659,7 @@ class LaunchActivity : EnginehostActivity() {
                 inlineJson?.let { intent.putExtra(EXTRA_CONFIG, it) }
                 if (autoInstallPlugin) intent.putExtra(EXTRA_AUTOINSTALL, true)
                 if (testing) intent.putExtra(EXTRA_TESTING, true)
-                if (caller !is LaunchCaller.Droidtop) intent.putExtra(EXTRA_CALLER_KEY, caller.storeKey)
+                if (caller !is LaunchCaller.InApp) intent.putExtra(EXTRA_CALLER_KEY, caller.storeKey)
             }
             context.startActivity(intent)
         }

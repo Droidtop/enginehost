@@ -10,7 +10,20 @@ import android.net.Uri
  * caller's own intent extras claim (see [LaunchEntryActivity]).
  */
 sealed class LaunchCaller {
-    /** Verified against droidtop's package and signing certificate ([TrustedCallers]): always allowed, no decision asked. */
+    /**
+     * A launch from inside Enginehost (the library's Play, Game setup's Test,
+     * a launch resuming after its core was installed): the person's own press,
+     * with no other app asking, so there is no caller to decide about.
+     */
+    object InApp : LaunchCaller()
+
+    /**
+     * Verified against droidtop's package and signing certificate
+     * ([TrustedCallers]). That only says truthfully who is asking: droidtop goes
+     * through App launch access like any other app, asked about on its first
+     * launch and allowed or blocked in the list (owner, 2026-10-17: "Any forced
+     * approval violates the user's right to choice").
+     */
     object Droidtop : LaunchCaller()
 
     /**
@@ -28,6 +41,7 @@ sealed class LaunchCaller {
     /** The key [CallerAccessStore] and [CallerAccessSettingsActivity] use; stable for every unverifiable caller alike. */
     val storeKey: String
         get() = when (this) {
+            InApp -> IN_APP_KEY
             Droidtop -> TrustedCallers.DROIDTOP_PACKAGE
             Unknown -> UNKNOWN_KEY
             is App -> packageName
@@ -35,6 +49,9 @@ sealed class LaunchCaller {
 
     companion object {
         const val UNKNOWN_KEY = "(unrecognized caller)"
+
+        /** [InApp]'s key; never stored, since an in-app launch is never asked about. */
+        const val IN_APP_KEY = "(enginehost)"
 
         /**
          * Who started [activity], by Android's own record. [Droidtop] only

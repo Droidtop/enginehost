@@ -43,6 +43,22 @@ extra "path": absolute path to the game's folder
 extra "config" (optional): a raw enginehost.json-shaped JSON string
 ```
 
+### App launch access
+
+Every app's `LAUNCH` (and its `dev.enginehost.SCAN`) goes through the person's
+decision for that app, in Settings > App launch access: allowed, blocked, or
+asked on its first launch. Browsers and remote-control or automation apps start
+blocked; everything else starts asked. **droidtop is no exception** (owner,
+2026-10-17: "Any forced approval violates the user's right to choice"): its
+first launch asks, and it is listed, allowed and blocked like any app. Enginehost
+still verifies droidtop's signing certificate, but only to name it truthfully,
+never to let it past a decision. Two calls answer droidtop alone by that
+signature, because they identify rather than launch: `dev.enginehost.END_GAME`
+(ending the game it started) and the read-only running-state query of the
+capabilities provider. Launches from inside Enginehost (Play, Test, a launch
+resuming after its core was installed) are the person's own and are not asked
+about.
+
 One game runs at a time. Launching the game that is already running brings it
 back exactly as it was; launching any other game ends the running one first,
 the way leaving it does, and starts the new one. Address the action, not a
