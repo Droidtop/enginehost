@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape controller settings. Scope selection is short and the binding
+    Controller settings for a window 600dp wide or more. Scope selection is short and the binding
     list is long, so the scopes become a fixed sidebar and the bindings get
     their own scrolling column beside them instead of being pushed off the
     bottom of the screen.

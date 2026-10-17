@@ -13,8 +13,8 @@ explicit alternatives, but choosing one requires a person to select it.
 Focusable text links use the shared row background and explicitly opt into
 focus and click handling in `Widget.Enginehost.Link`. That keeps the Details
 link's D-pad focus on the same raised fill and accent ring used by Enginehost's
-other focusable controls. The landscape plugin-trust card uses the same
-style on its Details link (`layout-land/item_plugin_trust.xml`).
+other focusable controls. The wide-window trust card uses the same
+style on its Details link (`layout-w600dp/item_plugin_trust.xml`).
 
 ## An update that is not carried over says why
 
@@ -230,8 +230,20 @@ pane says to choose one. The pane and the narrow window's `GameActivity` are the
 (`activity_game`; the pane hides its back button), so a game's page is one piece of code
 and one layout, with no landscape fork: it is a single scrolling column whose cover plate takes the
 height that is free (`eh_plate_min` floor), in the pane or full width. The pane's game survives a rotation.
-Narrower windows keep opening the page as its own screen. Cores, Settings and the
-controller screen keep their single column.
+Narrower windows keep opening the page as its own screen.
+
+The other screens follow the same rule through Android's width qualifier
+(owner, 2026-10-17: "If something is always forced into a single mode, it isn't
+really following the window size, is it?"). Their multi-column layouts are in
+`layout-w600dp`, chosen when the window is at least 600dp wide, the same line
+`SizeClass` draws between compact and medium: Cores puts two cards per row,
+Settings puts saves beside updates, and Add a core, Game setup, Add games and the
+two controller screens split into columns. Under 600dp each keeps one column,
+whichever way the device is turned. They were `layout-land` forks, so a
+landscape phone in split screen got two columns squeezed into a narrow window and
+a tablet held upright got one (review, 2026-10-16). Still on orientation: the
+landscape spacing tokens (`values-land/dimens.xml`, for a short window) and the
+sheet's side placement (`Sheet.place`).
 
 ## The Add-a-plugin screen reads its data off the main thread
 

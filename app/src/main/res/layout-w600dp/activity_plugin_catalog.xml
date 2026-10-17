@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape plugins. The store list scrolls on its own; the folded sources
-    panel opens beneath the header bar in the same column, so the two
-    orientations behave alike.
+    Add a core in a window 600dp wide or more. The store list scrolls on its own; the folded sources
+    panel opens beneath the header bar in the same column, so narrow and wide
+    windows behave alike.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"

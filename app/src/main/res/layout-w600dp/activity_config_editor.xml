@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape config editor. Portrait gives every field the full width of the
+    Config editor for a window 600dp wide or more. A narrow window gives every field the full width of the
     screen, which at 1920px is one control per row with most of the row empty.
     Here the fields sit in a four column grid read as two label/control pairs
     per row: labels are wrap_content and the controls take the leftover width

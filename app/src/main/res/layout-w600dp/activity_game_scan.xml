@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Landscape scan: the header and its status stay put; results scroll on their own in a two column grid. -->
+<!-- Scan in a window 600dp wide or more: the header and its status stay put; results scroll on their own in a two column grid. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"

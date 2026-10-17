@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Same hint line as portrait. In landscape some of the containers this is
+    Same hint line as in a narrow window. In a wide one some of the containers this is
     inflated into are two column GridLayouts, so it declares a column span;
     the LinearLayout containers that also take it ignore that attribute.
 -->

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape controller profile. The wizard prompt and the buttons that
+    Controller profile for a window 600dp wide or more. The wizard prompt and the buttons that
     drive it belong together on the left; the list of what this pad sends
     is long and gets its own scrolling column, so a capture in progress
     never pushes the next prompt off the bottom of the screen.

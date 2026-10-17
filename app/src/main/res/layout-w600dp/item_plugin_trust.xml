@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape trust card: two per row in the GridLayout that replaces the
-    list. The card keeps the full spacing scale rather than the landscape
+    Trust card in a window 600dp wide or more: two per row in the GridLayout that replaces the
+    list. The card keeps the full spacing scale rather than the compact
     density tokens; it is a decision surface, not a list row.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"

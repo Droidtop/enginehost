@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Landscape settings: saves on the left, updates and the app on the right. Same rows, same ids. -->
+<!-- Settings in a window 600dp wide or more: saves on the left, updates and the app on the right. Same rows, same ids. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"

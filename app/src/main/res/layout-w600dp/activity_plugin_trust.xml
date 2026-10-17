@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Landscape plugin trust. Two cards per row rather than one full width card,
-    which still leaves each card wider than a portrait phone screen, so the
+    Cores in a window 600dp wide or more. Two cards per row rather than one full width card,
+    which leaves each card at least about 280dp, close to a small phone held upright, so the
     density gain here costs the security surface nothing: badge, fingerprint
-    and Ultimate warning all keep their portrait treatment.
+    and Ultimate warning all keep their narrow-window treatment.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
