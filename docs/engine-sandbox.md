@@ -2153,6 +2153,15 @@ brokered and direct network modes (`SBX_LOCK_NET_BROKERED`,
 folders, and a design note that a GPU host such as Enginehost keeps its
 app's own UID and opens its per-process devices itself (`own_opens`); a
 separate isolated UID is a mode a host chooses, not Android's isolation.
+
+The pin moved to `ba4fc61` on 2026-10-22. The library keeps SIGSYS open on
+every confined thread: a trapped call on a thread with SIGSYS blocked killed
+the whole process by signal 31 with no tombstone, which is what LÖVE's first
+lockdown run did 143 times on BlueStacks (Droidtop/tracker#550).
+`rt_sigprocmask` now traps and leaves SIGSYS out of every mask, and
+`sbx_lockdown` answers `-EDEADLK` while a thread already has it blocked.
+When that happens Enginehost logs the names of those threads under
+`EnginehostSandbox`, so a rig run says which library's thread to look at.
 Enginehost asks for none of the new modes: a core's lockdown is the same
 call with the same flags (none), so cores stay without network. The
 library's own suite passed at both commits on Linux x86_64, every one of

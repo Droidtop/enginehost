@@ -117,9 +117,24 @@ object RuntimeSandbox {
         val result = lockdown0(pair[1].detachFd(), OWN_OPENS)
         if (result == 0) Log.i(TAG, "Process locked down: files only through the broker, no sockets, no exec")
         else Log.w(TAG, "Process NOT locked down: errno ${-result}")
+        // EDEADLK: a thread has SIGSYS blocked and would kill the process on its first trapped call.
+        if (result == -EDEADLK) Log.w(TAG, "Threads with SIGSYS blocked: ${sigsysBlockedThreads().joinToString()}")
         confined = result == 0
         return confined
     }
+
+    /** The names of this process's threads that have SIGSYS blocked, from /proc. */
+    private fun sigsysBlockedThreads(): List<String> =
+        File("/proc/self/task").listFiles().orEmpty().mapNotNull { task ->
+            runCatching {
+                val blocked = File(task, "status").readLines().firstOrNull { it.startsWith("SigBlk:") }
+                    ?.substringAfter(':')?.trim()?.toULong(16) ?: return@runCatching null
+                if (blocked and SIGSYS_BIT == 0UL) null else "${File(task, "comm").readText().trim()} (${task.name})"
+            }.getOrNull()
+        }
+
+    private const val EDEADLK = 35
+    private const val SIGSYS_BIT = 1UL shl 30
 
     /** Whether this process is locked down; it cannot be undone. */
     @Volatile var confined = false
