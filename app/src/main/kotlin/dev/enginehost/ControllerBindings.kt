@@ -891,10 +891,15 @@ class RuntimeControllerRouter(
 }
 
 internal fun KeyEvent.isControllerInput(): Boolean =
-    InputDevice.getDevice(deviceId)?.sources?.let { sources ->
-        (sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
-            (sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
-    } == true
+    // The event's own source counts too: `adb shell input gamepad ...` sends
+    // gamepad events from the virtual keyboard device, and the in-game menu's
+    // Select + Start could not be checked from adb without it (rig,
+    // 2026-10-22). A keyboard's own keys still are not controller input.
+    (source and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
+        InputDevice.getDevice(deviceId)?.sources?.let { sources ->
+            (sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
+                (sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+        } == true
 
 internal fun MotionEvent.isControllerInput(): Boolean =
     (source and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK ||
