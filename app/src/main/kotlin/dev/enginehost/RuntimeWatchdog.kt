@@ -37,6 +37,20 @@ internal object RuntimeWatchdog {
         val app = context.applicationContext
         beat()
         Thread({ watch(app, gamePath) }, "enginehost-watchdog").apply { isDaemon = true }.start()
+        stallForRigCheck()
+    }
+
+    /**
+     * The rig check of this watchdog: with `debug.enginehost.stall` set to a
+     * number of seconds (`adb shell setprop debug.enginehost.stall 20`), the
+     * main thread is blocked that long, once, shortly after the game is in
+     * front, so any game shows the hang question. No core can stall the main
+     * thread on demand, and LÖVE's Lua runs on SDL's own thread. At most
+     * [MAX_STALL_S] seconds.
+     */
+    private fun stallForRigCheck() {
+        val seconds = DebugProperty.get("stall")?.toLongOrNull()?.takeIf { it > 0 } ?: return
+        main.postDelayed({ SystemClock.sleep(seconds.coerceAtMost(MAX_STALL_S) * 1000) }, STALL_AFTER_MS)
     }
 
     private fun beat() {
@@ -73,4 +87,6 @@ internal object RuntimeWatchdog {
     /** No beat this long is a hang (owner, 2026-10-22). */
     const val HANG_MS = 15_000L
     const val ASK_AGAIN_MS = 30_000L
+    private const val STALL_AFTER_MS = 2_000L
+    private const val MAX_STALL_S = 120L
 }

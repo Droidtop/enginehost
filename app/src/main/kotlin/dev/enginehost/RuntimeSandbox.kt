@@ -70,10 +70,7 @@ object RuntimeSandbox {
      */
     fun locksDown(plugin: InstalledPlugin): Boolean = plugin.lockdown || lockdownRequested()
 
-    private fun lockdownRequested(): Boolean = runCatching {
-        Class.forName("android.os.SystemProperties").getMethod("get", String::class.java)
-            .invoke(null, "debug.enginehost.lockdown") == "1"
-    }.getOrDefault(false)
+    private fun lockdownRequested(): Boolean = DebugProperty.get("lockdown") == "1"
 
     // Held for the life of the process: a stable provider reference keeps
     // the broker's process alive with this one, and takes this one down if

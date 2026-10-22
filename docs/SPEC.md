@@ -172,6 +172,11 @@ such as a LÖVE game whose `love.draw` is empty.
   game that froze untouched went unnoticed, and the in-game menu, drawn on the
   same thread, could not open. The question is drawn in the main process, over
   the game in its task, because a hung runtime cannot draw.
+  Its rig check is a debug switch (owner, 2026-10-22, chosen over a test
+  core): `adb shell setprop debug.enginehost.stall 20` blocks the runtime's
+  main thread for 20 s (at most 120), once, 2 s after any game is in front;
+  `setprop debug.enginehost.stall 0` turns it off. Only adb or root can set a
+  `debug.` property.
 - **End game** kills the runtime; the launch screen then shows the reason
   ("Showed only a black screen", "Stopped responding") with Try again and
   Report, from the session note (`CrashWatch.recordFailure`).
