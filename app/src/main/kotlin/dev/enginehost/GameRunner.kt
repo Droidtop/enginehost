@@ -34,7 +34,13 @@ object GameRunner {
         ) : Plan()
 
         /** The game cannot start; [retry] when trying again can help once the person has fixed what [message] names. */
-        class Failure(val message: String, val retry: Boolean = false) : Plan()
+        class Failure(
+            val message: String,
+            val retry: Boolean = false,
+            /** What fixes it, offered in place of Try again: [fixLabel] on the button, [fix] the screen it opens. */
+            val fix: Intent? = null,
+            val fixLabel: Int = 0,
+        ) : Plan()
     }
 
     /**
@@ -116,6 +122,18 @@ object GameRunner {
             config.runtimeRequirements, config.pluginVersionConstraint,
         )
         if (resolved == null) {
+            PluginRegistry.resolveStale(
+                context, config.engine, config.engineContext, config.engineVersion,
+                config.runtimeRequirements, config.pluginVersionConstraint,
+            )?.let {
+                // Installed, but too old to start: said plainly, with the way to
+                // a build that does. The game resumes once one is installed.
+                PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing)
+                return Plan.Failure(
+                    context.getString(R.string.launch_engine_stale), retry = false,
+                    fix = catalogFor(context, gameFolder, launchJson, autoInstallPlugin), fixLabel = R.string.launch_update_engine,
+                )
+            }
             // An installed engine that only lacks a component the game needs:
             // when that component is already installed and waiting for the
             // person to accept its licence, that is the one step left. Any
@@ -139,14 +157,7 @@ object GameRunner {
                 )
             }
             PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing)
-            return Plan.Detour(
-                Intent(context, PluginCatalogActivity::class.java).apply {
-                    putExtra(PendingPluginLaunchStore.EXTRA_RESUMES, true)
-                    putExtra(PluginCatalogActivity.EXTRA_GAME_PATH, gameFolder.absolutePath)
-                    launchJson?.let { putExtra(PluginCatalogActivity.EXTRA_CALLER_CONFIG, it) }
-                    putExtra(PluginCatalogActivity.EXTRA_AUTOINSTALL, autoInstallPlugin)
-                },
-            )
+            return Plan.Detour(catalogFor(context, gameFolder, launchJson, autoInstallPlugin))
         }
         if (!PluginTrustStore(context).isApproved(resolved.plugin)) {
             PendingPluginLaunchStore(context).save(gameFolder, inlineJson, testing)
@@ -203,6 +214,15 @@ object GameRunner {
             saveRootRefused,
         )
     }
+
+    /** The catalog, offering an engine for [gameFolder], whose install resumes the pending launch. */
+    private fun catalogFor(context: Context, gameFolder: File, launchJson: String?, autoInstall: Boolean): Intent =
+        Intent(context, PluginCatalogActivity::class.java).apply {
+            putExtra(PendingPluginLaunchStore.EXTRA_RESUMES, true)
+            putExtra(PluginCatalogActivity.EXTRA_GAME_PATH, gameFolder.absolutePath)
+            launchJson?.let { putExtra(PluginCatalogActivity.EXTRA_CALLER_CONFIG, it) }
+            putExtra(PluginCatalogActivity.EXTRA_AUTOINSTALL, autoInstall)
+        }
 
     /** What [readConfig] found: the config a launch runs on, or the plan that stops it first. */
     private sealed class ConfigRead {

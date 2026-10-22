@@ -377,10 +377,41 @@ object PluginRegistry {
         pluginVersionAllowlist: VersionConstraint?,
     ): ResolvedPlugin? {
         val trustStore = PluginTrustStore(context)
+        val stale = staleTest(context)
         return PluginResolver.resolve(
-            discover(context), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
+            discover(context).filterNot(stale), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
             trustOf = trustStore::state, components = approvedComponents(context),
         )
+    }
+
+    /**
+     * The installed build that would run the game if it could start, when
+     * [resolve] found none because every such build is stale: signed only
+     * the legacy way, which no launch accepts while the root is pinned
+     * ([BundleVerifier.LEGACY_INSTALLED]). The launch then says the engine
+     * needs updating instead of the runtime failing on it (rig, 2026-10-22:
+     * Ren'Py 7.5 and 8.4, Buriko and CatSystem2 stopped Enginehost with
+     * Android's "keeps stopping" dialog).
+     */
+    fun resolveStale(
+        context: Context,
+        engine: String,
+        engineContext: String?,
+        engineVersion: Version,
+        runtimeRequirements: Map<String, Version>,
+        pluginVersionAllowlist: VersionConstraint?,
+    ): ResolvedPlugin? {
+        val trustStore = PluginTrustStore(context)
+        return PluginResolver.resolve(
+            discover(context).filter(staleTest(context)), engine, engineContext, engineVersion, runtimeRequirements,
+            pluginVersionAllowlist, trustOf = trustStore::state, components = approvedComponents(context),
+        )
+    }
+
+    /** A build that cannot start: signed only the legacy way while the root is pinned. */
+    private fun staleTest(context: Context): (InstalledPlugin) -> Boolean {
+        val rootPinned = EnginehostRoot.get(context) != null
+        return { rootPinned && it.legacySigned }
     }
 }
 

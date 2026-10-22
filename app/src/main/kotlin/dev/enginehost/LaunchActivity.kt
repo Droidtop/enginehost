@@ -50,7 +50,6 @@ class LaunchActivity : EnginehostActivity() {
     private var runtimeStarted = false
     /** Set once the runtime has covered this screen: the engine drew, and a later exit is the game ending or dying. */
     private var runtimeCovered = false
-    private var runtimePlugin: String? = null
     private var lastCrash: CrashWatch.Crash? = null
 
     /** When the runtime in progress was started, for the game's play history; 0 when none is. */
@@ -67,13 +66,20 @@ class LaunchActivity : EnginehostActivity() {
         gameFolder = File(path)
         runtimeCovered = savedInstanceState?.getBoolean(STATE_COVERED) ?: false
         runtimeStarted = savedInstanceState?.getBoolean(STATE_STARTED) ?: false
-        runtimePlugin = savedInstanceState?.getString(STATE_PLUGIN)
         savesIn = savedInstanceState?.getString(STATE_SAVES_IN)
         saveRootRefused = savedInstanceState?.getString(STATE_SAVE_ROOT_REFUSED)
         sessionStartedAt = savedInstanceState?.getLong(STATE_SESSION_AT) ?: 0L
         setContentView(R.layout.activity_launch)
         findViewById<Button>(R.id.cancelButton).setOnClickListener { cancel() }
-        findViewById<Button>(R.id.retryButton).setOnClickListener { launch() }
+        findViewById<Button>(R.id.retryButton).setOnClickListener {
+            val fix = failureFix
+            if (fix == null) {
+                launch()
+            } else {
+                startActivity(fix)
+                finish()
+            }
+        }
         findViewById<Button>(R.id.reportButton).setOnClickListener { report() }
         // Back (B) here is Cancel: leaving while the engine starts ends that
         // start rather than leaving a runtime loading with nowhere to draw.
@@ -96,7 +102,6 @@ class LaunchActivity : EnginehostActivity() {
         outState.putBoolean(STATE_COVERED, runtimeCovered)
         outState.putBoolean(STATE_STARTED, runtimeStarted)
         outState.putLong(STATE_SESSION_AT, sessionStartedAt)
-        outState.putString(STATE_PLUGIN, runtimePlugin)
         outState.putString(STATE_SAVES_IN, savesIn)
         outState.putString(STATE_SAVE_ROOT_REFUSED, saveRootRefused)
     }
@@ -206,7 +211,7 @@ class LaunchActivity : EnginehostActivity() {
                 HostEvents.record(this, "plan: failed: ${plan.message}")
                 Log.e(TAG, plan.message)
                 showTitle(null)
-                showFailure(plan.message, retry = plan.retry)
+                showFailure(plan.message, retry = plan.retry, fix = plan.fix, fixLabel = plan.fixLabel)
             }
             is GameRunner.Plan.Runtime -> {
                 HostEvents.record(
@@ -342,7 +347,6 @@ class LaunchActivity : EnginehostActivity() {
     private fun enterRuntime(plan: GameRunner.Plan.Runtime) {
         runtimeCovered = false
         lastCrash = null
-        runtimePlugin = plan.resolved.plugin.bundleId
         savesIn = plan.savesIn?.absolutePath
         saveRootRefused = plan.saveRootRefused
         // Only the run that follows a restart request carries its
@@ -421,7 +425,7 @@ class LaunchActivity : EnginehostActivity() {
             visibility = if (config == null) View.GONE else View.VISIBLE
         }
         findViewById<TextView>(R.id.runtimeLine).apply {
-            text = plan?.let { getString(R.string.launch_runtime_line, it.resolved.plugin.bundleId, it.resolved.capability.runtimeVersion.toString()) }
+            text = plan?.let { getString(R.string.launch_runtime_line, it.resolved.plugin.info.pluginVersion.toString(), it.resolved.capability.runtimeVersion.toString()) }
             visibility = if (plan == null) View.GONE else View.VISIBLE
         }
         val icon = findViewById<ImageView>(R.id.gameIcon)
@@ -451,14 +455,19 @@ class LaunchActivity : EnginehostActivity() {
         findViewById<Button>(R.id.cancelButton).setText(R.string.cancel)
     }
 
+    /** What fixes the failure showing, in place of Try again ([GameRunner.Plan.Failure.fix]). */
+    private var failureFix: Intent? = null
+
     /** The game is not running and the person is owed a sentence about why. */
-    private fun showFailure(message: String, retry: Boolean) {
+    private fun showFailure(message: String, retry: Boolean, fix: Intent? = null, fixLabel: Int = 0) {
         runtimeStarted = false
+        failureFix = fix
+        findViewById<Button>(R.id.retryButton).setText(if (fix != null) fixLabel else R.string.launch_retry)
         findViewById<TextView>(R.id.launchStatus).apply {
             text = message
             setTextColor(getColor(R.color.eh_caution))
         }
-        findViewById<View>(R.id.retryButton).visibility = if (retry) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.retryButton).visibility = if (retry || fix != null) View.VISIBLE else View.GONE
         findViewById<View>(R.id.reportButton).visibility = View.VISIBLE
         findViewById<Button>(R.id.cancelButton).setText(R.string.back)
         // The primary action is now Try again (or Back); the pad moves to it.
@@ -592,7 +601,7 @@ class LaunchActivity : EnginehostActivity() {
             // record: the runtime never got going.
             else -> {
                 HostEvents.record(this, "runtime ended: died before drawing")
-                showFailure(getString(R.string.launch_runtime_died, runtimePlugin ?: ""), retry = true)
+                showFailure(getString(R.string.launch_crashed, CrashWatch.CLOSED_UNSEEN), retry = true)
             }
         }
     }
@@ -649,7 +658,6 @@ class LaunchActivity : EnginehostActivity() {
         private const val EXIT_RECORD_MAX_ATTEMPTS = 15
         private const val STATE_COVERED = "covered"
         private const val STATE_STARTED = "started"
-        private const val STATE_PLUGIN = "plugin"
         private const val STATE_SAVES_IN = "savesIn"
         private const val STATE_SAVE_ROOT_REFUSED = "saveRootRefused"
         private const val GAME_ENDED_EXITED = "exited"
