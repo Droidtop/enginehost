@@ -79,11 +79,14 @@ object GameRunner {
         // exception out of the launch screen.
         val saves = SaveLocationStore(context)
         // A caller's own save folder for this launch, when it named one that
-        // is taken (docs/contract.md "A caller's save folder"); it is exactly
-        // what the engine's system save locations mean.
-        val callerRoot = SaveRoot.usable(inlineJson)
+        // is taken (docs/contract.md "A caller's save folder"): the game's own
+        // save folder, exactly as the caller keeps it. Enginehost is the
+        // abstraction: the engine uses it as is and adds no folder inside it
+        // (owner, 2026-10-18). An engine that saves beside the game keeps doing so.
+        val besideTheGame = SaveFolders.placeOf(config.engine, config.engineContext) == SaveFolders.Place.BESIDE_THE_GAME
+        val callerRoot = SaveRoot.usable(inlineJson)?.takeUnless { besideTheGame }
         val saveFolder = try {
-            if (callerRoot != null) SaveLocationStore.saveFolderFor(callerRoot, config) else saves.saveFolderFor(config)
+            callerRoot ?: saves.saveFolderFor(config)
         } catch (e: UnusableSaveFolderException) {
             return Plan.Failure(context.getString(R.string.launch_save_folder_unusable, e.folder.absolutePath), retry = true)
         } catch (e: IllegalArgumentException) {
@@ -152,6 +155,7 @@ object GameRunner {
             // runtime must load the one planned and approved here.
             putExtra(RuntimeActivity.EXTRA_PLUGIN_ARCHIVE, resolved.plugin.archiveSha256)
             putExtra(RuntimeActivity.EXTRA_SAVE_PATH, saveFolder.absolutePath)
+            callerRoot?.let { putExtra(RuntimeActivity.EXTRA_GAME_SAVE_PATH, it.absolutePath) }
             putExtra(RuntimeActivity.EXTRA_ENGINE, config.engine)
             putExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT, config.engineContext ?: DEFAULT_ENGINE_CONTEXT)
             putExtra(RuntimeActivity.EXTRA_ENGINE_VERSION, config.engineVersion.toString())
@@ -173,7 +177,7 @@ object GameRunner {
             testingJson?.let { putExtra(RuntimeActivity.EXTRA_TESTING_CONFIG, it) }
             overridesJson?.let { putExtra(RuntimeActivity.EXTRA_OVERRIDES, it) }
         }
-        val savesIn = if (SaveFolders.placeOf(config.engine, config.engineContext) == SaveFolders.Place.BESIDE_THE_GAME) gameFolder else saveFolder
+        val savesIn = if (besideTheGame) gameFolder else saveFolder
         // Earlier saves are offered from the person's own save location only.
         return Plan.Runtime(intent, config, resolved, if (callerRoot == null) saves.earlierSavesFor(config, gameFolder) else null, savesIn)
     }

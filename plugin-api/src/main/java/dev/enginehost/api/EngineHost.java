@@ -32,6 +32,18 @@ public interface EngineHost {
      * and has no use for this.
      */
     File saveDirectory();
+
+    /**
+     * The game's own save folder, when the app that launched it gave one
+     * (docs/contract.md "A caller's save folder: saveRoot"): exactly the
+     * folder the game's save files are in, laid out as the cloud or other
+     * source keeps it. When this answers a folder, the engine uses it as the
+     * game's save directory itself, adding no folder of its own (no Ren'Py
+     * save_directory, no Godot app_userdata/project), and saveDirectory()
+     * answers the same folder. Null otherwise, and on a host too old to know.
+     */
+    default File gameSaveDirectory() { return null; }
+
     File cacheDirectory();
     EngineFileSystem fileSystem();
 

@@ -178,12 +178,20 @@ key:
 { "saveRoot": "/storage/emulated/0/Droidtop/cloud/123456" }
 ```
 
-- **What it is.** An absolute path in shared storage. For that launch only, it
-  is exactly the folder the engine's system save locations mean: what the
-  person's save root and the engine's `saves` folder beneath it would otherwise
-  be. An engine that names its own folder inside the save root (Ren'Py, Godot)
-  names it inside this one, and `saveFolder` applies beneath it as usual. The
-  caller uploads the folder it named, as it is.
+- **What it is.** The game's own save folder, exactly as the caller keeps it:
+  the folder the game's save files are in, laid out the way the cloud or other
+  source that provides them lays them out. Enginehost is the abstraction; the
+  caller needs to know nothing about any engine (owner, 2026-10-18: "What we
+  provide is a link to the saves, as they are provided to us. This SHOULD be an
+  exact mapping of whatever the save root for a game is."). For that launch the
+  engine uses it as its save directory itself and adds no folder of its own:
+  Ren'Py's savedir is the folder (no `save_directory` beneath it), Godot's
+  `user://` is the folder (no `godot/app_userdata/<project>`), and an engine
+  whose per-game folder Enginehost names (HTML, Twine, RPG Maker MV/MZ,
+  Flash/AIR, CatSystem2) gets the folder as that per-game folder. Cores receive
+  it as `EngineHost.gameSaveDirectory()` (plugin transport) or the
+  `dev.enginehost.runtime.GAME_SAVE_PATH` extra (activity transport); a core
+  too old to read it puts its own folder inside, as it does under a save root.
 - **Inline only, one launch only.** It is never read from a folder's
   `enginehost.json`, never written anywhere, and never changes Settings > Saves.
 - **Who may pass it.** Any caller the person has allowed in App launch access;
@@ -196,13 +204,14 @@ key:
   that cannot be made or written is treated the same way.
 - **Engines that save beside the game** (KiriKiri, Buriko, CMVS, NScripter, RPG
   Maker 2000/2003 and XP/VX/VX Ace) ignore it, as they ignore the save root:
-  Enginehost never changes where an engine saves.
+  Enginehost never changes where an engine saves. Their `GAME_ENDED` names the
+  game folder, which is where their saves are.
 - **Game end.** When a game launched by an identified caller ends, Enginehost
   sends that caller's package, and no other, the broadcast
   `dev.enginehost.GAME_ENDED` once, with the game folder (`path`), where the
-  game's saves are (`saveFolder`: the save folder the engine was given, or the
-  game folder for an engine that saves beside the game; it tells the caller
-  whether its `saveRoot` was taken) and how it ended (`reason`: `exited` when the
+  game's saves are (`saveFolder`: the caller's folder when it was taken, else the
+  person's own save folder, or the game folder for an engine that saves beside
+  the game) and how it ended (`reason`: `exited` when the
   game closed, by its own Quit, the in-game menu or `END_GAME`; `crashed` when it
   crashed or failed). A launch from inside Enginehost, or from a caller Android
   does not identify, reports to nobody. A launch that first went to the catalog

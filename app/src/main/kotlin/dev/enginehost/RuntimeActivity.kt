@@ -116,7 +116,10 @@ class RuntimeActivity : FragmentActivity() {
                 }
             }
             val instance = loadPlugin(resolved.plugin)
-            val host = RuntimeHost(this, gameFolder, resolved.plugin.bundleId, saveFolder)
+            val host = RuntimeHost(
+                this, gameFolder, resolved.plugin.bundleId, saveFolder,
+                intent.getStringExtra(EXTRA_GAME_SAVE_PATH)?.let(::File),
+            )
             instance.onCreate(
                 EnginePluginSession(
                     resolved.plugin.directory, display, host, gameFolder.absolutePath, config.engine,
@@ -357,6 +360,13 @@ class RuntimeActivity : FragmentActivity() {
         /** The person's per-game choices, resolved by the planner and layered over everything else by the runtime too. */
         const val EXTRA_OVERRIDES = "dev.enginehost.runtime.OVERRIDES"
         const val EXTRA_SAVE_PATH = "dev.enginehost.runtime.SAVE_PATH"
+
+        /**
+         * Present when the launching app gave the game's own save folder
+         * (saveRoot): the same path as [EXTRA_SAVE_PATH], to be used as the
+         * game's save directory itself, with no engine folder added inside it.
+         */
+        const val EXTRA_GAME_SAVE_PATH = "dev.enginehost.runtime.GAME_SAVE_PATH"
         const val EXTRA_ENGINE = "dev.enginehost.runtime.ENGINE"
         const val EXTRA_ENGINE_CONTEXT = "dev.enginehost.runtime.ENGINE_CONTEXT"
         const val EXTRA_ENGINE_VERSION = "dev.enginehost.runtime.ENGINE_VERSION"
@@ -406,6 +416,8 @@ private class RuntimeHost(
     private val gameFolder: File,
     pluginPackage: String,
     private val save: File,
+    /** The caller's folder for the game's own saves, used as is ([EngineHost.gameSaveDirectory]). */
+    private val gameSave: File? = null,
 ) : EngineHost {
     private val gameId = MessageDigest.getInstance("SHA-256")
         .digest(gameFolder.canonicalPath.toByteArray()).take(12).joinToString("") { "%02x".format(it) }
@@ -416,6 +428,7 @@ private class RuntimeHost(
     /** EngineHost.activity(); this launch is never isolated (RuntimeHost is the in-process EngineHost only). */
     override fun activity(): Activity = activity
     override fun saveDirectory(): File = save
+    override fun gameSaveDirectory(): File? = gameSave
     override fun cacheDirectory(): File = cache
     override fun fileSystem(): EngineFileSystem = files
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {

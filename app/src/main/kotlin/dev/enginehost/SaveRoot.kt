@@ -7,9 +7,9 @@ import java.io.File
  * A caller's save folder for one launch: the inline config's `saveRoot`
  * (docs/contract.md "A caller's save folder: `saveRoot`", Droidtop/tracker#580).
  * Read from the caller's inline config only, never from a folder's
- * enginehost.json, and never stored. When accepted it is exactly the folder
- * the engine's system save locations mean for that launch; otherwise the
- * launch runs on the person's own save location.
+ * enginehost.json, and never stored. When accepted it is the game's own save
+ * folder, as the caller keeps it, and the engine uses it as is (owner,
+ * 2026-10-18); otherwise the launch runs on the person's own save location.
  */
 object SaveRoot {
     const val KEY = "saveRoot"
