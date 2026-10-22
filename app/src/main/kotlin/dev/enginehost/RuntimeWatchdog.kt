@@ -17,7 +17,8 @@ import android.os.SystemClock
  * goes on is asked about again every [ASK_AGAIN_MS] (owner, 2026-10-22).
  */
 internal object RuntimeWatchdog {
-    private val main = Handler(Looper.getMainLooper())
+    // Lazy: the object is also loaded by unit tests of [stalled], where Android's Looper does not exist.
+    private val main by lazy { Handler(Looper.getMainLooper()) }
 
     @Volatile private var lastBeat = 0L
 
