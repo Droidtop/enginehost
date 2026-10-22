@@ -339,21 +339,22 @@ data class ProblemReport(
         }.trimEnd()
 
         /**
-         * GitHub's issue form, opened to the report repository with a title
-         * and the two short, non-identifying fields. The game, details,
-         * environment and log are never put in an address (it lands in
-         * history and server logs); they go by the clipboard.
+         * A new issue on the Droidtop tracker, where every report goes (owner,
+         * 2026-10-22: "always the tracker"), with only a title made of the two
+         * short, non-identifying fields. The game, details, environment and
+         * log are never put in an address (it lands in history and server
+         * logs); they go by the clipboard. The tracker has no issue form, so
+         * nothing else is prefilled.
          */
-        fun formUrl(engine: String, symptom: String): String {
-            val title = "Enginehost" + if (symptom.isNotBlank()) ": ${symptom.lowercase()}" else ""
-            return Uri.parse("$REPORTS_REPOSITORY/issues/new").buildUpon()
-                .appendQueryParameter("template", "compatibility.yml")
-                .appendQueryParameter("title", title)
-                .appendQueryParameter("engine", engine)
-                .appendQueryParameter("symptom", symptom)
+        fun formUrl(engine: String, symptom: String): String =
+            Uri.parse("$REPORTS_REPOSITORY/issues/new").buildUpon()
+                .appendQueryParameter("title", reportTitle(engine, symptom))
                 .build().toString()
-        }
 
-        const val REPORTS_REPOSITORY = "https://github.com/droidtop/enginehost-reports"
+        /** "Enginehost: Ren'Py 8.3: crashes during play", leaving out what is blank. */
+        internal fun reportTitle(engine: String, symptom: String): String =
+            listOf("Enginehost", engine.trim(), symptom.trim().lowercase()).filter { it.isNotEmpty() }.joinToString(": ")
+
+        const val REPORTS_REPOSITORY = "https://github.com/Droidtop/tracker"
     }
 }

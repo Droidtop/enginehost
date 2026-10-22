@@ -84,4 +84,11 @@ class ProblemReportTest {
         assertTrue(line, line.endsWith(" plan: failure here"))
         assertFalse(line.contains("\n"))
     }
+
+    @Test
+    fun `a tracker report's title names only the engine and the symptom`() {
+        assertEquals("Enginehost: Ren'Py 8.3: crashes during play", ProblemReport.reportTitle(" Ren'Py 8.3 ", "Crashes during play"))
+        assertEquals("Enginehost: won't start", ProblemReport.reportTitle("", "Won't start"))
+        assertEquals("Enginehost", ProblemReport.reportTitle("", ""))
+    }
 }

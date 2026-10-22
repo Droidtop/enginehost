@@ -182,7 +182,11 @@ such as a LÖVE game whose `love.draw` is empty.
   game is reported the same way.
 - **Report a problem** is also in the in-game menu (review findings 170 and
   179), and the report can be saved as a text file, besides Share, Copy and
-  the GitHub form; nothing leaves the device unless the person picks one.
+  posting it on GitHub; nothing leaves the device unless the person picks one.
+- **Reports go to the tracker.** The GitHub button opens a new issue on
+  Droidtop/tracker (owner, 2026-10-22: "always the tracker"), no longer the
+  separate enginehost-reports repository. Only a title (engine and symptom)
+  is in the address; the report itself is copied for the person to paste.
 
 ## Reporting whether anything is open: the `state` call
 

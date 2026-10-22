@@ -559,8 +559,8 @@
     <string name="report_share_note">No account needed. Send it by email or message, or paste it wherever you got Enginehost from.</string>
     <string name="report_share_subject">Enginehost problem: %1$s</string>
     <string name="report_share_failed">No app could take the report. Use Copy report instead.</string>
-    <string name="report_send">Report on GitHub</string>
-    <string name="report_send_note">Needs a GitHub account. The report is copied first: paste it into the description.</string>
+    <string name="report_send">Post on the Droidtop tracker</string>
+    <string name="report_send_note">Needs a GitHub account. The report is copied first: paste it into the issue.</string>
     <string name="report_copy">Copy report (no account needed)</string>
     <string name="report_save">Save report as a file</string>
     <string name="report_file_name">Enginehost report - %1$s.txt</string>
