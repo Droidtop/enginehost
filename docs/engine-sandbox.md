@@ -2153,15 +2153,6 @@ brokered and direct network modes (`SBX_LOCK_NET_BROKERED`,
 folders, and a design note that a GPU host such as Enginehost keeps its
 app's own UID and opens its per-process devices itself (`own_opens`); a
 separate isolated UID is a mode a host chooses, not Android's isolation.
-
-The pin moved to `ba4fc61` on 2026-10-22. The library keeps SIGSYS open on
-every confined thread: a trapped call on a thread with SIGSYS blocked killed
-the whole process by signal 31 with no tombstone, which is what LÖVE's first
-lockdown run did 143 times on BlueStacks (Droidtop/tracker#550).
-`rt_sigprocmask` now traps and leaves SIGSYS out of every mask, and
-`sbx_lockdown` answers `-EDEADLK` while a thread already has it blocked.
-When that happens Enginehost logs the names of those threads under
-`EnginehostSandbox`, so a rig run says which library's thread to look at.
 Enginehost asks for none of the new modes: a core's lockdown is the same
 call with the same flags (none), so cores stay without network. The
 library's own suite passed at both commits on Linux x86_64, every one of
@@ -2268,6 +2259,74 @@ What the lockdown still does not close is unchanged: Binder (above).
    lines; a core whose run had none gets the flag.
 Ren'Py goes first (owner, 2026-10-17), then the rest of the GL and WebView
 cores in the survey's order.
+
+#### Learning mode: training a core's policy before it is flagged (design, 2026-10-22)
+
+The owner, 2026-10-22: "we need something like a permissive mode to train the
+sandbox". It comes before any core is flagged. LÖVE's first lockdown run died
+by SIGSYS 143 times with nothing to say which call (Droidtop/tracker#550), and
+the rig steps above only show the paths a run reached before it failed. The
+library's half is its design.md, "Learning mode". It records what a lockdown
+would refuse and refuses nothing. This is Enginehost's half.
+
+The SIGSYS loop itself was a thread with SIGSYS blocked: a trapped call there
+kills the process instead of reaching the handler. The library now keeps
+SIGSYS open on every thread, and refuses to lock down while a thread already
+blocks it (`-EDEADLK`). Enginehost logs the names of such threads when that
+happens.
+
+**The switch.** `adb shell setprop debug.enginehost.learn <bundle id>`
+launches that core's games in learning mode, and `setprop
+debug.enginehost.learn 0` turns it off. Only adb or root can set it. It is
+never on by default and never in the app's own settings. It is per core;
+which game it runs with is the operator's choice of what to launch. A
+learning run:
+
+- is locked down exactly as a real one would be, with `SBX_LOCK_LEARN` and a
+  recording decider, whether or not the core declares `lockdown`;
+- says on every launch, in logcat (`EnginehostSandbox`) and in the host events,
+  "LEARNING MODE: <core>: nothing is refused, this run has NO sandbox", and
+  shows that sentence as a toast over the game;
+- is never the launch of an ordinary person. The property needs adb, and the
+  launch screen's unsandboxed warning still asks first for a core that has no
+  sandbox of its own.
+
+**The profile.** The broker (main process) collects every record: paths the
+rules refused, and calls the filter refuses. Paths are generalised to the
+launch's own folders, longest match first: `$GAME` (the game folder), `$SAVE`
+(the save folder, or the caller's saveRoot), `$CACHE`, `$BUNDLE` (the
+core's installed files), `$APP` (Enginehost's private data), `$EXTERNAL`
+(shared storage). Calls are named for the architecture. Each entry is
+deduplicated and counted. When the run ends, the profile is written to
+`Android/data/dev.enginehost/files/sandbox-learned/<bundle id>-<archive
+digest, 12 hex>.json`. A later run of the same build adds to it, so several
+games of one core build one profile. The file is plain JSON:
+
+```json
+{"core": "dev.enginehost.love2d.11.v1", "build": "0.9.4-4", "archive": "3f0c...", "abi": "x86_64",
+ "runs": 3, "games": ["Thermomorph", "black-screen"],
+ "paths": [{"op": "open", "path": "$GAME/thermomorph.love", "need": "read", "count": 4}],
+ "calls": [{"call": "socket inet stream", "would": "EACCES", "count": 1}]}
+```
+
+**From a profile to a policy.** `tools/sandbox-learn/propose.py` reads one or
+more profiles of a core and writes a proposed diff: path rules for the
+core's manifest (or for Enginehost's preset, when every core needed the same
+path) and calls a core needs that the lockdown refuses, each with its counts
+and the games it came from. A person reviews it. A call the owner's rules
+forbid (any socket or network use, exec) is listed under "Refused by
+decision", never proposed. Nothing is applied by the tool or by Enginehost.
+
+**The harness.** `core_harness.py --learn` sets the property for each core
+in turn, runs its games, and pulls the profiles into the results folder
+beside report.md. Training a core is one harness run on BlueStacks and one
+on the console, then a review.
+
+**Order of work.** First, the library: SIGSYS stays open (done, 2026-10-22),
+then `SBX_LOCK_LEARN` with its tests. Then Enginehost: the switch, the
+recording decider and the profile writer. Then `propose.py`, then the
+harness's `--learn`. Then train LÖVE, review, flag it, and the other cores
+in the roadmap's order.
 
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
