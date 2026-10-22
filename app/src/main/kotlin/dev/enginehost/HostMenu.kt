@@ -129,7 +129,8 @@ object HostBack {
  * Its contents are RetroArch's Quick Menu scoped to what this host
  * actually owns (research/retroarch-input, section 8 item 4): resume, the
  * controller screen for this game's scope, where the saves are, what the
- * pad does here, and a clean way out. Nothing engine-specific -- shaders,
+ * pad does here, a problem report (review findings 170 and 179), and a
+ * clean way out. Nothing engine-specific -- shaders,
  * cheats, core options -- because those belong to the engines.
  */
 object HostMenu {
@@ -150,6 +151,11 @@ object HostMenu {
                 info(activity, R.string.host_menu_save_location, saveLocation(activity))
             }
             .choice(R.string.host_menu_legend) { info(activity, R.string.host_menu_legend, legend(activity, scope)) }
+            // A game that misbehaves while running is reported from where it
+            // misbehaves; the game keeps running under the report.
+            .choice(R.string.action_report) {
+                activity.startActivity(ProblemReportActivity.intent(activity, gameOf(activity)?.let { java.io.File(it) }))
+            }
             .choice(R.string.host_menu_quit) { quit(activity) }
             .onDismiss(::closed)
             .show()
@@ -162,7 +168,7 @@ object HostMenu {
      * which costs nothing and keeps either path correct on its own.
      */
     private fun quit(activity: Activity) {
-        CrashWatch.disarm(activity)
+        CrashWatch.quit(activity)
         activity.finish()
     }
 

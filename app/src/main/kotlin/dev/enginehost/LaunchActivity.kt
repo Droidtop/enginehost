@@ -477,6 +477,8 @@ class LaunchActivity : EnginehostActivity() {
      */
     private fun cancel() {
         if (runtimeStarted) {
+            // Ended on purpose, so never reported later as a game that closed unseen.
+            CrashWatch.quit(this)
             finishActivity(REQUEST_RUNTIME)
             RuntimeProcess.kill(this)
         }
@@ -513,6 +515,9 @@ class LaunchActivity : EnginehostActivity() {
         }
         val reported = data?.getStringExtra(RuntimeActivity.EXTRA_ERROR)
         if (reported != null) {
+            // The sentence is the whole story; the session note is not read
+            // again, or another screen would report the same end a second time.
+            CrashWatch.discard(this)
             reportGameEnded(GAME_ENDED_CRASHED)
             HostEvents.record(this, "runtime ended: reported an error: $reported")
             // The runtime knew what went wrong and said so. That sentence beats

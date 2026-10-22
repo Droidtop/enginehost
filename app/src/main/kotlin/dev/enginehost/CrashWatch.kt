@@ -28,6 +28,19 @@ object CrashWatch {
     private const val TOMBSTONE_LINES = 30
     private const val SIGKILL = 9
     private const val SIGTERM = 15
+    private const val FAILURE = "failure"
+
+    /** The game's screen showed something other than black ([RuntimeLoadingNotice]). */
+    const val DRAWN = "drawn"
+
+    /** The game's screen could be read at least once, so a missing [DRAWN] means something. */
+    const val WATCHED = "watched"
+
+    /** The person quit from the in-game menu ([HostMenu]). */
+    const val QUIT = "quit"
+
+    /** The reason a game that closed before showing anything is reported with. */
+    const val CLOSED_UNSEEN = "Closed before it showed anything"
 
     /** A runtime that died, with what is known about why. */
     data class Crash(val gameFolder: File, val plugin: String, val reason: String, val trace: String)
@@ -55,6 +68,45 @@ object CrashWatch {
             }
             previous?.uncaughtException(thread, error)
         }
+    }
+
+    /**
+     * Marks the session note with [key] ([DRAWN], [WATCHED], [QUIT]), in the
+     * runtime process. Read and rewritten under one lock, as the uncaught
+     * exception handler also rewrites the note.
+     */
+    @Synchronized
+    fun mark(context: Context, key: String) {
+        runCatching {
+            val f = file(context)
+            if (f.isFile) f.writeText(JSONObject(f.readText()).put(key, true).toString())
+        }
+    }
+
+    /**
+     * The person ended a game that showed nothing or stopped responding
+     * ([GameTroubleActivity]): called in the main process just before the
+     * runtime is killed, so the launch screen says why rather than "closed".
+     */
+    fun recordFailure(context: Context, reason: String) {
+        runCatching {
+            val f = file(context)
+            if (f.isFile) f.writeText(JSONObject(f.readText()).put(FAILURE, reason).toString())
+        }
+    }
+
+    /**
+     * The person ended the game on purpose (the in-game menu's Quit,
+     * END_GAME): never a crash, and never "closed before it showed anything".
+     */
+    fun quit(context: Context) {
+        mark(context, QUIT)
+        disarm(context)
+    }
+
+    /** Forgets the last session, for an end the launch screen has already explained. */
+    fun discard(context: Context) {
+        file(context).delete()
     }
 
     /** Called in the runtime process when a game ends the way it meant to. */
@@ -101,9 +153,18 @@ object CrashWatch {
         val gameFolder = File(note.optString("path"))
         val plugin = note.optString("plugin")
         val trace = note.optString("trace")
+        note.optString(FAILURE).takeIf { it.isNotBlank() }?.let { failure ->
+            f.delete()
+            return Crash(gameFolder, plugin, failure, trace)
+        }
+        // A game whose screen was watched and never drew, and that ended
+        // without the person quitting it from the in-game menu, closed
+        // before it showed anything: a failure, not a game that was played.
+        val closedUnseen = note.optBoolean(WATCHED) && !note.optBoolean(DRAWN) && !note.optBoolean(QUIT)
+        val unseen = Crash(gameFolder, plugin, CLOSED_UNSEEN, trace)
         if (note.optBoolean("ended")) {
             f.delete()
-            return null
+            return if (closedUnseen) unseen else null
         }
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         if (manager.runningAppProcesses?.any { it.pid == pid } == true) {
@@ -121,11 +182,11 @@ object CrashWatch {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             // Before Android 11 there is no record of why a process ended, so
             // the only crash that can be recognised is one our handler saw.
-            return fromHandler
+            return fromHandler ?: unseen.takeIf { closedUnseen }
         }
         val exit = manager.getHistoricalProcessExitReasons(context.packageName, pid, 1).firstOrNull()
-            ?: return fromHandler
-        val reason = describe(exit) ?: return null
+            ?: return fromHandler ?: unseen.takeIf { closedUnseen }
+        val reason = describe(exit) ?: return unseen.takeIf { closedUnseen }
         return Crash(gameFolder, plugin, reason, trace.ifBlank { exitTrace(exit) })
     }
 

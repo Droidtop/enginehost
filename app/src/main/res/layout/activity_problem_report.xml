@@ -217,6 +217,15 @@
             android:text="@string/report_copy" />
 
         <Button
+            android:id="@+id/saveReportButton"
+            style="@style/Widget.Enginehost.Button.Tonal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/eh_space_s"
+            android:enabled="false"
+            android:text="@string/report_save" />
+
+        <Button
             android:id="@+id/sendReportButton"
             style="@style/Widget.Enginehost.Button.Tonal"
             android:layout_width="match_parent"

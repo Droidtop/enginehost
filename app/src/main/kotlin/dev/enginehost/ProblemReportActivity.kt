@@ -10,6 +10,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
 import java.io.File
@@ -73,6 +74,10 @@ class ProblemReportActivity : EnginehostActivity() {
         findViewById<Button>(R.id.shareReportButton).setOnClickListener { share() }
         findViewById<Button>(R.id.copyReportButton).setOnClickListener { copy(); toast(R.string.report_copied) }
         findViewById<Button>(R.id.sendReportButton).setOnClickListener { sendToGithub() }
+        findViewById<Button>(R.id.saveReportButton).setOnClickListener {
+            runCatching { saveTo.launch(getString(R.string.report_file_name, text(R.id.reportGame).ifBlank { getString(R.string.app_name) })) }
+                .onFailure { toast(R.string.report_save_failed) }
+        }
 
         Thread {
             val report = ProblemReport.gather(this, gameFolder)
@@ -116,6 +121,7 @@ class ProblemReportActivity : EnginehostActivity() {
         findViewById<Button>(R.id.shareReportButton).isEnabled = true
         findViewById<Button>(R.id.copyReportButton).isEnabled = true
         findViewById<Button>(R.id.sendReportButton).isEnabled = true
+        findViewById<Button>(R.id.saveReportButton).isEnabled = true
     }
 
     private fun field(id: Int): EditText = findViewById(id)
@@ -156,6 +162,18 @@ class ProblemReportActivity : EnginehostActivity() {
             .putExtra(Intent.EXTRA_TEXT, buildReport())
         runCatching { startActivity(Intent.createChooser(send, getString(R.string.report_share))) }
             .onFailure { toast(R.string.report_share_failed) }
+    }
+
+    /**
+     * Account-free and app-free: the report as a text file wherever the
+     * person picks in the system's file picker. Nothing leaves the device.
+     */
+    private val saveTo = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        uri ?: return@registerForActivityResult
+        val report = buildReport()
+        runCatching { contentResolver.openOutputStream(uri)?.use { it.write(report.toByteArray()) } ?: error("no stream") }
+            .onSuccess { toast(R.string.report_saved) }
+            .onFailure { toast(R.string.report_save_failed) }
     }
 
     private fun copy() {

@@ -146,6 +146,40 @@ boolean extra `ended` (true: a game was running and its runtime process was ende
 without a crash report; false: none was running), or RESULT_CANCELED with string
 extra `error` = `untrusted_caller`, touching nothing. It takes no other extras.
 
+## A game that shows nothing, stops responding, or closes unseen (decided 2026-10-22)
+
+A crash was the only failure Enginehost noticed; a game that sat on a black
+screen, froze, or closed before drawing left the person with nothing said.
+The owner, 2026-10-22: the person is asked and the game keeps running (no
+failure ends a game for them); a black screen is 45 seconds without a drawn
+frame and a hang 15 seconds without the main thread answering. "Remember that
+renpy throws a splash. The black screen was a unity game" (Clover Days).
+
+- **Black screen.** The loading notice (`RuntimeLoadingNotice`) already reads
+  the game's SurfaceView every 750 ms until something other than black is
+  drawn. Still black at 45 s with the game in front, it asks once
+  (`GameTroubleActivity`): Keep waiting, End game, Report a problem. An engine
+  with no SurfaceView is not watched, and a game whose surface cannot be read
+  is never called black.
+- **Hang.** In the runtime, the main thread beats every second and a watcher
+  thread that sees no beat for 15 s, with the game in front, asks the same
+  question; a stall that goes on is asked about again every 30 s
+  (`RuntimeWatchdog`). Android's own ANR only fires when input is waiting, so a
+  game that froze untouched went unnoticed, and the in-game menu, drawn on the
+  same thread, could not open. The question is drawn in the main process, over
+  the game in its task, because a hung runtime cannot draw.
+- **End game** kills the runtime; the launch screen then shows the reason
+  ("Showed only a black screen", "Stopped responding") with Try again and
+  Report, from the session note (`CrashWatch.recordFailure`).
+- **Closed unseen.** A game whose screen was readable, never drew, and ended
+  without the person quitting from the in-game menu or `END_GAME` is reported
+  on the launch screen as "Closed before it showed anything", with Try again
+  and Report, instead of returning silently. A Back press that closes such a
+  game is reported the same way.
+- **Report a problem** is also in the in-game menu (review findings 170 and
+  179), and the report can be saved as a text file, besides Share, Copy and
+  the GitHub form; nothing leaves the device unless the person picks one.
+
 ## Reporting whether anything is open: the `state` call
 
 droidtop keeps a "Playing" session for the game it started and needs to know when

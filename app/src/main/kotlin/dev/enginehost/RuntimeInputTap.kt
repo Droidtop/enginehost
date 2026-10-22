@@ -210,6 +210,13 @@ private const val BLANK_CHANNEL = 12
  * intro is never hidden by it; it goes when the first non-black frame
  * reaches the surface, when no surface can be watched for a while, or after
  * [GIVE_UP_MS] whatever happens. Never takes touches.
+ *
+ * It is also how Enginehost knows a game drew at all. Its first readable
+ * frame and its first drawn one are marked in the session note
+ * ([CrashWatch.WATCHED], [CrashWatch.DRAWN]), so a game that closes without
+ * ever drawing is reported as a failure; and a surface still black after
+ * [BLACK_SCREEN_MS] asks the person, once, whether to keep waiting
+ * ([GameTroubleActivity]). An engine with no SurfaceView is not watched.
  */
 internal class RuntimeLoadingNotice(private val activity: Activity) {
     private val handler = Handler(Looper.getMainLooper())
@@ -217,6 +224,8 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
     private val sample = Bitmap.createBitmap(SAMPLE, SAMPLE, Bitmap.Config.ARGB_8888)
     private val pixels = IntArray(SAMPLE * SAMPLE)
     private var done = false
+    private var watched = false
+    private var asked = false
     private val bar: View = buildBar()
 
     fun start() {
@@ -273,11 +282,34 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
             PixelCopy.request(
                 surface, sample,
                 PixelCopy.OnPixelCopyFinishedListener { result ->
-                    val drawn = result == PixelCopy.SUCCESS && run {
+                    if (done) return@OnPixelCopyFinishedListener
+                    val read = result == PixelCopy.SUCCESS
+                    val drawn = read && run {
                         sample.getPixels(pixels, 0, SAMPLE, 0, 0, SAMPLE, SAMPLE)
                         !isBlankFrame(pixels)
                     }
-                    if (drawn) finish() else again()
+                    if (read && !watched) {
+                        watched = true
+                        CrashWatch.mark(activity, CrashWatch.WATCHED)
+                    }
+                    when {
+                        drawn -> {
+                            CrashWatch.mark(activity, CrashWatch.DRAWN)
+                            finish()
+                        }
+                        read && !asked && RuntimeWatchdog.inFront &&
+                            SystemClock.uptimeMillis() - startedAt >= BLACK_SCREEN_MS -> {
+                            // Still black long past a normal start: the person
+                            // is asked, once, and the game keeps running.
+                            asked = true
+                            GameTroubleActivity.ask(
+                                activity, GameTroubleActivity.BLACK_SCREEN,
+                                activity.intent?.getStringExtra(RuntimeActivity.EXTRA_PATH),
+                            )
+                            again()
+                        }
+                        else -> again()
+                    }
                 },
                 handler,
             )
@@ -309,6 +341,9 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         const val POLL_MS = 750L
         const val NO_SURFACE_MS = 20_000L
         const val GIVE_UP_MS = 180_000L
+
+        /** Black this long and the person is asked what to do (owner, 2026-10-22). */
+        const val BLACK_SCREEN_MS = 45_000L
     }
 }
 
@@ -340,8 +375,14 @@ object RuntimeInputInstaller : Application.ActivityLifecycleCallbacks {
         install(activity)
         if (isGame(activity) && noticed.put(activity, true) == null) RuntimeLoadingNotice(activity).start()
     }
-    override fun onActivityResumed(activity: Activity) = Unit
-    override fun onActivityPaused(activity: Activity) = Unit
+    override fun onActivityResumed(activity: Activity) {
+        if (!isGame(activity)) return
+        RuntimeWatchdog.inFront = true
+        RuntimeWatchdog.start(activity, activity.intent?.getStringExtra(RuntimeActivity.EXTRA_PATH))
+    }
+    override fun onActivityPaused(activity: Activity) {
+        if (isGame(activity)) RuntimeWatchdog.inFront = false
+    }
     override fun onActivityStopped(activity: Activity) = Unit
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
     override fun onActivityDestroyed(activity: Activity) = Unit

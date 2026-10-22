@@ -62,7 +62,7 @@ class LaunchEntryActivity : Activity() {
         }
         val wasRunning = RuntimeProcess.alive(this)
         // Disarmed first, as the in-game Quit does, so ending on purpose is never offered back as a crash.
-        CrashWatch.disarm(this)
+        CrashWatch.quit(this)
         RuntimeProcess.kill(this)
         setResult(RESULT_OK, Intent().putExtra(EXTRA_ENDED, wasRunning))
     }

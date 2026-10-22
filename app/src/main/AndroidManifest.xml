@@ -146,6 +146,19 @@
             android:exported="false"
             android:label="@string/report_form_title" />
 
+        <!--
+             The question about a game that shows nothing or stopped
+             responding (GameTroubleActivity): over the game, in its task,
+             drawn here because a hung runtime cannot draw.
+        -->
+        <activity
+            android:name=".GameTroubleActivity"
+            android:exported="false"
+            android:taskAffinity="dev.enginehost.game"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <activity
             android:name=".PluginTrustActivity"
             android:exported="false" />
