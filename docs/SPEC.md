@@ -153,7 +153,11 @@ screen, froze, or closed before drawing left the person with nothing said.
 The owner, 2026-10-22: the person is asked and the game keeps running (no
 failure ends a game for them); a black screen is 45 seconds without a drawn
 frame and a hang 15 seconds without the main thread answering. "Remember that
-renpy throws a splash. The black screen was a unity game" (Clover Days).
+renpy throws a splash. The black screen was a unity game". That game, Clover
+Days, is a Windows Unity build that runs through droidtop's own Wine, not
+Enginehost, so it cannot exercise this check; droidtop detects its own black
+screens. A game that tests it here is an Enginehost game that draws nothing,
+such as a LÖVE game whose `love.draw` is empty.
 
 - **Black screen.** The loading notice (`RuntimeLoadingNotice`) already reads
   the game's SurfaceView every 750 ms until something other than black is
