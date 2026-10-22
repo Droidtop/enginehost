@@ -1,0 +1,14 @@
+{
+  "renpy": {
+    "games": [
+      "/storage/emulated/0/Games/RenPy/Some Game",
+      "/mnt/windows/BstSharedFolder/Games/Another Game"
+    ],
+    "steps": {
+      "save": { "keys": ["KEYCODE_ESCAPE", "KEYCODE_DPAD_DOWN", "KEYCODE_ENTER"], "folder": "/storage/emulated/0/Enginehost/saves" },
+      "exit": { "keys": ["KEYCODE_ESCAPE", "KEYCODE_DPAD_UP", "KEYCODE_ENTER", "KEYCODE_ENTER"] }
+    }
+  },
+  "godot": ["/storage/emulated/0/Games/Godot/A Godot Game"],
+  "love2d": ["/storage/emulated/0/Games/LOVE/A LOVE Game"]
+}

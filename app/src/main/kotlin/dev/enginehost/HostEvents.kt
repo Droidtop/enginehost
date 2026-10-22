@@ -21,6 +21,9 @@ import java.util.concurrent.Executors
 object HostEvents {
     private const val FILE = "host-events.log"
 
+    /** The logcat tag host events are also written under. */
+    const val LOG_TAG = "enginehost-events"
+
     /**
      * What the engine itself said, kept apart from the host's own events: the
      * runtime process is its only writer, so two processes never share a file.
@@ -38,6 +41,10 @@ object HostEvents {
     fun record(context: Context, event: String, name: String = FILE) {
         val file = File(context.applicationContext.filesDir, name)
         val line = format(Date(), event)
+        // The host's own ring also goes to logcat under one tag, so the core
+        // test harness (tools/core-harness) and a problem report's logcat see
+        // the same milestones. Host events name no game ([FILE]'s rule).
+        if (name == FILE) android.util.Log.i(LOG_TAG, event)
         worker.execute {
             runCatching {
                 synchronized(lock) { file.writeText(trimmed(read(file), line, MAX_LINES).joinToString("\n") + "\n") }
