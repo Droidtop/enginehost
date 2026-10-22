@@ -134,7 +134,7 @@ object RuntimeSandbox {
         }
 
     private const val EDEADLK = 35
-    private const val SIGSYS_BIT = 1UL shl 30
+    private const val SIGSYS_BIT = 0x40000000UL // 1 << (SIGSYS 31 - 1)
 
     /** Whether this process is locked down; it cannot be undone. */
     @Volatile var confined = false
