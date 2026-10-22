@@ -154,7 +154,12 @@ object HostMenu {
             // A game that misbehaves while running is reported from where it
             // misbehaves; the game keeps running under the report.
             .choice(R.string.action_report) {
-                activity.startActivity(ProblemReportActivity.intent(activity, gameOf(activity)?.let { java.io.File(it) }))
+                activity.startActivity(
+                    ProblemReportActivity.intent(
+                        activity, gameOf(activity)?.let { java.io.File(it) },
+                        symptom = ProblemReportActivity.SYMPTOM_SOMETHING_ELSE,
+                    ),
+                )
             }
             .choice(R.string.host_menu_quit) { quit(activity) }
             .onDismiss(::closed)

@@ -46,7 +46,10 @@ class GameTroubleActivity : Activity() {
             .message(if (hang) R.string.trouble_hang_message else R.string.trouble_black_message)
             .choice(R.string.trouble_keep_waiting) { HostEvents.record(this, "kept waiting") }
             .choice(R.string.trouble_end_game, Sheet.Tone.DANGER) { end(reason) }
-            .choice(R.string.action_report) { startActivity(ProblemReportActivity.intent(this, folder, reason, "")) }
+            .choice(R.string.action_report) {
+                val symptom = if (hang) ProblemReportActivity.SYMPTOM_SOMETHING_ELSE else ProblemReportActivity.SYMPTOM_BLACK_SCREEN
+                startActivity(ProblemReportActivity.intent(this, folder, reason, "", symptom = symptom))
+            }
             .onDismiss { finish() }
             .show()
     }

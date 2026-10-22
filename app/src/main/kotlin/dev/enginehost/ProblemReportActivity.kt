@@ -48,6 +48,8 @@ class ProblemReportActivity : EnginehostActivity() {
         // A runtime that died after starting closed; one that died before its
         // first frame never started. The person can still change it.
         symptom = when {
+            // The caller knows best: a running game's menu, or the question about a black screen.
+            intent.hasExtra(EXTRA_SYMPTOM) -> symptoms[intent.getIntExtra(EXTRA_SYMPTOM, 0).coerceIn(symptoms.indices)]
             !intent.hasExtra(EXTRA_CRASH_REASON) -> symptoms.first()
             intent.getBooleanExtra(EXTRA_CRASH_BEFORE_START, false) -> symptoms.first()
             else -> symptoms[1]
@@ -199,6 +201,11 @@ class ProblemReportActivity : EnginehostActivity() {
         private const val EXTRA_CRASH_REASON = "crashReason"
         private const val EXTRA_CRASH_TRACE = "crashTrace"
         private const val EXTRA_CRASH_BEFORE_START = "crashBeforeStart"
+        private const val EXTRA_SYMPTOM = "symptom"
+
+        /** Positions in R.array.report_symptoms, for a caller that knows which applies. */
+        const val SYMPTOM_BLACK_SCREEN = 2
+        const val SYMPTOM_SOMETHING_ELSE = 7
 
         /**
          * Report a game, or Enginehost itself when [gameFolder] is null --
@@ -215,8 +222,11 @@ class ProblemReportActivity : EnginehostActivity() {
             crashReason: String? = null,
             crashTrace: String? = null,
             beforeStart: Boolean = false,
+            /** The symptom to start on ([SYMPTOM_BLACK_SCREEN]...), when the caller knows it. */
+            symptom: Int? = null,
         ): Intent = Intent(context, ProblemReportActivity::class.java).apply {
             gameFolder?.let { putExtra(EXTRA_PATH, it.absolutePath) }
+            symptom?.let { putExtra(EXTRA_SYMPTOM, it) }
             crashReason?.let {
                 putExtra(EXTRA_CRASH_REASON, it)
                 putExtra(EXTRA_CRASH_TRACE, crashTrace.orEmpty())
