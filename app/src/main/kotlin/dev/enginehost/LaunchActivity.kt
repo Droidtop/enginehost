@@ -69,6 +69,7 @@ class LaunchActivity : EnginehostActivity() {
         runtimeStarted = savedInstanceState?.getBoolean(STATE_STARTED) ?: false
         runtimePlugin = savedInstanceState?.getString(STATE_PLUGIN)
         savesIn = savedInstanceState?.getString(STATE_SAVES_IN)
+        saveRootRefused = savedInstanceState?.getString(STATE_SAVE_ROOT_REFUSED)
         sessionStartedAt = savedInstanceState?.getLong(STATE_SESSION_AT) ?: 0L
         setContentView(R.layout.activity_launch)
         findViewById<Button>(R.id.cancelButton).setOnClickListener { cancel() }
@@ -97,6 +98,7 @@ class LaunchActivity : EnginehostActivity() {
         outState.putLong(STATE_SESSION_AT, sessionStartedAt)
         outState.putString(STATE_PLUGIN, runtimePlugin)
         outState.putString(STATE_SAVES_IN, savesIn)
+        outState.putString(STATE_SAVE_ROOT_REFUSED, saveRootRefused)
     }
 
     /** Earlier saves were offered on this screen and answered; a retry or restart does not ask again. */
@@ -342,6 +344,7 @@ class LaunchActivity : EnginehostActivity() {
         lastCrash = null
         runtimePlugin = plan.resolved.plugin.bundleId
         savesIn = plan.savesIn?.absolutePath
+        saveRootRefused = plan.saveRootRefused
         // Only the run that follows a restart request carries its
         // arguments; a retry or a later launch starts clean.
         restartArguments?.let { plan.intent.putExtra(RuntimeActivity.EXTRA_RESTART_ARGUMENTS, it) }
@@ -525,6 +528,9 @@ class LaunchActivity : EnginehostActivity() {
     /** Where the running game's saves are, for the caller's game-ended report; null once reported. */
     private var savesIn: String? = null
 
+    /** On a synced launch whose `saveRoot` was not taken, why; told to the caller with the game's end. */
+    private var saveRootRefused: String? = null
+
     /**
      * Tells the app that launched this game that it has ended, so it can
      * upload its saves (docs/contract.md "A caller's save folder",
@@ -541,7 +547,8 @@ class LaunchActivity : EnginehostActivity() {
             Intent(LaunchEntryActivity.ACTION_GAME_ENDED).setPackage(caller)
                 .putExtra(LaunchEntryActivity.EXTRA_GAME_PATH, gameFolder.absolutePath)
                 .putExtra(LaunchEntryActivity.EXTRA_SAVE_FOLDER, folder)
-                .putExtra(LaunchEntryActivity.EXTRA_REASON, reason),
+                .putExtra(LaunchEntryActivity.EXTRA_REASON, reason)
+                .apply { saveRootRefused?.let { putExtra(LaunchEntryActivity.EXTRA_SAVE_ROOT_REFUSED, it) } },
         )
         HostEvents.record(this, "game ended ($reason): told $caller")
     }
@@ -639,6 +646,7 @@ class LaunchActivity : EnginehostActivity() {
         private const val STATE_STARTED = "started"
         private const val STATE_PLUGIN = "plugin"
         private const val STATE_SAVES_IN = "savesIn"
+        private const val STATE_SAVE_ROOT_REFUSED = "saveRootRefused"
         private const val GAME_ENDED_EXITED = "exited"
         private const val GAME_ENDED_CRASHED = "crashed"
         const val EXTRA_PATH = "path"

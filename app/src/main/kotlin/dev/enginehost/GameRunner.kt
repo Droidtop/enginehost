@@ -29,6 +29,8 @@ object GameRunner {
             val earlierSaves: EarlierSaves? = null,
             /** Where the game's saves are: the game folder for an engine that saves beside it, else its save folder. */
             val savesIn: java.io.File? = null,
+            /** On a launch flagged [SaveRoot.SYNCED_KEY], why its `saveRoot` was not taken; null when it was. */
+            val saveRootRefused: String? = null,
         ) : Plan()
 
         /** The game cannot start; [retry] when trying again can help once the person has fixed what [message] names. */
@@ -84,7 +86,24 @@ object GameRunner {
         // abstraction: the engine uses it as is and adds no folder inside it
         // (owner, 2026-10-18). An engine that saves beside the game keeps doing so.
         val besideTheGame = SaveFolders.placeOf(config.engine, config.engineContext) == SaveFolders.Place.BESIDE_THE_GAME
-        val callerRoot = SaveRoot.usable(inlineJson)?.takeUnless { besideTheGame }
+        val rootCheck = SaveRoot.check(inlineJson)
+        // A caller that syncs this game's saves must never see them go to the
+        // person's default location: when its folder is not taken, the game
+        // gets a folder of its own in the person's location, used the same
+        // way, and the game-ended report says why (owner, 2026-10-22,
+        // Droidtop/tracker#580). The person is asked nothing.
+        val synced = SaveRoot.synced(inlineJson) && !besideTheGame
+        val saveRootRefused = (rootCheck as? SaveRoot.Check.Refused)?.reason?.takeIf { synced }
+        val callerRoot = try {
+            when {
+                besideTheGame -> null
+                rootCheck is SaveRoot.Check.Taken -> rootCheck.folder
+                synced -> saves.syncedFolderFor(config.engine, gameFolder)
+                else -> null
+            }
+        } catch (e: UnusableSaveFolderException) {
+            return Plan.Failure(context.getString(R.string.launch_save_folder_unusable, e.folder.absolutePath), retry = true)
+        }
         val saveFolder = try {
             callerRoot ?: saves.saveFolderFor(config)
         } catch (e: UnusableSaveFolderException) {
@@ -179,7 +198,10 @@ object GameRunner {
         }
         val savesIn = if (besideTheGame) gameFolder else saveFolder
         // Earlier saves are offered from the person's own save location only.
-        return Plan.Runtime(intent, config, resolved, if (callerRoot == null) saves.earlierSavesFor(config, gameFolder) else null, savesIn)
+        return Plan.Runtime(
+            intent, config, resolved, if (callerRoot == null) saves.earlierSavesFor(config, gameFolder) else null, savesIn,
+            saveRootRefused,
+        )
     }
 
     /** What [readConfig] found: the config a launch runs on, or the plan that stops it first. */

@@ -200,8 +200,24 @@ key:
 - **What is refused.** A relative path, a path outside shared storage
   (`/storage/emulated/<user>` or a removable volume), or one inside an app's
   `Android/data` or `Android/obb`: the launch runs on the person's own save
-  location, as if the key were absent. A folder that does not exist is made; one
-  that cannot be made or written is treated the same way.
+  location, as if the key were absent (a `savesSynced` launch gets its own
+  folder there, below). A folder that does not exist is made; one that cannot be
+  made or written is treated the same way.
+- **Saves synced by the caller: `savesSynced` (2026-10-22).** A caller that
+  keeps the game's saves synced sends `"savesSynced": true` beside `saveRoot`.
+  Owner, Droidtop/tracker#580: the flag says the game "is connected to a system
+  that automatically syncs saves", "meant to ensure it doesn't just use the user
+  default", and "enginehost should write saves to the user folder, and tell
+  droidtop when it doesn't work. That's not the user's problem". On a flagged
+  launch whose `saveRoot` is refused or missing, the person is asked nothing and
+  the game saves in a folder of its own in the person's location,
+  `<save root>/synced-saves/<game folder name>-<8 hex digits of its path>`
+  (`<save root>` is the engine's root under Settings > Saves, not its `saves`
+  folder). That folder is used exactly as a taken `saveRoot` would be, so it
+  directly holds the game's save files, in the same shape (owner's choice,
+  2026-10-22). The same game launched without the flag uses the person's
+  ordinary layout, so its saves there and in `synced-saves` are separate. The
+  flag changes nothing for an engine that saves beside the game.
 - **Engines that save beside the game** (KiriKiri, Buriko, CMVS, NScripter, RPG
   Maker 2000/2003 and XP/VX/VX Ace) ignore it, as they ignore the save root:
   Enginehost never changes where an engine saves. Their `GAME_ENDED` names the
@@ -213,7 +229,11 @@ key:
   person's own save folder, or the game folder for an engine that saves beside
   the game) and how it ended (`reason`: `exited` when the
   game closed, by its own Quit, the in-game menu or `END_GAME`; `crashed` when it
-  crashed or failed). A launch from inside Enginehost, or from a caller Android
+  crashed or failed). On a launch flagged `savesSynced` whose `saveRoot` was not
+  taken, it also carries `saveRootRefused`, one of `missing`,
+  `outside-shared-storage`, `android-data`, `volume-root` or `not-writable`, and
+  `saveFolder` is then the `synced-saves` folder above; `saveRootRefused` is
+  absent when `saveRoot` was taken. A launch from inside Enginehost, or from a caller Android
   does not identify, reports to nobody. A launch that first went to the catalog
   or trust screen for its core carries no caller once it resumes, and reports to
   nobody either (`LaunchActivity.reportGameEnded`).

@@ -79,6 +79,9 @@ class LaunchEntryActivity : Activity() {
         const val EXTRA_GAME_PATH = "path"
         const val EXTRA_SAVE_FOLDER = "saveFolder"
         const val EXTRA_REASON = "reason"
+
+        /** On a launch flagged savesSynced whose saveRoot was not taken: why (SaveRoot's reasons). */
+        const val EXTRA_SAVE_ROOT_REFUSED = "saveRootRefused"
         const val EXTRA_ERROR = "error"
         const val ERROR_UNTRUSTED_CALLER = "untrusted_caller"
     }

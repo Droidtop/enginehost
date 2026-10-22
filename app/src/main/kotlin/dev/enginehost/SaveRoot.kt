@@ -14,17 +14,43 @@ import java.io.File
 object SaveRoot {
     const val KEY = "saveRoot"
 
+    /**
+     * The inline config's `savesSynced`: the caller keeps this game's saves
+     * synced by a system of its own, so they must never quietly land in the
+     * person's default location (owner, 2026-10-22, Droidtop/tracker#580).
+     */
+    const val SYNCED_KEY = "savesSynced"
+
+    /** Why a `saveRoot` was not taken, as `GAME_ENDED` reports it on a synced launch. */
+    const val MISSING = "missing"
+    const val OUTSIDE_SHARED_STORAGE = "outside-shared-storage"
+    const val ANDROID_DATA = "android-data"
+    const val VOLUME_ROOT = "volume-root"
+    const val NOT_WRITABLE = "not-writable"
+
+    /** What a launch made of the caller's `saveRoot`: the folder it takes, or why it took none. */
+    sealed class Check {
+        class Taken(val folder: File) : Check()
+        class Refused(val reason: String) : Check()
+    }
+
+    /** Whether [inlineJson] flags this game's saves as synced by the caller ([SYNCED_KEY]). */
+    fun synced(inlineJson: String?): Boolean =
+        inlineJson?.let { runCatching { JSONObject(it).optBoolean(SYNCED_KEY, false) }.getOrNull() } == true
+
     /** The folder [inlineJson] names, made if needed and writable, or null when it names none or one that is refused. */
-    fun usable(inlineJson: String?): File? {
+    fun usable(inlineJson: String?): File? = (check(inlineJson) as? Check.Taken)?.folder
+
+    /** [usable], saying why when no folder is taken. */
+    fun check(inlineJson: String?): Check {
         val path = inlineJson?.let { runCatching { JSONObject(it).optString(KEY) }.getOrNull() }?.takeIf { it.isNotBlank() }
-            ?: return null
-        if (!acceptable(path)) return null
-        val folder = File(path)
+            ?: return Check.Refused(MISSING)
+        refusal(path)?.let { return Check.Refused(it) }
         // The real path must be acceptable too: a symlink cannot lead out of shared storage.
-        val real = runCatching { folder.canonicalFile }.getOrNull() ?: return null
-        if (!acceptable(real.path)) return null
-        if (!real.isDirectory && !real.mkdirs()) return null
-        return real.takeIf { it.isDirectory && it.canWrite() }
+        val real = runCatching { File(path).canonicalFile }.getOrNull() ?: return Check.Refused(OUTSIDE_SHARED_STORAGE)
+        refusal(real.path)?.let { return Check.Refused(it) }
+        if (!real.isDirectory && !real.mkdirs()) return Check.Refused(NOT_WRITABLE)
+        return if (real.isDirectory && real.canWrite()) Check.Taken(real) else Check.Refused(NOT_WRITABLE)
     }
 
     /**
@@ -33,19 +59,22 @@ object SaveRoot {
      * removable volume's `/storage/<volume>/...`, or the `/sdcard` alias),
      * and not inside an app's `Android/data` or `Android/obb`.
      */
-    internal fun acceptable(path: String): Boolean {
-        if (!path.startsWith("/")) return false
+    internal fun acceptable(path: String): Boolean = refusal(path) == null
+
+    /** Why [path] may not be a save root ([acceptable]), or null when it may. */
+    internal fun refusal(path: String): String? {
+        if (!path.startsWith("/")) return OUTSIDE_SHARED_STORAGE
         val parts = path.split('/').filter { it.isNotEmpty() }
-        if (parts.any { it == "." || it == ".." }) return false
+        if (parts.any { it == "." || it == ".." }) return OUTSIDE_SHARED_STORAGE
         val volumeDepth = when {
             parts.size >= 3 && parts[0] == "storage" && parts[1] == "emulated" && parts[2].all(Char::isDigit) -> 3
             parts.size >= 2 && parts[0] == "storage" && parts[1] != "emulated" && parts[1] != "self" -> 2
             parts.isNotEmpty() && parts[0] == "sdcard" -> 1
-            else -> return false
+            else -> return OUTSIDE_SHARED_STORAGE
         }
         // The volume itself is not a save root; a folder in it is.
-        if (parts.size <= volumeDepth) return false
+        if (parts.size <= volumeDepth) return VOLUME_ROOT
         val inVolume = parts.drop(volumeDepth)
-        return !(inVolume.size >= 2 && inVolume[0] == "Android" && (inVolume[1] == "data" || inVolume[1] == "obb"))
+        return if (inVolume.size >= 2 && inVolume[0] == "Android" && (inVolume[1] == "data" || inVolume[1] == "obb")) ANDROID_DATA else null
     }
 }

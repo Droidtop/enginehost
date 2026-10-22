@@ -45,6 +45,15 @@ class SaveLocationStore(context: Context) {
     fun saveFolderFor(config: EngineConfig): File = saveFolderFor(saveRootFor(config.engine), config)
 
     /**
+     * The person's own folder for a game whose caller syncs its saves
+     * ([SaveRoot.SYNCED_KEY]) but whose `saveRoot` was not taken, created and
+     * checked writable. The engine uses it as is, exactly as it would the
+     * caller's folder, so it directly holds the game's save files and the
+     * caller can copy them from it (owner, 2026-10-22, Droidtop/tracker#580).
+     */
+    fun syncedFolderFor(engine: String, gameFolder: File): File = ensureUsable(syncedFolderIn(rootFor(engine), gameFolder))
+
+    /**
      * Where [saveFolderFor] puts [config]'s saves, without making the folder:
      * for a screen that only shows the place. Viewing a game's page made its
      * save folder (review, 2026-10-16); only a launch should.
@@ -183,6 +192,22 @@ class SaveLocationStore(context: Context) {
             val folder = locateSaveFolder(root, config)
             return if (folder == root) root else ensureUsable(folder)
         }
+
+        /**
+         * Where [syncedFolderFor] keeps [gameFolder]'s saves under [root]:
+         * beside the engines' own `saves` folder, so no game's own save
+         * folder name can collide with it, and named for the game's folder
+         * plus a short digest of its path, so two games with one folder name
+         * do not share saves.
+         */
+        fun syncedFolderIn(root: File, gameFolder: File): File {
+            val path = runCatching { gameFolder.canonicalPath }.getOrDefault(gameFolder.absolutePath)
+            val digest = java.security.MessageDigest.getInstance("SHA-256").digest(path.toByteArray())
+                .take(4).joinToString("") { "%02x".format(it) }
+            return File(File(root, SYNCED_SAVES), SaveFolders.sanitize(gameFolder.name) + "-" + digest)
+        }
+
+        private const val SYNCED_SAVES = "synced-saves"
 
         /** The folder [saveFolderFor] makes usable beneath [root], only located: nothing is created. */
         fun locateSaveFolder(root: File, config: EngineConfig): File {
