@@ -73,7 +73,20 @@ python3 tools/core-harness/core_harness.py --adb "<guarded adb command>" \
 
 # One engine only
 python3 tools/core-harness/core_harness.py --games games.json --out results/ --engine renpy
+
+# adb at a path with spaces: quote it inside the argument, since --adb is split like a shell line
+python3 tools/core-harness/core_harness.py --adb "'/mnt/c/Program Files/BlueStacks_nxt/HD-Adb.exe'" ...
 ```
 
-It exits 0 when every game passed every check that ran, and 1 otherwise. Its
+**Unsandboxed cores.** A core with no sandbox makes Enginehost ask "Run
+unsandboxed?" on every launch, and the choice is the person's. The harness
+does not answer it unless its operator says so: without `--run-unsandboxed`
+such a game is **not run**, and the report lists it under "Not run" with the
+reason, rather than failing its first frame (rig, 2026-10-22: 0 of 5 games
+passed only because nothing answered the sheet). With `--run-unsandboxed` the
+harness presses Run unsandboxed (found by its text in the UI dump), marks the
+game "(unsandboxed)" in the table, and names every such game under "Ran
+unsandboxed".
+
+It exits 0 when every game run passed every check that ran, and 1 otherwise. Its
 own tests run anywhere: `python3 -m unittest discover -s tools/core-harness`.

@@ -28,6 +28,7 @@ Settings > App launch access, since adb has no package for Enginehost to name.
 
 import argparse
 import json
+import re
 import os
 import shlex
 import struct
@@ -40,6 +41,9 @@ PACKAGE = "dev.enginehost"
 RUNTIME_PROCESS = "dev.enginehost:runtime"
 LAUNCH_ACTION = "dev.enginehost.LAUNCH"
 EVENTS_TAG = "enginehost-events"
+# The launch screen's choice that runs a core with no sandbox (sandbox_consent_run).
+UNSANDBOXED_CHOICE = "Run unsandboxed"
+UI_DUMP = "/sdcard/core-harness-ui.xml"
 
 PASS, FAIL, NOT_TESTED = "pass", "fail", "not tested"
 
@@ -103,6 +107,19 @@ def write_png(path, width, height, rgba):
         out.write(chunk(b"IEND", b""))
 
 
+def centre_of(ui_xml, text):
+    """The centre of the node in a uiautomator dump whose text is exactly [text], or None."""
+    for node in re.finditer(r'<node [^>]*>', ui_xml):
+        attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', node.group(0)))
+        if attrs.get("text") != text:
+            continue
+        bounds = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", attrs.get("bounds", ""))
+        if bounds:
+            x1, y1, x2, y2 = map(int, bounds.groups())
+            return (x1 + x2) // 2, (y1 + y2) // 2
+    return None
+
+
 # ---- the device ------------------------------------------------------------
 
 class Device:
@@ -134,6 +151,20 @@ class Device:
 
     def tap_centre(self, width, height):
         self.shell("input tap %d %d" % (width // 2, height // 2))
+
+    def tap(self, x, y):
+        self.shell("input tap %d %d" % (x, y))
+
+    def ui_text(self):
+        """The screen's UI hierarchy as uiautomator dumps it, or "" when it cannot."""
+        self.shell("uiautomator dump %s" % UI_DUMP)
+        xml = self.shell("cat %s" % UI_DUMP)
+        self.shell("rm -f %s" % UI_DUMP)
+        return xml
+
+    def find_text(self, text):
+        """The centre of the on-screen element whose text is exactly [text], or None."""
+        return centre_of(self.ui_text(), text)
 
     def newest_mtime(self, folder):
         """Newest modification time (seconds) of any file under [folder] on the device, or 0."""
@@ -167,17 +198,32 @@ def run_game(device, engine, folder, steps, out_dir, args):
     device.shell("am start -a %s --es path %s" % (LAUNCH_ACTION, shlex.quote(folder)))
 
     # First frame: the runtime in front, showing more than one flat colour.
+    # An unsandboxed core first asks the person on the launch screen; the
+    # harness answers for them only when its operator said so.
     first = None
     last_focus = ""
+    result["unsandboxed"] = False
     while time.time() - started < args.first_frame_seconds:
         time.sleep(2)
         last_focus = device.focused()
+        if not result["unsandboxed"] and "LaunchActivity" in last_focus:
+            choice = device.find_text(UNSANDBOXED_CHOICE)
+            if choice:
+                result["unsandboxed"] = True
+                if not args.run_unsandboxed:
+                    result["skipped"] = "its core runs unsandboxed; rerun with --run-unsandboxed to run it anyway"
+                    break
+                result["notes"].append("ran its core UNSANDBOXED (--run-unsandboxed): no sandbox protected this run")
+                device.tap(*choice)
+                continue
         if device.pid(RUNTIME_PROCESS) and PACKAGE in last_focus and "LaunchActivity" not in last_focus:
             frame = shot("first-frame-candidate")
             if frame and not is_flat(sample(*frame)):
                 first = time.time() - started
                 break
-    if first is not None:
+    if result.get("skipped"):
+        checks["first frame"] = NOT_TESTED
+    elif first is not None:
         checks["first frame"] = PASS
         result["first_frame_seconds"] = round(first, 1)
         shot("first-frame")
@@ -187,9 +233,8 @@ def run_game(device, engine, folder, steps, out_dir, args):
             "the runtime showed one flat colour (black screen)" if device.pid(RUNTIME_PROCESS) else \
             "no runtime process"
         result["notes"].append("no first frame within %ds: %s (focus: %s)" % (args.first_frame_seconds, reason, last_focus))
-        device.run("shell", "uiautomator dump /sdcard/core-harness-ui.xml")
-        device.run("pull", "/sdcard/core-harness-ui.xml", os.path.join(out_dir, "screen-ui.xml"))
-        device.shell("rm -f /sdcard/core-harness-ui.xml")
+        with open(os.path.join(out_dir, "screen-ui.xml"), "w") as f:
+            f.write(device.ui_text())
 
     if first is not None:
         # Input: the screen moves with input more than it does by itself.
@@ -272,7 +317,7 @@ def run_game(device, engine, folder, steps, out_dir, args):
         f.write(events)
     result["host_events"] = [line.split(": ", 1)[-1] for line in events.splitlines() if EVENTS_TAG in line][-12:]
     device.shell("am force-stop %s" % PACKAGE)
-    result["passed"] = all(v != FAIL for v in checks.values())
+    result["passed"] = not result.get("skipped") and all(v != FAIL for v in checks.values())
     with open(os.path.join(out_dir, "result.json"), "w") as f:
         json.dump(result, f, indent=2)
     return result
@@ -286,9 +331,19 @@ def render_report(results, device_line):
              "| engine | game | " + " | ".join(names) + " |", "|" + " --- |" * (len(names) + 2)]
     for r in results:
         cells = [r["checks"].get(n, NOT_TESTED) for n in names]
-        lines.append("| %s | %s | %s |" % (r["engine"], os.path.basename(r["folder"].rstrip("/")), " | ".join(cells)))
-    failed = [r for r in results if not r["passed"]]
-    lines += ["", "%d of %d games passed every check that ran." % (len(results) - len(failed), len(results))]
+        game = os.path.basename(r["folder"].rstrip("/")) + (" (unsandboxed)" if r.get("unsandboxed") else "")
+        lines.append("| %s | %s | %s |" % (r["engine"], game, " | ".join(cells)))
+    skipped = [r for r in results if r.get("skipped")]
+    failed = [r for r in results if not r["passed"] and not r.get("skipped")]
+    ran = len(results) - len(skipped)
+    lines += ["", "%d of %d games run passed every check that ran." % (ran - len(failed), ran)]
+    ran_unsandboxed = [r for r in results if r.get("unsandboxed") and not r.get("skipped")]
+    if ran_unsandboxed:
+        lines += ["", "**Ran unsandboxed** (--run-unsandboxed): " +
+                  ", ".join("%s %s" % (r["engine"], os.path.basename(r["folder"].rstrip("/"))) for r in ran_unsandboxed) + "."]
+    if skipped:
+        lines += ["", "**Not run:** " + "; ".join(
+            "%s %s: %s" % (r["engine"], os.path.basename(r["folder"].rstrip("/")), r["skipped"]) for r in skipped)]
     for r in failed:
         lines += ["", "## %s: %s" % (r["engine"], r["folder"])]
         lines += ["- " + note for note in r["notes"]]
@@ -306,6 +361,8 @@ def main(argv=None):
     ap.add_argument("--engine", action="append", help="only these engines (repeatable)")
     ap.add_argument("--first-frame-seconds", type=int, default=90)
     ap.add_argument("--play-seconds", type=int, default=20)
+    ap.add_argument("--run-unsandboxed", action="store_true",
+                    help='answer "Run unsandboxed" for a core with no sandbox; the report names every game run that way')
     args = ap.parse_args(argv)
 
     with open(args.games) as f:
@@ -337,7 +394,7 @@ def main(argv=None):
     with open(os.path.join(args.out, "report.md"), "w") as f:
         f.write(render_report(results, device_line))
     print("Report: %s" % os.path.join(args.out, "report.md"))
-    return 0 if all(r["passed"] for r in results) else 1
+    return 0 if all(r["passed"] or r.get("skipped") for r in results) else 1
 
 
 if __name__ == "__main__":

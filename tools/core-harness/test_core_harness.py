@@ -70,8 +70,13 @@ FAKE_ADB = textwrap.dedent('''\
         frame(state["screen"])
     elif "pm path" in cmd: print("package:/data/app/dev.enginehost/base.apk")
     elif "pidof" in cmd: print("4242" if state["launched"] else "")
+    elif "dumpsys window" in cmd and state["asking"]: print("mCurrentFocus=Window{{1 u0 dev.enginehost/dev.enginehost.LaunchActivity}}")
     elif "dumpsys window" in cmd: print("mCurrentFocus=Window{{1 u0 dev.enginehost/dev.enginehost.RuntimeActivity}}" if state["launched"] else "")
+    elif "am start" in cmd and state["unsandboxed"]: state["asking"] = True
     elif "am start" in cmd: state["launched"] = True
+    elif "cat /sdcard/core-harness-ui.xml" in cmd:
+        print('<hierarchy><node text="Cancel" bounds="[0,0][10,10]" /><node text="Run unsandboxed" bounds="[100,200][300,260]" /></hierarchy>' if state["asking"] else "<hierarchy />")
+    elif "input tap 200 230" in cmd and state["asking"]: state["asking"] = False; state["launched"] = True
     elif "input" in cmd: state["taps"] += 1
     elif args[:1] == ["logcat"] and "-s" in args: print("10-22 I enginehost-events: runtime started")
     elif "force-stop" in cmd: state["launched"] = False
@@ -80,16 +85,16 @@ FAKE_ADB = textwrap.dedent('''\
 
 
 class RunGameTest(unittest.TestCase):
-    def run_with(self, screen):
+    def run_with(self, screen, unsandboxed=False, run_unsandboxed=False):
         d = tempfile.mkdtemp()
         state = os.path.join(d, "state.json")
         with open(state, "w") as f:
-            json.dump({"screen": screen, "launched": False, "taps": 0}, f)
+            json.dump({"screen": screen, "launched": False, "taps": 0, "unsandboxed": unsandboxed, "asking": False}, f)
         adb = os.path.join(d, "adb")
         with open(adb, "w") as f:
             f.write(FAKE_ADB.format(python=sys.executable, state=state))
         os.chmod(adb, 0o755)
-        args = types.SimpleNamespace(first_frame_seconds=5, play_seconds=0)
+        args = types.SimpleNamespace(first_frame_seconds=5, play_seconds=0, run_unsandboxed=run_unsandboxed)
         clock = iter(range(0, 10000))
         # The fake device answers at once; the harness's clock ticks a second per look.
         with mock.patch.object(h.time, "sleep", lambda s: None), mock.patch.object(h.time, "time", lambda: next(clock)):
@@ -114,7 +119,29 @@ class RunGameTest(unittest.TestCase):
         r = self.run_with("black")
         text = h.render_report([r], "Device: test")
         self.assertIn("| renpy | Test |", text)
-        self.assertIn("0 of 1 games passed", text)
+        self.assertIn("0 of 1 games run passed", text)
+
+    def test_an_unsandboxed_core_is_not_run_without_the_operator_saying_so(self):
+        r = self.run_with("picture", unsandboxed=True)
+        self.assertEqual(h.NOT_TESTED, r["checks"]["first frame"])
+        self.assertTrue(r["unsandboxed"])
+        self.assertIn("--run-unsandboxed", r["skipped"])
+        text = h.render_report([r], "Device: test")
+        self.assertIn("**Not run:**", text)
+        self.assertIn("0 of 0 games run passed", text)
+
+    def test_with_run_unsandboxed_the_sheet_is_answered_and_the_report_says_so(self):
+        r = self.run_with("picture", unsandboxed=True, run_unsandboxed=True)
+        self.assertEqual(h.PASS, r["checks"]["first frame"])
+        self.assertTrue(r["passed"])
+        text = h.render_report([r], "Device: test")
+        self.assertIn("| renpy | Test (unsandboxed) |", text)
+        self.assertIn("**Ran unsandboxed**", text)
+
+    def test_the_ui_dump_is_read_for_the_choice_centre(self):
+        dump = '<node text="Run unsandboxed" bounds="[100,200][300,260]" />'
+        self.assertEqual((200, 230), h.centre_of(dump, "Run unsandboxed"))
+        self.assertIsNone(h.centre_of(dump, "Cancel"))
 
 
 if __name__ == "__main__":
