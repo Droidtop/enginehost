@@ -187,7 +187,8 @@ object GameRunner {
             putExtra(RuntimeActivity.EXTRA_SAVE_PATH, saveFolder.absolutePath)
             callerRoot?.let { putExtra(RuntimeActivity.EXTRA_GAME_SAVE_PATH, it.absolutePath) }
             putExtra(RuntimeActivity.EXTRA_ENGINE, config.engine)
-            putExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT, config.engineContext ?: DEFAULT_ENGINE_CONTEXT)
+            // The line the core was chosen for, which is what an omitted context came to mean.
+            putExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT, resolved.capability.engineContext)
             putExtra(RuntimeActivity.EXTRA_ENGINE_VERSION, config.engineVersion.toString())
             putExtra(RuntimeActivity.EXTRA_RUNTIME_VERSION, resolved.capability.runtimeVersion.toString())
             putExtra(RuntimeActivity.EXTRA_CAPABILITY_ID, resolved.capability.id)

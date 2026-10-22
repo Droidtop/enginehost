@@ -246,7 +246,10 @@ object AvailablePluginResolver {
         runtimeRequirements: Map<String, Version>,
         pluginVersionAllowlist: VersionConstraint?,
     ): List<Pair<AvailablePlugin, EngineCapability>> {
-        val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
+        val requestedContext = effectiveEngineContext(
+            engineContext,
+            plugins.filter { it.manifest.component == null }.flatMap { p -> p.info.capabilities.filter { p.info.engineOf(it) == engine }.map { it.engineContext } },
+        )
         return plugins.asSequence()
             .filter { it.manifest.component == null }
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }

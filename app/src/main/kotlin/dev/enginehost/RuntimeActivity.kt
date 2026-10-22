@@ -123,7 +123,7 @@ class RuntimeActivity : FragmentActivity() {
             instance.onCreate(
                 EnginePluginSession(
                     resolved.plugin.directory, display, host, gameFolder.absolutePath, config.engine,
-                    config.engineContext ?: DEFAULT_ENGINE_CONTEXT, config.engineVersion.toString(),
+                    resolved.capability.engineContext, config.engineVersion.toString(),
                     resolved.capability.runtimeVersion.toString(), resolved.capability.id,
                     config.execFile, config.options?.toString(),
                     config.runtimeRequirements.mapValues { it.value.toString() },
@@ -200,7 +200,7 @@ class RuntimeActivity : FragmentActivity() {
         runtime.start(
             resolved.plugin,
             config.engine,
-            config.engineContext ?: DEFAULT_ENGINE_CONTEXT,
+            resolved.capability.engineContext,
             config.engineVersion.toString(),
             resolved.capability.runtimeVersion.toString(),
             resolved.capability.id,

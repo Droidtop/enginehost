@@ -177,7 +177,10 @@ object PluginResolver {
         trustOf: (InstalledPlugin) -> PluginTrustState = { PluginTrustState.APPROVED },
         components: List<InstalledPlugin> = emptyList(),
     ): Sequence<ResolvedPlugin> {
-        val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
+        val requestedContext = effectiveEngineContext(
+            engineContext,
+            plugins.filter { it.component == null }.flatMap { p -> p.info.capabilities.filter { p.info.engineOf(it) == engine }.map { it.engineContext } },
+        )
         return plugins.asSequence()
             .filter { it.component == null }
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION }
@@ -351,9 +354,13 @@ object PluginRegistry {
     ): Map<String, Version> {
         if (runtimeRequirements.isEmpty()) return emptyMap()
         val trustStore = PluginTrustStore(context)
-        val requestedContext = engineContext ?: DEFAULT_ENGINE_CONTEXT
+        val installed = discover(context)
+        val requestedContext = effectiveEngineContext(
+            engineContext,
+            installed.filter { it.component == null }.flatMap { p -> p.info.capabilities.filter { p.info.engineOf(it) == engine }.map { it.engineContext } },
+        )
         val approved = approvedComponents(context)
-        return discover(context).asSequence()
+        return installed.asSequence()
             .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION && it.info.runs(engine) }
             .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
             .filter { trustStore.state(it) != PluginTrustState.DENIED }

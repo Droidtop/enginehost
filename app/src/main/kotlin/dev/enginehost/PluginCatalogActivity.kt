@@ -556,8 +556,11 @@ class PluginCatalogActivity : EnginehostActivity() {
         engines: List<AvailablePlugin>,
     ): List<AvailablePlugin> {
         if (config.runtimeRequirements.isEmpty()) return emptyList()
-        val engineContext = config.engineContext ?: DEFAULT_ENGINE_CONTEXT
         val infos = snapshot?.installed.orEmpty().filter { it.component == null }.map { it.info } + engines.map { it.info }
+        val engineContext = effectiveEngineContext(
+            config.engineContext,
+            infos.flatMap { info -> info.capabilities.filter { info.engineOf(it) == config.engine }.map { it.engineContext } },
+        )
         val capabilities = infos.flatMap { info ->
             info.capabilities.filter {
                 info.engineOf(it) == config.engine && it.engineContext == engineContext &&

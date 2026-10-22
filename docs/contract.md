@@ -86,7 +86,11 @@ everything else:
 `engine` and `engineVersion` are required. `engine` names the core
 family (`renpy`, `rpgmaker`, `godot`, ...). `engineContext` is an optional,
 plugin-defined compatibility line within that family (`mv`, `mz`,
-`python3`, ...); omitting it means `default`. `engineVersion` is the
+`python3`, ...); omitting it means `default`, or, when no core offers
+`default` for the engine and its cores offer one line only, that line (owner,
+2026-10-22: every core so far declares `standard`, and a config without a
+context matched none of them). An engine with several lines (RPG Maker's `mv`,
+`mz`, `xp`, ...) still needs it named. `engineVersion` is the
 game's dotted-numeric runtime target inside that context.
 
 `runtimeRequirements` optionally selects exact embedded dependencies that are

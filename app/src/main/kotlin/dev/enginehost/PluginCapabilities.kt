@@ -4,6 +4,21 @@ import org.json.JSONObject
 
 const val DEFAULT_ENGINE_CONTEXT = "default"
 
+/**
+ * The engine context a config's [requested] one means, among the contexts
+ * [offered] for its engine by the cores in question: the one it names; when
+ * it names none, `default`, or the engine's one line when no core offers
+ * `default` for it (owner, 2026-10-22). Every core so far declares
+ * `standard`, so a hand-written config without a context matched nothing
+ * (rig, 2026-10-22: LÖVE 11.5). An engine with several lines (RPG Maker's
+ * mv, mz, xp...) still needs the config to name one.
+ */
+fun effectiveEngineContext(requested: String?, offered: Collection<String>): String {
+    if (requested != null) return requested
+    val lines = offered.toSet()
+    return if (DEFAULT_ENGINE_CONTEXT !in lines && lines.size == 1) lines.single() else DEFAULT_ENGINE_CONTEXT
+}
+
 data class VersionRange(val min: Version, val max: Version) {
     init {
         require(min <= max) { "Version range minimum must not exceed maximum" }
