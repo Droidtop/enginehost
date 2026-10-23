@@ -143,12 +143,14 @@ object PluginInstaller {
                 // different build never collides with an old one), the comparison
                 // itself is worth a real log line so a future failure doesn't need
                 // rig access to say more than "does not match" again.
-                Log.w(
-                    TAG,
-                    "digest check for ${plugin.manifest.assetName}: expected $expected, got $actual " +
-                        "(${temporary.length()} bytes downloaded from ${plugin.archiveUrl})",
-                )
-                require(actual == expected) { "Downloaded bundle does not match GitHub's asset digest" }
+                // Logged at warning level only when they differ, and then the
+                // install stops: the #291 rig read a warning on every download
+                // (matching digests, truncated in the log view) as a mismatch let through.
+                val matches = actual.equals(expected, ignoreCase = true)
+                val line = "digest check for ${plugin.manifest.assetName}: ${if (matches) "matches" else "MISMATCH"}, " +
+                    "expected $expected, got $actual (${temporary.length()} bytes downloaded from ${plugin.archiveUrl})"
+                if (matches) Log.i(TAG, line) else Log.w(TAG, line)
+                require(matches) { "Downloaded bundle does not match GitHub's asset digest" }
             }
             if (archive.exists()) archive.delete()
             require(temporary.renameTo(archive)) { "Could not retain downloaded engine bundle" }
