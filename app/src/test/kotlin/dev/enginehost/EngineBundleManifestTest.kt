@@ -42,6 +42,18 @@ class EngineBundleManifestTest {
     }
 
     @Test
+    fun `gameWrites travels from the manifest into the install record`() {
+        val raw = JSONObject(manifest(keyPair("secp256r1").public.encoded).toString(Charsets.UTF_8))
+            .put("gameWrites", JSONArray(listOf("game/saves", "game/cache"))).toString().toByteArray()
+        val parsed = EngineBundleManifestReader.parse(raw)
+        assertEquals(listOf("game/saves", "game/cache"), parsed.gameWrites)
+
+        val signer = BundleSigner("B".repeat(64), SignerKind.OFFICIAL, format = 1, anchorKeySha256 = "C".repeat(64))
+        val record = parsed.installedRecord("A".repeat(64), signer)
+        assertEquals(listOf("game/saves", "game/cache"), GameWrites.parse(record.getJSONArray("gameWrites")))
+    }
+
+    @Test
     fun `signature does not survive a manifest change`() {
         val keys = keyPair("secp256r1")
         val raw = manifest(keys.public.encoded)

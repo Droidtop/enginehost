@@ -48,6 +48,8 @@ data class EngineBundleManifest(
     val engines: List<String> = emptyList(),
     /** See InstalledPlugin.writesGameFolder (docs/engine-sandbox.md "Saves beside the game"). */
     val writesGameFolder: Boolean = false,
+    /** See InstalledPlugin.gameWrites (docs/engine-bundle-format.md "gameWrites"). */
+    val gameWrites: List<String> = emptyList(),
     /** See InstalledPlugin.lockdown (docs/engine-sandbox.md "The lockdown is how a core that cannot be isolated is sandboxed"). */
     val lockdown: Boolean = false,
     /** Set for a runtime-component bundle (`"kind": "component"`), null for an engine bundle. */
@@ -89,6 +91,7 @@ data class EngineBundleManifest(
         .put("isolatable", isolatable)
         .put("lockdown", lockdown)
         .put("writesGameFolder", writesGameFolder)
+        .put("gameWrites", JSONArray(gameWrites))
         .put("capabilities", JSONArray().apply { info.capabilities.forEach { put(it.toJson()) } })
         .put("kind", if (component == null) BUNDLE_KIND_ENGINE else BUNDLE_KIND_COMPONENT)
         .putOpt("component", component?.toJson())
@@ -213,6 +216,7 @@ object EngineBundleManifestReader {
             files,
             engines = engines,
             writesGameFolder = json.optBoolean("writesGameFolder", false),
+            gameWrites = GameWrites.parse(json.optJSONArray("gameWrites")),
             lockdown = json.optBoolean("lockdown", false),
             component = component,
             license = license,
