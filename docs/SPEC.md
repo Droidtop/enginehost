@@ -288,6 +288,9 @@ resolves it once and hands it to the runtime as an extra
 Under its status line a game's page shows rows, read off the main thread after the
 page itself (`GameSectionsLoader`, drawn by `GameSectionsView`):
 
+- **Controls** (first, so it is never under the fold at 1920x1080; review,
+  Droidtop/tracker#618): whether the game has its own buttons or follows the
+  engine's; it opens the controller screen on "This game". Shown when a core resolves.
 - **Core**: the build that runs the game and whether it is "newest that fits" or
   "fixed for this game". Its sheet lists "Newest that fits" and every installed
   build that could run the game (`PluginResolver.ranked` without an allowlist), with

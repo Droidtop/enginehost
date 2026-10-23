@@ -13,9 +13,9 @@ import java.io.File
 
 /**
  * Draws a game's [GameSections] as rows under its status and answers their taps
- * (Droidtop/tracker#235, #237): the core and its builds, an update to it, the
- * core's options, the saves, and the play history. Every choice a person makes
- * here is stored as a per-game override in the library database
+ * (Droidtop/tracker#235, #237): the controls, the core and its builds, an
+ * update to it, the core's options, the saves, and the play history. Every
+ * choice a person makes here is stored as a per-game override in the library database
  * ([GameOverrides]); nothing is written into the game folder.
  */
 class GameSectionsView(
@@ -34,10 +34,16 @@ class GameSectionsView(
         val focused = container.focusedChild?.let(container::indexOfChild) ?: -1
         container.removeAllViews()
         val core = sections.core
-        if (core != null) addCore(sections, core) else sections.pinned?.let { addMissingPin(sections, it) }
+        // Controls first: below the core's options it sat under the fold at
+        // 1920x1080, and it is what a player changes most (Droidtop/tracker#618, C12).
+        if (core != null) {
+            addControls(sections)
+            addCore(sections, core)
+        } else {
+            sections.pinned?.let { addMissingPin(sections, it) }
+        }
         sections.update?.let { addUpdate(it, sections.core) }
         sections.options.forEach { addOption(it) }
-        if (sections.core != null) addControls(sections)
         sections.saves?.let { addSaves(it) }
         addHistory(sections.history)
         if (focused >= 0 && container.childCount > 0) {
