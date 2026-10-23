@@ -29,6 +29,23 @@
             android:text="@string/app_name"
             android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
 
+        <!--
+            Updates, in the header beside Add games and as tall as it, so its
+            answer arriving seconds after launch moves nothing below: as a row
+            above the list it pushed the list down, and a tap meant for the
+            library landed on it (rig, 2026-10-23, Droidtop/tracker#604).
+        -->
+        <Button
+            android:id="@+id/updateNotice"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/eh_space_s"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/eh_accent"
+            android:visibility="gone" />
+
         <Button
             android:id="@+id/addGamesButton"
             style="@style/Widget.Enginehost.Button"
@@ -38,16 +55,6 @@
             android:text="@string/add_games" />
 
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/updateNotice"
-        style="@style/Widget.Enginehost.Card.Focusable"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/eh_space_s"
-        android:textAppearance="@style/TextAppearance.Enginehost.ItemTitle"
-        android:textColor="@color/eh_accent"
-        android:visibility="gone" />
 
     <LinearLayout
         android:layout_width="match_parent"

@@ -47,6 +47,15 @@ them".
   archive already installed reads "Installed".
 - **Cores screen:** one card per build, a line's builds together and newest
   first, each with its own Approve, Deny and Remove.
+  Everything a card says (trust, approval state, licence text) is worked out
+  off the main thread with the list. With every line's old and new builds
+  installed after Update all (about sixty cards), working it out card by card
+  on the main thread, while the installs kept the disk busy, ended in "isn't
+  responding" (rig, 2026-10-23, Droidtop/tracker#604).
+- **Home's update notice** ("N core updates are available", and an app
+  update) sits in the header beside Add games, as tall as it. The check
+  answers seconds after launch; as a row above the list it pushed the list
+  down under a tap meant for a game (same rig run).
 - **Launch:** `PluginResolver.ranked` picks the best approved build the game's
   `pluginVersion` allowlist allows, which is how a game avoids a bad build.
   The launch carries that build's archive digest

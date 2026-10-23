@@ -211,7 +211,6 @@
     <string name="license_line">Licence: %1$s</string>
     <string name="license_show">Read the licence</string>
     <string name="license_hide">Hide the licence</string>
-    <string name="license_loading">Loading the licence…</string>
     <string name="license_unreadable">The licence text could not be read from the installed bundle.</string>
     <string name="approve_accept_license">Accept licence and allow</string>
     <string name="releases_not_loaded">Not loaded yet. Refresh to fetch releases.</string>

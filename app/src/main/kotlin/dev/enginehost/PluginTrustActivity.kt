@@ -73,37 +73,83 @@ class PluginTrustActivity : EnginehostActivity() {
     private var listGeneration = 0
 
     /**
-     * Reads the installed bundles off the main thread (each is a directory
-     * and a manifest to parse) and draws them. Reading them on the main
-     * thread stalled the screen on every return to it (review, 2026-10-16).
+     * What one card shows about a build, worked out off the main thread with
+     * the list: each fact reads preferences, a signer or a bundle file. With
+     * every build of every line installed side by side after Update all
+     * (about sixty cards), doing it card by card on the main thread, while
+     * the installs kept the disk busy, ended in "Enginehost isn't
+     * responding" on this screen (rig, 2026-10-23, Droidtop/tracker#604).
+     */
+    private class CardFacts(
+        val plugin: InstalledPlugin,
+        val ultimateBuild: Boolean,
+        val official: Boolean,
+        val thirdParty: ThirdPartyOrigin?,
+        val state: PluginTrustState,
+        val change: TrustChange?,
+        val legacyRefused: Boolean,
+        /** The licence text a bundle carries, or null when it has none or it cannot be read. */
+        val licenseText: String?,
+    )
+
+    private fun factsOf(plugin: InstalledPlugin): CardFacts {
+        val ultimateBuild = trust.isDeveloperDebug(plugin)
+        val official = !ultimateBuild && trust.isOfficial(plugin)
+        return CardFacts(
+            plugin = plugin,
+            ultimateBuild = ultimateBuild,
+            official = official,
+            thirdParty = if (ultimateBuild || official) null else trust.thirdParty(plugin),
+            state = trust.state(plugin),
+            change = trust.changeSinceApproval(plugin),
+            // A core signed only the legacy way never starts while the root is pinned.
+            legacyRefused = plugin.legacySigned && EnginehostRoot.get(this) != null,
+            licenseText = plugin.license?.let { license ->
+                runCatching {
+                    java.io.File(plugin.directory, license.file).also {
+                        require(it.canonicalPath.startsWith(plugin.directory.canonicalPath + java.io.File.separator))
+                    }.readText()
+                }.getOrNull()
+            },
+        )
+    }
+
+    /**
+     * Reads the installed bundles and every card's facts off the main thread
+     * (each bundle is a directory and a manifest to parse) and draws them.
+     * Reading them on the main thread stalled the screen on every return to
+     * it (review, 2026-10-16).
      */
     private fun render() {
         val generation = ++listGeneration
         val requestedPackage = intent.getStringExtra(EXTRA_BUNDLE)
         Thread {
-            val plugins = runCatching {
-                PluginRegistry.discoverAll(this).filter { requestedPackage == null || it.bundleId == requestedPackage }
+            val cards = runCatching {
+                // One card per installed build: several builds of a line can sit side
+                // by side, each approved, denied and removed on its own. A line's
+                // builds stay together, newest first.
+                PluginRegistry.discoverAll(this)
+                    .filter { requestedPackage == null || it.bundleId == requestedPackage }
+                    .sortedWith(
+                        compareBy<InstalledPlugin>({ it.info.engine }, { it.bundleId })
+                            .thenByDescending { it.info.pluginVersion }
+                            .thenBy { it.archiveSha256 },
+                    )
+                    .map(::factsOf)
             }.getOrDefault(emptyList())
             runOnUiThread {
                 if (isDestroyed || generation != listGeneration) return@runOnUiThread
-                showPlugins(plugins, requestedPackage)
+                showPlugins(cards, requestedPackage)
             }
         }.start()
     }
 
-    private fun showPlugins(plugins: List<InstalledPlugin>, requestedPackage: String?) {
+    private fun showPlugins(cards: List<CardFacts>, requestedPackage: String?) {
         list.removeAllViews()
-        emptyState.visibility = if (plugins.isEmpty()) View.VISIBLE else View.GONE
-        // One card per installed build: several builds of a line can sit side
-        // by side, each approved, denied and removed on its own. A line's
-        // builds stay together, newest first.
-        plugins.sortedWith(
-            compareBy<InstalledPlugin>({ it.info.engine }, { it.bundleId })
-                .thenByDescending { it.info.pluginVersion }
-                .thenBy { it.archiveSha256 },
-        ).forEach { plugin -> addPlugin(plugin) }
+        emptyState.visibility = if (cards.isEmpty()) View.VISIBLE else View.GONE
+        cards.forEach(::addPlugin)
         // Showing one plugin (just installed) is not the place for the updates of the others.
-        if (requestedPackage == null) renderUpdates(plugins) else updatesPanel.visibility = View.GONE
+        if (requestedPackage == null) renderUpdates(cards.map { it.plugin }) else updatesPanel.visibility = View.GONE
     }
 
     /**
@@ -192,11 +238,12 @@ class PluginTrustActivity : EnginehostActivity() {
         }.start()
     }
 
-    private fun addPlugin(plugin: InstalledPlugin) {
-        val ultimateBuild = trust.isDeveloperDebug(plugin)
-        val official = !ultimateBuild && trust.isOfficial(plugin)
-        val thirdParty = if (ultimateBuild || official) null else trust.thirdParty(plugin)
-        val state = trust.state(plugin)
+    private fun addPlugin(facts: CardFacts) {
+        val plugin = facts.plugin
+        val ultimateBuild = facts.ultimateBuild
+        val official = facts.official
+        val thirdParty = facts.thirdParty
+        val state = facts.state
         val card = layoutInflater.inflate(R.layout.item_plugin_trust, list, false)
 
         // Named the way the catalog names it: the engine and the versions this
@@ -224,7 +271,7 @@ class PluginTrustActivity : EnginehostActivity() {
                 else -> R.string.sandbox_no
             },
         )
-        showLicense(card, plugin, state)
+        showLicense(card, facts)
         card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId
         val details = card.findViewById<View>(R.id.trustDetails)
         card.findViewById<TextView>(R.id.trustDetailsToggle).setOnClickListener {
@@ -260,11 +307,11 @@ class PluginTrustActivity : EnginehostActivity() {
         }
         card.findViewById<TextView>(R.id.signerValue).text =
             "${getString(R.string.signer_label)}: ${plugin.signerIdentity}"
-        val change = trust.changeSinceApproval(plugin)
+        val change = facts.change
         // A core signed only the legacy way never starts while the root is
         // pinned; its card offers Remove alone, not a decision that changes
         // nothing (review, 2026-10-16).
-        val legacyRefused = plugin.legacySigned && EnginehostRoot.get(this) != null
+        val legacyRefused = facts.legacyRefused
         card.findViewById<TextView>(R.id.trustState).text =
             if (legacyRefused) {
                 // Deprecated: it will not start, and the card says what to do (owner, 2026-10-16).
@@ -326,10 +373,11 @@ class PluginTrustActivity : EnginehostActivity() {
      * A bundle with a licence of its own (a runtime component such as
      * Spine's) names it, and its text is on the card: open before the
      * person decides, one tap away once they have. The text is the signed
-     * payload file the manifest names, read off the main thread.
+     * payload file the manifest names, read with the card's other facts.
      */
-    private fun showLicense(card: View, plugin: InstalledPlugin, state: PluginTrustState) {
-        val license = plugin.license ?: return
+    private fun showLicense(card: View, facts: CardFacts) {
+        val license = facts.plugin.license ?: return
+        val state = facts.state
         val line = card.findViewById<TextView>(R.id.licenseLine)
         val toggle = card.findViewById<TextView>(R.id.licenseToggle)
         val text = card.findViewById<TextView>(R.id.licenseText)
@@ -342,17 +390,7 @@ class PluginTrustActivity : EnginehostActivity() {
         }
         shown(state != PluginTrustState.APPROVED)
         toggle.setOnClickListener { shown(text.visibility != View.VISIBLE) }
-        text.setText(R.string.license_loading)
-        Thread {
-            val body = runCatching {
-                java.io.File(plugin.directory, license.file).also {
-                    require(it.canonicalPath.startsWith(plugin.directory.canonicalPath + java.io.File.separator))
-                }.readText()
-            }.getOrNull()
-            runOnUiThread {
-                if (!isDestroyed) text.text = body ?: getString(R.string.license_unreadable)
-            }
-        }.start()
+        text.text = facts.licenseText ?: getString(R.string.license_unreadable)
     }
 
     /**

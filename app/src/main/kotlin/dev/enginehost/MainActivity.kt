@@ -165,7 +165,7 @@ class MainActivity : EnginehostActivity() {
                     visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
                     if (this@MainActivity.findViewById<LinearLayout>(R.id.shelves).visibility != View.VISIBLE) grid.nextFocusUpId = upFromList()
                     if (lines.isNotEmpty()) {
-                        text = lines.joinToString("\n")
+                        text = lines.joinToString(" · ")
                         setOnClickListener {
                             startActivity(
                                 if (pending.isNotEmpty()) {
