@@ -100,6 +100,11 @@ object CoreUnpacker {
                 val name = entry.name.removePrefix("./").trimEnd('/')
                 if (name.isEmpty()) continue
                 require(GameWrites.isSubFolder(name)) { "Unsafe path in the runtime archive: ${entry.name}" }
+                // TarArchiveEntry.isFile is true for any entry not named like a folder, links
+                // included, so links and special files are refused first, as the installer does.
+                require(!entry.isSymbolicLink && !entry.isLink && !entry.isCharacterDevice && !entry.isBlockDevice && !entry.isFIFO) {
+                    "Not a file or folder in the runtime archive: ${entry.name}"
+                }
                 val target = File(into, name)
                 when {
                     entry.isDirectory -> target.mkdirs()
