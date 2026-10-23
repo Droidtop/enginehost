@@ -63,6 +63,7 @@ class PluginTrustActivity : EnginehostActivity() {
 
     /** Leaving the screen a launch stopped at, with no install running, ends that launch. */
     override fun onDestroy() {
+        if (::list.isInitialized) rows.cancel()
         if (isFinishing && intent.getBooleanExtra(PendingPluginLaunchStore.EXTRA_RESUMES, false) && !PluginInstaller.isInstalling()) {
             PendingPluginLaunchStore(this).clear()
         }
@@ -154,20 +155,14 @@ class PluginTrustActivity : EnginehostActivity() {
      * stops an older one's remaining batches.
      */
     private fun showPlugins(cards: List<CardFacts>, requestedPackage: String?) {
-        val generation = listGeneration
         list.removeAllViews()
         emptyState.visibility = if (cards.isEmpty()) View.VISIBLE else View.GONE
         // Showing one plugin (just installed) is not the place for the updates of the others.
         if (requestedPackage == null) renderUpdates(cards.map { it.plugin }) else updatesPanel.visibility = View.GONE
-        addInBatches(cards, 0, generation)
+        rows.add(cards, ::addPlugin)
     }
 
-    private fun addInBatches(cards: List<CardFacts>, from: Int, generation: Int) {
-        if (isDestroyed || generation != listGeneration || from >= cards.size) return
-        val until = minOf(from + CARDS_PER_BATCH, cards.size)
-        for (index in from until until) addPlugin(cards[index])
-        if (until < cards.size) list.post { addInBatches(cards, until, generation) }
-    }
+    private val rows by lazy { RowBatches(list) }
 
     /**
      * Updates come from the catalogs already cached on the device (the same
@@ -432,9 +427,6 @@ class PluginTrustActivity : EnginehostActivity() {
 
     companion object {
         const val EXTRA_BUNDLE = "dev.enginehost.trust.BUNDLE"
-
-        /** Cards inflated per main-thread message ([showPlugins]): a few frames' work, not seconds. */
-        private const val CARDS_PER_BATCH = 4
 
         /**
          * Where an install lands. A core that still needs the person's

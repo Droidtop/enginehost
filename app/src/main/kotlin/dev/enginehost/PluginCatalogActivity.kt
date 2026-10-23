@@ -95,6 +95,7 @@ class PluginCatalogActivity : EnginehostActivity() {
 
     /** Leaving the catalog a launch stopped at, with no install running, ends that launch. */
     override fun onDestroy() {
+        if (::releaseList.isInitialized) releaseRows.cancel()
         if (isFinishing && intent.getBooleanExtra(PendingPluginLaunchStore.EXTRA_RESUMES, false) && !PluginInstaller.isInstalling()) {
             PendingPluginLaunchStore(this).clear()
         }
@@ -454,7 +455,10 @@ class PluginCatalogActivity : EnginehostActivity() {
         }
     }
 
+    private val releaseRows by lazy { RowBatches(releaseList) }
+
     private fun renderReleases() {
+        if (::releaseList.isInitialized) releaseRows.cancel()
         releaseList.removeAllViews()
         val allOrigins = origins.all()
         // Every stream a repository publishes is cached (see CatalogRefresh);
@@ -516,8 +520,9 @@ class PluginCatalogActivity : EnginehostActivity() {
                     { it.first.bundleId },
                 ),
             )
-        cards.forEach { (newest, older) -> addRelease(newest, older) }
-        addInstallAll(cards.map { it.first })
+        // A few cards per main-thread message (RowBatches): all of them at once froze this
+        // screen as it did Cores (#620 E1). Install all goes last, after the cards.
+        releaseRows.add(cards, { (newest, older) -> addRelease(newest, older) }) { addInstallAll(cards.map { it.first }) }
         // A catalog stored a while ago may describe builds that have since
         // been replaced; installing from it would fetch the old one by its
         // old checksum. Refresh first, once, and come back here afterwards.
