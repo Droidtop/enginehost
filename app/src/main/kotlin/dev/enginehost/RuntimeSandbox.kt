@@ -148,13 +148,49 @@ object RuntimeSandbox {
             pair[1].close()
             return false
         }
-        val result = lockdown0(pair[1].detachFd(), OWN_OPENS, learn)
+        // Earlier runtimes that ended locked down (a restart loop leaves one each), then this one's ring.
+        reportEndedTraces(context)
+        val traced = runCatching { trace0(traceFile(context, Process.myPid()).absolutePath) }.getOrDefault(-1)
+        if (traced != 0) Log.w(TAG, "No sandbox trace for this process: errno ${-traced}")
+        val audit = DebugProperty.get("audit") == "1"
+        if (audit) Log.w(TAG, "AUDIT: the kernel logs every trapped call of this process (audit type=1326)")
+        val result = lockdown0(pair[1].detachFd(), OWN_OPENS, learn, audit)
         if (result == 0) Log.i(TAG, "Process locked down: files only through the broker, no sockets, no exec")
         else Log.w(TAG, "Process NOT locked down: errno ${-result}")
         // EDEADLK: a thread has SIGSYS blocked and would kill the process on its first trapped call.
         if (result == -EDEADLK) Log.w(TAG, "Threads with SIGSYS blocked: ${sigsysBlockedThreads().joinToString()}")
         confined = result == 0
         return confined
+    }
+
+    /**
+     * Where a locked-down runtime's trace ring lives (the sandbox library's
+     * sbx_trace): one file per process, so a restart loop does not write
+     * over the ring of the process that died. docs/engine-sandbox.md,
+     * "When a lockdown kills".
+     */
+    private fun traceFile(context: Context, pid: Int): File =
+        File(context.filesDir, "sandbox-trace").apply { mkdirs() }.let { File(it, "$pid.bin") }
+
+    /** The trace of runtime process [pid] as sentences, or null when it was not locked down. */
+    fun traceOf(context: Context, pid: Int): String? {
+        val file = traceFile(context, pid)
+        if (!file.isFile) return null
+        return runCatching {
+            System.loadLibrary("enginehost_sandbox")
+            traceSummary0(file.absolutePath)
+        }.getOrNull()
+    }
+
+    /** Logs the trace of every earlier runtime that has ended, then deletes it; a live one is left alone. */
+    private fun reportEndedTraces(context: Context) {
+        val folder = File(context.filesDir, "sandbox-trace")
+        folder.listFiles { file -> file.name.endsWith(".bin") }.orEmpty().forEach { file ->
+            val pid = file.name.removeSuffix(".bin").toIntOrNull() ?: return@forEach
+            if (pid == Process.myPid() || File("/proc/$pid").exists()) return@forEach
+            traceOf(context, pid)?.let { Log.w(TAG, "Sandbox trace of an ended runtime: $it") }
+            file.delete()
+        }
     }
 
     /** The names of this process's threads that have SIGSYS blocked, from /proc. */
@@ -248,7 +284,9 @@ object RuntimeSandbox {
     private const val SBX_WRITE = 2
 
     @JvmStatic private external fun denyInternet(): Int
-    @JvmStatic private external fun lockdown0(fd: Int, ownOpens: Array<String>, learn: Boolean): Int
+    @JvmStatic private external fun lockdown0(fd: Int, ownOpens: Array<String>, learn: Boolean, audit: Boolean): Int
+    @JvmStatic private external fun trace0(path: String): Int
+    @JvmStatic private external fun traceSummary0(path: String): String?
     @JvmStatic private external fun serve0(fd: Int, paths: Array<String>, modes: IntArray, learner: SandboxLearner?): Int
 }
 
