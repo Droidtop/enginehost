@@ -2166,6 +2166,15 @@ When that happens Enginehost logs the names of those threads under
 The pin moved to `75dfe2f` on 2026-10-23 for learning mode (`SBX_LOCK_LEARN`,
 below). The SIGSYS check now also skips a thread that has already exited,
 which `/proc` can still list for a moment after it is joined.
+
+The pin moved to `e024006` on 2026-10-23. LÖVE still died by signal 31 with
+the thread masks fixed (Droidtop/tracker#550): a signal handler's mask
+blocks SIGSYS while it runs too, and libraries install handlers with every
+signal masked, so a trapped call inside one killed the process just the
+same. The library now takes SIGSYS out of every handler's mask at lockdown
+and out of every new one after it. Before lockdown, Enginehost logs which
+signals had such a handler ("Handlers that block SIGSYS while they run"),
+so a rig run shows whether this was the cause.
 Enginehost asks for none of the new modes: a core's lockdown is the same
 call with the same flags (none), so cores stay without network. The
 library's own suite passed at both commits on Linux x86_64, every one of

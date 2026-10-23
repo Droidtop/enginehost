@@ -36,6 +36,8 @@
 #ifdef __ANDROID__
 #include <android/log.h>
 #include <jni.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "sbx.h"
@@ -110,6 +112,37 @@ Java_dev_enginehost_RuntimeSandbox_denyInternet(JNIEnv *env, jclass clazz) {
     return enginehost_deny_internet();
 }
 
+/*
+ * Logs the signals whose installed handler blocks SIGSYS while it runs,
+ * read with the raw call (ART interposes sigaction()). A trapped call made
+ * inside such a handler used to kill the process by signal 31 with no
+ * tombstone (Droidtop/tracker#550); the library now takes SIGSYS out of
+ * these masks at lockdown, and this says which handlers it had to change.
+ */
+static void log_handlers_masking_sigsys(void) {
+    struct {
+        void *handler;
+        unsigned long flags;
+        void *restorer;
+        unsigned long long mask;
+    } action;
+    char names[512] = "";
+    size_t used = 0;
+    for (int signal_number = 1; signal_number <= 64; signal_number++) {
+        if (signal_number == SIGKILL || signal_number == SIGSTOP || signal_number == SIGSYS) continue;
+        if (syscall(__NR_rt_sigaction, signal_number, NULL, &action, 8) != 0) continue;
+        if (action.handler == SIG_DFL || action.handler == SIG_IGN) continue;
+        if (!(action.mask & (1ULL << (SIGSYS - 1)))) continue;
+        int n = snprintf(names + used, sizeof(names) - used, "%s%d", used ? ", " : "", signal_number);
+        if (n > 0 && (size_t) n < sizeof(names) - used) used += (size_t) n;
+    }
+    if (used) {
+        __android_log_print(ANDROID_LOG_WARN, "EnginehostSandbox",
+                            "Handlers that block SIGSYS while they run (signal numbers): %s; the lockdown opens it in each",
+                            names);
+    }
+}
+
 /* Process lockdown (the sandbox library's sbx.h): the :runtime side. Takes ownership of fd. */
 JNIEXPORT jint JNICALL
 Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd, jobjectArray own_opens, jboolean learn) {
@@ -134,6 +167,7 @@ Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd,
     struct sbx_lockdown_options options = {.own_opens = list, .own_open_count = (unsigned) used};
     /* Learning (debug.enginehost.learn): nothing refused, every would-be refusal recorded by the broker. */
     if (learn) options.flags |= SBX_LOCK_LEARN;
+    log_handlers_masking_sigsys();
     int result = sbx_lockdown(fd, &options);
     if (result != 0) close(fd);
     return result;
