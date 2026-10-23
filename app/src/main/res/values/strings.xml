@@ -153,18 +153,10 @@
     <string name="update">Update</string>
     <string name="updating">Updating…</string>
     <string name="updates_done">Updated %1$d, %2$d failed: %3$s</string>
-    <string name="sandbox_yes">Runs in a sandbox</string>
-    <string name="sandbox_no">Runs without a sandbox</string>
-    <string name="sandbox_locked">Runs locked down: files only through Enginehost, no network, no other programs</string>
     <string name="open_plugin_catalog">Add</string>
     <string name="badge_official">Official</string>
-    <string name="badge_ultimate">Ultimate</string>
-    <string name="badge_community">Community</string>
-    <string name="badge_third_party">Third party</string>
-    <string name="badge_sandboxed">Sandboxed</string>
-    <string name="badge_unsandboxed">Unsandboxed</string>
-    <string name="trust_build_line">%1$s · %2$s</string>
-    <string name="trust_state_label">Trust</string>
+    <string name="badge_unofficial">Unofficial</string>
+    <string name="badge_full_access">Full access</string>
     <string name="trust_state_pending">Waiting for your approval</string>
     <string name="trust_state_signer_changed">Waiting for your approval: a different key signed this build than the one you approved</string>
     <string name="trust_state_origin_changed">Waiting for your approval: this build comes from a different repository than the one you approved</string>
@@ -178,6 +170,10 @@
     <string name="ultimate_warning">Signed with the primary developer\'s own key. Not a production release; if that is not you, do not use this build.</string>
     <string name="approve">Approve</string>
     <string name="deny">Deny</string>
+    <string name="close">Close</string>
+    <string name="older_builds_show">Older builds (%1$d)</string>
+    <string name="older_builds_hide">Hide older builds (%1$d)</string>
+    <string name="trust_state_legacy_short">Old signature, will not start</string>
     <string name="uninstall">Uninstall</string>
 
     <!-- Core catalog -->

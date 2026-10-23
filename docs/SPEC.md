@@ -45,8 +45,16 @@ them".
   until the person removes them, so a regression never strands anyone.
 - **Catalog:** every build is installable, older ones included. Only the
   archive already installed reads "Installed".
-- **Cores screen:** one card per build, a line's builds together and newest
-  first, each with its own Approve, Deny and Remove.
+- **Cores screen:** one card per line, showing its newest build; the line's
+  older builds fold beneath it ("Older builds (N)"), one row each, newest first,
+  with their own Approve (while waiting) and Remove (#620 E5). A card carries
+  only the allowed badges: Official or Unofficial, and Full access where the core
+  runs unsandboxed ("Sandboxed" is the absence of Full access, `TrustBadges`, the
+  same on Add a core and the game page's build choice). It says its state only
+  when that is not the normal one (waiting for approval, denied, old signature).
+  Its buttons are only those that apply: Approve while the build waits, Remove
+  always. Bundle id, origin, signer and Deny are in the Details sheet. Cards are
+  added a few per frame (`RowBatches`), as on Add a core (#620 E1).
   Everything a card says (trust, approval state, licence text) is worked out
   off the main thread with the list. With every line's old and new builds
   installed after Update all (about sixty cards), working it out card by card

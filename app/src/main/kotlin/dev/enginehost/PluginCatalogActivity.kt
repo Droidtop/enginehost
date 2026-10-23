@@ -678,19 +678,8 @@ class PluginCatalogActivity : EnginehostActivity() {
             // Stable is the expectation; only the other two need pointing out.
             visibility = if (plugin.stream == PluginStream.STABLE) View.GONE else View.VISIBLE
         }
-        val sandboxBadge = card.findViewById<TextView>(R.id.sandboxBadge)
-        val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.manifest.sandboxed) {
-            Triple(R.string.badge_sandboxed, R.color.eh_official_container, R.color.eh_on_official_container)
-        } else {
-            Triple(R.string.badge_unsandboxed, R.color.eh_danger_container, R.color.eh_on_danger_container)
-        }
-        sandboxBadge.setText(sandboxLabel)
-        sandboxBadge.backgroundTintList = android.content.res.ColorStateList.valueOf(
-            androidx.core.content.ContextCompat.getColor(this, sandboxContainer)
-        )
-        sandboxBadge.setTextColor(androidx.core.content.ContextCompat.getColor(this, sandboxOnContainer))
-        // Sandboxing is the loading engine's property, not the component's.
-        if (component != null) sandboxBadge.visibility = View.GONE
+        // Full access only where a core runs unsandboxed; a component has none of its own (TrustBadges).
+        TrustBadges.access(card.findViewById(R.id.sandboxBadge), plugin.manifest.sandboxed, component != null)
         // A third-party build says so, and whose, on the card itself: the
         // store mixes every source, and Official is never assumed.
         val thirdParty = origins.thirdParty(plugin.origin)

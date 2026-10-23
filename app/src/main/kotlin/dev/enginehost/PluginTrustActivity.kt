@@ -2,14 +2,13 @@ package dev.enginehost
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 
 /**
  * Plugins: what is installed, updates for it, and the approval decision for code
@@ -159,7 +158,9 @@ class PluginTrustActivity : EnginehostActivity() {
         emptyState.visibility = if (cards.isEmpty()) View.VISIBLE else View.GONE
         // Showing one plugin (just installed) is not the place for the updates of the others.
         if (requestedPackage == null) renderUpdates(cards.map { it.plugin }) else updatesPanel.visibility = View.GONE
-        rows.add(cards, ::addPlugin)
+        // Builds of one line are one card, newest first; cards come sorted that way already.
+        val lines = cards.groupBy { it.plugin.bundleId }.values.toList()
+        rows.add(lines, ::addLine)
     }
 
     private val rows by lazy { RowBatches(list) }
@@ -250,7 +251,10 @@ class PluginTrustActivity : EnginehostActivity() {
         }.start()
     }
 
-    private fun addPlugin(facts: CardFacts) {
+    /** One card per line (#620 E5): its newest build, with the older ones folded beneath. */
+    private fun addLine(builds: List<CardFacts>) = addPlugin(builds.first(), builds.drop(1))
+
+    private fun addPlugin(facts: CardFacts, older: List<CardFacts> = emptyList()) {
         val plugin = facts.plugin
         val ultimateBuild = facts.ultimateBuild
         val official = facts.official
@@ -262,75 +266,38 @@ class PluginTrustActivity : EnginehostActivity() {
         // build runs ("Ren'Py 7.5.x"), so two lines of one engine tell apart.
         card.findViewById<TextView>(R.id.pluginTitle).text =
             plugin.component?.let { EngineNames.component(this, it) } ?: lineName(plugin.info)
-        // The repository adds nothing where the badge already says Official.
-        card.findViewById<TextView>(R.id.trustBuildLine).text = if (official) {
-            PluginVersions.display(plugin.info.pluginVersion)
-        } else {
-            getString(
-                R.string.trust_build_line,
-                PluginVersions.display(plugin.info.pluginVersion),
-                plugin.origin.removePrefix("https://github.com/"),
-            )
+        // The build's version; where it came from is in Details (#620 E5: machinery stays out of the card).
+        card.findViewById<TextView>(R.id.trustBuildLine).text = PluginVersions.display(plugin.info.pluginVersion)
+        // A component's line says which engines load it; an engine core's sandbox is its badge (#620 E5).
+        card.findViewById<TextView>(R.id.sandboxLine).apply {
+            val serves = plugin.component?.let { EngineNames.componentServes(this@PluginTrustActivity, it) }
+            visibility = if (serves == null) View.GONE else View.VISIBLE
+            serves?.let { text = it }
         }
-        card.findViewById<TextView>(R.id.sandboxLine).text = plugin.component?.let {
-            // A component runs inside the engine that loads it; that engine's
-            // card says whether it is sandboxed.
-            EngineNames.componentServes(this, it)
-        } ?: getString(
-            when {
-                plugin.isolatable -> R.string.sandbox_yes
-                plugin.lockdown -> R.string.sandbox_locked
-                else -> R.string.sandbox_no
-            },
-        )
         showLicense(card, facts)
-        card.findViewById<TextView>(R.id.bundleId).text = plugin.bundleId
-        val details = card.findViewById<View>(R.id.trustDetails)
-        card.findViewById<TextView>(R.id.trustDetailsToggle).setOnClickListener {
-            details.visibility = if (details.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-        }
+        // Bundle id, origin and signer are the Details sheet's, not the card's (#620 E5).
+        card.findViewById<View>(R.id.trustDetails).visibility = View.GONE
+        card.findViewById<TextView>(R.id.trustDetailsToggle).setOnClickListener { showDetails(facts) }
 
-        val badge = card.findViewById<TextView>(R.id.trustBadge)
-        val (label, container, onContainer) = when {
-            ultimateBuild -> Triple(R.string.badge_ultimate, R.color.eh_caution_container, R.color.eh_on_caution_container)
-            official -> Triple(R.string.badge_official, R.color.eh_official_container, R.color.eh_on_official_container)
-            thirdParty != null -> Triple(R.string.badge_third_party, R.color.eh_community_container, R.color.eh_on_community_container)
-            else -> Triple(R.string.badge_community, R.color.eh_community_container, R.color.eh_on_community_container)
-        }
-        badge.setText(label)
-        badge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, container))
-        badge.setTextColor(ContextCompat.getColor(this, onContainer))
+        // The only badges: Official or Unofficial, and Full access where the core runs unsandboxed.
+        TrustBadges.origin(card.findViewById(R.id.trustBadge), official)
+        TrustBadges.access(card.findViewById(R.id.sandboxBadge), plugin.sandboxed, plugin.component != null)
 
-        val sandboxBadge = card.findViewById<TextView>(R.id.sandboxBadge)
-        val (sandboxLabel, sandboxContainer, sandboxOnContainer) = if (plugin.sandboxed) {
-            Triple(R.string.badge_sandboxed, R.color.eh_official_container, R.color.eh_on_official_container)
-        } else {
-            Triple(R.string.badge_unsandboxed, R.color.eh_danger_container, R.color.eh_on_danger_container)
-        }
-        sandboxBadge.setText(sandboxLabel)
-        sandboxBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, sandboxContainer))
-        sandboxBadge.setTextColor(ContextCompat.getColor(this, sandboxOnContainer))
-        if (plugin.component != null) sandboxBadge.visibility = View.GONE
-
-        card.findViewById<TextView>(R.id.originValue).text = "${getString(R.string.origin_label)}: " + if (thirdParty != null) {
-            getString(R.string.origin_verified_third_party, plugin.origin, thirdParty.maintainerName)
-        } else {
-            getString(R.string.origin_verified, plugin.origin)
-        }
-        card.findViewById<TextView>(R.id.signerValue).text =
-            "${getString(R.string.signer_label)}: ${plugin.signerIdentity}"
         val change = facts.change
         // A core signed only the legacy way never starts while the root is
         // pinned; its card offers Remove alone, not a decision that changes
         // nothing (review, 2026-10-16).
         val legacyRefused = facts.legacyRefused
-        card.findViewById<TextView>(R.id.trustState).text =
-            if (legacyRefused) {
-                // Deprecated: it will not start, and the card says what to do (owner, 2026-10-16).
-                getString(R.string.trust_state_legacy)
-            } else {
-                "${getString(R.string.trust_state_label)}: ${getString(stateLabel(state, change))}"
+        // A state line only when it is not the normal one: an approved core says nothing about it (#620 E5).
+        card.findViewById<TextView>(R.id.trustState).apply {
+            val line = when {
+                legacyRefused -> getString(R.string.trust_state_legacy)
+                state == PluginTrustState.APPROVED -> null
+                else -> getString(stateLabel(state, change))
             }
+            visibility = if (line == null) View.GONE else View.VISIBLE
+            line?.let { text = it }
+        }
 
         if (ultimateBuild) {
             // The primary developer's key proves origin more strongly than any
@@ -339,46 +306,112 @@ class PluginTrustActivity : EnginehostActivity() {
             card.findViewById<TextView>(R.id.trustWarning).visibility = View.VISIBLE
         }
 
+        // Only the buttons that apply: Approve while the build waits; Deny is in Details; Remove always.
         card.findViewById<Button>(R.id.approveButton).apply {
             // Approving a bundle that carries its own licence is accepting it.
             if (plugin.license != null) setText(R.string.approve_accept_license)
-            isEnabled = state != PluginTrustState.APPROVED && plugin.signerIdentity.isNotBlank()
-            setOnClickListener {
-                trust.approve(plugin)
-                isEnabled = false
-                // The launch that stopped here resumes only if the game now
-                // resolves to this core; finding out reads bundles.
-                Thread {
-                    val pending = runCatching { GameRunner.pendingLaunchFor(this@PluginTrustActivity, plugin) }.getOrNull()
-                    runOnUiThread {
-                        if (isDestroyed) return@runOnUiThread
-                        if (pending != null) {
-                            GameRunner.resume(this@PluginTrustActivity, pending)
-                            finish()
-                        } else {
-                            render()
-                        }
-                    }
-                }.start()
-            }
+            visibility = if (!legacyRefused && state != PluginTrustState.APPROVED && plugin.signerIdentity.isNotBlank()) View.VISIBLE else View.GONE
+            setOnClickListener { approve(plugin) }
         }
-        card.findViewById<Button>(R.id.denyButton).apply {
-            isEnabled = state != PluginTrustState.DENIED && plugin.signerIdentity.isNotBlank()
-            setOnClickListener { trust.deny(plugin); render() }
-        }
-        if (legacyRefused) {
-            card.findViewById<View>(R.id.approveButton).visibility = View.GONE
-            card.findViewById<View>(R.id.denyButton).visibility = View.GONE
-        }
-        card.findViewById<Button>(R.id.uninstallButton).setOnClickListener { button ->
-            // Removing deletes the bundle's whole tree: off the main thread.
-            button.isEnabled = false
-            Thread {
-                runCatching { PluginRegistry.uninstall(this@PluginTrustActivity, plugin) }
-                runOnUiThread { if (!isDestroyed) render() }
-            }.start()
-        }
+        card.findViewById<View>(R.id.denyButton).visibility = View.GONE
+        card.findViewById<Button>(R.id.uninstallButton).setOnClickListener { button -> remove(plugin, button) }
+        if (older.isNotEmpty()) addOlderBuilds(card as ViewGroup, older)
         list.addView(card)
+    }
+
+    private fun approve(plugin: InstalledPlugin) {
+        trust.approve(plugin)
+        // The launch that stopped here resumes only if the game now
+        // resolves to this core; finding out reads bundles.
+        Thread {
+            val pending = runCatching { GameRunner.pendingLaunchFor(this@PluginTrustActivity, plugin) }.getOrNull()
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                if (pending != null) {
+                    GameRunner.resume(this@PluginTrustActivity, pending)
+                    finish()
+                } else {
+                    render()
+                }
+            }
+        }.start()
+    }
+
+    private fun remove(plugin: InstalledPlugin, button: View) {
+        // Removing deletes the bundle's whole tree: off the main thread.
+        button.isEnabled = false
+        Thread {
+            runCatching { PluginRegistry.uninstall(this@PluginTrustActivity, plugin) }
+            runOnUiThread { if (!isDestroyed) render() }
+        }.start()
+    }
+
+    /** What a build is and who signed it, and Deny: one sheet instead of an inline block (#620 E5). */
+    private fun showDetails(facts: CardFacts) {
+        val plugin = facts.plugin
+        val origin = facts.thirdParty?.let { getString(R.string.origin_verified_third_party, plugin.origin, it.maintainerName) }
+            ?: getString(R.string.origin_verified, plugin.origin)
+        val sheet = Sheet(this)
+            .title(PluginVersions.display(plugin.info.pluginVersion))
+            .message(
+                listOf(
+                    plugin.bundleId,
+                    "${getString(R.string.origin_label)}: $origin",
+                    "${getString(R.string.signer_label)}: ${plugin.signerIdentity.ifBlank { "-" }}",
+                ).joinToString("\n"),
+            )
+        if (!facts.legacyRefused && facts.state != PluginTrustState.DENIED && plugin.signerIdentity.isNotBlank()) {
+            sheet.choice(R.string.deny, Sheet.Tone.DANGER) { trust.deny(plugin); render() }
+        }
+        sheet.choice(R.string.close) {}
+        sheet.show()
+    }
+
+    /** A line's older builds, one row each, folded under its newest (#620 E5). */
+    private fun addOlderBuilds(card: ViewGroup, older: List<CardFacts>) {
+        val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        val toggle = layoutInflater.inflate(R.layout.item_action_button, card, false) as Button
+        fun label(open: Boolean) {
+            toggle.text = getString(if (open) R.string.older_builds_hide else R.string.older_builds_show, older.size)
+        }
+        label(false)
+        toggle.setOnClickListener {
+            val open = rows.visibility != View.VISIBLE
+            rows.visibility = if (open) View.VISIBLE else View.GONE
+            label(open)
+        }
+        older.forEach { facts ->
+            val plugin = facts.plugin
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
+            row.addView(
+                TextView(this).apply {
+                    val state = if (facts.state == PluginTrustState.APPROVED && !facts.legacyRefused) null
+                    else if (facts.legacyRefused) getString(R.string.trust_state_legacy_short)
+                    else getString(stateLabel(facts.state, facts.change))
+                    text = listOfNotNull(PluginVersions.display(plugin.info.pluginVersion), state).joinToString(" · ")
+                    setOnClickListener { showDetails(facts) }
+                    isFocusable = true
+                },
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+            )
+            if (!facts.legacyRefused && facts.state != PluginTrustState.APPROVED && plugin.signerIdentity.isNotBlank()) {
+                row.addView(
+                    (layoutInflater.inflate(R.layout.item_action_button, row, false) as Button).apply {
+                        setText(if (plugin.license != null) R.string.approve_accept_license else R.string.approve)
+                        setOnClickListener { approve(plugin) }
+                    },
+                )
+            }
+            row.addView(
+                (layoutInflater.inflate(R.layout.item_action_button, row, false) as Button).apply {
+                    setText(R.string.uninstall)
+                    setOnClickListener { remove(plugin, it) }
+                },
+            )
+            rows.addView(row)
+        }
+        card.addView(toggle)
+        card.addView(rows)
     }
 
     /**
