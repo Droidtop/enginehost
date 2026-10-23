@@ -56,6 +56,11 @@ data class InstalledPlugin(
      */
     val gameWrites: List<String> = emptyList(),
     /**
+     * The runtime this core keeps packed in its resource APK, which Enginehost unpacks for it
+     * before the lockdown and checks again on every launch ([CoreUnpacker]); null for none.
+     */
+    val unpack: CoreUnpackSpec? = null,
+    /**
      * Whether this bundle's code runs correctly under the process lockdown
      * (the sandbox library, without Android isolation), on either transport.
      * Declared by the bundle once a rig run shows it does; a launch of it is
@@ -345,6 +350,7 @@ object PluginRegistry {
             json.optBoolean("isolatable", false),
             writesGameFolder = json.optBoolean("writesGameFolder", false),
             gameWrites = GameWrites.parse(json.optJSONArray("gameWrites")),
+            unpack = CoreUnpackSpec.parse(json.optJSONObject("unpack")),
             lockdown = json.optBoolean("lockdown", false),
             component = component,
             license = ComponentManifestReader.license(json.optJSONObject("license")),
@@ -362,6 +368,7 @@ object PluginRegistry {
         // Only a directory this registry lists, never a path handed in from elsewhere.
         if (discoverAll(context).none { it.directory.canonicalFile == directory }) return false
         directory.walkBottomUp().forEach { it.setWritable(true, true) }
+        if (plugin.unpack != null) CoreUnpacker.forget(context, plugin)
         return directory.deleteRecursively().also { BundleStamps(context).forget(directory) }
     }
 

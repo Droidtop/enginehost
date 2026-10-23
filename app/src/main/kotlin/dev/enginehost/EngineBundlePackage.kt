@@ -50,6 +50,8 @@ data class EngineBundleManifest(
     val writesGameFolder: Boolean = false,
     /** See InstalledPlugin.gameWrites (docs/engine-bundle-format.md "gameWrites"). */
     val gameWrites: List<String> = emptyList(),
+    /** See InstalledPlugin.unpack (docs/engine-bundle-format.md "unpack"). */
+    val unpack: CoreUnpackSpec? = null,
     /** See InstalledPlugin.lockdown (docs/engine-sandbox.md "The lockdown is how a core that cannot be isolated is sandboxed"). */
     val lockdown: Boolean = false,
     /** Set for a runtime-component bundle (`"kind": "component"`), null for an engine bundle. */
@@ -92,6 +94,7 @@ data class EngineBundleManifest(
         .put("lockdown", lockdown)
         .put("writesGameFolder", writesGameFolder)
         .put("gameWrites", JSONArray(gameWrites))
+        .putOpt("unpack", unpack?.toJson())
         .put("capabilities", JSONArray().apply { info.capabilities.forEach { put(it.toJson()) } })
         .put("kind", if (component == null) BUNDLE_KIND_ENGINE else BUNDLE_KIND_COMPONENT)
         .putOpt("component", component?.toJson())
@@ -217,6 +220,7 @@ object EngineBundleManifestReader {
             engines = engines,
             writesGameFolder = json.optBoolean("writesGameFolder", false),
             gameWrites = GameWrites.parse(json.optJSONArray("gameWrites")),
+            unpack = CoreUnpackSpec.parse(json.optJSONObject("unpack")),
             lockdown = json.optBoolean("lockdown", false),
             component = component,
             license = license,
@@ -569,7 +573,7 @@ object InstalledBundleVerifier {
 /** A payload file's identity on disk: what changes when anything writes to it or replaces it. */
 internal data class FileStamp(val size: Long, val inode: Long, val changedNs: Long, val modifiedNs: Long)
 
-private fun stampOf(file: File): FileStamp {
+internal fun stampOf(file: File): FileStamp {
     val stat = Os.stat(file.path)
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
         FileStamp(

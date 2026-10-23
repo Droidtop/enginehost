@@ -45,10 +45,16 @@ class EnginehostComponentFactory : AppComponentFactory() {
         // one lockdown, two places a core loads (docs/engine-sandbox.md, owner
         // 2026-10-17). It never runs unconfined; the resource relaunch below
         // comes back through here already confined.
+        // The core's packed runtime, unpacked by host code before any of the core's runs, and
+        // read-only to a locked-down core (CoreUnpacker; owner 2026-10-23).
+        // The resource relaunch comes back here already confined: the first pass checked it.
+        val runtimeFolder = installed.unpack?.let {
+            if (RuntimeSandbox.confined) CoreUnpacker.folder(context, installed) else CoreUnpacker.ensure(context, installed)
+        }
         if (RuntimeSandbox.locksDown(installed)) {
             val game = intent.getStringExtra(RuntimeActivity.EXTRA_PATH) ?: error("Bundled runtime omitted its game folder")
             val save = intent.getStringExtra(RuntimeActivity.EXTRA_SAVE_PATH) ?: error("Bundled runtime omitted its save folder")
-            check(RuntimeSandbox.lockdown(context, File(game), installed.writesGameFolder, File(save), listOf(installed.directory), installed.gameWrites, plugin = installed)) {
+            check(RuntimeSandbox.lockdown(context, File(game), installed.writesGameFolder, File(save), listOf(installed.directory) + listOfNotNull(runtimeFolder), installed.gameWrites, plugin = installed)) {
                 "The sandbox could not be set up for ${installed.bundleId}"
             }
         }
@@ -74,6 +80,7 @@ class EnginehostComponentFactory : AppComponentFactory() {
 
         val root = installed.directory.canonicalFile
         intent.putExtra(EXTRA_BUNDLE_ROOT, root.path)
+        runtimeFolder?.let { intent.putExtra(EXTRA_RUNTIME_FOLDER, it.path) }
         val dex = installed.dexFiles.map { safeRuntimeChild(root, it) }
         require(dex.all(File::isFile)) { "A signed runtime dex file is missing" }
         val nativePaths = Build.SUPPORTED_ABIS.map { File(root, "lib/$it") }.filter(File::isDirectory)
@@ -98,6 +105,9 @@ class EnginehostComponentFactory : AppComponentFactory() {
         private val retainedResources = mutableListOf<AutoCloseable>()
         private const val TAG = "EnginehostRuntime"
         const val EXTRA_RESOURCE_APKS = "dev.enginehost.runtime.RESOURCE_APKS"
+
+        /** The folder Enginehost unpacked the core's runtime into ([CoreUnpacker]); the core uses it, read-only. */
+        const val EXTRA_RUNTIME_FOLDER = "dev.enginehost.runtime.RUNTIME_FOLDER"
         const val EXTRA_RESOURCE_PACKAGE = "dev.enginehost.runtime.RESOURCE_PACKAGE"
         const val EXTRA_BUNDLE_ROOT = "dev.enginehost.runtime.BUNDLE_ROOT"
     }

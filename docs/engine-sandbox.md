@@ -2444,7 +2444,7 @@ Read from the dev.405 learning profiles of Ren'Py 7.5, 7.6 and 8.4 and two 8.4 l
   the launch (`/home`, `/usr/lib`, `/var/adm`, `/proc/<pid>/cgroup`, `/dev/cpuctl`, ART's
   profile file) is refused, and Ren'Py carries on without it.
 
-Order: the preset (done with this note), the game-writes field, the host unpack, the wrapper's
+Order: the preset (done with this note), the game-writes field (`gameWrites`), the host unpack (`unpack`, `CoreUnpacker`), the wrapper's
 external folder, then the library's brokered watch. Then lockdown 1 with audit 1 on 7.5, 7.6
 and 8.4 on the rig, and Ren'Py declares `lockdown` once all three play.
 

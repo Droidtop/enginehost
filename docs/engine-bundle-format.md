@@ -972,6 +972,24 @@ A path that is absolute, empty, or has `.`, `..` or an empty segment is refused,
 the bundle. `writesGameFolder: true` still makes the whole folder writable. A host older than
 this field ignores it.
 
+## `unpack` (2026-10-23)
+
+Optional object: a runtime the core keeps packed in its resource APK, which Enginehost
+unpacks for it. `{"apk": "runtime.apk", "asset": "assets/private.mp3", "stampFile":
+"private.version", "stamp": "<the packed engine's identity>"}`. `apk` is one of the bundle's
+`resourceApks`; `asset` is a tar.gz inside it (plain files and folders only: a link, device or a
+path with `.` or `..` refuses it); `stamp` is written to `stampFile` in the unpacked folder,
+which is how the core recognises the runtime as already unpacked (RAPT's `private.version`).
+
+Enginehost unpacks it, before the core's code loads and before any lockdown, into
+`files/core-runtime/runtime-<bundleId>--<archive digest>`, one folder per installed build. It
+records the stamps of every file (size, inode, change and modification times) and compares them
+on every launch: any file added, removed or written unpacks it again from the verified bundle.
+The folder is passed to the core as `dev.enginehost.runtime.RUNTIME_FOLDER` and, under the
+lockdown, is read-only to it (owner, 2026-10-23: the runtime is part of the core; the host
+unpacks it and the core reads it). Removing the build removes the folder. A host older than this
+field ignores it, and the core unpacks itself as before.
+
 ## `lockdown` (2026-10-17)
 
 Optional, boolean, default `false`, on either transport. `true` says the core
