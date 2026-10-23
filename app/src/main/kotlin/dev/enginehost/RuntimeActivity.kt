@@ -339,6 +339,9 @@ class RuntimeActivity : FragmentActivity() {
     companion object {
         private const val TAG = "enginehost-runtime"
         const val STARTUP_FAILED = "Core startup failed: "
+
+        /** An engine's [dev.enginehost.api.EngineHost.fail] once its game was on screen (the isolated runtime knows). */
+        const val GAME_STOPPED = "The game stopped: "
         private const val REQUEST_PATCH = 0x9a71
         const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
         /** On a failed startup's result: the sentence the runtime has for the launch screen. */

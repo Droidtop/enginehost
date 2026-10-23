@@ -673,6 +673,12 @@ the same end as a core whose `onCreate` throws. For an engine that learns of
 the failure only after `onCreate` returned (Godot 4.0 and 4.1 start inside the
 fragment's view) and would otherwise show its own alert over a black screen.
 Same compatibility rule as `restart`: fall back to `finish()` on an older host.
+Since 2026-10-23 it is also how an engine that cannot go on mid-game ends
+(OpenBGI's script reaching an instruction it does not run yet, Droidtop/tracker#604),
+rather than ending as if the game had quit: the person gets the reason and Report.
+The isolated runtime says "The game stopped:" before the message once a frame
+has reached the screen, "Core startup failed:" before that; the in-process
+runtime cannot tell the two apart and always says the latter.
 
 `EngineHost.restart(arguments)` and `EngineHost.restartArguments()`
 (2026-09-18): ends the runtime and starts the same game again in a fresh

@@ -133,6 +133,12 @@ public interface EngineHost {
      * and would otherwise answer with its own alert over a black screen. Same
      * compatibility rule as {@link #restart}: on an older Enginehost fall back
      * to {@link #finish()}.
+     *
+     * <p>Also for an engine that cannot go on once its game is running (a
+     * script that reaches an instruction the engine cannot run): ending with
+     * this instead of a plain end puts the reason and Report a problem in
+     * front of the person. The isolated runtime words it as the game having
+     * stopped once a frame has been drawn (2026-10-23).
      */
     void fail(String message);
 }

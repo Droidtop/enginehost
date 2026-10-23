@@ -72,6 +72,9 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
     private var frameBufferFile: File? = null
     private var frameBytes: ByteArray = ByteArray(0)
     private var stepping = false
+
+    /** A frame has reached the screen: an engine's [EngineHost.fail] from here on is the game stopping, not a failed start. */
+    @Volatile private var showedGame = false
     private var audioBridge: IsolatedAudioBridge? = null
     /**
      * Set once by [start]; also used from [frameStep] when the isolated
@@ -155,7 +158,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                                 HostFileBroker(saveFolder, readOnly = false),
                                 gameFolder.absolutePath, installed.writesGameFolder, saveFolder.absolutePath,
                                 bridge?.pluginSideBuffer(), bridge?.sampleRate ?: 0,
-                                HostRuntimeCallback(activity),
+                                HostRuntimeCallback(activity) { showedGame },
                             )
                         } finally {
                             // AIDL duplicates each descriptor across the binder call; this
@@ -377,6 +380,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
             }
             if (band > 0) {
                 readChangedRows(band)
+                showedGame = true
                 val snapshot = pixels.copyOf()
                 activity.runOnUiThread { view?.applyFrame(snapshot, band) }
             }
@@ -726,7 +730,10 @@ private class HostFileBroker(private val root: File, private val readOnly: Boole
 }
 
 /** [IEngineRuntimeCallback]: EngineHost calls that only this ("runtime") process's Activity, vibrator etc. can carry out. */
-private class HostRuntimeCallback(private val activity: RuntimeActivity) : IEngineRuntimeCallback.Stub() {
+private class HostRuntimeCallback(
+    private val activity: RuntimeActivity,
+    private val showedGame: () -> Boolean,
+) : IEngineRuntimeCallback.Stub() {
     override fun log(priority: Int, tag: String, message: String) {
         Log.println(priority, "enginehost/$tag", message)
         HostEvents.recordEngine(activity, priority, tag, message)
@@ -756,7 +763,8 @@ private class HostRuntimeCallback(private val activity: RuntimeActivity) : IEngi
     }
 
     override fun fail(message: String) {
-        activity.runOnUiThread { activity.failAndFinish(RuntimeActivity.STARTUP_FAILED + message) }
+        val prefix = if (showedGame()) RuntimeActivity.GAME_STOPPED else RuntimeActivity.STARTUP_FAILED
+        activity.runOnUiThread { activity.failAndFinish(prefix + message) }
     }
 }
 
