@@ -263,6 +263,43 @@ key:
   or trust screen for its core carries no caller once it resumes, and reports to
   nobody either (`LaunchActivity.reportGameEnded`).
 
+## droidtop's plugin interface (Droidtop/tracker#547)
+
+The owner, 2026-10-23: "The two applications should detect and work with each
+other over the plugin API so no matter what, saves go where they're needed".
+Enginehost is one of droidtop's `app_interface` plugins (droidtop
+`docs/plugin-api.md` 1.3 and A7a). Enginehost never assumes droidtop exists:
+without it, none of this runs and nothing waits for it.
+
+- **The manifest** is the asset `assets/droidtop-plugin.json`: kind
+  `app_interface`, the app `dev.enginehost` and its service
+  `dev.enginehost.DroidtopInterfaceService`. It provides `saves.locations@1`
+  and asks for `saves.exchange` and `library.read`, each with its reason.
+  Its `version` moves whenever the asset changes.
+- **The service** answers the action `dev.droidtop.plugin.APP_INTERFACE`
+  with droidtop's `IPluginRuntime` (its AIDL copied unchanged under
+  `app/src/main/aidl/dev/droidtop/pluginhost`). It answers **only droidtop**:
+  the calling uid must be `dev.droidtop.app`, signed by a certificate
+  pinned in `DroidtopLink.DROIDTOP_CERTS`. Every other caller gets
+  `PERMISSION_DENIED`, or `false` from `loadContained`. `loadContained` keeps the
+  broker droidtop hands over (`DroidtopLink`); `unloadPlugin` drops it. No
+  screens, jobs, relays or `invoke`.
+- **`saves.locations` `list`** answers, per game folder droidtop names, where
+  Enginehost keeps its saves, from the same rules as everything else here
+  (`SaveFolders.placeOf`):
+  - `game_folder`: the game's own folder, for engines that save beside the game;
+  - `runner_folder`: the per-game folder Enginehost names, or the folder the
+    engine reported it saves in (`EngineSaveFolders`);
+  - `runner_root` with `engineNames: true`: the save root, for an engine that
+    names its own folder inside it and has not reported it yet;
+  - a synced launch's `synced-saves` folder for the game, when one exists, as
+    one more `runner_folder`.
+
+  A folder Enginehost cannot read a config for gets no locations.
+- **Asking droidtop** (`saves where` before a launch, `saves report_changed`
+  after it, `library.read list_engine_games`, and knocking on droidtop's door
+  when there is no broker) follows in the next changes.
+
 ## On-device tools
 
 The first-class UI is a config creator built around Android's system folder

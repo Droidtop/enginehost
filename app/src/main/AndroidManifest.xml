@@ -249,6 +249,15 @@
             android:theme="@style/Theme.Enginehost.Launch"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
+        <!-- droidtop's app_interface plugin binding (Droidtop/tracker#547). Exported because droidtop binds it;
+             the service itself answers only droidtop's uid with a pinned signing certificate (DroidtopLink). -->
+        <service
+            android:name=".DroidtopInterfaceService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.droidtop.plugin.APP_INTERFACE" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>
