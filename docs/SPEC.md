@@ -325,6 +325,15 @@ that names them, for the controller screen, the in-game Controls sheet, the host
 and the profile page; a keyboard key keeps its own name, made readable (#620 E8). "Bypass" is
 not a word the person sees: the switch reads "Let the game read the pad itself".
 
+Which map is being edited is one short list with the chosen one filled and checked. Opened for
+a game it is "This game", "This engine: <name>" and "Other maps" (a sheet with All engines and
+the other engines); from Settings it is All engines and each installed engine. Engines that read
+the pad themselves are not offered, since nothing here reaches them; one line names them. While
+a button or the shortcut is being captured, a Cancel button shows and Back cancels the capture
+instead of leaving the screen. The shortcut, profile and "read the pad itself" rows are settings,
+so they use the secondary button style; a disabled filled button's label uses the secondary text
+colour, readable on its grey fill.
+
 ## Wide windows: Home's list and the game page side by side
 
 From 840dp wide (`SizeClass.EXPANDED_MIN_DP`) Home shows the library column and a

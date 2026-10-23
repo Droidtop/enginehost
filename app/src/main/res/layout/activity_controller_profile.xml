@@ -71,14 +71,14 @@
 
         <Button
             android:id="@+id/clearButton"
-            style="@style/Widget.Enginehost.Button"
+            style="@style/Widget.Enginehost.Button.Secondary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s" />
 
         <Button
             android:id="@+id/bypassProfileButton"
-            style="@style/Widget.Enginehost.Button"
+            style="@style/Widget.Enginehost.Button.Secondary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s" />

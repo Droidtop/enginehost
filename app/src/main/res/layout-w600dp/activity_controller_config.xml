@@ -82,6 +82,21 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical" />
 
+
+                <TextView
+
+                    android:id="@+id/nativeEnginesNote"
+
+                    android:layout_width="match_parent"
+
+                    android:layout_height="wrap_content"
+
+                    android:layout_marginTop="@dimen/eh_space_xs"
+
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+
+                    android:visibility="gone" />
+
                 <Button
                     android:id="@+id/resetButton"
                     style="@style/Widget.Enginehost.Button.Danger"
@@ -103,7 +118,7 @@
 
             <Button
                 android:id="@+id/hotkeyButton"
-                style="@style/Widget.Enginehost.Button"
+                style="@style/Widget.Enginehost.Button.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
@@ -115,7 +130,7 @@
 
             <Button
                 android:id="@+id/profileButton"
-                style="@style/Widget.Enginehost.Button"
+                style="@style/Widget.Enginehost.Button.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/eh_space_s" />
@@ -128,7 +143,7 @@
 
             <Button
                 android:id="@+id/bypassButton"
-                style="@style/Widget.Enginehost.Button"
+                style="@style/Widget.Enginehost.Button.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/eh_space_xs"
@@ -136,10 +151,27 @@
 
             <Button
                 android:id="@+id/unbindButton"
-                style="@style/Widget.Enginehost.Button"
+                style="@style/Widget.Enginehost.Button.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/eh_space_xs"
+                android:visibility="gone" />
+
+
+            <Button
+
+                android:id="@+id/cancelCaptureButton"
+
+                style="@style/Widget.Enginehost.Button.Secondary"
+
+                android:layout_width="match_parent"
+
+                android:layout_height="wrap_content"
+
+                android:layout_marginTop="@dimen/eh_space_s"
+
+                android:text="@string/cancel"
+
                 android:visibility="gone" />
 
             <ScrollView

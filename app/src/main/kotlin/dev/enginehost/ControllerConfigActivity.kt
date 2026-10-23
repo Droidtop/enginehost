@@ -27,6 +27,8 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
     private lateinit var profileButton: Button
     private lateinit var bypassButton: Button
     private lateinit var unbindButton: Button
+    private lateinit var cancelCaptureButton: Button
+    private lateinit var nativeEnginesNote: TextView
     private lateinit var resetButton: Button
     private lateinit var store: ControllerBindingStore
     private lateinit var hotkeys: HostMenuHotkeyStore
@@ -112,6 +114,7 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
         wireBackButton()
         connectedControllers = findViewById(R.id.connectedControllers)
         scopeList = findViewById(R.id.scopeList)
+        nativeEnginesNote = findViewById(R.id.nativeEnginesNote)
         scopeHint = findViewById(R.id.scopeHint)
         bindingList = findViewById(R.id.bindingList)
         hotkeyButton = findViewById(R.id.hotkeyButton)
@@ -146,6 +149,9 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
             }
             render()
         }
+        // A capture says how to get out of it (#620 E8): before, B or Back left the whole screen.
+        cancelCaptureButton = findViewById(R.id.cancelCaptureButton)
+        cancelCaptureButton.setOnClickListener { cancelCapture() }
         resetButton = findViewById(R.id.resetButton)
         resetButton.setOnClickListener { capturing = null; store.reset(); render() }
         (getSystemService(Context.INPUT_SERVICE) as InputManager).registerInputDeviceListener(this, null)
@@ -185,10 +191,7 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
             ),
         )
 
-        scopeList.removeAllViews()
-        if (gamePath != null) addScopeButton(gameScope, getString(R.string.this_game), game = true)
-        addScopeButton(null, getString(R.string.all_engines))
-        installedScopes.forEach { (id, label) -> addScopeButton(id, label) }
+        renderScopes()
 
         // A bypassed engine reads the pad itself: the host sends it no map
         // at all, so the rows below are shown as what they would be rather
@@ -210,6 +213,7 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
 
         val target = capturing
         unbindButton.visibility = if (target == null && pendingHotkey == null) View.GONE else View.VISIBLE
+        cancelCaptureButton.visibility = unbindButton.visibility
         when {
             pendingHotkey != null -> unbindButton.text = getString(R.string.host_menu_hotkey_default)
             target != null -> unbindButton.text = getString(R.string.unbind_action, target.title)
@@ -223,9 +227,9 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
             ?: when {
                 editingGame -> getString(R.string.game_map_hint)
                 scope == null -> getString(R.string.global_map_hint)
-                bypassed -> getString(R.string.bypass_hint, scope)
-                scope in nativeInputScopes -> getString(R.string.native_engine_hint, scope)
-                else -> getString(R.string.scoped_hint, scope)
+                bypassed -> getString(R.string.bypass_hint, scopeName(scope))
+                scope in nativeInputScopes -> getString(R.string.native_engine_hint, scopeName(scope))
+                else -> getString(R.string.scoped_hint, scopeName(scope))
             }
 
         bindingList.removeAllViews()
@@ -254,7 +258,7 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
         resetButton.text = when {
             editingGame -> getString(R.string.reset_game)
             scope == null -> getString(R.string.reset_all)
-            else -> getString(R.string.reset_scope, scope)
+            else -> getString(R.string.reset_scope, scopeName(scope))
         }
     }
 
@@ -267,17 +271,61 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
         },
     )
 
-    private fun addScopeButton(engine: String?, label: String, game: Boolean = false) {
-        val button = layoutInflater.inflate(R.layout.item_action_button, scopeList, false) as Button
-        button.text = buildString {
-            append(label)
-            if (!game && engine != null && engine in nativeInputScopes) {
-                append("  ").append(getString(R.string.marker_native))
+    /**
+     * Which map the rows below edit (#620 E8). Opened for a game: "This game" and "This engine",
+     * with every other map behind "Other maps". Opened from Settings: All engines and each
+     * installed engine. The chosen one is the filled button with a check. Engines that read the
+     * pad themselves are not offered (nothing here reaches them); one line names them instead.
+     */
+    private fun renderScopes() {
+        scopeList.removeAllViews()
+        val mappable = installedScopes.filterNot { it.first in nativeInputScopes }
+        if (gamePath != null) {
+            addScopeButton(getString(R.string.this_game), selected = editingGame) { switchScope(gameScope, game = true) }
+            gameScope?.takeIf { it !in nativeInputScopes }?.let { engine ->
+                addScopeButton(getString(R.string.this_engine, scopeName(engine)), selected = !editingGame && scope == engine) {
+                    switchScope(engine)
+                }
             }
-            if (if (game) editingGame else !editingGame && scope == engine) append("  ").append(getString(R.string.marker_editing))
+            val elsewhere = !editingGame && scope != gameScope
+            addScopeButton(
+                if (elsewhere) getString(R.string.other_maps_current, scopeName(scope)) else getString(R.string.other_maps),
+                selected = elsewhere,
+            ) {
+                val sheet = Sheet(this).title(R.string.other_maps)
+                sheet.choice(getString(R.string.all_engines), current = !editingGame && scope == null) { switchScope(null) }
+                mappable.filter { it.first != gameScope }.forEach { (id, label) ->
+                    sheet.choice(label, current = !editingGame && scope == id) { switchScope(id) }
+                }
+                sheet.show()
+            }
+        } else {
+            addScopeButton(getString(R.string.all_engines), selected = scope == null) { switchScope(null) }
+            mappable.forEach { (id, label) -> addScopeButton(label, selected = scope == id) { switchScope(id) } }
         }
-        button.setOnClickListener { switchScope(engine, game) }
+        val selfReading = installedScopes.filter { it.first in nativeInputScopes }.map { it.second }
+        nativeEnginesNote.visibility = if (selfReading.isEmpty()) View.GONE else View.VISIBLE
+        nativeEnginesNote.text = getString(R.string.native_engines_note, selfReading.joinToString(", "))
+    }
+
+    private fun addScopeButton(label: String, selected: Boolean, pick: () -> Unit) {
+        val layout = if (selected) R.layout.item_primary_button else R.layout.item_action_button
+        val button = layoutInflater.inflate(layout, scopeList, false) as Button
+        button.text = if (selected) getString(R.string.scope_selected, label) else label
+        button.isSelected = selected
+        button.setOnClickListener { pick() }
         scopeList.addView(button)
+    }
+
+    /** An engine's name as the rest of the app writes it; All engines for none. */
+    private fun scopeName(id: String?): String =
+        if (id == null) getString(R.string.all_engines) else installedScopes.firstOrNull { it.first == id }?.second ?: id
+
+    private fun cancelCapture() {
+        capturing = null
+        hotkeyCapture = null
+        hotkeyHeld.clear()
+        render()
     }
 
     private fun switchScope(engine: String?, game: Boolean = false) {
@@ -291,6 +339,11 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Back during a capture cancels the capture, not the screen.
+        if ((capturing != null || hotkeyCapture != null) && event.keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event.action == KeyEvent.ACTION_UP) cancelCapture()
+            return true
+        }
         hotkeyCapture?.let { pending ->
             if (!event.isControllerInput()) return@let
             when (event.action) {
