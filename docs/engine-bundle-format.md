@@ -628,6 +628,15 @@ preferably to having it ourselves". This applies to every core, not only Godot:
    Where the game's Godot build had Spine compiled into its engine (every
    Spine game in the library today), the spine-godot component is the stand-in.
 
+**Enginehost only runs native cores (owner, 2026-10-23).** "We will never run
+a whole build in fex using enginehost. That defeats the PURPOSE of enginehost,
+which is to streamline game execution". A game runs in Enginehost on an
+Android core, or not at all. A native library the game ships for its desktop
+platform alone is answered by preference 2 (Enginehost provides an Android
+build of it). Where no Android build can be provided, the game is not
+supported in Enginehost. Emulating a desktop build (FEX, Box64, Wine) is
+droidtop's Wine/Linux runtime, never Enginehost.
+
 **What a game can depend on.** Two things, resolved by one mechanism:
 
 - **GDExtensions the game ships.** A game carries `*.gdextension` files
