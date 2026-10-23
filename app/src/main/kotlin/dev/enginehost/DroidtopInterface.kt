@@ -90,8 +90,8 @@ class DroidtopInterfaceService : Service() {
             val op = envelope.optString("op")
             return try {
                 when {
-                    point == "saves.locations" && op == "list" ->
-                        ok(SaveLocations.list(context, envelope.optJSONObject("args") ?: JSONObject()))
+                    point == "saves.roots" && op == "roots" ->
+                        ok(SaveRoots.roots(context, envelope.optJSONObject("args") ?: JSONObject()))
                     else -> error("UNSUPPORTED", "Enginehost does not provide $point $op")
                 }
             } catch (e: IllegalArgumentException) {
@@ -118,45 +118,63 @@ class DroidtopInterfaceService : Service() {
 }
 
 /**
- * droidtop's `saves.locations@1`: where Enginehost keeps each game's saves,
- * as facts for droidtop's save model (droidtop writes nothing because of them alone).
+ * droidtop's `saves.roots@1` (Droidtop/tracker#546 section 8, checks C10 and D12; shape on #547):
+ * where Enginehost keeps saves, as roots. droidtop finds the saves inside them with each game's
+ * own save rule and writes nothing because of this answer alone.
  */
-internal object SaveLocations {
-    /** `{games: [{gameId, path, engine?, title?}]}` -> `{games: [{gameId, locations: [{path, place, engineNames?}]}]}`. */
-    fun list(context: Context, args: JSONObject): JSONObject {
+internal object SaveRoots {
+    /**
+     * `{games: [{entryId, folder, engine, context?}]}` -> `{default, families: {<engine>: path}, games: [{entryId, folder?}]}`.
+     * Nothing is created to answer: a root that does not exist yet is named as it will be.
+     */
+    fun roots(context: Context, args: JSONObject): JSONObject {
         val games = args.optJSONArray("games") ?: throw IllegalArgumentException("games is missing")
+        val store = SaveLocationStore(context)
+        val asked = (0 until games.length()).mapNotNull { games.optJSONObject(it) }.mapNotNull { game ->
+            val entryId = game.optString("entryId").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val folder = game.optString("folder").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            entryId to hostNamedFolder(context, store, File(folder))
+        }
+        return answer(
+            default = File(store.root(), SAVES),
+            families = store.overrides().mapValues { (_, root) -> File(root, SAVES) },
+            games = asked,
+        )
+    }
+
+    /**
+     * The reply from its parts. A family is listed only where its root differs from [default];
+     * a game's folder only where the host names it, so droidtop never reads a folder of ours as
+     * the place an engine chose for itself.
+     */
+    internal fun answer(default: File, families: Map<String, File>, games: List<Pair<String, File?>>): JSONObject {
+        val familyRoots = JSONObject()
+        families.filterValues { it.absolutePath != default.absolutePath }
+            .toSortedMap()
+            .forEach { (family, root) -> familyRoots.put(family, root.absolutePath) }
         val answers = JSONArray()
-        for (i in 0 until games.length()) {
-            val game = games.optJSONObject(i) ?: continue
-            val gameId = game.optString("gameId").takeIf { it.isNotBlank() } ?: continue
-            val path = game.optString("path").takeIf { it.isNotBlank() } ?: continue
-            answers.put(JSONObject().put("gameId", gameId).put("locations", locationsOf(context, File(path))))
+        games.forEach { (entryId, folder) ->
+            answers.put(JSONObject().put("entryId", entryId).apply { folder?.let { put("folder", it.absolutePath) } })
         }
-        return JSONObject().put("games", answers)
+        return JSONObject().put("default", default.absolutePath).put("families", familyRoots).put("games", answers)
     }
 
-    private fun locationsOf(context: Context, folder: File): JSONArray {
-        val out = JSONArray()
-        val config = runCatching { GameRunner.launchConfig(context, folder) }.getOrNull() ?: return out
-        val saves = SaveLocationStore(context)
-        val root = saves.rootFor(config.engine)
-        when (SaveFolders.placeOf(config.engine, config.engineContext)) {
-            SaveFolders.Place.BESIDE_THE_GAME -> out.put(location(folder, "game_folder"))
-            SaveFolders.Place.NAMED_BY_THE_HOST -> out.put(location(saves.saveFolderPathFor(config), "runner_folder"))
-            SaveFolders.Place.ENGINE_NAMESPACE -> {
-                val saveRoot = File(root, "saves")
-                // The folder the engine itself named, when it reported one (EngineSaveFolders); else the root it names inside.
-                val reported = EngineSaveFolders.recorded(context, folder, saveRoot)
-                if (reported != null) out.put(location(reported, "runner_folder"))
-                else out.put(location(saveRoot, "runner_root").put("engineNames", true))
-            }
+    /**
+     * The game's own folder inside its family's root, when Enginehost names it: an engine whose
+     * save folder the host names (HTML, Flash/AIR, CatSystem2, web RPG Maker MV/MZ), or the
+     * per-game folder a synced launch made (docs/contract.md "synced-saves"). Null where the
+     * engine names its own folder or saves beside the game; droidtop's save rules find those.
+     */
+    private fun hostNamedFolder(context: Context, store: SaveLocationStore, gameFolder: File): File? {
+        val config = runCatching { GameRunner.launchConfig(context, gameFolder) }.getOrNull() ?: return null
+        if (SaveFolders.placeOf(config.engine, config.engineContext) == SaveFolders.Place.NAMED_BY_THE_HOST) {
+            return store.saveFolderPathFor(config)
         }
-        // A synced launch's own folder for this game (docs/contract.md "synced-saves"), when one was made.
-        SaveLocationStore.syncedFolderIn(root, folder).takeIf { it.isDirectory }?.let { out.put(location(it, "runner_folder")) }
-        return out
+        return SaveLocationStore.syncedFolderIn(store.rootFor(config.engine), gameFolder).takeIf { it.isDirectory }
     }
 
-    private fun location(path: File, place: String) = JSONObject().put("path", path.absolutePath).put("place", place)
+    /** The folder name every save root ends in (`SaveLocationStore.saveRootFor`; D12 checks it). */
+    private const val SAVES = "saves"
 }
 
 /**

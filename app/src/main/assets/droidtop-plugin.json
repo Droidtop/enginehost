@@ -2,7 +2,7 @@
   "id": "dev.enginehost.app",
   "origin": "enginehost",
   "label": "Enginehost",
-  "version": "1",
+  "version": "2",
   "kind": "app_interface",
   "contractVersion": 3,
   "minDroidtop": "0.2",
@@ -12,7 +12,7 @@
   },
   "provides": [
     {
-      "point": "saves.locations",
+      "point": "saves.roots",
       "version": 1,
       "id": "enginehost",
       "label": "Enginehost games"

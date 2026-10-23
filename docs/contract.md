@@ -273,7 +273,7 @@ without it, none of this runs and nothing waits for it.
 
 - **The manifest** is the asset `assets/droidtop-plugin.json`: kind
   `app_interface`, the app `dev.enginehost` and its service
-  `dev.enginehost.DroidtopInterfaceService`. It provides `saves.locations@1`
+  `dev.enginehost.DroidtopInterfaceService`. It provides `saves.roots@1`
   and asks for `saves.exchange` and `library.read`, each with its reason.
   Its `version` moves whenever the asset changes.
 - **The service** answers the action `dev.droidtop.plugin.APP_INTERFACE`
@@ -285,18 +285,23 @@ without it, none of this runs and nothing waits for it.
   `PERMISSION_DENIED`, or `false` from `loadContained`. `loadContained` keeps the
   broker droidtop hands over (`DroidtopLink`); `unloadPlugin` drops it. No
   screens, jobs, relays or `invoke`.
-- **`saves.locations` `list`** answers, per game folder droidtop names, where
-  Enginehost keeps its saves, from the same rules as everything else here
-  (`SaveFolders.placeOf`):
-  - `game_folder`: the game's own folder, for engines that save beside the game;
-  - `runner_folder`: the per-game folder Enginehost names, or the folder the
-    engine reported it saves in (`EngineSaveFolders`);
-  - `runner_root` with `engineNames: true`: the save root, for an engine that
-    names its own folder inside it and has not reported it yet;
-  - a synced launch's `synced-saves` folder for the game, when one exists, as
-    one more `runner_folder`.
+- **`saves.roots` `roots`** (droidtop's #546 design, section 8; the shape is on
+  Droidtop/tracker#547). It replaced `saves.locations@1` on 2026-10-23: droidtop asks
+  one thing, under one mechanism per job. `{games: [{entryId, folder, engine, context?}]}`
+  is answered with `{default, families, games: [{entryId, folder?}]}`:
+  - `default`: Enginehost's save root, `<root>/saves` (`SaveLocationStore`), where it is
+    whether or not it exists yet. Nothing is created to answer.
+  - `families`: the save root of each engine the person gave its own folder in
+    Settings > Saves, keyed by Enginehost's engine name, only where it differs from
+    `default`.
+  - `games[].folder`: the game's own folder inside its root, only where Enginehost names
+    it: an engine whose folder the host names (`SaveFolders.Place.NAMED_BY_THE_HOST`), or
+    the game's `synced-saves` folder when a synced launch made one. Left out where the
+    engine names its own folder or saves beside the game; droidtop's save rules find
+    those.
 
-  A folder Enginehost cannot read a config for gets no locations.
+  Roots only, never files. droidtop checks every path (C10, D12) before using it and
+  writes nothing because of this answer alone.
 - **Before a launch** droidtop did not make, whose caller names no `saveRoot`
   (a launch from inside Enginehost, or from any other app), Enginehost asks
   droidtop's `saves where {path}` (`DroidtopSaves`). When droidtop keeps the
