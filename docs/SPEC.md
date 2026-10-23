@@ -334,6 +334,13 @@ that names them, for the controller screen, the in-game Controls sheet, the host
 and the profile page; a keyboard key keeps its own name, made readable (#620 E8). "Bypass" is
 not a word the person sees: the switch reads "Let the game read the pad itself".
 
+Controls are drawn as glyphs, mapped to the controller's profile (owner, 2026-10-23: "Drawn
+button glyphs, mapped to the controller profiles"). A pad's profile says which family's labels it
+prints (Xbox ABXY, PlayStation cross/circle/square/triangle, Nintendo with A on the right), from
+what the pad reports or as the person sets it, and every control surface draws that family's
+glyph for the button that does the job. `PadNames` stays the text for keyboard keys and for
+screen readers.
+
 Which map is being edited is one short list with the chosen one filled and checked. Opened for
 a game it is "This game", "This engine: <name>" and "Other maps" (a sheet with All engines and
 the other engines); from Settings it is All engines and each installed engine. Engines that read

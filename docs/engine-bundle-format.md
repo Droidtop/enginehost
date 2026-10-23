@@ -502,6 +502,21 @@ instead of failing to parse a manifest with no entry point, which would have
 failed that repository's whole catalog. Enginehost now reads both, as do the
 plugins index generator (droidtop-platforms) and the release tooling here.
 
+### A game asks, and receives (decided 2026-10-23)
+
+The owner, on how a component reaches a game: "spine works like all subplugins do: games asks, and
+it receives". So a component is requested by the running game, not predicted before it starts:
+the core's engine notices the game loading an extension it does not have, asks Enginehost for it
+through the plugin API, and waits. Enginehost installs the component bundle if it is not
+installed, shows its licence for acceptance if it is not approved, and hands the core its verified
+root, and the engine then loads it and carries on. As an engine, it can wait without the game
+noticing more than a pause (owner, earlier: "it should wait. Luckily, as the engine, we have more
+control than if we were stalling a separate process").
+
+This replaces deciding before the launch. `SpineSkeletonScan`, `runtimeRequirements` as a
+launch-time filter and the selection by `loadsComponents` below describe what is built today and
+go when the request path is built (Droidtop/tracker#291).
+
 ### Which capabilities load which components
 
 A capability declares the components it can load in `loadsComponents`, by
