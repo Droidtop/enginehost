@@ -327,6 +327,9 @@ without it, none of this runs and nothing waits for it.
   Enginehost knocks on droidtop's door (`IAppInterfaceDoor.knock`, action
   `dev.droidtop.plugin.APP_INTERFACE_DOOR`) and waits up to five seconds for
   droidtop to bind it and hand one over.
+- **When Enginehost starts** (its default process), it knocks once in the same way, so apps with an
+  application-interface layer announce themselves (owner, Droidtop/tracker#547). The answer is not
+  waited on: droidtop either binds Enginehost, or says itself that Enginehost is not added yet.
 
 ## On-device tools
 

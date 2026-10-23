@@ -22,6 +22,8 @@ class EnginehostApplication : Application() {
             // The only process a person ever sees Enginehost's own UI in;
             // a game's runtime crash is CrashWatch's job, not this one's.
             HostCrashWatch.install(this)
+            // Apps with an application-interface layer announce themselves to droidtop (#547).
+            DroidtopSaves.announce(this)
         }
         // The sandbox goes on before anything else in either runtime
         // process, so no engine code ever runs without it. Layer 2

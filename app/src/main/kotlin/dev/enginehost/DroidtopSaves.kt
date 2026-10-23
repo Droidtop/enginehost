@@ -80,6 +80,20 @@ object DroidtopSaves {
     }
 
     /**
+     * Announces Enginehost to droidtop once as the app starts: apps with an
+     * application-interface layer register themselves (owner, Droidtop/tracker#547).
+     * One knock, on its own thread, only when droidtop is installed and has not
+     * connected; the answer is not needed (true: droidtop connected; false: it is
+     * not added yet, and droidtop tells the person).
+     */
+    fun announce(context: Context) {
+        val app = context.applicationContext
+        Thread {
+            runCatching { if (installed(app) && !DroidtopLink.isConnected()) knock(app) }
+        }.apply { isDaemon = true }.start()
+    }
+
+    /**
      * A broker, knocking on droidtop's door when there is none (droidtop binds
      * this app's service and hands one over). False when none came in time.
      */
