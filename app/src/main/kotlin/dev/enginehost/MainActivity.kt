@@ -288,7 +288,10 @@ class MainActivity : EnginehostActivity() {
     /** Games added by hand have no scan behind them; read each folder once, off the main thread, and redraw. */
     private fun classifyWaitingGames() {
         Thread {
-            if (LibraryClassifier.classifyPending(applicationContext)) runOnUiThread { if (!isDestroyed) browser.reload() }
+            // droidtop's engine games first (Droidtop/tracker#547), so they are classified with the rest.
+            val registered = runCatching { DroidtopLibrary.syncIfDue(applicationContext) }.getOrDefault(false)
+            val classified = LibraryClassifier.classifyPending(applicationContext)
+            if (registered || classified) runOnUiThread { if (!isDestroyed) browser.reload() }
         }.apply { isDaemon = true }.start()
     }
 
