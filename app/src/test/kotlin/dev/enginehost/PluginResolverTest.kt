@@ -128,6 +128,54 @@ class PluginResolverTest {
         assertEquals("godot-b", resolved?.plugin?.bundleId)
     }
 
+    @Test
+    fun `an older build of a line never runs because the newest cannot serve the game`() {
+        // #604: v2 1.1.4 carried Spine itself; v2 1.2.2 loads it from a component not approved
+        // yet. v1 carries Spine and is a different line, so it is the one that runs.
+        val olderWithSpine = line("godot-v2", "1.1.4", capability("spine", mapOf("spine-godot" to "4.2")))
+        val newestLoadsIt = line("godot-v2", "1.2.2", capability("stock", emptyMap()))
+        val otherLine = line("godot-v1", "1.0.7", capability("spine", mapOf("spine-godot" to "4.2")))
+
+        val resolved = PluginResolver.resolve(
+            listOf(olderWithSpine, newestLoadsIt, otherLine), "godot", null, Version.parse("4.5.1"),
+            mapOf("spine-godot" to Version.parse("4.2")), null,
+        )
+
+        assertEquals("godot-v1" to "1.0.7", resolved?.plugin?.let { it.bundleId to it.info.pluginVersion.toString() })
+    }
+
+    @Test
+    fun `the allowlist still picks an older build of a line`() {
+        val older = line("godot-v2", "1.1.4", capability("stock", emptyMap()))
+        val newest = line("godot-v2", "1.2.2", capability("stock", emptyMap()))
+
+        val resolved = PluginResolver.resolve(
+            listOf(older, newest), "godot", null, Version.parse("4.5.1"), emptyMap(), VersionConstraint.parse("1.1.4"),
+        )
+
+        assertEquals("1.1.4", resolved?.plugin?.info?.pluginVersion?.toString())
+    }
+
+    @Test
+    fun `an approved build keeps playing while its update waits for approval`() {
+        val approved = line("godot-v2", "1.1.4", capability("stock", emptyMap()))
+        val waiting = line("godot-v2", "1.2.2", capability("stock", emptyMap()))
+
+        val resolved = PluginResolver.resolve(
+            listOf(approved, waiting), "godot", null, Version.parse("4.5.1"), emptyMap(), null,
+            trustOf = { if (it.info.pluginVersion.toString() == "1.2.2") PluginTrustState.PENDING else PluginTrustState.APPROVED },
+        )
+
+        assertEquals("1.1.4", resolved?.plugin?.info?.pluginVersion?.toString())
+    }
+
+    private fun line(bundleId: String, pluginVersion: String, capability: EngineCapability) = InstalledPlugin(
+        info = PluginInfo(engine = "godot", pluginVersion = Version.parsePlugin(pluginVersion), capabilities = listOf(capability)),
+        bundleId = bundleId,
+        entrypointClass = "dev.example.Entry",
+        signerFingerprints = setOf("A".repeat(64)),
+    )
+
     private fun capability(id: String, components: Map<String, String>) = EngineCapability(
         id = id,
         engineContext = DEFAULT_ENGINE_CONTEXT,

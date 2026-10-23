@@ -155,8 +155,37 @@ object PluginResolver {
         trustOf: (InstalledPlugin) -> PluginTrustState = { PluginTrustState.APPROVED },
         components: List<InstalledPlugin> = emptyList(),
     ): ResolvedPlugin? =
-        ranked(plugins, engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist, trustOf, components)
-            .firstOrNull()
+        ranked(
+            currentBuilds(plugins, pluginVersionAllowlist, trustOf),
+            engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist, trustOf, components,
+        ).firstOrNull()
+
+    /**
+     * Of each line's installed builds, the one a launch may use: the newest the game's
+     * `pluginVersion` allowlist accepts and the person has not denied, an approved build before
+     * one still waiting for approval (an update keeps the approved build playing until it is
+     * approved). Several builds of a line coexist, and the allowlist is how an older one is chosen
+     * (SPEC.md "Several builds of a line, side by side"). An older build never runs just because
+     * the newest cannot serve this game. Before, Goodbye Eternity ran `godot.v45.v2` 1.1.4,
+     * built before the pack-read fix, because 1.2.2 of that line needed a Spine component not
+     * yet approved (Droidtop/tracker#604). Component bundles pass through unchanged.
+     */
+    internal fun currentBuilds(
+        plugins: List<InstalledPlugin>,
+        pluginVersionAllowlist: VersionConstraint?,
+        trustOf: (InstalledPlugin) -> PluginTrustState,
+    ): List<InstalledPlugin> {
+        val (components, engines) = plugins.partition { it.component != null }
+        val order = compareBy<InstalledPlugin>({ trustOf(it) == PluginTrustState.APPROVED }, { it.info.pluginVersion })
+        val current = engines
+            .filter { pluginVersionAllowlist == null || pluginVersionAllowlist.matches(it.info.pluginVersion) }
+            .filter { trustOf(it) != PluginTrustState.DENIED }
+            .groupBy { it.bundleId }
+            .values
+            // Two copies of one build (a re-signed archive beside its original) are both kept.
+            .flatMap { line -> line.maxWith(order).let { top -> line.filter { order.compare(it, top) == 0 } } }
+        return current + components
+    }
 
     /**
      * Every installed build that could run the game, best first: the order [resolve] picks from.

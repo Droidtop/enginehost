@@ -43,6 +43,15 @@ them".
 - **Updates:** a build newer than the newest one installed in that line
   (`PluginUpdates.newestPerLine`). Installing it adds it; the older builds stay
   until the person removes them, so a regression never strands anyone.
+- **Which build a launch uses:** per line, the newest build the game's `pluginVersion`
+  allowlist accepts and the person has not denied, an approved build before one still waiting
+  for approval (`PluginResolver.currentBuilds`); then lines are ranked as before. An older build
+  runs only when the allowlist picks it, the newer ones are denied, or the newer one waits for
+  approval. It never runs because the newest cannot serve the game: when the newest needs a
+  component not approved yet, another line serves the game, or the launch offers the component
+  with its licence. (#604: Goodbye Eternity ran `godot.v45.v2` 1.1.4, built before the pack-read
+  fix, beside a fixed 1.2.2 that needed the unapproved Spine component.) Change core still lists
+  every build that could run the game.
 - **Catalog:** every build is installable, older ones included. Only the
   archive already installed reads "Installed".
 - **Cores screen:** one card per line, showing its newest build; the line's
