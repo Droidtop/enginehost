@@ -154,33 +154,46 @@ class MainActivity : EnginehostActivity() {
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 val appUpdate = check.newerAppVersionName()
-                val lines = mutableListOf<String>()
+                // Core updates and Enginehost's own update are two short notices, each
+                // opening where it is dealt with (#620 E2: one long blue line read as an
+                // empty button).
+                val cores = findViewById<TextView>(R.id.updateNotice)
+                val app = findViewById<TextView>(R.id.appUpdateNotice)
+                val wasShowing = cores.visibility == View.VISIBLE || app.visibility == View.VISIBLE
+                cores.visibility = if (pending.isEmpty()) View.GONE else View.VISIBLE
                 if (pending.isNotEmpty()) {
-                    lines += resources.getQuantityString(
-                        R.plurals.plugin_updates_available, pending.size, pending.size,
-                    )
+                    cores.text = resources.getQuantityString(R.plurals.plugin_updates_available, pending.size, pending.size)
+                    cores.setOnClickListener { startActivity(Intent(this@MainActivity, PluginTrustActivity::class.java)) }
                 }
-                appUpdate?.let { lines += getString(R.string.app_update_available, it) }
-                findViewById<TextView>(R.id.updateNotice).apply {
-                    visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
-                    if (this@MainActivity.findViewById<LinearLayout>(R.id.shelves).visibility != View.VISIBLE) grid.nextFocusUpId = upFromList()
-                    if (lines.isNotEmpty()) {
-                        text = lines.joinToString(" · ")
-                        setOnClickListener {
-                            startActivity(
-                                if (pending.isNotEmpty()) {
-                                    Intent(this@MainActivity, PluginTrustActivity::class.java)
-                                } else {
-                                    Intent(this@MainActivity, EnginehostSettingsActivity::class.java)
-                                        .putExtra(EnginehostSettingsActivity.EXTRA_APP_UPDATE, true)
-                                },
-                            )
-                        }
+                app.visibility = if (appUpdate == null) View.GONE else View.VISIBLE
+                appUpdate?.let { version ->
+                    app.text = getString(R.string.app_update_available, version)
+                    app.setOnClickListener {
+                        startActivity(
+                            Intent(this@MainActivity, EnginehostSettingsActivity::class.java)
+                                .putExtra(EnginehostSettingsActivity.EXTRA_APP_UPDATE, true),
+                        )
                     }
                 }
+                if (findViewById<LinearLayout>(R.id.shelves).visibility != View.VISIBLE) grid.nextFocusUpId = upFromList()
+                // The first pad stop when it appears on a Home the pad has not moved on yet (#620 E2).
+                val notice = firstNotice()
+                if (!wasShowing && notice != null && !padMoved) findViewById<View>(notice).requestFocus()
             }
         }
     }
+
+    /** Whether the pad has moved focus on Home since it opened; a notice then never takes focus from it. */
+    private var padMoved = false
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.action == android.view.KeyEvent.ACTION_DOWN && event.keyCode in DPAD_KEYS) padMoved = true
+        return super.dispatchKeyEvent(event)
+    }
+
+    /** The first update notice showing, if any. */
+    private fun firstNotice(): Int? = listOf(R.id.updateNotice, R.id.appUpdateNotice)
+        .firstOrNull { findViewById<View>(it).visibility == View.VISIBLE }
 
     /**
      * Where Up from the list goes when no shelf is above it: the update
@@ -188,8 +201,7 @@ class MainActivity : EnginehostActivity() {
      * so with no shelf the pad could not leave the list upwards (review,
      * 2026-10-16).
      */
-    private fun upFromList(): Int =
-        if (findViewById<View>(R.id.updateNotice).visibility == View.VISIBLE) R.id.updateNotice else R.id.addGamesButton
+    private fun upFromList(): Int = firstNotice() ?: R.id.addGamesButton
 
     /** The game a shelf card stands for, held as the card's tag so Y can play it. */
     private class ShelfGame(val path: String)
@@ -365,6 +377,10 @@ class MainActivity : EnginehostActivity() {
     }
 
     private companion object {
+        val DPAD_KEYS = setOf(
+            android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+        )
         const val STATE_PANE_GAME = "pane.game"
         const val REQUEST_GAME_FOLDER = 10
         const val REQUEST_NATIVE_FILES = 11

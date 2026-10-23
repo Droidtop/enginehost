@@ -529,7 +529,7 @@
     <string name="app_version_line">Enginehost %1$s (build %2$d)</string>
     <string name="build_details_title">Build details</string>
     <string name="build_details_message">Engine registry snapshot: %1$s</string>
-    <string name="app_update_available">Enginehost %1$s is available</string>
+    <string name="app_update_available">Enginehost %1$s</string>
     <string name="app_update_checking">Checking…</string>
     <string name="app_update_none">This is the newest build</string>
     <string name="app_update_check_failed">Could not reach the update server. Check the connection, then try again.</string>
@@ -605,8 +605,8 @@
     </string-array>
 
     <plurals name="plugin_updates_available">
-        <item quantity="one">%d core update is available</item>
-        <item quantity="other">%d core updates are available</item>
+        <item quantity="one">%d core update</item>
+        <item quantity="other">%d core updates</item>
     </plurals>
 
     <plurals name="stream_plugin_count">

@@ -12,6 +12,10 @@
         <item name="colorControlActivated">@color/eh_accent</item>
         <item name="colorControlHighlight">@color/eh_surface_variant</item>
         <item name="android:windowBackground">@color/eh_background</item>
+        <!-- The status bar is the page's own colour, with icons that read on it (#620 E2:
+             the clock was white on the light page). -->
+        <item name="android:statusBarColor">@color/eh_background</item>
+        <item name="android:windowLightStatusBar">@bool/eh_light_status_bar</item>
         <item name="android:textColorPrimary">@color/eh_text_primary</item>
         <item name="android:textColorSecondary">@color/eh_text_secondary</item>
         <item name="android:textColor">@color/eh_text_primary</item>

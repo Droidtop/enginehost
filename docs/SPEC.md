@@ -52,10 +52,15 @@ them".
   installed after Update all (about sixty cards), working it out card by card
   on the main thread, while the installs kept the disk busy, ended in "isn't
   responding" (rig, 2026-10-23, Droidtop/tracker#604).
-- **Home's update notice** ("N core updates are available", and an app
-  update) sits in the header beside Add games, as tall as it. The check
+- **Home's update notices** sit in the header beside Add games, as tall as it:
+  "N core updates" (a primary button, opening Cores) and, when there is one,
+  "Enginehost <version>" (a secondary chip, opening Settings' update). The check
   answers seconds after launch; as a row above the list it pushed the list
-  down under a tap meant for a game (same rig run).
+  down under a tap meant for a game (same rig run). When one appears on a Home
+  the pad has not moved on yet, it takes focus, so it is the first stop; once
+  the pad has moved, it never takes focus away (#620 E2, which also found the
+  notice's blue text on a blue button, and a white status-bar clock on the
+  light page: the status bar now takes the page's colour and readable icons).
 - **Launch:** `PluginResolver.ranked` picks the best approved build the game's
   `pluginVersion` allowlist allows, which is how a game avoids a bad build.
   The launch carries that build's archive digest
