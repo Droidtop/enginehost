@@ -223,6 +223,12 @@ class GameLibraryStore(context: Context) : ScanStore {
             }
     }
 
+    /** The first time any game was started after [at], or null: where one game's last session ends for a report. */
+    fun nextLaunchAfter(at: Long): Long? =
+        helper.readableDatabase.rawQuery("SELECT MIN(played_at) FROM games WHERE played_at > ?", arrayOf(at.toString())).use {
+            if (it.moveToFirst() && !it.isNull(0)) it.getLong(0) else null
+        }
+
     /** Takes [folder] off Home. What a scan learned about it stays; a game only ever added by hand is forgotten. */
     fun forget(folder: File) {
         val canonical = runCatching { folder.canonicalPath }.getOrDefault(folder.absolutePath)

@@ -51,6 +51,10 @@ object CrashWatch {
      * arranges for an uncaught Java exception to be written into it before
      * the process goes down.
      */
+    /** The game folder of the last session armed, which the engine-events ring belongs to; null when none is recorded. */
+    fun lastSessionPath(context: Context): String? =
+        runCatching { JSONObject(file(context).readText()).optString("path") }.getOrNull()?.takeIf { it.isNotBlank() }
+
     fun arm(context: Context, gameFolder: File, plugin: String) {
         val note = JSONObject()
             .put("path", gameFolder.absolutePath)

@@ -92,8 +92,11 @@ data class ProblemReport(
          * this off the main thread.
          */
         fun gather(context: Context, gameFolder: File?): ProblemReport {
+            // The config the game runs on, detected or its own, as its launch plans it: a game
+            // with no config of its own left engine, version and core blank (#620 E4).
             val config = gameFolder?.let { folder ->
-                runCatching { GameConfigs.resolve(context, folder, null) }.getOrNull()
+                runCatching { GameRunner.launchConfig(context, folder) }.getOrNull()
+                    ?: runCatching { GameConfigs.resolve(context, folder, null) }.getOrNull()
             }
             val resolved = config?.let {
                 runCatching {
@@ -122,12 +125,53 @@ data class ProblemReport(
                     "(build ${AppUpdate.installedVersionCode(context)}, engine registry ${PlatformSnapshot.shortCommit(context) ?: "unrecorded"})",
                 device = deviceFacts(context),
                 log = tail(context, gameFolder),
-                events = scrub(HostEvents.recent(context).joinToString("\n"), gameFolder),
+                events = scrub(eventsOf(context, gameFolder).joinToString("\n"), gameFolder),
                 systemLog = scrub(trimSystemLog(readSystemLog()), gameFolder),
-                engineEvents = scrub(HostEvents.recent(context, HostEvents.ENGINE_FILE).joinToString("\n"), gameFolder),
+                engineEvents = scrub(engineEventsOf(context, gameFolder).joinToString("\n"), gameFolder),
                 settings = nonDefaultSettings(context),
             )
         }
+
+        /**
+         * The host's events, for a game's report only those of its last session:
+         * from a little before its last start until the next game started. The
+         * ring names no game, so the window is what ties a line to the game; a
+         * report from the game's page listed other games' plan lines (#620 E4).
+         */
+        private fun eventsOf(context: Context, gameFolder: File?): List<String> {
+            val all = HostEvents.recent(context)
+            if (gameFolder == null) return all
+            val store = GameLibraryStore(context)
+            val startedAt = store.historyOf(gameFolder).lastPlayedAt.takeIf { it > 0 } ?: return emptyList()
+            return inWindow(all, startedAt - PLAN_LEAD_MS, store.nextLaunchAfter(startedAt), System.currentTimeMillis())
+        }
+
+        /** The engine's own events belong to the last session; a game's report has them only when that was this game. */
+        private fun engineEventsOf(context: Context, gameFolder: File?): List<String> {
+            val all = HostEvents.recent(context, HostEvents.ENGINE_FILE)
+            if (gameFolder == null) return all
+            val last = CrashWatch.lastSessionPath(context) ?: return emptyList()
+            val here = runCatching { gameFolder.canonicalPath }.getOrDefault(gameFolder.absolutePath)
+            return if (last == gameFolder.absolutePath || last == here) all else emptyList()
+        }
+
+        /** Lines stamped "MM-dd HH:mm:ss" ([HostEvents.format]) at or after [from] and before [until]. */
+        internal fun inWindow(lines: List<String>, from: Long, until: Long?, now: Long): List<String> = lines.filter { line ->
+            val at = eventTime(line, now) ?: return@filter false
+            at >= from && (until == null || at < until)
+        }
+
+        /** A ring line's time; its stamp has no year, so it is the latest such moment not after [now]. */
+        internal fun eventTime(line: String, now: Long): Long? {
+            val stamp = line.take(14).takeIf { it.length == 14 } ?: return null
+            val format = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+            val year = java.util.Calendar.getInstance().apply { timeInMillis = now }.get(java.util.Calendar.YEAR)
+            val parsed = runCatching { format.parse("$year-$stamp")?.time }.getOrNull() ?: return null
+            return if (parsed > now + 60_000) runCatching { format.parse("${year - 1}-$stamp")?.time }.getOrNull() else parsed
+        }
+
+        /** A launch is planned (and its first lines logged) shortly before the session's start is recorded. */
+        private const val PLAN_LEAD_MS = 60_000L
 
         /**
          * The settings a person changed, one line each; empty when none are.

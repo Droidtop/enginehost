@@ -225,6 +225,13 @@ such as a LÖVE game whose `love.draw` is empty.
 - **Report a problem** is also in the in-game menu (review findings 170 and
   179), and the report can be saved as a text file, besides Share, Copy and
   posting it on GitHub; nothing leaves the device unless the person picks one.
+- **A game's report is that game's (#620 E4).** Engine, version and core come
+  from the config the game's launch runs on, detected or its own. The host's
+  events are only those of the game's last session (from shortly before its last
+  start until the next game started; the ring names no game, so time ties a line
+  to it), and the engine's own events only when the last session was this game's.
+  Share, Copy, Save and the GitHub button come first; what the report includes
+  folds under "What the report includes".
 - **Reports go to the tracker.** The GitHub button opens a new issue on
   Droidtop/tracker (owner, 2026-10-22: "always the tracker"), no longer the
   separate enginehost-reports repository. Only a title (engine and symptom)

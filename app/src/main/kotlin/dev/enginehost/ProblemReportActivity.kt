@@ -73,6 +73,14 @@ class ProblemReportActivity : EnginehostActivity() {
                 ContextCompat.getColor(this, if (checked) R.color.eh_text_secondary else R.color.eh_caution),
             )
         }
+        // What the report carries (core, device, log) is folded under the actions (#620 E4):
+        // Share, Copy and Save come first, and the details are there to check, not to scroll past.
+        findViewById<TextView>(R.id.reportIncludedToggle).setOnClickListener { toggle ->
+            val included = findViewById<View>(R.id.reportIncluded)
+            val open = included.visibility != View.VISIBLE
+            included.visibility = if (open) View.VISIBLE else View.GONE
+            (toggle as TextView).setText(if (open) R.string.report_included_hide else R.string.report_included_show)
+        }
         findViewById<Button>(R.id.shareReportButton).setOnClickListener { share() }
         findViewById<Button>(R.id.copyReportButton).setOnClickListener { copy(); toast(R.string.report_copied) }
         findViewById<Button>(R.id.sendReportButton).setOnClickListener { sendToGithub() }

@@ -560,6 +560,8 @@
     <string name="report_symptom_label">What happens</string>
     <string name="report_details_hint">Anything else worth knowing</string>
     <string name="report_environment_heading">Core and device</string>
+    <string name="report_included_show">What the report includes</string>
+    <string name="report_included_hide">Hide what the report includes</string>
     <string name="report_log_heading">Log</string>
     <string name="report_include_log">Include the log, recent events and crash data</string>
     <string name="report_include_log_note">Without the log and crash data, a report is unlikely to be fixed: it says what the engine actually did, and nobody else has your copy of the game.</string>
