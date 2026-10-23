@@ -216,6 +216,8 @@ object RuntimeSandbox {
         listOf(
             "/system", "/system_ext", "/product", "/vendor", "/odm", "/apex", "/linkerconfig",
             "/data/dalvik-cache", "/data/fonts", "/data/resource-cache", "/proc", "/sys", "/dev/__properties__",
+            // Time zone data (tzdata updates land here, not in /apex).
+            "/data/misc/zoneinfo",
             File(context.applicationInfo.sourceDir).parent ?: context.applicationInfo.sourceDir,
             context.applicationInfo.nativeLibraryDir,
         ).forEach { rules[it] = SBX_READ }
@@ -226,10 +228,15 @@ object RuntimeSandbox {
             "/dev/binder", "/dev/hwbinder", "/dev/vndbinder", "/dev/kgsl-3d0", "/dev/ion", "/dev/dma_heap",
             "/dev/dri", "/dev/mali0", "/dev/goldfish_pipe", "/dev/goldfish_pipe_dprctd", "/dev/goldfish_sync",
             "/dev/goldfish_address_space", "/dev/qemu_pipe",
+            // BlueStacks' GL pipe, its goldfish_pipe: refused, EGL cannot reach the host and ART
+            // aborts creating a context (Ren'Py 8.4 under lockdown, Droidtop/tracker#550).
+            "/dev/bstpgaipc",
         ).forEach { rules[it] = SBX_READ or SBX_WRITE }
         // Shader and plugin caches; the rest of the app's private data stays out.
         rules[context.cacheDir.absolutePath] = SBX_READ or SBX_WRITE
         rules[context.codeCacheDir.absolutePath] = SBX_READ or SBX_WRITE
+        // HWUI keeps its shader cache in the device-protected code cache.
+        rules[context.createDeviceProtectedStorageContext().codeCacheDir.absolutePath] = SBX_READ or SBX_WRITE
         // The engine's bundle and each verified component bundle the launch loads.
         bundles.forEach { rules[it] = SBX_READ }
         // A WebView core: the WebView provider's code, and WebView's own

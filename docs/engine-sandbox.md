@@ -2412,6 +2412,42 @@ trapped call. In an app process, ART's signal chain calls sigprocmask, which
 is trapped. Learning mode also no longer lets exec through: the new program
 kept the filter but not the handler.
 
+#### Ren'Py under lockdown: what it needs, and the owner's choices (2026-10-23)
+
+Read from the dev.405 learning profiles of Ren'Py 7.5, 7.6 and 8.4 and two 8.4 lockdown logs
+(Droidtop/tracker#550, evidence `2026-10-23-renpy-learning`; analysis in comment 6372058364).
+
+- **Why 8.4 aborted.** The GPU, not Ren'Py: BlueStacks' GL pipe `/dev/bstpgaipc` was refused,
+  EGL could not reach the host, and ART aborted creating a context. The preset now lists it
+  beside `goldfish_pipe` and `qemu_pipe`. It also gains `/data/misc/zoneinfo` (read: time zone
+  data) and the app's device-protected code cache (HWUI's shader cache).
+- **The core's runtime is the core's (owner: "The renpy runtime IS part of the core. how can the
+  core not read itself?").** Ren'Py unpacks its Python runtime from its own resource APK into
+  `files/renpy-engine/<line>`. The owner chose: **Enginehost unpacks it before the lockdown and
+  re-checks it against the bundle on every launch; the locked-down core reads it and cannot
+  write it.** The verified bundle folder stays read-only, and no game can change the runtime
+  later games load.
+- **Saves beside the game: only the named sub-folders.** Ren'Py also writes `game/saves` (and
+  `game/cache` on 7.5). The owner chose a manifest field naming the game sub-folders a core
+  writes, rather than `writesGameFolder` for the whole folder. The rest of the game folder stays
+  read-only.
+- **Ren'Py's Android external folder** (`getExternalFilesDir`: `log.txt`,
+  `saves/security_keys.txt`) is Enginehost's shared external folder. The wrapper points it at the
+  launch's save folder, a system location meaning the person's folder, so nothing outside the
+  launch is opened.
+- **inotify: allowed, scoped and filtered (owner: "Allow it, but scope and filter
+  responses").** Every Ren'Py line asked for `inotify_add_watch`. It is not passed to the kernel
+  unscoped (`SBX_LOCK_INOTIFY`). The broker decides each watched path as it decides a read, and
+  only paths the core may read are watched, so events name only files in folders the core may
+  open. This is the brokered `SBX_WATCH` the library's design names; it is built there first.
+- **Still refused, by decision:** `execve` (Ren'Py 7.5 once, 7.6 five times). Probing outside
+  the launch (`/home`, `/usr/lib`, `/var/adm`, `/proc/<pid>/cgroup`, `/dev/cpuctl`, ART's
+  profile file) is refused, and Ren'Py carries on without it.
+
+Order: the preset (done with this note), the game-writes field, the host unpack, the wrapper's
+external folder, then the library's brokered watch. Then lockdown 1 with audit 1 on 7.5, 7.6
+and 8.4 on the rig, and Ren'Py declares `lockdown` once all three play.
+
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
 The static-method-contract finding above (`nativeSetupJNI`'s `cls` parameter)
