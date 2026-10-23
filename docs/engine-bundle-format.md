@@ -530,9 +530,9 @@ UI thread (plugin API; the default on an older host answers null). Enginehost
 A locked-down core cannot be handed a component it did not have when it locked down (its broker's
 rules are set then); that is for when a core with components is locked down.
 
-This replaces deciding before the launch. `SpineSkeletonScan`, `runtimeRequirements` as a
-launch-time filter and the selection by `loadsComponents` below describe what is built today and
-go when the request path is built (Droidtop/tracker#291).
+This replaced deciding before the launch (2026-10-23): no component bundle is chosen, loaded or
+installed before a game starts. Godot's engine asks from `4.5-components` 1.2.3 on (the
+plugin's README, "A missing class is asked for").
 
 ### Which capabilities load which components
 
@@ -556,32 +556,24 @@ A game's `enginehost.json` states what it needs in `runtimeRequirements`
   "runtimeRequirements": { "spine-godot": "4.2" } }
 ```
 
-A requirement is met either by the capability itself, when its
-`runtimeComponents` carries that exact version (the first Spine bundles had
-it compiled in), or, for a name in `loadsComponents`, by an installed and
-approved component bundle for the same engine, of that name and exact
-version, whose `supportedSeries` covers the capability's `runtimeVersion`
-(`ComponentSelection.select`). Only what the game asked for is loaded: a game
-that needs nothing loads no component, whatever is installed. A component the
-person has not approved never resolves.
+Whether a capability may run the game (`EngineCapability.canServe`): each requirement is met by
+the capability itself, when its `runtimeComponents` carries that exact version (Ruby for RPG
+Maker; the Godot lines that still compile Spine in), or, for a name in `loadsComponents`, by its
+engine asking for it while the game runs, **whatever the version**. The owner, 2026-10-23: "Part
+of switching to subplugins is to make them version-independent". Which core runs a game does not
+depend on the component's version or on what is installed; the version is the game's to say when
+it asks (above). A capability that neither carries nor asks for a requirement is not eligible,
+and the catalog says which component nothing here provides (`RuntimeRequirementReport.unmet`).
 
-When nothing resolves but an installed engine could serve the game once a
-component is there (`PluginRegistry.missingComponents`), the launch does not
-fail: an installed component waiting for approval opens its trust screen with
-its licence; otherwise the catalog opens for the game and offers the component
-bundle (and installs it first when the launch asked for automatic installs).
-Its card says what it is ("Spine 4.2 runtime"), which engine versions load it
-and which licence it carries. After it is approved the launch resumes.
+`SpineSkeletonScan` still reads a Godot game's skeletons. Detection writes `spine-godot` into
+`runtimeRequirements`, which keeps a Spine game off a core that cannot provide Spine at all, and
+`ComponentRequests` reads the version from it when the game asks.
 
-The core learns what the launch loads from
-`EnginePluginSession.runtimeComponents()` (carried and separate together) and
-where each separate one is from `EnginePluginSession.runtimeComponentDirectory(name)`:
-the verified, read-only root of the component bundle. Every component bundle a
-launch loads is verified (signature, pinned signer, payload stamps) together
-with the engine bundle before the core starts. An isolated runtime
-(docs/engine-sandbox.md, "Layer 2") reaches bundle files only through
-descriptors, which components do not have yet, so a sandboxed engine that
-would need one is refused at launch with the component named.
+Nothing is loaded at launch any more. `EnginePluginSession.runtimeComponents()` is what the
+capability carries, and `runtimeComponentDirectory(name)` answers null (older cores call it and
+load nothing). The launch's former detour (a component waiting for approval opened its trust
+screen; otherwise the catalog offered the component bundle) is gone. The request screen
+over the running game does that now.
 
 Selection among capabilities that serve the game prefers the one that loads
 the fewest carried components the game did not ask for
@@ -715,8 +707,9 @@ selection fails before launch with the component named.
    (`dev.enginehost.<engine>.component.<name>.v<version>`).
 3. **Let engines load it:** add its name to `loadsComponents` on the engine
    capabilities whose wrapper can load it, and bump their `pluginVersion`.
-4. **Make games ask for it.** Detection writes `runtimeRequirements`; a person
-   can still set it in `enginehost.json`.
+4. **Make games ask for it.** The engine asks when the game needs it (for Godot, a missing
+   class, mapped to the component in the plugin's `GodotComponents.PROVIDERS`). Detection
+   writes the name into `runtimeRequirements` so the game goes to a core that can ask.
 
 ### Host services added after apiVersion 1 shipped
 
@@ -726,12 +719,10 @@ loads beside the engine, so a core that loads components knows which
 `NoSuchMethodError` and uses `runtimeRequirements()` instead, which the
 capability was selected against.
 
-`EnginePluginSession.runtimeComponentDirectory(name)` (2026-10-14): the
-verified root of the separately installed component bundle providing
-`name` for this launch, null for a component the engine carries itself. An
-older Enginehost never selects a capability that needs a separate
-component (it does not read `loadsComponents`), so a core that reaches
-this call on one can only be loading nothing.
+`EnginePluginSession.runtimeComponentDirectory(name)` (2026-10-14): answered the
+separately installed component bundle chosen for the launch. Since 2026-10-23 nothing is chosen
+before a launch, and it answers null; a component comes from `EngineHost.requestComponent(name)`
+while the game runs.
 
 `EngineHost.fail(message)` (2026-09-25): ends the runtime because the engine
 could not start, and the launch screen shows `message` with Report a problem,

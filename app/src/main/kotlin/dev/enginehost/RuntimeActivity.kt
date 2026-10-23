@@ -81,35 +81,18 @@ class RuntimeActivity : FragmentActivity() {
             return failAndFinish("Core approval is missing")
         }
         if (resolved.plugin.isolatable) {
-            // An isolated runtime reaches bundle files only as descriptors the
-            // host hands it (docs/engine-sandbox.md "Layer 2"); a separately
-            // installed component has no such path yet, so it is refused here
-            // with its name rather than failing inside the engine.
-            if (resolved.components.isNotEmpty()) {
-                return failAndFinish(
-                    STARTUP_FAILED + "a sandboxed engine cannot load the separately installed " +
-                        resolved.components.mapNotNull { it.component }.joinToString { "${it.name} ${it.version}" } + " yet",
-                )
-            }
             return startIsolatedRuntime(resolved, config, gameFolder, saveFolder, display)
         }
 
         CrashWatch.arm(this, gameFolder, resolved.plugin.bundleId)
         try {
             val verifiedManifest = InstalledBundleVerifier.verify(this, resolved.plugin)
-            // Each component bundle is checked like the engine's own: its
-            // signature, its pinned signer and every payload file, before the
-            // engine is handed its directory to load native code from.
-            val componentDirectories = resolved.components.associate { component ->
-                InstalledBundleVerifier.verify(this, component)
-                checkNotNull(component.component).name to component.directory
-            }
             // A core that declares it is always locked down before its code
             // loads; it never runs unconfined (docs/engine-sandbox.md).
             if (RuntimeSandbox.locksDown(resolved.plugin)) {
                 if (!RuntimeSandbox.lockdown(
                         this, gameFolder, resolved.plugin.writesGameFolder, saveFolder,
-                        listOf(resolved.plugin.directory) + resolved.components.map { it.directory },
+                        listOf(resolved.plugin.directory),
                         gameWrites = resolved.plugin.gameWrites,
                         plugin = resolved.plugin,
                     )
@@ -129,8 +112,9 @@ class RuntimeActivity : FragmentActivity() {
                     resolved.capability.runtimeVersion.toString(), resolved.capability.id,
                     config.execFile, config.options?.toString(),
                     config.runtimeRequirements.mapValues { it.value.toString() },
-                    resolved.runtimeComponents.mapValues { it.value.toString() },
-                    componentDirectories,
+                    resolved.capability.runtimeComponents.mapValues { it.value.toString() },
+                    // Components are no longer chosen before a launch: the game asks ([requestComponent]).
+                    emptyMap(),
                 ),
             )
             check(verifiedManifest.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION)
@@ -209,7 +193,7 @@ class RuntimeActivity : FragmentActivity() {
             config.execFile,
             config.options?.toString(),
             config.runtimeRequirements.mapValues { it.value.toString() },
-            resolved.runtimeComponents.mapValues { it.value.toString() },
+            resolved.capability.runtimeComponents.mapValues { it.value.toString() },
             intent.getStringArrayExtra(EXTRA_RESTART_ARGUMENTS) ?: emptyArray(),
             gameFolder,
             saveFolder,

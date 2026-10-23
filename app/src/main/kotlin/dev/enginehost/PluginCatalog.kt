@@ -269,26 +269,6 @@ object AvailablePluginResolver {
             )
             .toList()
     }
-
-    /**
-     * The component bundles that would meet [needed] for an engine running
-     * one of [runtimeVersions] (the capabilities, installed or offered, that
-     * can load them): newest build of each bundle first. This is what the
-     * catalog offers when a game's engine is there but a component it needs
-     * is not.
-     */
-    fun components(
-        plugins: List<AvailablePlugin>,
-        engine: String,
-        needed: Map<String, Version>,
-        runtimeVersions: Collection<Version>,
-    ): List<AvailablePlugin> = plugins
-        .filter { plugin ->
-            val component = plugin.manifest.component ?: return@filter false
-            plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION &&
-                needed.any { (name, version) -> runtimeVersions.any { component.serves(engine, name, version, it) } }
-        }
-        .sortedWith(compareByDescending<AvailablePlugin> { it.info.pluginVersion }.thenBy { it.bundleId })
 }
 
 class PluginCatalogCache(context: Context) {

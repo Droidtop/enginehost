@@ -97,27 +97,19 @@ public final class EnginePluginSession {
     public String optionsJson() { return optionsJson; }
     public Map<String, String> runtimeRequirements() { return runtimeRequirements; }
     /**
-     * The runtime components (name to version) this launch loads beside the
-     * engine: those the selected capability carries ({@code runtimeComponents})
-     * and the separately installed component bundles chosen for the game's
-     * requirements ({@link #runtimeComponentDirectory(String)} names where
-     * each is). It covers every name in {@link #runtimeRequirements()},
-     * which says only what the game asked for. A plugin loads exactly these
-     * (docs/engine-bundle-format.md, "Runtime components (subplugins)").
-     * Added after apiVersion 1 shipped: a plugin
-     * that may run on an older Enginehost catches {@code NoSuchMethodError}
-     * and falls back to its own table keyed by {@link #capabilityId()}.
+     * The runtime components (name to version) the selected capability carries
+     * ({@code runtimeComponents}): compiled into the engine. A component that is a
+     * separate bundle is not chosen before the launch; the game asks for it while
+     * it runs ({@link EngineHost#requestComponent(String)}; docs/engine-bundle-format.md,
+     * "A game asks, and receives"). Added after apiVersion 1 shipped: a plugin
+     * that may run on an older Enginehost catches {@code NoSuchMethodError}.
      */
     public Map<String, String> runtimeComponents() { return runtimeComponents; }
     /**
-     * The read-only, verified root of the separately installed component
-     * bundle that provides {@code name} for this launch, or null when the
-     * component is not a separate bundle (the engine carries it itself, or
-     * the launch loads no such component). The layout inside is the
-     * component's own (docs/engine-bundle-format.md, "Runtime components").
-     * Added after apiVersion 1 shipped: a plugin that may run on an older
-     * Enginehost catches {@code NoSuchMethodError}; an older Enginehost
-     * never selects a capability that needs a separate component.
+     * Null from Enginehost since 2026-10-23, which no longer chooses component
+     * bundles before a launch. A component comes from
+     * {@link EngineHost#requestComponent(String)} while the game runs. Kept for
+     * plugins built against it, which then load nothing at launch.
      */
     public File runtimeComponentDirectory(String name) { return runtimeComponentDirectories.get(name); }
 }

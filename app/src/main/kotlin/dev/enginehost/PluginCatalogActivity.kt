@@ -468,11 +468,10 @@ class PluginCatalogActivity : EnginehostActivity() {
         val catalogAll = snapshot?.catalogAll.orEmpty()
         val allAvailable = catalogAll.filter { it.stream.offeredTo(updateCheck.stream) }
         val matches = requestedConfig?.let { config ->
-            val engines = AvailablePluginResolver.compatible(
+            AvailablePluginResolver.compatible(
                 allAvailable, config.engine, config.engineContext, config.engineVersion,
                 config.runtimeRequirements, config.pluginVersionConstraint,
             ).map { it.first }.distinctBy { it.bundleId }
-            engines + componentMatches(config, allAvailable, engines)
         }.orEmpty()
         val available = if (requestedConfig != null && matches.isNotEmpty()) matches else allAvailable
         requestedConfig?.let { config ->
@@ -563,36 +562,6 @@ class PluginCatalogActivity : EnginehostActivity() {
         ) {
             refresh()
         }
-    }
-
-    /**
-     * The component bundles [config] needs that an engine here (installed,
-     * or among [engines] offered for it) can load: a game needing Spine on
-     * an engine that loads Spine is offered the Spine component, whose
-     * licence the trust screen shows before it is allowed.
-     */
-    private fun componentMatches(
-        config: EngineConfig,
-        available: List<AvailablePlugin>,
-        engines: List<AvailablePlugin>,
-    ): List<AvailablePlugin> {
-        if (config.runtimeRequirements.isEmpty()) return emptyList()
-        val infos = snapshot?.installed.orEmpty().filter { it.component == null }.map { it.info } + engines.map { it.info }
-        val engineContext = effectiveEngineContext(
-            config.engineContext,
-            infos.flatMap { info -> info.capabilities.filter { info.engineOf(it) == config.engine }.map { it.engineContext } },
-        )
-        val capabilities = infos.flatMap { info ->
-            info.capabilities.filter {
-                info.engineOf(it) == config.engine && it.engineContext == engineContext &&
-                    it.supports(config.engineVersion) && it.canServe(config.runtimeRequirements)
-            }
-        }
-        val needed = config.runtimeRequirements.filter { (name, _) -> capabilities.any { name in it.loadableComponents } }
-        if (needed.isEmpty()) return emptyList()
-        return AvailablePluginResolver.components(
-            available, config.engine, needed, capabilities.map { it.runtimeVersion }.distinct(),
-        ).distinctBy { it.bundleId }
     }
 
     /**

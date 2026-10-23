@@ -63,9 +63,9 @@ data class EngineCapability(
      */
     val controllerInput: ControllerInput = ControllerInput.NATIVE,
     /**
-     * Components this capability can load from separately installed
-     * component bundles (`loadsComponents`), by name; which version is the
-     * game's requirement. [ComponentSelection] picks the bundle.
+     * Components this capability's engine asks for while the game runs
+     * (`loadsComponents`), by name and whatever their version: the game's own
+     * files say which version when it asks ([ComponentRequests]).
      */
     val loadableComponents: Set<String> = emptySet(),
 ) {
@@ -86,10 +86,9 @@ data class EngineCapability(
         requirements.all { (name, version) -> runtimeComponents[name] == version }
 
     /**
-     * Whether this capability could serve [requirements] with the right
-     * component bundles installed: each one carried, or loadable by name.
-     * What decides a launch is [ComponentSelection.select] against what is
-     * actually installed; this is what a catalog offers an engine bundle on.
+     * Whether this capability can serve [requirements]: each one carried at that version, or a
+     * component its engine asks for by name, whatever the version ("make them version-independent",
+     * owner, 2026-10-23). What is installed does not decide it; the game asks while it runs.
      */
     fun canServe(requirements: Map<String, Version>): Boolean =
         requirements.all { (name, version) -> runtimeComponents[name] == version || name in loadableComponents }
@@ -119,7 +118,7 @@ object RuntimeRequirementReport {
         requirements: Map<String, Version>,
         capabilities: List<EngineCapability>,
     ): Map<String, List<Version>> = requirements
-        .filterNot { (name, version) -> capabilities.any { it.runtimeComponents[name] == version } }
+        .filterNot { (name, version) -> capabilities.any { it.runtimeComponents[name] == version || name in it.loadableComponents } }
         .mapValues { (name, _) ->
             capabilities.mapNotNull { it.runtimeComponents[name] }.distinct().sorted()
         }

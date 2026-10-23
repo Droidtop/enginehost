@@ -12,7 +12,7 @@ import java.util.Base64
 /**
  * Separately installed runtime components (docs/engine-bundle-format.md,
  * "Runtime components (subplugins)"): how a component bundle's manifest is
- * read, and how resolution picks the component a game needs.
+ * read, and which engines a game that needs one may run on.
  */
 class RuntimeComponentsTest {
     @Test
@@ -65,52 +65,35 @@ class RuntimeComponentsTest {
     }
 
     @Test
-    fun `a game needing Spine resolves only once the component is installed`() {
-        val engine = engine()
-        val requirements = mapOf("spine-godot" to Version.parse("4.2"))
-
-        assertNull(resolve(listOf(engine), requirements, components = emptyList()))
-
-        val spine = component("4.2", setOf("4.5"))
-        val resolved = requireNotNull(resolve(listOf(engine), requirements, components = listOf(spine)))
-        assertEquals(listOf(spine), resolved.components)
-        assertEquals(mapOf("spine-godot" to Version.parse("4.2")), resolved.runtimeComponents)
+    fun `a game needing Spine resolves to an engine that asks for it, whatever the version`() {
+        // Version-independent (owner, 2026-10-23): nothing installed decides it; the game asks while it runs.
+        for (version in listOf("4.1", "4.2", "4.3")) {
+            val resolved = requireNotNull(resolve(listOf(engine()), mapOf("spine-godot" to Version.parse(version))))
+            assertTrue(resolved.capability.runtimeComponents.isEmpty())
+        }
     }
 
     @Test
-    fun `a component built for other engine versions does not serve this one`() {
-        val spine = component("4.2", setOf("4.2", "4.3"))
-        val requirements = mapOf("spine-godot" to Version.parse("4.2"))
+    fun `a capability carrying a component serves only the version it carries`() {
+        val carried = engine(loads = emptySet(), carries = mapOf("spine-godot" to Version.parse("4.2")))
 
-        assertNull(resolve(listOf(engine()), requirements, components = listOf(spine)))
-        assertEquals(
-            requirements,
-            ComponentSelection.missing("godot", engine().info.capabilities.single(), requirements, listOf(spine)),
-        )
-    }
-
-    @Test
-    fun `a game that needs nothing loads no component even when one is installed`() {
-        val resolved = requireNotNull(resolve(listOf(engine()), emptyMap(), components = listOf(component("4.2", setOf("4.5")))))
-
-        assertTrue(resolved.components.isEmpty())
-        assertTrue(resolved.runtimeComponents.isEmpty())
+        assertTrue(resolve(listOf(carried), mapOf("spine-godot" to Version.parse("4.2"))) != null)
+        assertNull(resolve(listOf(carried), mapOf("spine-godot" to Version.parse("4.1"))))
     }
 
     @Test
     fun `a component bundle is never resolved as an engine`() {
-        val spine = component("4.2", setOf("4.5"))
-
-        assertNull(resolve(listOf(spine), emptyMap(), components = emptyList()))
+        assertNull(resolve(listOf(component("4.2", setOf("4.5"))), emptyMap()))
     }
 
     @Test
-    fun `a capability that cannot load the component is not satisfied by installing it`() {
+    fun `a capability that neither carries nor asks for the component is not eligible`() {
         val plain = engine(loads = emptySet())
         val requirements = mapOf("spine-godot" to Version.parse("4.2"))
 
-        assertNull(resolve(listOf(plain), requirements, components = listOf(component("4.2", setOf("4.5")))))
-        assertTrue(ComponentSelection.missing("godot", plain.info.capabilities.single(), requirements, emptyList()).isEmpty())
+        assertNull(resolve(listOf(plain, component("4.2", setOf("4.5"))), requirements))
+        assertEquals(listOf("spine-godot"), RuntimeRequirementReport.unmet(requirements, plain.info.capabilities).keys.toList())
+        assertTrue(RuntimeRequirementReport.unmet(requirements, engine().info.capabilities).isEmpty())
     }
 
     @Test
@@ -134,12 +117,14 @@ class RuntimeComponentsTest {
     private fun resolve(
         plugins: List<InstalledPlugin>,
         requirements: Map<String, Version>,
-        components: List<InstalledPlugin>,
     ): ResolvedPlugin? = PluginResolver.resolve(
-        plugins, "godot", "standard", Version.parse("4.5.1"), requirements, null, components = components,
+        plugins, "godot", "standard", Version.parse("4.5.1"), requirements, null,
     )
 
-    private fun engine(loads: Set<String> = setOf("spine-godot")) = InstalledPlugin(
+    private fun engine(
+        loads: Set<String> = setOf("spine-godot"),
+        carries: Map<String, Version> = emptyMap(),
+    ) = InstalledPlugin(
         info = PluginInfo(
             engine = "godot",
             pluginVersion = Version.parse("1.1.0"),
@@ -151,6 +136,7 @@ class RuntimeComponentsTest {
                     supportedVersions = emptySet(),
                     supportedSeries = setOf(VersionSeries.parse("4.5")),
                     supportedRanges = emptyList(),
+                    runtimeComponents = carries,
                     loadableComponents = loads,
                 ),
             ),

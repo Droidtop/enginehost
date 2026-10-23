@@ -97,7 +97,9 @@ game's dotted-numeric runtime target inside that context.
 independent of the engine version. Its keys are plugin-defined and its values
 are dotted numeric versions. For example, VX Ace/RGSS3 games normally require
 Ruby 1.9.2, while a compatibility-oriented core may also offer Ruby 3.1.3.
-The host only considers capabilities advertising every requested component.
+A capability is considered when it carries every requested component at that
+version, or asks for it by name while the game runs (`loadsComponents`), whatever its version
+(docs/engine-bundle-format.md, "Which capabilities load which components").
 This field participates in resolution; `options` does not.
 
 `pluginVersion` in a game's config is optional and different from a
@@ -433,8 +435,8 @@ dotted series it explicitly declares. A Ren'Py `8.2` series, for example,
 matches every precisely recorded `8.2.*` game version but not `8.3`. Resolution prefers an exact bundled runtime, then
 the narrowest declared compatibility span, then the newest core build
 allowed by the game's optional `pluginVersion` allowlist. A capability is
-eligible only when its optional `runtimeComponents` exactly satisfy every
-entry in the game's `runtimeRequirements` map.
+eligible only when every entry in the game's `runtimeRequirements` map is carried in its optional
+`runtimeComponents` at exactly that version, or named in its `loadsComponents`, whatever the version.
 
 The entrypoint implements the Java interface in the publishable `plugin-api`
 module (cores depend on it as `compileOnly`). It receives a host-owned render

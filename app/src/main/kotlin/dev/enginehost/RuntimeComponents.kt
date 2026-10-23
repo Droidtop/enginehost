@@ -28,11 +28,6 @@ data class ComponentInfo(
     /** The engine versions a build of it is carried for: an engine runtime outside them cannot load it. */
     val supportedSeries: Set<VersionSeries>,
 ) {
-    /** Whether this component meets the requirement [name] [version] for an engine running [runtimeVersion]. */
-    fun serves(engine: String, name: String, version: Version, runtimeVersion: Version): Boolean =
-        this.engine == engine && this.name == name && this.version == version &&
-            supportedSeries.any(runtimeVersion::belongsTo)
-
     fun toJson(): JSONObject = JSONObject()
         .put("engine", engine)
         .put("name", name)
@@ -73,59 +68,4 @@ object ComponentManifestReader {
     fun license(json: JSONObject?): BundleLicense? = json?.let {
         BundleLicense(it.requiredString("name"), validateBundlePath(it.requiredString("file")))
     }
-}
-
-/**
- * Which installed component bundles a launch of [capability] loads for a
- * game's [requirements]. A requirement is met either by the capability
- * itself (`runtimeComponents`: compiled into the engine, as the first Spine
- * bundles did) or, for a name the capability lists in `loadsComponents`, by
- * an installed component bundle for the same engine that serves the
- * capability's runtime version. Only what the game asked for is loaded: a
- * game that needs nothing gets no component.
- */
-object ComponentSelection {
-    /** The component bundles to load, or null when a requirement cannot be met. */
-    fun select(
-        engine: String,
-        capability: EngineCapability,
-        requirements: Map<String, Version>,
-        installed: List<InstalledPlugin>,
-    ): List<InstalledPlugin>? {
-        val chosen = mutableListOf<InstalledPlugin>()
-        for ((name, version) in requirements) {
-            if (capability.runtimeComponents[name] == version) continue
-            if (name !in capability.loadableComponents) return null
-            chosen += best(engine, capability, name, version, installed) ?: return null
-        }
-        return chosen
-    }
-
-    /**
-     * The requirements an engine capability could meet once a component
-     * bundle is installed: loadable by the capability, carried neither by it
-     * nor by any of [installed]. Empty when nothing is missing, or when the
-     * capability could not serve the game whatever was installed.
-     */
-    fun missing(
-        engine: String,
-        capability: EngineCapability,
-        requirements: Map<String, Version>,
-        installed: List<InstalledPlugin>,
-    ): Map<String, Version> {
-        if (!capability.canServe(requirements)) return emptyMap()
-        return requirements.filter { (name, version) ->
-            capability.runtimeComponents[name] != version && best(engine, capability, name, version, installed) == null
-        }
-    }
-
-    private fun best(
-        engine: String,
-        capability: EngineCapability,
-        name: String,
-        version: Version,
-        installed: List<InstalledPlugin>,
-    ): InstalledPlugin? = installed
-        .filter { it.component?.serves(engine, name, version, capability.runtimeVersion) == true }
-        .maxWithOrNull(compareBy<InstalledPlugin> { it.info.pluginVersion }.thenBy { it.bundleId })
 }
