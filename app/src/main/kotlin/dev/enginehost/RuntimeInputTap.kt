@@ -272,7 +272,10 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         val surface = findSurface(activity.window.decorView)
         when {
             surface == null -> if (elapsed > NO_SURFACE_MS) finish() else again()
-            !surface.holder.surface.isValid -> again()
+            !surface.holder.surface.isValid -> {
+                nothingShown()
+                again()
+            }
             else -> look(surface)
         }
     }
@@ -283,8 +286,11 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
                 surface, sample,
                 PixelCopy.OnPixelCopyFinishedListener { result ->
                     if (done) return@OnPixelCopyFinishedListener
-                    val read = result == PixelCopy.SUCCESS
-                    val drawn = read && run {
+                    // NO_DATA: the surface has never had a frame posted, which is a
+                    // blank screen too, and the likeliest one for a game that stalls
+                    // before it draws (rig, 2026-10-23: Godot 4.5 for 2.5 minutes).
+                    val read = result == PixelCopy.SUCCESS || result == PixelCopy.ERROR_SOURCE_NO_DATA
+                    val drawn = result == PixelCopy.SUCCESS && run {
                         sample.getPixels(pixels, 0, SAMPLE, 0, 0, SAMPLE, SAMPLE)
                         !isBlankFrame(pixels)
                     }
@@ -297,15 +303,8 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
                             CrashWatch.mark(activity, CrashWatch.DRAWN)
                             finish()
                         }
-                        read && !asked && RuntimeWatchdog.inFront &&
-                            SystemClock.uptimeMillis() - startedAt >= BLACK_SCREEN_MS -> {
-                            // Still black long past a normal start: the person
-                            // is asked, once, and the game keeps running.
-                            asked = true
-                            GameTroubleActivity.ask(
-                                activity, GameTroubleActivity.BLACK_SCREEN,
-                                activity.intent?.getStringExtra(RuntimeActivity.EXTRA_PATH),
-                            )
+                        read -> {
+                            nothingShown()
                             again()
                         }
                         else -> again()
@@ -314,8 +313,23 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
                 handler,
             )
         } catch (e: IllegalArgumentException) {
+            // The surface went away between the check and the copy.
+            nothingShown()
             again()
         }
+    }
+
+    /**
+     * The game's surface shows nothing: black, never posted a frame, or
+     * never became valid. Long past a normal start, with the game in front,
+     * the person is asked, once, and the game keeps running.
+     */
+    private fun nothingShown() {
+        if (asked || !RuntimeWatchdog.inFront || SystemClock.uptimeMillis() - startedAt < BLACK_SCREEN_MS) return
+        asked = true
+        GameTroubleActivity.ask(
+            activity, GameTroubleActivity.BLACK_SCREEN, activity.intent?.getStringExtra(RuntimeActivity.EXTRA_PATH),
+        )
     }
 
     private fun again() {
