@@ -206,6 +206,13 @@
     <string name="filtered_missing_component">This game needs %1$s, which no core here provides. %2$s</string>
     <string name="component_carried">Cores here carry %1$s %2$s.</string>
     <string name="component_carried_none">No core here carries %1$s.</string>
+    <string name="component_request_title">This game needs the %1$s</string>
+    <string name="component_request_install_message">It is a separate part, installed once, under its own licence (%1$s). The game waits while you decide.</string>
+    <string name="component_request_install">Install it</string>
+    <string name="component_request_accept_message">It is installed and waiting for you to accept its licence. The game waits while you decide.</string>
+    <string name="component_request_accept">Read and accept its licence</string>
+    <string name="component_request_unavailable">None of your core sources publishes it for this version of the engine. The game carries on without it, and may not show everything.</string>
+    <string name="component_request_not_now">Not now</string>
     <string name="component_title">%1$s %2$s runtime</string>
     <string name="component_serves">For %1$s %2$s</string>
     <string name="component_license_line">Its own licence: %1$s. You read it before you allow it.</string>

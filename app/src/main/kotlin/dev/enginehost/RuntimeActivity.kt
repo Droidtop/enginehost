@@ -442,6 +442,14 @@ private class RuntimeHost(
     }
     override fun cacheDirectory(): File = cache
     override fun fileSystem(): EngineFileSystem = files
+
+    /** A component the running game asked for: installed and approved now, or the person said not now ([ComponentRequests]). */
+    override fun requestComponent(name: String): File? {
+        val engine = activity.intent.getStringExtra(RuntimeActivity.EXTRA_ENGINE) ?: return null
+        val runtime = activity.intent.getStringExtra(RuntimeActivity.EXTRA_RUNTIME_VERSION)
+            ?.let { runCatching { Version.parse(it) }.getOrNull() } ?: return null
+        return ComponentRequests.request(activity, gameFolder, engine, runtime, name)
+    }
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {
         val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()
         Log.println(priority, "enginehost/$tag", message + detail)

@@ -513,6 +513,23 @@ root, and the engine then loads it and carries on. As an engine, it can wait wit
 noticing more than a pause (owner, earlier: "it should wait. Luckily, as the engine, we have more
 control than if we were stalling a separate process").
 
+**The request (built, 2026-10-23).** A core calls `EngineHost.requestComponent(name)` off its
+UI thread (plugin API; the default on an older host answers null). Enginehost
+(`ComponentRequests`):
+1. reads the version the game's own files call for, at that moment (for `spine-godot`, its
+   skeletons, `SpineSkeletonScan`); none said means the newest;
+2. answers at once with the newest installed and approved component bundle of that name and
+   version whose `supportedSeries` covers the engine's runtime, verified as every bundle a launch
+   loads;
+3. otherwise opens `ComponentRequestActivity` over the game: "This game needs the Spine 4.2
+   runtime", with Install it (from a source that publishes it, after which the trust screen shows
+   its licence to accept), Read and accept its licence (installed, waiting), or Not now. Its answer
+   reaches the waiting call through a file in `files/component-requests/`, and the call returns
+   the component's root, or null for not now, nothing published, or the game ending.
+
+A locked-down core cannot be handed a component it did not have when it locked down (its broker's
+rules are set then); that is for when a core with components is locked down.
+
 This replaces deciding before the launch. `SpineSkeletonScan`, `runtimeRequirements` as a
 launch-time filter and the selection by `loadsComponents` below describe what is built today and
 go when the request path is built (Droidtop/tracker#291).

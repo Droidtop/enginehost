@@ -68,6 +68,24 @@ public interface EngineHost {
     EngineFileSystem fileSystem();
 
     /**
+     * Asks Enginehost for a runtime component (a subplugin) the running game turned out to need,
+     * by its ecosystem-scoped name ("spine-godot"): the game asks, and receives
+     * (docs/engine-bundle-format.md, "A game asks, and receives"). Enginehost picks the version the
+     * game's own files call for, installs the component bundle if it is not installed and has the
+     * person accept its licence if it is not approved, while this call waits. It answers the
+     * verified, read-only root of the component bundle, laid out as the component's own
+     * documentation says (for Godot, {@code godot-<series>/<name>.gdextension}), or null when
+     * there is none to be had: nothing published, the person said not now, or the game ended.
+     *
+     * <p>Blocks, for as long as the person takes: never call it on the UI thread. The engine
+     * pauses meanwhile, which an engine can do without the game noticing more than a pause.
+     *
+     * <p>Added after the first hosts shipped; the default answers null. A plugin that may run on
+     * an older Enginehost catches {@link IncompatibleClassChangeError}, as for {@link #restart}.
+     */
+    default java.io.File requestComponent(String name) { return null; }
+
+    /**
      * Host-brokered, read-only access to the game folder, present only
      * when this runtime is isolated (docs/engine-sandbox.md "Layer 2").
      * Null on an ordinary in-process launch, and null on a host too old
