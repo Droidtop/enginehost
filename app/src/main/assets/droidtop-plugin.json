@@ -1,0 +1,31 @@
+{
+  "id": "dev.enginehost.app",
+  "origin": "enginehost",
+  "label": "Enginehost",
+  "version": "1",
+  "kind": "app_interface",
+  "contractVersion": 3,
+  "minDroidtop": "0.2",
+  "app": {
+    "package": "dev.enginehost",
+    "service": "dev.enginehost.DroidtopInterfaceService"
+  },
+  "provides": [
+    {
+      "point": "saves.locations",
+      "version": 1,
+      "id": "enginehost",
+      "label": "Enginehost games"
+    }
+  ],
+  "permissions": [
+    {
+      "id": "saves.exchange",
+      "reason": "Asks where a game's saves belong before Enginehost starts it, and tells droidtop when the game saved"
+    },
+    {
+      "id": "library.read",
+      "reason": "Lists the engine games in your droidtop library so Enginehost shows them too"
+    }
+  ]
+}
