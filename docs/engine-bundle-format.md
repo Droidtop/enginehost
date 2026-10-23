@@ -481,7 +481,12 @@ bundle, not a second trust mechanism. What differs is in the manifest:
 - `license` is required: its name and the payload file holding its text.
   The trust screen shows that text, open, and the approve button reads
   "Accept licence and allow"; approving is accepting. An engine bundle may
-  declare a `license` too, and is shown the same way.
+  declare a `license` too, and is shown the same way. A bundle that declares
+  a licence is never approved by default, even when official: the official
+  default (`PluginTrustStore.effectiveState`) would install it with no accept,
+  which the #291 rig check found (Droidtop/tracker#291). Installing it from the
+  catalog leads to its trust screen, and a launch waiting on it resumes only
+  after the accept.
 - It has no `dexFiles`, no `entrypoint` and no `capabilities`: Enginehost runs
   no code of a component and no game runs on one. Its native code is loaded
   by the core, into the engine's own runtime process, so it carries

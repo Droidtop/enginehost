@@ -20,4 +20,11 @@ class PluginTrustDefaultTest {
         assertEquals(PluginTrustState.APPROVED, PluginTrustStore.effectiveState("approved", official = false))
         assertEquals(PluginTrustState.DENIED, PluginTrustStore.effectiveState("denied", official = false))
     }
+
+    @Test
+    fun aBundleWithItsOwnLicenceWaitsForTheAcceptEvenWhenOfficial() {
+        assertEquals(PluginTrustState.PENDING, PluginTrustStore.effectiveState(null, official = true, carriesLicense = true))
+        assertEquals(PluginTrustState.APPROVED, PluginTrustStore.effectiveState("approved", official = true, carriesLicense = true))
+        assertEquals(PluginTrustState.DENIED, PluginTrustStore.effectiveState("denied", official = true, carriesLicense = true))
+    }
 }
