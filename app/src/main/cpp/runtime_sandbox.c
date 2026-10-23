@@ -38,6 +38,7 @@
 #include <jni.h>
 #include <signal.h>
 #include <stdio.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include "sbx.h"
@@ -145,7 +146,8 @@ static void log_handlers_masking_sigsys(void) {
 
 /* Process lockdown (the sandbox library's sbx.h): the :runtime side. Takes ownership of fd. */
 JNIEXPORT jint JNICALL
-Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd, jobjectArray own_opens, jboolean learn) {
+Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd, jobjectArray own_opens, jboolean learn,
+                                             jboolean audit) {
     (void) clazz;
     jsize count = (*env)->GetArrayLength(env, own_opens);
     if (count > 8) count = 8;
@@ -167,10 +169,98 @@ Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd,
     struct sbx_lockdown_options options = {.own_opens = list, .own_open_count = (unsigned) used};
     /* Learning (debug.enginehost.learn): nothing refused, every would-be refusal recorded by the broker. */
     if (learn) options.flags |= SBX_LOCK_LEARN;
+    /* debug.enginehost.audit: the kernel logs every trap (audit type 1326), the record of a trap no handler saw. */
+    if (audit) options.flags |= SBX_LOCK_AUDIT;
     log_handlers_masking_sigsys();
     int result = sbx_lockdown(fd, &options);
+    if (result == -EINVAL && audit) {
+        /* Before Linux 4.14 there is no audit flag; a debug switch must not stop the game. */
+        __android_log_print(ANDROID_LOG_WARN, "EnginehostSandbox", "This kernel cannot audit seccomp; locking down without it");
+        options.flags &= ~SBX_LOCK_AUDIT;
+        result = sbx_lockdown(fd, &options);
+    }
     if (result != 0) close(fd);
     return result;
+}
+
+/* The trace ring (sbx_trace) of this process, in the file at path; before lockdown0. 0 or a negative errno. */
+JNIEXPORT jint JNICALL
+Java_dev_enginehost_RuntimeSandbox_trace0(JNIEnv *env, jclass clazz, jstring path) {
+    (void) clazz;
+    const char *chars = (*env)->GetStringUTFChars(env, path, NULL);
+    if (!chars) return -ENOMEM;
+    int fd = open(chars, O_RDWR | O_CREAT | O_CLOEXEC, 0600);
+    (*env)->ReleaseStringUTFChars(env, path, chars);
+    if (fd < 0) return -errno;
+    int result = sbx_trace(fd, 256);
+    close(fd);
+    return result;
+}
+
+/*
+ * A trace ring as sentences, newest last: the process, whether its filter
+ * was on, the last calls the handler took, and first the one it died
+ * handling when an entry was entered and never left. NULL when the file
+ * holds no ring.
+ */
+JNIEXPORT jstring JNICALL
+Java_dev_enginehost_RuntimeSandbox_traceSummary0(JNIEnv *env, jclass clazz, jstring path) {
+    (void) clazz;
+    const char *chars = (*env)->GetStringUTFChars(env, path, NULL);
+    if (!chars) return NULL;
+    int fd = open(chars, O_RDONLY | O_CLOEXEC);
+    (*env)->ReleaseStringUTFChars(env, path, chars);
+    if (fd < 0) return NULL;
+    struct sbx_trace_header header;
+    if (pread(fd, &header, sizeof(header), 0) != (ssize_t) sizeof(header) || header.magic != SBX_TRACE_MAGIC ||
+        header.version != SBX_TRACE_VERSION || header.slots == 0 || header.slots > 4096) {
+        close(fd);
+        return NULL;
+    }
+    enum { SHOWN = 12 };
+    struct sbx_trace_entry shown[SHOWN];
+    unsigned count = 0;
+    uint32_t first = header.next > SHOWN ? header.next - SHOWN : 0;
+    for (uint32_t n = first; n < header.next; n++) {
+        struct sbx_trace_entry entry;
+        off_t at = (off_t) (sizeof(header) + (n % header.slots) * sizeof(entry));
+        if (pread(fd, &entry, sizeof(entry), at) != (ssize_t) sizeof(entry) || entry.seq != n + 1) continue;
+        shown[count++] = entry;
+    }
+    /* Older entries still marked entered: a call whose handling never ended, even far back. */
+    struct sbx_trace_entry stuck = {0};
+    int found_stuck = 0;
+    for (uint32_t k = 0; k < header.slots && k < header.next; k++) {
+        struct sbx_trace_entry entry;
+        if (pread(fd, &entry, sizeof(entry), (off_t) (sizeof(header) + k * sizeof(entry))) != (ssize_t) sizeof(entry)) break;
+        if (entry.seq != 0 && (entry.state & 0xff) == SBX_TRACE_ENTERED && (!found_stuck || entry.seq > stuck.seq)) {
+            stuck = entry;
+            found_stuck = 1;
+        }
+    }
+    close(fd);
+    char text[2048];
+    size_t used = 0;
+#define ADD(...)                                                                     \
+    do {                                                                             \
+        int n_ = snprintf(text + used, sizeof(text) - used, __VA_ARGS__);            \
+        if (n_ > 0) used = (size_t) n_ < sizeof(text) - used ? used + (size_t) n_ : sizeof(text) - 1; \
+    } while (0)
+    ADD("process %d, %s, %u trapped calls", header.pid, header.locked ? "locked down" : "not yet locked down",
+        header.next);
+    if (found_stuck) {
+        const char *name = sbx_syscall_name(stuck.nr);
+        ADD("; DIED HANDLING %s (%d) on thread %d, first argument %#llx, from %#llx", name ? name : "call", stuck.nr,
+            stuck.tid, (unsigned long long) stuck.arg0, (unsigned long long) stuck.ip);
+    }
+    ADD("; last calls:");
+    for (unsigned k = 0; k < count; k++) {
+        const char *name = sbx_syscall_name(shown[k].nr);
+        ADD(" %s(%d) thread %d %s;", name ? name : "call", shown[k].nr, shown[k].tid,
+            (shown[k].state & 0xff) == SBX_TRACE_LEFT ? "done" : "NOT DONE");
+    }
+#undef ADD
+    return (*env)->NewStringUTF(env, text);
 }
 
 /* Logs every refusal (EACCES, EPERM) under EnginehostSandbox; a call that fails on its own is no refusal. */

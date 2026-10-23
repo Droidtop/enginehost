@@ -2175,6 +2175,13 @@ same. The library now takes SIGSYS out of every handler's mask at lockdown
 and out of every new one after it. Before lockdown, Enginehost logs which
 signals had such a handler ("Handlers that block SIGSYS while they run"),
 so a rig run shows whether this was the cause.
+
+The pin moved to `8984af3` on 2026-10-23. That commit brings the trace ring and
+the kernel's audit ("When a lockdown kills" below), learning mode that records
+exec and refuses it, and `sbx_syscall_name`. It also brings the other lane's
+Windows backend and `sbx_open`;
+Enginehost uses none of those, and a core's lockdown is the same call as
+before.
 Enginehost asks for none of the new modes: a core's lockdown is the same
 call with the same flags (none), so cores stay without network. The
 library's own suite passed at both commits on Linux x86_64, every one of
@@ -2357,6 +2364,40 @@ then `SBX_LOCK_LEARN` with its tests. Then Enginehost: the switch, the
 recording decider and the profile writer. Then `propose.py`, then the
 harness's `--learn`. Then train LÖVE, review, flag it, and the other cores
 in the roadmap's order.
+
+#### When a lockdown kills: the trace ring and the kernel's audit (built 2026-10-23)
+
+On dev.392 every lockdown core died with signal 31 soon after "Process locked
+down", and LÖVE, KiriKiri and mkxp-z died in learning mode too
+(Droidtop/tracker#604, rig pass of 2026-10-23). The filter has no kill action.
+Signal 31 is a trapped call whose SIGSYS the kernel could not hand to the
+handler, which leaves no tombstone and no record at the broker. The library's
+design.md ("When a trap kills") has the mechanism. Enginehost keeps two
+records of it:
+
+- **Every locked-down runtime has a trace ring**, `files/sandbox-trace/<pid>.bin`
+  (`sbx_trace`, 256 entries). Each trapped call is noted there before the
+  handler does anything else, and marked done after.
+  - **After a signal-31 death,** the launch screen's crash record (and so the
+    Report) carries "Sandbox trace: …": the process, whether it was locked
+    down, the call it died handling (an entry never marked done), and the
+    last twelve calls by name. The same line goes to logcat under
+    `enginehost`.
+  - **When a new runtime locks down,** it logs the rings of runtimes that
+    have ended under `EnginehostSandbox` ("Sandbox trace of an ended
+    runtime"), then deletes them. A restart loop that no launch screen sees
+    still leaves one line per dead process.
+- **`adb shell setprop debug.enginehost.audit 1`** installs the filter with the
+  kernel's audit (`SBX_LOCK_AUDIT`). Every trapped or refused call is logged as
+  `audit: type=1326` with its number and address, in logcat or `dmesg`. That
+  is the only record of a trap on a thread with SIGSYS blocked, where no code
+  of ours runs. It is noisy; set it back to 0 after the run.
+
+The library's tests reproduce one death the earlier mask fixes did not cover.
+While the handler waits for the broker, another signal's handler makes a
+trapped call. In an app process, ART's signal chain calls sigprocmask, which
+is trapped. Learning mode also no longer lets exec through: the new program
+kept the filter but not the handler.
 
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
