@@ -167,6 +167,12 @@ Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd,
     }
     /* No socket of any kind, as before the library: the process keeps the ones it already has. */
     struct sbx_lockdown_options options = {.own_opens = list, .own_open_count = (unsigned) used};
+    /*
+     * inotify marks through the broker (SBX_LOCK_WATCH, sandbox 0.1.2): only on paths the core may read,
+     * and narrowed to a folder's own events where it holds anything the core may not read, so no event
+     * names a file it could not open (owner, 2026-10-23; docs/engine-sandbox.md "Ren'Py under lockdown").
+     */
+    options.flags |= SBX_LOCK_WATCH;
     /* Learning (debug.enginehost.learn): nothing refused, every would-be refusal recorded by the broker. */
     if (learn) options.flags |= SBX_LOCK_LEARN;
     /* debug.enginehost.audit: the kernel logs every trap (audit type 1326), the record of a trap no handler saw. */

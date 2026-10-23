@@ -2439,7 +2439,11 @@ Read from the dev.405 learning profiles of Ren'Py 7.5, 7.6 and 8.4 and two 8.4 l
   responses").** Every Ren'Py line asked for `inotify_add_watch`. It is not passed to the kernel
   unscoped (`SBX_LOCK_INOTIFY`). The broker decides each watched path as it decides a read, and
   only paths the core may read are watched, so events name only files in folders the core may
-  open. This is the brokered `SBX_WATCH` the library's design names; it is built there first.
+  open. Built as `SBX_LOCK_WATCH` in the sandbox library 0.1.2 (its design.md, "SBX_LOCK_WATCH"), and set
+  for every locked-down core, since it grants only what the core may already read. The broker adds the
+  mark itself on the core's inotify descriptor, through the checked folder. On a folder that holds
+  anything the core may not read, it keeps only the folder's own events (deleted, moved), which name
+  nothing. The owner, asked whether that is the filter they meant: "yeah, that's what I meant".
 - **Still refused, by decision:** `execve` (Ren'Py 7.5 once, 7.6 five times). Probing outside
   the launch (`/home`, `/usr/lib`, `/var/adm`, `/proc/<pid>/cgroup`, `/dev/cpuctl`, ART's
   profile file) is refused, and Ren'Py carries on without it.
