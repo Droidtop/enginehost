@@ -269,21 +269,33 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
                 ).apply { bottomMargin = (24 * activity.resources.displayMetrics.density).toInt() },
             )
         }
-        val surface = findSurface(activity.window.decorView)
+        // Every surface in the window, not only the first: an engine may keep
+        // another SurfaceView beside the one it draws on, and a drawn game was
+        // read as black when the first one found was not it (#618 C11: the sheet
+        // appeared over a fully drawn mkxp-z title).
+        val surfaces = mutableListOf<SurfaceView>().also { collectSurfaces(activity.window.decorView, it) }
+        val valid = surfaces.filter { it.holder.surface.isValid }
         when {
-            surface == null -> if (elapsed > NO_SURFACE_MS) finish() else again()
-            !surface.holder.surface.isValid -> {
+            surfaces.isEmpty() -> if (elapsed > NO_SURFACE_MS) finish() else again()
+            valid.isEmpty() -> {
                 nothingShown()
                 again()
             }
-            else -> look(surface)
+            else -> look(valid, 0, readAny = false)
         }
     }
 
-    private fun look(surface: SurfaceView) {
+    /** Copies [surfaces] one after another; the game has drawn when any of them shows something. */
+    private fun look(surfaces: List<SurfaceView>, index: Int, readAny: Boolean) {
+        if (done) return
+        if (index >= surfaces.size) {
+            if (readAny) nothingShown()
+            again()
+            return
+        }
         try {
             PixelCopy.request(
-                surface, sample,
+                surfaces[index], sample,
                 PixelCopy.OnPixelCopyFinishedListener { result ->
                     if (done) return@OnPixelCopyFinishedListener
                     // NO_DATA: the surface has never had a frame posted, which is a
@@ -298,24 +310,18 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
                         watched = true
                         CrashWatch.mark(activity, CrashWatch.WATCHED)
                     }
-                    when {
-                        drawn -> {
-                            CrashWatch.mark(activity, CrashWatch.DRAWN)
-                            finish()
-                        }
-                        read -> {
-                            nothingShown()
-                            again()
-                        }
-                        else -> again()
+                    if (drawn) {
+                        CrashWatch.mark(activity, CrashWatch.DRAWN)
+                        finish()
+                    } else {
+                        look(surfaces, index + 1, readAny || read)
                     }
                 },
                 handler,
             )
         } catch (e: IllegalArgumentException) {
             // The surface went away between the check and the copy.
-            nothingShown()
-            again()
+            look(surfaces, index + 1, readAny = true)
         }
     }
 
@@ -343,15 +349,18 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         sample.recycle()
     }
 
-    private fun findSurface(view: View): SurfaceView? {
-        if (view is SurfaceView) return view
-        if (view !is ViewGroup) return null
-        for (i in 0 until view.childCount) findSurface(view.getChildAt(i))?.let { return it }
-        return null
+    private fun collectSurfaces(view: View, into: MutableList<SurfaceView>) {
+        if (view is SurfaceView) into += view
+        if (view is ViewGroup) for (i in 0 until view.childCount) collectSurfaces(view.getChildAt(i), into)
     }
 
     private companion object {
-        const val SAMPLE = 16
+        /**
+         * The copy is scaled down to SAMPLE x SAMPLE, so it is SAMPLE squared
+         * points of the frame. 16 (256 points) could miss every lit pixel of a
+         * dark, letterboxed title screen; 64 (4096) does not cost a frame.
+         */
+        const val SAMPLE = 64
         const val POLL_MS = 750L
         const val NO_SURFACE_MS = 20_000L
         const val GIVE_UP_MS = 180_000L
