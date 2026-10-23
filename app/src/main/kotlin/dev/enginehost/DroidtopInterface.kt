@@ -169,10 +169,13 @@ object DroidtopLink {
 
     /**
      * SHA-256 of droidtop's APK signing certificate (lowercase hex), the only
-     * signer Enginehost answers. Empty until droidtop's digest is posted on
-     * Droidtop/tracker#547, and until then Enginehost answers nobody.
+     * signer Enginehost answers: droidtop's release key, read from the v2
+     * signing block of droidtop.apk v0.2.0-dev.2257 (Droidtop/tracker#547).
+     * A debug build of droidtop is signed differently and is not answered.
      */
-    internal val DROIDTOP_CERTS: Set<String> = emptySet()
+    internal val DROIDTOP_CERTS: Set<String> = setOf(
+        "38b1ef4bc47fa8cd62ffcbb43fa85d7f450e9c2d4a8b690776d2218b23f0749f",
+    )
 
     @Volatile private var broker: IPluginHostBroker? = null
     @Volatile private var pluginId: String? = null

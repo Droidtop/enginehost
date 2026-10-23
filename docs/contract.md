@@ -280,7 +280,8 @@ without it, none of this runs and nothing waits for it.
   with droidtop's `IPluginRuntime` (its AIDL copied unchanged under
   `app/src/main/aidl/dev/droidtop/pluginhost`). It answers **only droidtop**:
   the calling uid must be `dev.droidtop.app`, signed by a certificate
-  pinned in `DroidtopLink.DROIDTOP_CERTS`. Every other caller gets
+  pinned in `DroidtopLink.DROIDTOP_CERTS` (droidtop's release key; a debug build
+  of droidtop is signed differently and is not answered). Every other caller gets
   `PERMISSION_DENIED`, or `false` from `loadContained`. `loadContained` keeps the
   broker droidtop hands over (`DroidtopLink`); `unloadPlugin` drops it. No
   screens, jobs, relays or `invoke`.
@@ -305,10 +306,10 @@ without it, none of this runs and nothing waits for it.
   saves down first, and may ask the person about a conflict, so the launch
   screen waits up to two minutes. With no answer, or `known: false`, the game
   saves in Enginehost's own layout, as without droidtop.
-- **After a game ends** that droidtop did not launch, Enginehost tells it with
-  `saves report_changed {path, saveFolder, reason, endedAtMs}`, `saveFolder` being
-  what `GAME_ENDED` would name. A game droidtop launched hears `GAME_ENDED`
-  instead, and is not told twice.
+- **After any game ends**, Enginehost tells droidtop with `saves report_changed
+  {path, saveFolder, reason, endedAtMs}`, `saveFolder` being what `GAME_ENDED`
+  would name. A game droidtop launched gets both: droidtop treats the report as
+  idempotent, and a broadcast can be lost (plugin lane, #547).
 - **droidtop's engine games** are registered on Enginehost's Home
   (`DroidtopLibrary`, `library.read list_engine_games`) when droidtop connects
   and when Home comes back, at most every ten minutes. Only the game's folder

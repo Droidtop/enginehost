@@ -570,11 +570,9 @@ class LaunchActivity : EnginehostActivity() {
         // planned folder as before.
         val folder = EngineSaveFolders.recorded(this, gameFolder, File(planned))?.path ?: planned
         val callerKey = intent.getStringExtra(EXTRA_CALLER_KEY)
-        // droidtop learns of saves from a game it did not launch through its plugin
-        // interface (Droidtop/tracker#547); one it launched hears GAME_ENDED below.
-        if (callerKey != DroidtopLink.DROIDTOP_PACKAGE) {
-            DroidtopSaves.reportChanged(this, gameFolder, folder, reason, System.currentTimeMillis())
-        }
+        // droidtop hears of every game's saves through its plugin interface (Droidtop/tracker#547),
+        // a game it launched too: it treats the report as idempotent, and a broadcast can be lost.
+        DroidtopSaves.reportChanged(this, gameFolder, folder, reason, System.currentTimeMillis())
         val caller = callerKey?.takeIf { it != LaunchCaller.UNKNOWN_KEY && it != LaunchCaller.IN_APP_KEY } ?: return
         sendBroadcast(
             Intent(LaunchEntryActivity.ACTION_GAME_ENDED).setPackage(caller)
