@@ -49,6 +49,13 @@ data class InstalledPlugin(
      */
     val writesGameFolder: Boolean = false,
     /**
+     * The game sub-folders this engine writes, relative to the game folder ("game/saves"):
+     * under the lockdown only these are writable, the rest of the game folder stays read-only
+     * (owner 2026-10-23, docs/engine-sandbox.md "Ren'Py under lockdown"). [writesGameFolder]
+     * makes the whole folder writable instead.
+     */
+    val gameWrites: List<String> = emptyList(),
+    /**
      * Whether this bundle's code runs correctly under the process lockdown
      * (the sandbox library, without Android isolation), on either transport.
      * Declared by the bundle once a rig run shows it does; a launch of it is
@@ -337,6 +344,7 @@ object PluginRegistry {
             },
             json.optBoolean("isolatable", false),
             writesGameFolder = json.optBoolean("writesGameFolder", false),
+            gameWrites = GameWrites.parse(json.optJSONArray("gameWrites")),
             lockdown = json.optBoolean("lockdown", false),
             component = component,
             license = ComponentManifestReader.license(json.optJSONObject("license")),

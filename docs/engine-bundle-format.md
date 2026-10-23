@@ -962,6 +962,16 @@ for a locked-down launch (`lockdown`, below), so a core that saves beside the
 game declares it before it declares `lockdown`. An unconfined launch, and a host
 older than this field, ignore it.
 
+## `gameWrites` (2026-10-23)
+
+Optional, array of strings, default empty. Each names a sub-folder of the game folder the
+engine writes, relative to it (`"game/saves"`, `"game/cache"`). Under the lockdown only these
+are writable, and the rest of the game folder stays read-only (owner 2026-10-23, in place of
+`writesGameFolder` for the whole folder; `docs/engine-sandbox.md`, "Ren'Py under lockdown").
+A path that is absolute, empty, or has `.`, `..` or an empty segment is refused, and so is
+the bundle. `writesGameFolder: true` still makes the whole folder writable. A host older than
+this field ignores it.
+
 ## `lockdown` (2026-10-17)
 
 Optional, boolean, default `false`, on either transport. `true` says the core

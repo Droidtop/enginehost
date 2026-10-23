@@ -104,6 +104,8 @@ object RuntimeSandbox {
         gameWritable: Boolean,
         save: File,
         bundles: List<File>,
+        /** The game sub-folders the core writes ([InstalledPlugin.gameWrites]); the rest of the game folder stays read-only. */
+        gameWrites: List<String> = emptyList(),
         /** The core being launched; a learning run needs it (null for the debug lockdown probe, which never learns). */
         plugin: InstalledPlugin? = null,
     ): Boolean {
@@ -129,6 +131,7 @@ object RuntimeSandbox {
                     putParcelable(SandboxBrokerProvider.SOCKET, pair[0])
                     putString(SandboxBrokerProvider.GAME, game.absolutePath)
                     putBoolean(SandboxBrokerProvider.GAME_WRITABLE, gameWritable)
+                    putStringArray(SandboxBrokerProvider.GAME_WRITES, gameWrites.toTypedArray())
                     putString(SandboxBrokerProvider.SAVE, save.absolutePath)
                     putStringArray(SandboxBrokerProvider.BUNDLES, bundles.map { it.absolutePath }.toTypedArray())
                     if (learn && plugin != null) {
@@ -211,7 +214,14 @@ object RuntimeSandbox {
         private set
 
     /** The broker's rules for one launch; see [lockdown]. */
-    internal fun policy(context: Context, game: String, gameWritable: Boolean, save: String, bundles: List<String>): Map<String, Int> {
+    internal fun policy(
+        context: Context,
+        game: String,
+        gameWritable: Boolean,
+        save: String,
+        bundles: List<String>,
+        gameWrites: List<String> = emptyList(),
+    ): Map<String, Int> {
         val rules = LinkedHashMap<String, Int>()
         listOf(
             "/system", "/system_ext", "/product", "/vendor", "/odm", "/apex", "/linkerconfig",
@@ -247,6 +257,8 @@ object RuntimeSandbox {
             .forEach { rules[it.absolutePath] = SBX_READ or SBX_WRITE }
         rules[File(context.dataDir, "app_webview").absolutePath] = SBX_READ or SBX_WRITE
         rules[game] = if (gameWritable) SBX_READ or SBX_WRITE else SBX_READ
+        // The longest rule decides, so these stay writable inside a read-only game folder.
+        gameWrites.filter(GameWrites::isSubFolder).forEach { rules[File(game, it).path] = SBX_READ or SBX_WRITE }
         rules[save] = SBX_READ or SBX_WRITE
         return rules
     }
@@ -320,7 +332,8 @@ class SandboxBrokerProvider : ContentProvider() {
         val game = extras.getString(GAME) ?: return null.also { socket.close() }
         val save = extras.getString(SAVE) ?: return null.also { socket.close() }
         val bundles = extras.getStringArray(BUNDLES)?.toList()?.takeIf { it.isNotEmpty() } ?: return null.also { socket.close() }
-        val rules = RuntimeSandbox.policy(context!!, game, extras.getBoolean(GAME_WRITABLE), save, bundles)
+        val gameWrites = extras.getStringArray(GAME_WRITES)?.toList().orEmpty()
+        val rules = RuntimeSandbox.policy(context!!, game, extras.getBoolean(GAME_WRITABLE), save, bundles, gameWrites)
         // A learning run (RuntimeSandbox.learning): its broker refuses nothing and records every would-be refusal.
         val learner = extras.getString(LEARN_CORE)?.let { core ->
             SandboxLearner.start(
@@ -344,6 +357,7 @@ class SandboxBrokerProvider : ContentProvider() {
         const val SOCKET = "socket"
         const val GAME = "game"
         const val GAME_WRITABLE = "gameWritable"
+        const val GAME_WRITES = "gameWrites"
         const val SAVE = "save"
         const val BUNDLES = "bundles"
         const val SERVED = "served"

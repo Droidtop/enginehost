@@ -110,6 +110,7 @@ class RuntimeActivity : FragmentActivity() {
                 if (!RuntimeSandbox.lockdown(
                         this, gameFolder, resolved.plugin.writesGameFolder, saveFolder,
                         listOf(resolved.plugin.directory) + resolved.components.map { it.directory },
+                        gameWrites = resolved.plugin.gameWrites,
                         plugin = resolved.plugin,
                     )
                 ) {
