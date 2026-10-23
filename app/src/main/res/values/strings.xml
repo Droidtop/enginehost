@@ -187,6 +187,11 @@
     <string name="refresh_all">Refresh</string>
     <string name="refreshing">Refreshing…</string>
     <string name="refreshing_message">Checking for releases…</string>
+    <string name="refreshed_updates_in_cores">%1$s waiting in Cores.</string>
+    <string name="releases_all_installed">You have every core this channel offers.</string>
+    <string name="update_in_cores">Update in Cores</string>
+    <string name="installed_lines_show">Other builds of your cores (%1$d)</string>
+    <string name="installed_lines_hide">Hide your cores</string>
     <string name="refreshed_ok">Every installed core is up to date.</string>
     <string name="refreshed_partial">Refreshed; %1$s unavailable — %2$s</string>
     <string name="catalog_rate_limited_until">GitHub rate limit, try again after %1$s.</string>
@@ -194,8 +199,8 @@
     <string name="catalog_http_error">GitHub returned HTTP %1$d.</string>
     <string name="catalog_offline">No network connection.</string>
     <string name="origins_heading">Sources</string>
-    <string name="sources_toggle">Sources (%1$d)</string>
-    <string name="sources_hide">Hide sources</string>
+    <string name="sources_toggle">Where cores come from (%1$d sources)</string>
+    <string name="sources_hide">Hide where cores come from</string>
     <string name="filtered_compatible">Cores that run this game.</string>
     <string name="filtered_no_match">Nothing published runs this game yet. Every core is listed.</string>
     <string name="filtered_missing_component">This game needs %1$s, which no core here provides. %2$s</string>
@@ -231,7 +236,7 @@
     <string name="use_capability">Use %1$s %2$s</string>
     <string name="custom_origin_removed">Source removed</string>
     <string name="origins_all_heading">All sources</string>
-    <string name="sources_toggle_third_party">Sources (%1$d) · %2$d to quick add</string>
+    <string name="sources_toggle_third_party">Where cores come from (%1$d sources) · %2$d to quick add</string>
     <string name="quick_add_heading">Quick add third-party repositories</string>
     <string name="quick_add_intro">Repositories Droidtop lists with their maintainer and signing key. Listed is not reviewed: each core still asks for your approval before it runs, and none is marked Official.</string>
     <string name="quick_add_empty">No third-party repositories are listed yet.</string>
@@ -490,7 +495,6 @@
     <string name="field_required">%1$s is required</string>
     <string name="engine_family">Engine</string>
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
-    <string name="update_to_build">Update to %1$s</string>
     <string name="updates_section">Updates</string>
     <string name="updates_frequency_label">Check for updates</string>
     <string-array name="update_frequency_entries">

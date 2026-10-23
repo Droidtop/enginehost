@@ -365,6 +365,13 @@ The channel stays Stable unless the person changes it, so the one-press path is 
 set. It is not offered while the screen picks an engine for one game (tracker#23, the shape
 droidtop's per-catalog Install all has, tracker#458).
 
+Add a core lists only cores that are not installed (#620 E6). Updates live in one place, Cores
+with its Update all: a refresh here says how many are waiting there, and a newer build of an
+installed line reads "Update in Cores" and opens it. The installed lines fold under "Other builds
+of your cores (N)", built when opened, so a second build of a line is still a tap away. Sources
+and Channel are one "Where cores come from" row. While the screen picks an engine for one game,
+or shows one game's needs, every matching card shows as before.
+
 ## Updating Enginehost itself: a missed check retries, a stuck hand-over ends
 
 The automatic pass (`PluginUpdateCheck`) runs when its interval has passed since the last pass

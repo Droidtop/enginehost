@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -522,7 +523,22 @@ class PluginCatalogActivity : EnginehostActivity() {
             )
         // A few cards per main-thread message (RowBatches): all of them at once froze this
         // screen as it did Cores (#620 E1). Install all goes last, after the cards.
-        releaseRows.add(cards, { (newest, older) -> addRelease(newest, older) }) { addInstallAll(cards.map { it.first }) }
+        // Add a core lists what is not installed; updates live in one place, Cores with its Update
+        // all (#620 E6). Lines already here fold away below, for whoever wants another build of one.
+        val (mine, toAdd) = if (browsing()) {
+            val installedIds = snapshot?.installed.orEmpty().map { it.bundleId }.toSet()
+            cards.partition { it.first.bundleId in installedIds }
+        } else {
+            emptyList<Pair<AvailablePlugin, List<AvailablePlugin>>>() to cards
+        }
+        if (toAdd.isEmpty() && mine.isNotEmpty()) {
+            releasesEmptyState.visibility = View.VISIBLE
+            releasesEmptyState.setText(R.string.releases_all_installed)
+        }
+        releaseRows.add(toAdd, { (newest, older) -> addRelease(newest, older) }) {
+            addInstallAll(toAdd.map { it.first })
+            addInstalledFold(mine)
+        }
         // A catalog stored a while ago may describe builds that have since
         // been replaced; installing from it would fetch the old one by its
         // old checksum. Refresh first, once, and come back here afterwards.
@@ -641,8 +657,8 @@ class PluginCatalogActivity : EnginehostActivity() {
      * stream and repository are one small line at the bottom. [older]
      * builds are reachable through one control and otherwise out of the way.
      */
-    private fun addRelease(plugin: AvailablePlugin, older: List<AvailablePlugin> = emptyList()) {
-        val card = layoutInflater.inflate(R.layout.item_release, releaseList, false)
+    private fun addRelease(plugin: AvailablePlugin, older: List<AvailablePlugin> = emptyList(), parent: ViewGroup = releaseList) {
+        val card = layoutInflater.inflate(R.layout.item_release, parent, false)
         // A runtime component serves no game itself: its card says which
         // engine loads it and, before anything else, under which licence.
         val component = plugin.manifest.component
@@ -752,9 +768,8 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
         } else {
             val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
-            // A build newer than the newest installed one is an update. It is
-            // added beside the builds already there, and waits for approval
-            // unless it carries one from a same-key build of this line.
+            // A build newer than the newest installed one is an update, and
+            // updates are Cores' job: the button opens Cores (#620 E6).
             val installedIdle = isInstalledBuild(installed, plugin)
             val update = !installedIdle && installed.isNotEmpty() &&
                 PluginUpdates.isNewerBuildOf(installed.maxBy { it.info.pluginVersion }, plugin.manifest)
@@ -762,7 +777,7 @@ class PluginCatalogActivity : EnginehostActivity() {
             val idleLabel = when {
                 installedIdle -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
-                update -> getString(R.string.update_to_build, PluginVersions.display(plugin.info.pluginVersion))
+                update -> getString(R.string.update_in_cores)
                 else -> getString(R.string.install)
             }
             button.text = idleLabel
@@ -786,6 +801,11 @@ class PluginCatalogActivity : EnginehostActivity() {
                 progress.visibility = View.VISIBLE
             }
             button.setOnClickListener {
+                // Updates live in one place, Cores with its Update all (#620 E6).
+                if (update) {
+                    startActivity(Intent(this, PluginTrustActivity::class.java))
+                    return@setOnClickListener
+                }
                 // Progress belongs on the card being installed, not in a
                 // status line somewhere else on the screen.
                 installing += plugin.bundleId
@@ -809,7 +829,30 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
             actions.addView(button)
         }
-        releaseList.addView(card)
+        parent.addView(card)
+    }
+
+    /** Neither picking an engine for one game nor filtered to one game's needs: the plain store. */
+    private fun browsing(): Boolean = !intent.getBooleanExtra(EXTRA_SELECTION_ONLY, false) && requestedConfig == null
+
+    /**
+     * "Other builds of your cores (3)": the installed lines' cards, folded and built only when
+     * opened, so the store shows what is new and a person who wants a second build of a line
+     * they have still finds it (#620 E6).
+     */
+    private fun addInstalledFold(mine: List<Pair<AvailablePlugin, List<AvailablePlugin>>>) {
+        if (mine.isEmpty()) return
+        val toggle = layoutInflater.inflate(R.layout.item_action_button, releaseList, false) as Button
+        val holder = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        toggle.text = getString(R.string.installed_lines_show, mine.size)
+        toggle.setOnClickListener {
+            val open = holder.visibility != View.VISIBLE
+            if (open && holder.childCount == 0) mine.forEach { (newest, older) -> addRelease(newest, older, holder) }
+            holder.visibility = if (open) View.VISIBLE else View.GONE
+            toggle.text = if (open) getString(R.string.installed_lines_hide) else getString(R.string.installed_lines_show, mine.size)
+        }
+        releaseList.addView(toggle)
+        releaseList.addView(holder)
     }
 
     /**
@@ -905,7 +948,10 @@ class PluginCatalogActivity : EnginehostActivity() {
             return if (pendingUpdates == 0) {
                 getString(R.string.refreshed_ok)
             } else {
-                resources.getQuantityString(R.plurals.plugin_updates_available, pendingUpdates, pendingUpdates) + "."
+                getString(
+                    R.string.refreshed_updates_in_cores,
+                    resources.getQuantityString(R.plurals.plugin_updates_available, pendingUpdates, pendingUpdates),
+                )
             }
         }
         val reasons = failed.values.map { failureText((it as OriginOutcome.Failed).reason) }.distinct()
