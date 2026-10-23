@@ -55,7 +55,9 @@ them".
 - **Home's update notice** ("N core updates are available", and an app
   update) sits in the header beside Add games, as tall as it. The check
   answers seconds after launch; as a row above the list it pushed the list
-  down under a tap meant for a game (same rig run).
+  down under a tap meant for a game (same rig run). It is a tonal button, so
+  Add games stays the header's one primary button; styled as a primary with
+  accent text it read as a blank blue button (review, Droidtop/tracker#618).
 - **Launch:** `PluginResolver.ranked` picks the best approved build the game's
   `pluginVersion` allowlist allows, which is how a game avoids a bad build.
   The launch carries that build's archive digest
@@ -258,6 +260,9 @@ resolves it once and hands it to the runtime as an extra
 Under its status line a game's page shows rows, read off the main thread after the
 page itself (`GameSectionsLoader`, drawn by `GameSectionsView`):
 
+- **Controls** (first, so it is never under the fold at 1920x1080; review,
+  Droidtop/tracker#618): whether the game has its own buttons or follows the
+  engine's; it opens the controller screen on "This game". Shown when a core resolves.
 - **Core**: the build that runs the game and whether it is "newest that fits" or
   "fixed for this game". Its sheet lists "Newest that fits" and every installed
   build that could run the game (`PluginResolver.ranked` without an allowlist), with
