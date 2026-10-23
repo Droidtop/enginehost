@@ -2190,6 +2190,11 @@ The pin moved to `db8f498` on 2026-10-23. It brings:
 It also brings the other lane's Windows backend, `sbx_open`,
 `SBX_LOCK_PATHOPS`, `SBX_LOCK_INOTIFY` and `SBX_LOCK_UNIX`. Enginehost asks
 for none of those, so a core's lockdown is the same call as before.
+
+The pin moved to `f2a2b79` the same day: the same series, landed on the
+library's `main` linearly after the other lane's sbx-exec, `SBX_LOCK_CONTAIN`
+flags and learning records' `allowed_by`. Enginehost uses none of those
+either.
 Enginehost asks for none of the new modes: a core's lockdown is the same
 call with the same flags (none), so cores stay without network. The
 library's own suite passed at both commits on Linux x86_64, every one of
