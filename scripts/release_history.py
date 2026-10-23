@@ -11,6 +11,8 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from typing import NamedTuple
 
 
@@ -113,7 +115,34 @@ def gh_api(*arguments: str, parse=None, run=_run_gh, sleep=time.sleep, gone_is_f
 RELIST_PAUSES = (5, 15, 45)
 
 
-def published_builds(repository: str, bundle_id: str, api=gh_api, sleep=time.sleep) -> list:
+def _download(url: str) -> bytes:
+    with urllib.request.urlopen(url, timeout=60) as response:
+        return response.read()
+
+
+def envelope_of(asset: dict, repository: str, api=gh_api, download=_download) -> dict:
+    """A release envelope's JSON. A public repository's asset is downloaded from
+    its release URL, which costs nothing of the REST API's hourly allowance:
+    reading every envelope through the API (two reads per build, one per
+    release) emptied the installation's allowance when twelve Ren'Py lines
+    built at once, and every signing job after failed with "API rate limit
+    exceeded" (2026-10-23, Droidtop/tracker#604). A 404 there is Gone, as from
+    the API; any other failure falls back to the API, with its retries."""
+    url = asset.get("browser_download_url")
+    if url:
+        try:
+            return json.loads(download(url))
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                raise Gone(f"{url}: HTTP 404") from error
+        except (urllib.error.URLError, OSError, ValueError):
+            pass
+    return api("-H", "Accept: application/octet-stream",
+               f"repos/{repository}/releases/assets/{asset['id']}", parse=json.loads,
+               gone_is_final=True)
+
+
+def published_builds(repository: str, bundle_id: str, api=gh_api, sleep=time.sleep, download=_download) -> list:
     """Every release envelope of this bundle id in the repository.
 
     Rolling channels delete and recreate their release, but the newest build
@@ -127,13 +156,13 @@ def published_builds(repository: str, bundle_id: str, api=gh_api, sleep=time.sle
                   f"(attempt {attempt + 1} of {len(RELIST_PAUSES) + 1})", file=sys.stderr)
             sleep(pause)
         try:
-            return _builds_from_listing(repository, bundle_id, api)
+            return _builds_from_listing(repository, bundle_id, api, download)
         except Gone as gone:
             reason = str(gone)
     raise SystemExit(f"a release envelope of {repository} is still missing after listing the releases again: {reason}")
 
 
-def _builds_from_listing(repository: str, bundle_id: str, api) -> list:
+def _builds_from_listing(repository: str, bundle_id: str, api, download=_download) -> list:
     pages = api(f"repos/{repository}/releases?per_page=100", "--paginate", "--slurp", parse=json.loads)
     builds = []
     for release in (item for page in pages for item in page):
@@ -143,9 +172,7 @@ def _builds_from_listing(repository: str, bundle_id: str, api) -> list:
         for asset in release.get("assets", []):
             if asset["name"] not in ENVELOPES:
                 continue
-            envelope = api("-H", "Accept: application/octet-stream",
-                           f"repos/{repository}/releases/assets/{asset['id']}", parse=json.loads,
-                           gone_is_final=True)
+            envelope = envelope_of(asset, repository, api, download)
             for entry in envelope.get("bundles", []):
                 manifest = json.loads(base64.b64decode(entry["manifestBase64"]))
                 if manifest.get("bundleId") == bundle_id:

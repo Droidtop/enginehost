@@ -111,5 +111,39 @@ class RelistOnGone(unittest.TestCase):
         self.assertEqual(self.pauses, [])
 
 
+class EnvelopeDownload(unittest.TestCase):
+    """2026-10-23: envelopes come from the release URL, not the rate-limited API."""
+
+    def asset(self):
+        return {"name": "enginehost-release.json", "id": 7,
+                "browser_download_url": "https://github.com/x/releases/download/v1/enginehost-release.json"}
+
+    def refuse_api(self, *arguments, parse=None, gone_is_final=False):
+        self.fail("the API was asked although the download answered")
+
+    def test_a_download_spends_no_api_call(self):
+        body = release_history.json.dumps(envelope("dev.enginehost.x", "1.0.0-3")).encode()
+        got = release_history.envelope_of(self.asset(), "x", api=self.refuse_api, download=lambda url: body)
+        self.assertEqual(got["bundles"][0]["manifestBase64"], envelope("dev.enginehost.x", "1.0.0-3")["bundles"][0]["manifestBase64"])
+
+    def test_a_download_404_is_gone(self):
+        def gone(url):
+            raise release_history.urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+        with self.assertRaises(release_history.Gone):
+            release_history.envelope_of(self.asset(), "x", api=self.refuse_api, download=gone)
+
+    def test_any_other_download_failure_falls_back_to_the_api(self):
+        asked = []
+
+        def api(*arguments, parse=None, gone_is_final=False):
+            asked.append(arguments[-1])
+            return {"bundles": []}
+
+        def broken(url):
+            raise release_history.urllib.error.URLError("connection reset")
+        self.assertEqual(release_history.envelope_of(self.asset(), "x", api=api, download=broken), {"bundles": []})
+        self.assertEqual(asked, ["repos/x/releases/assets/7"])
+
+
 if __name__ == "__main__":
     unittest.main()
