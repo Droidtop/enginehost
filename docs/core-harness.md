@@ -88,5 +88,14 @@ harness presses Run unsandboxed (found by its text in the UI dump), marks the
 game "(unsandboxed)" in the table, and names every such game under "Ran
 unsandboxed".
 
+**Training the sandbox** (`--learn`). Every core runs in learning mode
+(docs/engine-sandbox.md, "Learning mode"): nothing is refused, and no game has
+a sandbox. The harness sets `debug.enginehost.learn all` before the first game
+and sets it back to `0` afterwards, even after an error. It then pulls each
+core build's profile into `sandbox-learned/` in the output folder and writes
+`sandbox-proposal.md` with `tools/sandbox-learn/propose.py`, for a person to
+review. report.md says at the top that the run had no sandbox. An unsandboxed
+core still needs `--run-unsandboxed` as well.
+
 It exits 0 when every game run passed every check that ran, and 1 otherwise. Its
 own tests run anywhere: `python3 -m unittest discover -s tools/core-harness`.

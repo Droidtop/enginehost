@@ -325,10 +325,16 @@ def run_game(device, engine, folder, steps, out_dir, args):
 
 # ---- the report ------------------------------------------------------------
 
-def render_report(results, device_line):
+LEARNED_ON_DEVICE = "/sdcard/Android/data/%s/files/sandbox-learned" % PACKAGE
+
+
+def render_report(results, device_line, learning=None):
     names = ["first frame", "input", "stays alive", "save", "load", "exit"]
-    lines = ["# Enginehost core test harness", "", device_line, "",
-             "| engine | game | " + " | ".join(names) + " |", "|" + " --- |" * (len(names) + 2)]
+    lines = ["# Enginehost core test harness", "", device_line, ""]
+    if learning:
+        lines += ["**Learning run** (`debug.enginehost.learn all`): nothing was refused and no game had a "
+                  "sandbox. " + learning, ""]
+    lines += ["| engine | game | " + " | ".join(names) + " |", "|" + " --- |" * (len(names) + 2)]
     for r in results:
         cells = [r["checks"].get(n, NOT_TESTED) for n in names]
         game = os.path.basename(r["folder"].rstrip("/")) + (" (unsandboxed)" if r.get("unsandboxed") else "")
@@ -363,6 +369,9 @@ def main(argv=None):
     ap.add_argument("--play-seconds", type=int, default=20)
     ap.add_argument("--run-unsandboxed", action="store_true",
                     help='answer "Run unsandboxed" for a core with no sandbox; the report names every game run that way')
+    ap.add_argument("--learn", action="store_true",
+                    help="train the sandbox: every core runs in learning mode (docs/engine-sandbox.md), and its "
+                         "profiles and a proposed policy are pulled into the output folder")
     args = ap.parse_args(argv)
 
     with open(args.games) as f:
@@ -375,7 +384,44 @@ def main(argv=None):
     sdk = device.shell("getprop ro.build.version.sdk").strip()
     device_line = "Device: %s, API %s. Enginehost %s." % (model, sdk, version.replace("versionName=", ""))
 
+    if args.learn:
+        # Learning applies at each launch; it is turned off again whatever happens below.
+        device.shell("setprop debug.enginehost.learn all")
     results = []
+    try:
+        run_all(device, games, args, results)
+    finally:
+        if args.learn:
+            device.shell("setprop debug.enginehost.learn 0")
+    learning = pull_learned(device, args.out) if args.learn else None
+
+    os.makedirs(args.out, exist_ok=True)
+    with open(os.path.join(args.out, "report.json"), "w") as f:
+        json.dump({"device": device_line, "learning": learning, "results": results}, f, indent=2)
+    with open(os.path.join(args.out, "report.md"), "w") as f:
+        f.write(render_report(results, device_line, learning))
+    print("Report: %s" % os.path.join(args.out, "report.md"))
+    return 0 if all(r["passed"] or r.get("skipped") for r in results) else 1
+
+
+def pull_learned(device, out):
+    """Pulls the learning profiles and writes the proposal beside them; answers the report's sentence."""
+    folder = os.path.join(out, "sandbox-learned")
+    os.makedirs(folder, exist_ok=True)
+    names = [n for n in device.shell("ls %s" % LEARNED_ON_DEVICE).split() if n.endswith(".json")]
+    for name in names:
+        device.run("pull", "%s/%s" % (LEARNED_ON_DEVICE, name), os.path.join(folder, name))
+    pulled = sorted(os.path.join(folder, n) for n in names if os.path.isfile(os.path.join(folder, n)))
+    if not pulled:
+        return "No profile was found in %s." % LEARNED_ON_DEVICE
+    propose = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sandbox-learn", "propose.py")
+    proposal = subprocess.run([sys.executable, propose] + pulled, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    with open(os.path.join(out, "sandbox-proposal.md"), "wb") as f:
+        f.write(proposal.stdout)
+    return "Profiles: `sandbox-learned/` (%d); proposed policy for review: `sandbox-proposal.md`." % len(pulled)
+
+
+def run_all(device, games, args, results):
     for engine, entry in games.items():
         if args.engine and engine not in args.engine:
             continue
@@ -387,14 +433,6 @@ def main(argv=None):
             result = run_game(device, engine, folder, steps, out_dir, args)
             print("  " + ", ".join("%s %s" % (k, v) for k, v in result["checks"].items()), flush=True)
             results.append(result)
-
-    os.makedirs(args.out, exist_ok=True)
-    with open(os.path.join(args.out, "report.json"), "w") as f:
-        json.dump({"device": device_line, "results": results}, f, indent=2)
-    with open(os.path.join(args.out, "report.md"), "w") as f:
-        f.write(render_report(results, device_line))
-    print("Report: %s" % os.path.join(args.out, "report.md"))
-    return 0 if all(r["passed"] or r.get("skipped") for r in results) else 1
 
 
 if __name__ == "__main__":

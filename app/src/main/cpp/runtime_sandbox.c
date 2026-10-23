@@ -36,6 +36,7 @@
 #ifdef __ANDROID__
 #include <android/log.h>
 #include <jni.h>
+#include <stdlib.h>
 #include <string.h>
 #include "sbx.h"
 #endif
@@ -111,7 +112,7 @@ Java_dev_enginehost_RuntimeSandbox_denyInternet(JNIEnv *env, jclass clazz) {
 
 /* Process lockdown (the sandbox library's sbx.h): the :runtime side. Takes ownership of fd. */
 JNIEXPORT jint JNICALL
-Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd, jobjectArray own_opens) {
+Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd, jobjectArray own_opens, jboolean learn) {
     (void) clazz;
     jsize count = (*env)->GetArrayLength(env, own_opens);
     if (count > 8) count = 8;
@@ -131,6 +132,8 @@ Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd,
     }
     /* No socket of any kind, as before the library: the process keeps the ones it already has. */
     struct sbx_lockdown_options options = {.own_opens = list, .own_open_count = (unsigned) used};
+    /* Learning (debug.enginehost.learn): nothing refused, every would-be refusal recorded by the broker. */
+    if (learn) options.flags |= SBX_LOCK_LEARN;
     int result = sbx_lockdown(fd, &options);
     if (result != 0) close(fd);
     return result;
@@ -145,16 +148,91 @@ static void log_refusal(void *context, const struct sbx_access *access, int resu
 }
 
 /*
+ * A learning session's recorder (SandboxLearner.record), called from the
+ * broker's thread. Its global reference lives as long as the process: a
+ * learning run is a debugging run, and one small reference per run is
+ * kept rather than tracking when the broker's thread is done with it.
+ */
+struct learner {
+    JavaVM *vm;
+    jobject recorder;
+    jmethodID record;
+};
+
+static jbyteArray bytes_of(JNIEnv *env, const char *text) {
+    jsize length = (jsize) strlen(text);
+    jbyteArray array = (*env)->NewByteArray(env, length);
+    if (array) (*env)->SetByteArrayRegion(env, array, 0, length, (const jbyte *) text);
+    return array;
+}
+
+/* Hands one record to the recorder; paths go as bytes, since they need not be valid modified UTF-8. */
+static void learn_record(struct learner *learner, const struct sbx_access *access, int verdict) {
+    __android_log_print(ANDROID_LOG_WARN, "EnginehostSandbox", "LEARNED %s %s (%s): a lockdown answers %s", access->op,
+                        access->asked, access->resolved[0] ? access->resolved : "unresolved", strerror(-verdict));
+    JNIEnv *env = NULL;
+    int attached = 0;
+    if ((*learner->vm)->GetEnv(learner->vm, (void **) &env, JNI_VERSION_1_6) != JNI_OK) {
+        if ((*learner->vm)->AttachCurrentThread(learner->vm, &env, NULL) != JNI_OK) return;
+        attached = 1;
+    }
+    jbyteArray op = bytes_of(env, access->op);
+    jbyteArray asked = bytes_of(env, access->asked);
+    jbyteArray resolved = bytes_of(env, access->resolved);
+    if (op && asked && resolved) {
+        (*env)->CallVoidMethod(env, learner->recorder, learner->record, op, asked, resolved, (jint) access->need,
+                               (jint) access->flags, (jint) verdict);
+    }
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    if (op) (*env)->DeleteLocalRef(env, op);
+    if (asked) (*env)->DeleteLocalRef(env, asked);
+    if (resolved) (*env)->DeleteLocalRef(env, resolved);
+    /* The broker's thread ends with its session; a thread that ends attached aborts the process. */
+    if (attached) (*learner->vm)->DetachCurrentThread(learner->vm);
+}
+
+/* Learning: a path the rules refuse is recorded and allowed. */
+static int learn_decide(void *context, const struct sbx_access *access) {
+    if (access->rule_verdict < 0) learn_record(context, access, access->rule_verdict);
+    return 0;
+}
+
+/* Learning: a call the filter would refuse arrives here as the access "syscall"; refusals are still logged. */
+static void learn_audit(void *context, const struct sbx_access *access, int result) {
+    if (strcmp(access->op, "syscall") == 0) learn_record(context, access, access->rule_verdict);
+    else log_refusal(NULL, access, result);
+}
+
+/*
  * Process lockdown: the broker side, in the main process. paths[i] gets
  * modes[i] (SBX_READ, SBX_WRITE). Takes ownership of fd; serves it on its
- * own thread until the runtime process closes it or dies.
+ * own thread until the runtime process closes it or dies. With a recorder
+ * (a learning run), nothing is refused and every would-be refusal goes to
+ * recorder.record.
  */
 JNIEXPORT jint JNICALL
-Java_dev_enginehost_RuntimeSandbox_serve0(JNIEnv *env, jclass clazz, jint fd, jobjectArray paths, jintArray modes) {
+Java_dev_enginehost_RuntimeSandbox_serve0(JNIEnv *env, jclass clazz, jint fd, jobjectArray paths, jintArray modes,
+                                          jobject recorder) {
     (void) clazz;
     struct sbx_policy *policy = sbx_policy_new();
     if (!policy) { close(fd); return -ENOMEM; }
-    sbx_policy_set_audit(policy, log_refusal, NULL);
+    if (recorder) {
+        struct learner *learner = calloc(1, sizeof(*learner));
+        jclass type = (*env)->GetObjectClass(env, recorder);
+        if (learner) learner->record = (*env)->GetMethodID(env, type, "record", "([B[B[BIII)V");
+        if (!learner || !learner->record || (*env)->GetJavaVM(env, &learner->vm) != JNI_OK) {
+            if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+            free(learner);
+            sbx_policy_free(policy);
+            close(fd);
+            return -EINVAL;
+        }
+        learner->recorder = (*env)->NewGlobalRef(env, recorder);
+        sbx_policy_set_decider(policy, learn_decide, learner);
+        sbx_policy_set_audit(policy, learn_audit, learner);
+    } else {
+        sbx_policy_set_audit(policy, log_refusal, NULL);
+    }
     jsize count = (*env)->GetArrayLength(env, paths);
     jint *mode = (*env)->GetIntArrayElements(env, modes, NULL);
     for (jsize i = 0; i < count && mode; i++) {

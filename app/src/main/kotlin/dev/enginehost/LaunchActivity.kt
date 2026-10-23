@@ -217,7 +217,12 @@ class LaunchActivity : EnginehostActivity() {
                 HostEvents.record(
                     this,
                     "plan: ${plan.resolved.plugin.bundleId} runs ${plan.config.engine} ${plan.config.engineVersion}" +
-                        when { plan.resolved.plugin.isolatable -> " isolated"; plan.resolved.plugin.lockdown -> " locked down"; else -> " not sandboxed" },
+                        when {
+                            plan.resolved.plugin.isolatable -> " isolated"
+                            RuntimeSandbox.learning(plan.resolved.plugin) -> " LEARNING, nothing refused"
+                            plan.resolved.plugin.lockdown -> " locked down"
+                            else -> " not sandboxed"
+                        },
                 )
                 showTitle(plan)
                 showStarting()

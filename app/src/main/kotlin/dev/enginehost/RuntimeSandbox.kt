@@ -8,9 +8,12 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Binder
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.util.Log
+import android.widget.Toast
 import java.io.File
 
 /**
@@ -68,9 +71,18 @@ object RuntimeSandbox {
      * `debug.enginehost.lockdown` is 1 (`adb shell setprop`), which is only
      * for running a core's rig check before it declares it.
      */
-    fun locksDown(plugin: InstalledPlugin): Boolean = plugin.lockdown || lockdownRequested()
+    fun locksDown(plugin: InstalledPlugin): Boolean = plugin.lockdown || lockdownRequested() || learning(plugin)
 
     private fun lockdownRequested(): Boolean = DebugProperty.get("lockdown") == "1"
+
+    /**
+     * Whether a launch of [plugin] is a learning run: `debug.enginehost.learn`
+     * names its bundle id, or is `all` (the core harness's --learn). Such a
+     * launch is locked down with nothing refused and every would-be refusal
+     * recorded ([SandboxLearner]), whether or not the core declares lockdown;
+     * it has NO sandbox, and says so (docs/engine-sandbox.md, "Learning mode").
+     */
+    fun learning(plugin: InstalledPlugin): Boolean = DebugProperty.get("learn").let { it == plugin.bundleId || it == "all" }
 
     // Held for the life of the process: a stable provider reference keeps
     // the broker's process alive with this one, and takes this one down if
@@ -86,10 +98,19 @@ object RuntimeSandbox {
      * none can make a socket, run a program or ptrace. Call before any
      * plugin code is loaded. False when the process could not be confined.
      */
-    fun lockdown(context: Context, game: File, gameWritable: Boolean, save: File, bundles: List<File>): Boolean {
+    fun lockdown(context: Context, plugin: InstalledPlugin, game: File, gameWritable: Boolean, save: File, bundles: List<File>): Boolean {
         // Once per process: the activity transport's resource relaunch comes
         // through here a second time, already confined.
         if (confined) return true
+        val learn = learning(plugin)
+        if (learn) {
+            val warning = "LEARNING MODE: ${plugin.bundleId}: nothing is refused, this run has NO sandbox"
+            Log.w(TAG, warning)
+            HostEvents.record(context, warning)
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context.applicationContext, warning, Toast.LENGTH_LONG).show()
+            }
+        }
         val pair = ParcelFileDescriptor.createReliableSocketPair()
         val served = try {
             val client = broker ?: context.contentResolver.acquireContentProviderClient(SandboxBrokerProvider.AUTHORITY)
@@ -102,6 +123,11 @@ object RuntimeSandbox {
                     putBoolean(SandboxBrokerProvider.GAME_WRITABLE, gameWritable)
                     putString(SandboxBrokerProvider.SAVE, save.absolutePath)
                     putStringArray(SandboxBrokerProvider.BUNDLES, bundles.map { it.absolutePath }.toTypedArray())
+                    if (learn) {
+                        putString(SandboxBrokerProvider.LEARN_CORE, plugin.bundleId)
+                        putString(SandboxBrokerProvider.LEARN_BUILD, plugin.info.pluginVersion.toString())
+                        putString(SandboxBrokerProvider.LEARN_ARCHIVE, plugin.archiveSha256)
+                    }
                 },
             )?.getBoolean(SandboxBrokerProvider.SERVED) == true
         } catch (e: Exception) {
@@ -114,7 +140,7 @@ object RuntimeSandbox {
             pair[1].close()
             return false
         }
-        val result = lockdown0(pair[1].detachFd(), OWN_OPENS)
+        val result = lockdown0(pair[1].detachFd(), OWN_OPENS, learn)
         if (result == 0) Log.i(TAG, "Process locked down: files only through the broker, no sockets, no exec")
         else Log.w(TAG, "Process NOT locked down: errno ${-result}")
         // EDEADLK: a thread has SIGSYS blocked and would kill the process on its first trapped call.
@@ -181,9 +207,25 @@ object RuntimeSandbox {
     }
 
     /** The broker side, in the main process: serves [fd] on its own thread under [rules]. */
-    internal fun serve(fd: Int, rules: Map<String, Int>): Boolean {
+    internal fun serve(fd: Int, rules: Map<String, Int>, learner: SandboxLearner? = null): Boolean {
         System.loadLibrary("enginehost_sandbox")
-        return serve0(fd, rules.keys.toTypedArray(), rules.values.toIntArray()) == 0
+        return serve0(fd, rules.keys.toTypedArray(), rules.values.toIntArray(), learner) == 0
+    }
+
+    /**
+     * The folders a learning run's profile names paths by, so one profile
+     * serves every game of a core: the launch's own, then the app's and
+     * shared storage, each under the names Android also gives it.
+     */
+    internal fun learnRoots(context: Context, game: String, save: String, bundles: List<String>): List<Pair<String, String>> {
+        val app = context.packageName
+        return listOf("\$GAME" to game, "\$SAVE" to save) +
+            bundles.map { "\$BUNDLE" to it } +
+            listOf(
+                "\$CACHE" to context.cacheDir.absolutePath, "\$CACHE" to context.codeCacheDir.absolutePath,
+                "\$APP" to context.dataDir.absolutePath, "\$APP" to "/data/user/0/$app", "\$APP" to "/data/data/$app",
+                "\$EXTERNAL" to "/storage/emulated/0", "\$EXTERNAL" to "/sdcard",
+            )
     }
 
     /**
@@ -198,8 +240,8 @@ object RuntimeSandbox {
     private const val SBX_WRITE = 2
 
     @JvmStatic private external fun denyInternet(): Int
-    @JvmStatic private external fun lockdown0(fd: Int, ownOpens: Array<String>): Int
-    @JvmStatic private external fun serve0(fd: Int, paths: Array<String>, modes: IntArray): Int
+    @JvmStatic private external fun lockdown0(fd: Int, ownOpens: Array<String>, learn: Boolean): Int
+    @JvmStatic private external fun serve0(fd: Int, paths: Array<String>, modes: IntArray, learner: SandboxLearner?): Int
 }
 
 /**
@@ -226,7 +268,14 @@ class SandboxBrokerProvider : ContentProvider() {
         val save = extras.getString(SAVE) ?: return null.also { socket.close() }
         val bundles = extras.getStringArray(BUNDLES)?.toList()?.takeIf { it.isNotEmpty() } ?: return null.also { socket.close() }
         val rules = RuntimeSandbox.policy(context!!, game, extras.getBoolean(GAME_WRITABLE), save, bundles)
-        val ok = RuntimeSandbox.serve(socket.detachFd(), rules)
+        // A learning run (RuntimeSandbox.learning): its broker refuses nothing and records every would-be refusal.
+        val learner = extras.getString(LEARN_CORE)?.let { core ->
+            SandboxLearner.start(
+                context!!, core, extras.getString(LEARN_BUILD).orEmpty(), extras.getString(LEARN_ARCHIVE).orEmpty(), game,
+                RuntimeSandbox.learnRoots(context!!, game, save, bundles),
+            )
+        }
+        val ok = RuntimeSandbox.serve(socket.detachFd(), rules, learner)
         return Bundle().apply { putBoolean(SERVED, ok) }
     }
 
@@ -245,5 +294,8 @@ class SandboxBrokerProvider : ContentProvider() {
         const val SAVE = "save"
         const val BUNDLES = "bundles"
         const val SERVED = "served"
+        const val LEARN_CORE = "learnCore"
+        const val LEARN_BUILD = "learnBuild"
+        const val LEARN_ARCHIVE = "learnArchive"
     }
 }

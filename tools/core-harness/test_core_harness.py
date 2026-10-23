@@ -66,7 +66,16 @@ FAKE_ADB = textwrap.dedent('''\
                 else: out += bytes([(x * 8 + state["taps"] * 60) % 256, (y * 8) % 256, 40, 255])
         sys.stdout.buffer.write(head + bytes(out))
     cmd = " ".join(args)
-    if args[:2] == ["exec-out", "screencap"]:
+    if "setprop debug.enginehost.learn" in cmd:
+        state.setdefault("learn", []).append(cmd.split()[-1])
+    elif "ls /sdcard/Android/data/dev.enginehost/files/sandbox-learned" in cmd:
+        print("dev.enginehost.love2d.11.v1-3f0c1a7a9b2c.json")
+    elif args[:1] == ["pull"] and "sandbox-learned" in args[1]:
+        with open(args[2], "w") as f:
+            json.dump({{"core": "dev.enginehost.love2d.11.v1", "build": "0.9.5", "archive": "3F0C", "abi": "x86_64",
+                       "runs": 1, "games": ["Test"], "paths": [], "calls": [
+                           {{"call": "socket", "would": "EACCES", "count": 1, "examples": ["socket(0x2, 0x1, 0)"]}}]}}, f)
+    elif args[:2] == ["exec-out", "screencap"]:
         frame(state["screen"])
     elif "pm path" in cmd: print("package:/data/app/dev.enginehost/base.apk")
     elif "pidof" in cmd: print("4242" if state["launched"] else "")
@@ -142,6 +151,34 @@ class RunGameTest(unittest.TestCase):
         dump = '<node text="Run unsandboxed" bounds="[100,200][300,260]" />'
         self.assertEqual((200, 230), h.centre_of(dump, "Run unsandboxed"))
         self.assertIsNone(h.centre_of(dump, "Cancel"))
+
+
+class LearnTest(unittest.TestCase):
+    def test_learn_turns_learning_on_and_off_and_pulls_a_proposal(self):
+        d = tempfile.mkdtemp()
+        state = os.path.join(d, "state.json")
+        with open(state, "w") as f:
+            json.dump({"screen": "picture", "launched": False, "taps": 0, "unsandboxed": False, "asking": False}, f)
+        adb = os.path.join(d, "adb")
+        with open(adb, "w") as f:
+            f.write(FAKE_ADB.format(python=sys.executable, state=state))
+        os.chmod(adb, 0o755)
+        games = os.path.join(d, "games.json")
+        with open(games, "w") as f:
+            json.dump({"love2d": ["/storage/emulated/0/Games/Test"]}, f)
+        out = os.path.join(d, "out")
+        clock = iter(range(0, 100000))
+        with mock.patch.object(h.time, "sleep", lambda s: None), mock.patch.object(h.time, "time", lambda: next(clock)), \
+                mock.patch.object(h, "PACKAGE", "dev.enginehost"):
+            h.main(["--adb", adb, "--games", games, "--out", out, "--learn", "--play-seconds", "0",
+                    "--first-frame-seconds", "5"])
+        with open(state) as f:
+            self.assertEqual(["all", "0"], json.load(f)["learn"])
+        self.assertTrue(os.path.isfile(os.path.join(out, "sandbox-learned", "dev.enginehost.love2d.11.v1-3f0c1a7a9b2c.json")))
+        with open(os.path.join(out, "sandbox-proposal.md")) as f:
+            self.assertIn("`socket`: network", f.read())
+        with open(os.path.join(out, "report.md")) as f:
+            self.assertIn("**Learning run**", f.read())
 
 
 if __name__ == "__main__":

@@ -2162,6 +2162,10 @@ lockdown run did 143 times on BlueStacks (Droidtop/tracker#550).
 `sbx_lockdown` answers `-EDEADLK` while a thread already has it blocked.
 When that happens Enginehost logs the names of those threads under
 `EnginehostSandbox`, so a rig run says which library's thread to look at.
+
+The pin moved to `75dfe2f` on 2026-10-23 for learning mode (`SBX_LOCK_LEARN`,
+below). The SIGSYS check now also skips a thread that has already exited,
+which `/proc` can still list for a moment after it is joined.
 Enginehost asks for none of the new modes: a core's lockdown is the same
 call with the same flags (none), so cores stay without network. The
 library's own suite passed at both commits on Linux x86_64, every one of
@@ -2269,7 +2273,7 @@ What the lockdown still does not close is unchanged: Binder (above).
 Ren'Py goes first (owner, 2026-10-17), then the rest of the GL and WebView
 cores in the survey's order.
 
-#### Learning mode: training a core's policy before it is flagged (design, 2026-10-22)
+#### Learning mode: training a core's policy before it is flagged (built 2026-10-23)
 
 The owner, 2026-10-22: "we need something like a permissive mode to train the
 sandbox". It comes before any core is flagged. LÖVE's first lockdown run died
@@ -2285,7 +2289,8 @@ blocks it (`-EDEADLK`). Enginehost logs the names of such threads when that
 happens.
 
 **The switch.** `adb shell setprop debug.enginehost.learn <bundle id>`
-launches that core's games in learning mode, and `setprop
+launches that core's games in learning mode, `setprop debug.enginehost.learn
+all` every core's (the harness's `--learn`), and `setprop
 debug.enginehost.learn 0` turns it off. Only adb or root can set it. It is
 never on by default and never in the app's own settings. It is per core;
 which game it runs with is the operator's choice of what to launch. A
@@ -2299,9 +2304,14 @@ learning run:
 - is never the launch of an ordinary person. The property needs adb, and the
   launch screen's unsandboxed warning still asks first for a core that has no
   sandbox of its own.
+- applies to the lockdown only. An isolated core (CatSystem2, CMVS) runs in
+  Android's isolated process, not under the lockdown, so it is not trained
+  this way.
 
 **The profile.** The broker (main process) collects every record: paths the
-rules refused, and calls the filter refuses. Paths are generalised to the
+rules refused (its decider records and allows them), and calls the filter
+refuses (its audit function gets them as the access "syscall"). Each is also
+logged as `LEARNED ...` under `EnginehostSandbox`. Paths are generalised to the
 launch's own folders, longest match first: `$GAME` (the game folder), `$SAVE`
 (the save folder, or the caller's saveRoot), `$CACHE`, `$BUNDLE` (the
 core's installed files), `$APP` (Enginehost's private data), `$EXTERNAL`
@@ -2309,7 +2319,9 @@ core's installed files), `$APP` (Enginehost's private data), `$EXTERNAL`
 deduplicated and counted. When the run ends, the profile is written to
 `Android/data/dev.enginehost/files/sandbox-learned/<bundle id>-<archive
 digest, 12 hex>.json`. A later run of the same build adds to it, so several
-games of one core build one profile. The file is plain JSON:
+games of one core build one profile. The broker does not say when a run
+ends, so the file is written two seconds after the last new record, and once
+at the start of each run, so a clean run still counts. The file is plain JSON:
 
 ```json
 {"core": "dev.enginehost.love2d.11.v1", "build": "0.9.4-4", "archive": "3f0c...", "abi": "x86_64",
