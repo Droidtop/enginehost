@@ -95,10 +95,10 @@ class GameStatus(
 
         /** Why no config could be read for [folder], and what its button offers instead. */
         private fun unread(context: Context, folder: File): GameStatus {
-            if (File(folder, CONFIG_FILE_NAME).isFile) {
+            if (GameConfigs.document(context, folder) != null) {
                 val overrides = runCatching { GameLibraryStore(context).overridesFor(folder) }.getOrNull()
                 val problem = try {
-                    EngineConfigReader.resolve(folder, null, null, overrides)
+                    GameConfigs.resolve(context, folder, null, null, overrides)
                     null
                 } catch (e: InvalidEngineConfigException) {
                     e.message

@@ -132,10 +132,27 @@ game's own folder for an engine that saves beside the game, the per-game
 folder for one Enginehost names, and the save root for an engine that names
 its own folder inside it (Ren'Py, Godot).
 
-A folder's `enginehost.json` is the person's own config, and only the config
-creator (Game setup) writes it, when the person presses Save there. Nothing else in
-Enginehost writes or edits it: not Play, not adding games, not a caller's
-launch (the user, 2026-09-25). A folder with no `enginehost.json` is still not
+**Where a game's config lives (owner, 2026-10-23).** "Unless explicitly tagged
+to be added to the game folder, it should go in enginehost's data. Users should
+be allowed to save it there later, but the point is, the creation UI for configs
+is a HELPER." And on files already in game folders: "Import them and leave them
+in place. The game folder one takes precedence, and saves made in the UI will
+not overwrite the one in the game folder unless the user explicitly flags to do
+so, and with a warning". So a game's config is, in order (`GameConfigs`):
+
+1. the game folder's own `enginehost.json`, when there is one;
+2. else the setup the person made in Game setup, kept in Enginehost's own
+   storage keyed by the game folder (`GameConfigStore`), never in the game folder;
+3. else a caller's inline config and detection, as below.
+
+The person's per-game overrides (library database) sit above all of them. Save in
+Game setup keeps the setup in Enginehost. It writes the game folder's
+`enginehost.json` only when the person turns on "Also save to the game folder",
+and when one is already there it asks before replacing it. A folder's
+`enginehost.json` is copied into Enginehost's storage the first time it is read,
+and left in place. Nothing else writes or edits a game folder's `enginehost.json`:
+not Play, not adding games, not Keep, not a caller's launch (this replaces the
+2026-09-25 rule that Save always wrote it). A game with no config of its own is still not
 a dead end. Detection reads the engine, version, entry file, title and save
 folder from the folder's own files; when all of that is evident the launch runs
 on that detected config in memory, with a caller's inline config filling what
@@ -150,7 +167,7 @@ game's testing configuration, in Enginehost's own storage keyed by the game
 folder, and runs the game with it (the user, 2026-09-25: a test that does not
 work must not replace a working config). Game setup and the game's own screen
 then say a testing configuration is pending, one press from Keep (it becomes
-the folder's `enginehost.json`) or Discard (the working config, never touched,
+the game's setup in Enginehost; the folder is not written) or Discard (the working config, never touched,
 runs again). A new Test replaces the pending one. Every other launch, Play or
 another app's `dev.enginehost.LAUNCH`, runs the working config.
 
@@ -249,8 +266,8 @@ key:
 ## On-device tools
 
 The first-class UI is a config creator built around Android's system folder
-picker. It opens or creates the authoritative `enginehost.json` in a chosen
-game folder, scans the complete granted tree for conservative engine/version
+picker. It opens a chosen game folder's setup (its own `enginehost.json`, else the
+setup kept in Enginehost, see "Where a game's config lives"), scans the complete granted tree for conservative engine/version
 evidence, exposes the complete host contract, validates before writing, and
 preserves unknown top-level fields so newer core settings are not destroyed.
 Detection only prefills empty fields; it never replaces an existing game-owned

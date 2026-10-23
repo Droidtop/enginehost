@@ -61,6 +61,8 @@ class ConfigEditorActivity : EnginehostActivity() {
     private lateinit var execFileButton: Button
     private lateinit var optionsList: LinearLayout
     private lateinit var editorFields: View
+    private lateinit var saveToFolderSwitch: androidx.appcompat.widget.SwitchCompat
+    private lateinit var configSourceNote: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,6 +101,8 @@ class ConfigEditorActivity : EnginehostActivity() {
                 REQUEST_FOLDER,
             )
         }
+        saveToFolderSwitch = findViewById(R.id.saveToFolderSwitch)
+        configSourceNote = findViewById(R.id.configSourceNote)
         findViewById<Button>(R.id.saveConfigButton).setOnClickListener { save() }
         findViewById<Button>(R.id.testConfigButton).setOnClickListener { testRun() }
         findViewById<Button>(R.id.browseAllPluginsButton).setOnClickListener {
@@ -587,11 +591,14 @@ class ConfigEditorActivity : EnginehostActivity() {
         try {
             val configUri = findChild(treeUri, CONFIG_FILE_NAME)
             if (configUri == null) {
-                loadedDocument = JSONObject()
+                val stored = StorageFolder.absolutePath(treeUri)?.let { GameConfigStore.of(this).get(it) }
+                loadedDocument = stored ?: JSONObject()
                 populate(loadedDocument)
-                toast(getString(R.string.new_configuration))
+                showConfigSource(folderHasConfig = false)
+                if (stored == null) toast(getString(R.string.new_configuration))
                 return
             }
+            showConfigSource(folderHasConfig = true)
             val raw = contentResolver.openInputStream(configUri)?.bufferedReader()?.use { it.readText() }
                 ?: throw IllegalStateException("Unable to read $CONFIG_FILE_NAME")
             loadedDocument = JSONObject(raw)
@@ -615,13 +622,13 @@ class ConfigEditorActivity : EnginehostActivity() {
         folderPath = folder
         folderLabel.text = folder.absolutePath
         editorFields.visibility = View.VISIBLE
-        val configFile = File(folder, CONFIG_FILE_NAME)
-        loadedDocument = runCatching {
-            if (configFile.isFile) JSONObject(configFile.readText()) else JSONObject()
-        }.getOrElse {
+        // The game's own config: its folder's enginehost.json, else the setup kept in Enginehost.
+        val current = runCatching { GameConfigs.document(this, folder) }.getOrElse {
             toast(getString(R.string.could_not_open_config, CONFIG_FILE_NAME, it.message))
-            JSONObject()
+            null
         }
+        loadedDocument = current?.json?.let { JSONObject(it.toString()) } ?: JSONObject()
+        showConfigSource(folderHasConfig = current?.source == GameConfigs.Source.GAME_FOLDER)
         intent.getStringExtra(EXTRA_CONFIG)?.takeIf(String::isNotBlank)?.let { callerConfig ->
             runCatching { mergeMissing(loadedDocument, JSONObject(callerConfig)) }
                 .onFailure { toast(getString(R.string.ignored_invalid_caller, it.message)) }
@@ -754,18 +761,65 @@ class ConfigEditorActivity : EnginehostActivity() {
         return result
     }
 
+    /**
+     * Save keeps the setup in Enginehost's own storage ([GameConfigStore]); it
+     * goes into the game folder only when the person turns on "Also save to
+     * the game folder", and replacing an enginehost.json already there asks
+     * first. The owner, 2026-10-23: the creation UI for configs is a helper,
+     * and a save "will not overwrite the one in the game folder unless the
+     * user explicitly flags to do so, and with a warning" ([GameConfigs]).
+     */
     private fun save() {
+        if (folderPath == null && folderUri == null) return report(R.string.could_not_save, getString(R.string.choose_folder_first))
+        val document = try {
+            buildDocument().also { EngineConfigReader.parseDocument(it.toString()) }
+        } catch (error: Exception) {
+            return report(R.string.could_not_save, error.message ?: getString(R.string.config_needs_attention))
+        }
+        val folder = currentFolder()
+        val toFolder = saveToFolderSwitch.isChecked
+        if (folder == null && !toFolder) return report(R.string.could_not_save, getString(R.string.no_path_for_enginehost))
+        val folderHasConfig = folderPath?.let { File(it, CONFIG_FILE_NAME).isFile }
+            ?: folderUri?.let { findChild(it, CONFIG_FILE_NAME) != null } ?: false
+        if (toFolder && folderHasConfig) {
+            Sheet(this).warning()
+                .title(R.string.replace_folder_config_title)
+                .message(R.string.replace_folder_config_message)
+                .choice(R.string.replace_folder_config_confirm, Sheet.Tone.DANGER) { commitSave(document, folder, toFolder = true) }
+                .choice(R.string.cancel) {}
+                .show()
+            return
+        }
+        commitSave(document, folder, toFolder)
+    }
+
+    private fun commitSave(document: JSONObject, folder: File?, toFolder: Boolean) {
         try {
-            val path = folderPath
-            if (path != null) writeDocument(path)
-            else writeDocument(folderUri ?: return report(R.string.could_not_save, getString(R.string.choose_folder_first)))
+            folder?.let { GameConfigStore.of(this).set(it, document) }
+            if (toFolder) {
+                val path = folderPath
+                if (path != null) FolderConfigFile.write(path, document) else folderUri?.let { writeDocument(it, document) }
+            }
+            loadedDocument = document
             // Saved is the working config now; a pending test is settled by it.
-            currentFolder()?.let { TestingConfigStore.of(this).discard(it) }
+            folder?.let { TestingConfigStore.of(this).discard(it) }
             showTestingRow()
-            toast(getString(R.string.saved_config, CONFIG_FILE_NAME))
+            val folderStillApplies = !toFolder && folder != null && File(folder, CONFIG_FILE_NAME).isFile
+            showConfigSource(folderHasConfig = toFolder || folderStillApplies)
+            if (folderStillApplies) {
+                report(R.string.saved_in_enginehost, getString(R.string.folder_config_still_applies))
+            } else {
+                toast(getString(if (toFolder) R.string.saved_in_enginehost_and_folder else R.string.saved_in_enginehost))
+            }
         } catch (error: Exception) {
             report(R.string.could_not_save, error.message ?: getString(R.string.config_needs_attention))
         }
+    }
+
+    /** Says where this game's setup comes from, so a save that does not apply is never a surprise. */
+    private fun showConfigSource(folderHasConfig: Boolean) {
+        configSourceNote.visibility = View.VISIBLE
+        configSourceNote.setText(if (folderHasConfig) R.string.config_source_folder else R.string.config_source_enginehost)
     }
 
     /**
@@ -820,8 +874,7 @@ class ConfigEditorActivity : EnginehostActivity() {
         Sheet(this).title(title).message(message).show()
     }
 
-    private fun writeDocument(treeUri: Uri): JSONObject {
-        val document = buildDocument()
+    private fun writeDocument(treeUri: Uri, document: JSONObject) {
         val configUri = findChild(treeUri, CONFIG_FILE_NAME)
             ?: DocumentsContract.createDocument(
                 contentResolver,
@@ -834,15 +887,6 @@ class ConfigEditorActivity : EnginehostActivity() {
             it.write(document.toString(2))
             it.newLine()
         } ?: throw IllegalStateException("The selected folder is not writable")
-        loadedDocument = document
-        return document
-    }
-
-    private fun writeDocument(folder: File): JSONObject {
-        val document = buildDocument()
-        FolderConfigFile.write(folder, document)
-        loadedDocument = document
-        return document
     }
 
     private fun findChild(treeUri: Uri, displayName: String): Uri? {

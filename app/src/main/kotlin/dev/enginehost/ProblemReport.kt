@@ -93,7 +93,7 @@ data class ProblemReport(
          */
         fun gather(context: Context, gameFolder: File?): ProblemReport {
             val config = gameFolder?.let { folder ->
-                runCatching { EngineConfigReader.resolve(folder, null) }.getOrNull()
+                runCatching { GameConfigs.resolve(context, folder, null) }.getOrNull()
             }
             val resolved = config?.let {
                 runCatching {
@@ -104,9 +104,7 @@ data class ProblemReport(
                 }.getOrNull()
             }
             val configText = gameFolder?.let { folder ->
-                File(folder, CONFIG_FILE_NAME).takeIf { it.isFile }?.let { file ->
-                    runCatching { file.readText().trim() }.getOrNull()
-                }
+                runCatching { GameConfigs.document(context, folder)?.text?.trim() }.getOrNull()
             }.orEmpty()
             return ProblemReport(
                 gameName = gameFolder?.name.orEmpty(),

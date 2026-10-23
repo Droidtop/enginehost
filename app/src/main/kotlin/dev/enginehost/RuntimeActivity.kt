@@ -62,7 +62,7 @@ class RuntimeActivity : FragmentActivity() {
         val config = try {
             EngineConfigReader.resolve(
                 gameFolder, intent.getStringExtra(EXTRA_CALLER_CONFIG), intent.getStringExtra(EXTRA_TESTING_CONFIG),
-                intent.getStringExtra(EXTRA_OVERRIDES),
+                intent.getStringExtra(EXTRA_OVERRIDES), GameConfigs.storedJson(this, gameFolder),
             )
         } catch (e: InvalidEngineConfigException) {
             return failAndFinish(e.message ?: "Invalid $CONFIG_FILE_NAME")

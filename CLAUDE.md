@@ -21,10 +21,13 @@ any flow in the UI has a programmatic equivalent, and vice versa. The bundle con
   (user data dirs, app-private dirs) mean a folder the person chose. Engines that save beside
   the game keep doing so.
 - **`dev.enginehost.LAUNCH` is open to any app, by design.**
-- **A game folder's `enginehost.json` is the person's own config (decided 2026-09-25).** Only the config
-  creator writes it, on Save (or Keep for a tested configuration). Test stores a separate testing configuration
-  in Enginehost's own storage and only Test runs it. Play, adding games and callers never write or edit it; a
-  folder without one launches on its detected config in memory.
+- **Configs live in Enginehost's data; the game folder's file is opt-in (decided 2026-10-23, replacing
+  2026-09-25).** Game setup is a helper: Save keeps a game's setup in Enginehost's own storage
+  (`GameConfigStore`). It writes the game folder's `enginehost.json` only when the person turns on "Also save
+  to the game folder", with a warning before replacing one. A game folder's own `enginehost.json` takes
+  precedence and is imported, never deleted. Test stores a separate testing configuration and only Test runs
+  it; Keep makes it the setup in Enginehost. Play, adding games and callers never write a game folder; a game
+  with no config launches on its detected config in memory. `docs/contract.md`, "Where a game's config lives".
 - **Engine sandbox (decided 2026-09-24):** engine code must not have internet access, and must
   not have arbitrary file access; Enginehost does the file reads a launch needs and hands them
   to the engine. Today engines run in the `:runtime` process under the app's own UID and so

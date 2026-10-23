@@ -58,7 +58,7 @@ class PluginCatalogActivity : EnginehostActivity() {
     private fun readRequested() {
         if (requestedRead) return
         requestedConfig = intent.getStringExtra(EXTRA_GAME_PATH)?.let { path ->
-            runCatching { EngineConfigReader.resolve(File(path), intent.getStringExtra(EXTRA_CALLER_CONFIG)) }.getOrNull()
+            runCatching { GameConfigs.resolve(this, File(path), intent.getStringExtra(EXTRA_CALLER_CONFIG)) }.getOrNull()
         }
         requestedRead = true
     }

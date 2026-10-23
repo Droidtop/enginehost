@@ -66,8 +66,9 @@ them".
   file". There is no list that withdraws one build for everyone, and none is
   planned. The signed revocation list withdraws certificates and keys only. A
   person leaves a bad build out through the game's `pluginVersion` allowlist,
-  set in the config creator and saved to the game's `enginehost.json`
-  (`contract.md`). The allowlist names what is allowed and has no exclusion or
+  set in the config creator and kept as the game's setup in Enginehost, or in its
+  `enginehost.json` when the person saves it there (`contract.md`, "Where a game's
+  config lives"). The allowlist names what is allowed and has no exclusion or
   open-ended range, so leaving out build 1.0.191 is written as ranges either
   side of it with an upper end, for example `1.0.0-1.0.190,1.0.192-1.0.999`.
 

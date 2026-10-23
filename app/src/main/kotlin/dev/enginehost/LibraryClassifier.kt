@@ -85,7 +85,7 @@ object LibraryClassifier {
             val folder = File(path)
             // Storage that is not mounted right now says nothing about the game; ask again later.
             if (!folder.isDirectory) continue
-            val finding = fromConfig(folder) ?: runCatching {
+            val finding = fromConfig(context, folder) ?: runCatching {
                 analyzer.analyze(folder, DirEntries.list(folder).orEmpty(), 0L)
             }.getOrNull()
             library.classify(path, finding)
@@ -94,9 +94,9 @@ object LibraryClassifier {
         return changed
     }
 
-    /** A folder's own enginehost.json is what Play runs, so it is also what the library says. */
-    private fun fromConfig(folder: File): GameFinding? {
-        val config = runCatching { EngineConfigReader.resolve(folder, null) }.getOrNull() ?: return null
+    /** A game's own config (its folder's enginehost.json, else Game setup's) is what Play runs, so it is also what the library says. */
+    private fun fromConfig(context: Context, folder: File): GameFinding? {
+        val config = runCatching { GameConfigs.resolve(context, folder, null) }.getOrNull() ?: return null
         val web = config.engine == "html"
         return GameFinding(
             path = folder.path,

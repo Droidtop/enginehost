@@ -222,6 +222,24 @@
                 android:textIsSelectable="true"
                 android:visibility="gone" />
 
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/saveToFolderSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_m"
+                android:checked="false"
+                android:minHeight="@dimen/eh_touch_target"
+                android:text="@string/save_to_folder"
+                android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+            <TextView
+                android:id="@+id/configSourceNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_xs"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+                android:visibility="gone" />
+
             <Button
                 android:id="@+id/saveConfigButton"
                 style="@style/Widget.Enginehost.Button"

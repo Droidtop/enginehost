@@ -14,8 +14,8 @@ import java.security.MessageDigest
  * they can roll it back." So Test never writes into the game folder (only
  * Save does, see [FolderConfigFile]); it stores the editor's document here,
  * in Enginehost's own storage keyed by the game folder, and launches with it.
- * Afterwards the person keeps it ([keep]: it becomes the folder's
- * enginehost.json) or discards it ([discard]: the working config was never
+ * Afterwards the person keeps it ([keep]: it becomes the game's setup in
+ * Enginehost's storage) or discards it ([discard]: the working config was never
  * touched and is what runs again). A new Test replaces the pending one.
  * Every other launch (Play, another app's LAUNCH) runs the working config;
  * only a launch Game setup's Test starts reads this.
@@ -45,13 +45,14 @@ class TestingConfigStore(private val directory: File) {
     }
 
     /**
-     * Makes the pending testing configuration the game's working config: it
-     * is written as the folder's enginehost.json (the person chose to keep
-     * it, which is a save) and is then no longer pending.
+     * Makes the pending testing configuration the game's setup: it is kept in
+     * Enginehost's own storage, as a Save in Game setup is ([GameConfigs]),
+     * never written into the game folder, and is then no longer pending. A
+     * game folder's own enginehost.json still takes precedence.
      */
-    fun keep(gameFolder: File) {
+    fun keep(gameFolder: File, configs: GameConfigStore) {
         val pending = checkNotNull(get(gameFolder)) { "No testing configuration is pending for this game" }
-        FolderConfigFile.write(gameFolder, pending.config)
+        configs.set(gameFolder, pending.config)
         discard(gameFolder)
     }
 
@@ -73,8 +74,9 @@ class TestingConfigStore(private val directory: File) {
 
 /**
  * The one writer of a game folder's `enginehost.json`, used only when the
- * person saves in Game setup (or keeps a tested configuration). The document
- * is validated first, so a folder never receives a config Enginehost itself
+ * person saves in Game setup with "Also save to the game folder" turned on
+ * (and, when one is already there, confirms replacing it). The document is
+ * validated first, so a folder never receives a config Enginehost itself
  * could not read.
  */
 object FolderConfigFile {

@@ -101,16 +101,23 @@ object EngineConfigReader {
      * database and never written into the game folder (Droidtop/tracker#235). They sit
      * above everything else: a value the person set for this game on this device wins over the
      * folder's file, which stays exactly as its author left it.
+     *
+     * [storedJson] is the config the person made in Game setup, kept in Enginehost's own
+     * storage ([GameConfigStore]). It applies when the game folder has no enginehost.json of
+     * its own: the folder's file takes precedence (the owner, 2026-10-23). Callers with a
+     * Context use [GameConfigs.resolve], which supplies it.
      */
     fun resolve(
         gameFolder: File,
         inlineJson: String?,
         testingJson: String? = null,
         overridesJson: String? = null,
+        storedJson: String? = null,
     ): EngineConfig {
         val configFile = File(gameFolder, CONFIG_FILE_NAME)
         val folderJson = testingJson?.let { parseObject(it, "testing configuration") }
             ?: configFile.takeIf { it.isFile }?.let { parseObject(it.readText(), CONFIG_FILE_NAME) }
+            ?: storedJson?.let { parseObject(it, "Game setup's configuration") }
         val callerJson = inlineJson?.let { parseObject(it, "inline config") }
         val layered = when {
             folderJson != null -> mergeAuthoritative(folderJson, callerJson)

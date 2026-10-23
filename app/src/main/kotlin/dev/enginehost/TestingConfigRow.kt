@@ -37,10 +37,10 @@ object TestingConfigRow {
                 .title(R.string.testing_pending_title)
                 .message(activity.getString(R.string.testing_pending_message, stamp))
                 .choice(R.string.testing_keep) {
-                    // Keep writes the game's enginehost.json: not on the main thread.
+                    // Keep stores the setup: not on the main thread.
                     Thread {
-                        val message = runCatching { store.keep(folder) }.fold(
-                            onSuccess = { activity.getString(R.string.testing_kept, CONFIG_FILE_NAME) },
+                        val message = runCatching { store.keep(folder, GameConfigStore.of(activity)) }.fold(
+                            onSuccess = { activity.getString(R.string.testing_kept) },
                             onFailure = { ErrorText.of(activity, it, R.string.could_not_save) },
                         )
                         activity.runOnUiThread {

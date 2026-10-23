@@ -82,7 +82,7 @@ object GameSectionsLoader {
         overrides: String?,
     ): List<OptionRow> {
         val folderOptions = runCatching {
-            JSONObject(File(folder, CONFIG_FILE_NAME).readText()).optJSONObject("options")
+            GameConfigs.document(context, folder)?.json?.optJSONObject("options")
         }.getOrNull()
         return DeclaredOptionsReader.forResolvedBundle(context, core, config.engine).map { option ->
             val source = when {

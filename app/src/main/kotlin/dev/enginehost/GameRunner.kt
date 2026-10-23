@@ -274,7 +274,7 @@ object GameRunner {
         } else {
             null
         }
-        val hasFolderConfig = testingJson != null || File(gameFolder, CONFIG_FILE_NAME).isFile
+        val hasFolderConfig = testingJson != null || GameConfigs.document(context, gameFolder) != null
         // An engine nothing here runs (Unity above all) is said plainly,
         // with why, rather than sent to Game setup to be asked questions
         // no answer to which could make it start.
@@ -299,7 +299,7 @@ object GameRunner {
         // The person's own choices for this game, from the library database; layered over the folder's file.
         val overridesJson = runCatching { GameLibraryStore(context).overridesFor(gameFolder) }.getOrNull()
         val config = try {
-            EngineConfigReader.resolve(gameFolder, launchJson, testingJson, overridesJson)
+            GameConfigs.resolve(context, gameFolder, launchJson, testingJson, overridesJson)
         } catch (e: InvalidEngineConfigException) {
             return ConfigRead.Stop(Plan.Failure(e.message ?: "Invalid $CONFIG_FILE_NAME"))
         }

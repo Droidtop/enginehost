@@ -61,14 +61,16 @@ class TestingConfigStoreTest {
     }
 
     @Test
-    fun `keep writes the testing configuration as the folder's config and settles it`() {
+    fun `keep stores the testing configuration in Enginehost, leaves the folder's file, and settles it`() {
         val game = gameWithWorkingConfig()
         val store = store()
+        val configs = GameConfigStore(temporaryFolder.newFolder("game-configs"))
         store.set(game, tested)
-        store.keep(game)
+        store.keep(game, configs)
 
         assertNull(store.get(game))
-        assertEquals("7.4.11", JSONObject(game.resolve(CONFIG_FILE_NAME).readText()).getString("engineVersion"))
+        assertEquals("7.4.11", configs.get(game)!!.getString("engineVersion"))
+        assertEquals(working, game.resolve(CONFIG_FILE_NAME).readText())
     }
 
     @Test
@@ -99,8 +101,10 @@ class TestingConfigStoreTest {
         val store = store()
         store.set(game, JSONObject().put("title", "no engine"))
 
-        assertThrows(InvalidEngineConfigException::class.java) { store.keep(game) }
+        val configs = GameConfigStore(temporaryFolder.newFolder("game-configs"))
+        assertThrows(InvalidEngineConfigException::class.java) { store.keep(game, configs) }
         assertEquals(working, game.resolve(CONFIG_FILE_NAME).readText())
+        assertNull(configs.get(game))
         assertFalse(store.get(game) == null)
     }
 }
