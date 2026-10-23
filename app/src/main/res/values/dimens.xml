@@ -42,4 +42,6 @@
         that collapses to nothing turns back into the empty gap it replaced.
     -->
     <dimen name="eh_plate_min">128dp</dimen>
+    <!-- The text size a pad glyph is drawn beside where no view gives one (the in-game legend). -->
+    <dimen name="eh_glyph_text">16sp</dimen>
 </resources>

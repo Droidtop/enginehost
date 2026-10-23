@@ -338,6 +338,19 @@ class ControllerProfileStore(private val context: Context) {
         preferences.edit().putBoolean(KEY_IN_BYPASS, applies).apply()
     }
 
+    /** What [device]'s buttons print: the family the person chose for it, else its id's, else Xbox. */
+    fun labels(device: InputDevice?): PadLabels =
+        PadFamilies.labelsFor(device?.let(::chosenFamily), device?.let(PadFamilies::classify))
+
+    /** The family the person chose for [device] on its profile page, if they chose one. */
+    fun chosenFamily(device: InputDevice): PadFamily? = PadFamily.fromId(preferences.getString(familyKey(device), null))
+
+    /** Sets what [device]'s buttons print; null goes back to what its id says. */
+    fun chooseFamily(device: InputDevice, family: PadFamily?) {
+        preferences.edit().apply { if (family == null) remove(familyKey(device)) else putString(familyKey(device), family.id) }.apply()
+    }
+
+    private fun familyKey(device: InputDevice) = "family.${device.descriptor}"
     private fun key(device: InputDevice) = "profile.${device.descriptor}"
     private fun nameKey(device: InputDevice) = "name.${device.descriptor}"
 

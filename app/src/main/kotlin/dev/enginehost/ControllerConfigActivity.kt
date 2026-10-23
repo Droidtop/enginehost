@@ -209,7 +209,11 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
         // still drops a scoped override, which is a different thing --
         // inherit again, not unbind.
         val pendingHotkey = hotkeyCapture
-        hotkeyButton.text = getString(R.string.host_menu_hotkey, hotkeys.label())
+        // Drawn as the pad in hand prints them (docs/SPEC.md, "Controls are drawn as glyphs").
+        val family = PadGlyphs.family(this)
+        val size = hotkeyButton.textSize
+        hotkeyButton.text = PadGlyphs.fill(this, R.string.host_menu_hotkey, PadGlyphs.chord(this, hotkeys.combo(), family, size))
+        hotkeyButton.contentDescription = getString(R.string.host_menu_hotkey, hotkeys.label())
 
         val target = capturing
         unbindButton.visibility = if (target == null && pendingHotkey == null) View.GONE else View.VISIBLE
@@ -219,9 +223,10 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
             target != null -> unbindButton.text = getString(R.string.unbind_action, target.title)
         }
         scopeHint.text = pendingHotkey?.let {
-            getString(
+            PadGlyphs.fill(
+                this,
                 R.string.host_menu_hotkey_prompt,
-                if (it.isEmpty()) getString(R.string.host_menu_hotkey_nothing) else HostMenuHotkeyStore.label(it),
+                if (it.isEmpty()) getString(R.string.host_menu_hotkey_nothing) else PadGlyphs.chord(this, it, family, scopeHint.textSize),
             )
         } ?: target?.let { getString(R.string.capture_prompt, it.title) }
             ?: when {
@@ -238,11 +243,12 @@ class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceL
             val button = layoutInflater.inflate(R.layout.item_action_button, bindingList, false) as Button
             // An inherited binding is marked, so it is obvious which
             // values belong to this engine and which are borrowed.
-            val label = store.get(action).label(this)
-            button.text = buildString {
-                append(getString(R.string.binding_row, action.title, label))
-                if ((scope != null || editingGame) && !overridden) append("  ").append(sourceMarker(store.sourceOf(action)))
-            }
+            val binding = store.get(action)
+            val marker = if ((scope != null || editingGame) && !overridden) "  " + sourceMarker(store.sourceOf(action)) else ""
+            button.text = android.text.SpannableStringBuilder(
+                PadGlyphs.fill(this, R.string.binding_row, action.title, PadGlyphs.binding(this, binding, family, button.textSize)),
+            ).append(marker)
+            button.contentDescription = getString(R.string.binding_row, action.title, binding.label(this)) + marker
             button.isEnabled = !bypassed
             button.setOnClickListener { capturing = action; render() }
             button.setOnLongClickListener {

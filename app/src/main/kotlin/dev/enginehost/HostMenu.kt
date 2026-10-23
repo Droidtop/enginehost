@@ -199,20 +199,24 @@ object HostMenu {
     }
 
     /** What the pad does in this game, in this engine's own words. */
-    private fun legend(activity: Activity, scope: String?): String {
+    private fun legend(activity: Activity, scope: String?): CharSequence {
         val store = ControllerBindingStore(activity, scope)
-        val rows = store.actions().joinToString("\n") { action ->
-            activity.getString(R.string.binding_row, action.title, store.get(action).label(activity))
+        val family = PadGlyphs.family(activity)
+        val size = activity.resources.getDimension(R.dimen.eh_glyph_text)
+        val rows = android.text.SpannableStringBuilder()
+        store.actions().forEachIndexed { i, action ->
+            if (i > 0) rows.append("\n")
+            rows.append(PadGlyphs.fill(activity, R.string.binding_row, action.title, PadGlyphs.binding(activity, store.get(action), family, size)))
         }
         return if (store.isBypassed()) {
-            activity.getString(R.string.host_menu_legend_bypassed) + "\n\n" + rows
+            android.text.SpannableStringBuilder(activity.getString(R.string.host_menu_legend_bypassed)).append("\n\n").append(rows)
         } else {
             rows
         }
     }
 
     /** A page of the menu: its sentence, and the way back to the menu. B closes the menu. */
-    private fun info(activity: Activity, titleRes: Int, message: String) {
+    private fun info(activity: Activity, titleRes: Int, message: CharSequence) {
         open = Sheet(activity)
             .title(titleRes)
             .message(message)

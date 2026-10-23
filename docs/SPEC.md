@@ -340,6 +340,12 @@ prints (Xbox ABXY, PlayStation cross/circle/square/triangle, Nintendo with A on 
 what the pad reports or as the person sets it, and every control surface draws that family's
 glyph for the button that does the job. `PadNames` stays the text for keyboard keys and for
 screen readers.
+The family comes from the pad's USB or Bluetooth id through SDL's controller list
+(`PadFamilies`, `SdlControllerIds`, third_party/sdl_controller_list), and the profile page's
+"Button labels" sets it for a pad the list does not know or gets wrong (as the pad says, Xbox,
+PlayStation, Nintendo). A pad nobody has said anything about is drawn as Xbox, and the page says
+so. Glyphs are drawn in the text colour (`PadGlyphDrawable`), and each sits over its name in the
+text, so a screen reader reads the name.
 
 Which map is being edited is one short list with the chosen one filled and checked. Opened for
 a game it is "This game", "This engine: <name>" and "Other maps" (a sheet with All engines and

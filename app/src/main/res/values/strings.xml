@@ -382,6 +382,15 @@
     <string name="profile_hint">Set this up only if a button on this pad does the wrong thing in every engine. It says which physical control is A, which is the left stick, and so on, once, for every game.</string>
     <string name="profile_hint_no_device">No controller is connected.</string>
     <string name="profile_press">Press %1$s.</string>
+    <string name="profile_labels">Button labels: %1$s</string>
+    <string name="profile_labels_title">What this pad\'s buttons say</string>
+    <string name="profile_labels_detected">%1$s (from the pad)</string>
+    <string name="profile_labels_assumed">%1$s (this pad is not known; choose if it differs)</string>
+    <string name="profile_labels_as_detected">As the pad says: %1$s</string>
+    <string name="profile_labels_as_detected_unknown">As the pad says (not known, drawn as Xbox)</string>
+    <string name="pad_family_xbox">Xbox (A, B, X, Y)</string>
+    <string name="pad_family_playstation">PlayStation (✕, ○, □, △)</string>
+    <string name="pad_family_nintendo">Nintendo (A on the right)</string>
     <string name="profile_capture">Set up this controller</string>
     <string name="profile_cancel">Stop setting up</string>
     <string name="profile_skip">This pad has no such control</string>

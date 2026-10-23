@@ -34,6 +34,7 @@ class ControllerProfileActivity : EnginehostActivity(), InputManager.InputDevice
     private lateinit var captureButton: Button
     private lateinit var clearButton: Button
     private lateinit var bypassProfileButton: Button
+    private lateinit var labelsButton: Button
     private lateinit var store: ControllerProfileStore
 
     /** The control the wizard is waiting for, or null when it is not running. */
@@ -63,6 +64,8 @@ class ControllerProfileActivity : EnginehostActivity(), InputManager.InputDevice
         clearButton = findViewById(R.id.clearButton)
         clearButton.setOnClickListener { if (step == null) clearProfile() else skipControl() }
         bypassProfileButton = findViewById(R.id.bypassProfileButton)
+        labelsButton = findViewById(R.id.labelsButton)
+        labelsButton.setOnClickListener { chooseLabels() }
         bypassProfileButton.setOnClickListener {
             store.setAppliesInBypass(!store.appliesInBypass())
             render()
@@ -102,6 +105,7 @@ class ControllerProfileActivity : EnginehostActivity(), InputManager.InputDevice
 
         val running = step != null
         val profile = device?.let(store::forDevice) ?: ControllerProfile.NONE
+        val labels = store.labels(device)
         profileState.text = when {
             device == null -> getString(R.string.profile_state_no_device)
             profile.source == ControllerProfile.Source.USER -> getString(R.string.profile_state_user)
@@ -122,13 +126,23 @@ class ControllerProfileActivity : EnginehostActivity(), InputManager.InputDevice
 
         val waiting = step?.let { wizard.getOrNull(it) }
         profileHint.text = when {
-            waiting != null -> getString(R.string.profile_press, waiting.title)
+            waiting != null -> PadGlyphs.fill(this, R.string.profile_press, controlGlyph(waiting, labels.family, profileHint.textSize))
             device == null -> getString(R.string.profile_hint_no_device)
             else -> getString(R.string.profile_hint)
         }
 
+        labelsButton.visibility = if (device == null || running) View.GONE else View.VISIBLE
+        labelsButton.text = getString(
+            R.string.profile_labels,
+            when (labels.source) {
+                PadLabels.Source.CHOSEN -> familyName(labels.family)
+                PadLabels.Source.DETECTED -> getString(R.string.profile_labels_detected, familyName(labels.family))
+                PadLabels.Source.ASSUMED -> getString(R.string.profile_labels_assumed, familyName(labels.family))
+            },
+        )
+
         profileList.removeAllViews()
-        rows(device, profile).forEach { row ->
+        rows(device, profile, labels.family).forEach { row ->
             val view = layoutInflater.inflate(R.layout.item_hint, profileList, false) as TextView
             view.text = row
             profileList.addView(view)
@@ -141,36 +155,61 @@ class ControllerProfileActivity : EnginehostActivity(), InputManager.InputDevice
      * instead. A pad Android already gets right has nothing here, which is
      * the answer, not an empty screen.
      */
-    private fun rows(device: InputDevice?, profile: ControllerProfile): List<String> {
+    private fun rows(device: InputDevice?, profile: ControllerProfile, family: PadFamily): List<CharSequence> {
+        val size = profileHint.textSize
         if (device == null) return emptyList()
         if (step != null) {
             return wizard.take(step ?: 0).map { control ->
                 val physical = captured[control]
-                getString(
+                PadGlyphs.fill(
+                    this,
                     R.string.binding_row,
-                    control.title,
-                    physical?.let { label(control, it) } ?: getString(R.string.profile_skipped),
+                    controlGlyph(control, family, size),
+                    physical?.let { label(control, it, family, size) } ?: getString(R.string.profile_skipped),
                 )
             }
         }
         if (profile.isEmpty()) return listOf(getString(R.string.profile_no_corrections))
         return profile.keys.map { (from, to) ->
-            getString(
-                R.string.profile_correction,
-                PadNames.key(to),
-                PadNames.key(from),
-            )
+            PadGlyphs.fill(this, R.string.profile_correction, PadGlyphs.key(this, to, family, size), PadGlyphs.key(this, from, family, size))
         } + profile.axes.map { (from, to) ->
-            getString(
-                R.string.profile_correction,
-                PadNames.axis(to),
-                PadNames.axis(from),
-            )
+            PadGlyphs.fill(this, R.string.profile_correction, PadGlyphs.axis(this, to, family, size), PadGlyphs.axis(this, from, family, size))
         }
     }
 
-    private fun label(control: StandardControl, physical: Int): String =
-        if (control.key != null) PadNames.key(physical) else PadNames.axis(physical)
+    private fun label(control: StandardControl, physical: Int, family: PadFamily, size: Float): CharSequence =
+        if (control.key != null) PadGlyphs.key(this, physical, family, size) else PadGlyphs.axis(this, physical, family, size)
+
+    /** A standard control as the pad in hand prints it: StandardControl's A is the bottom face button. */
+    private fun controlGlyph(control: StandardControl, family: PadFamily, size: Float): CharSequence = when {
+        control.key != null -> PadGlyphs.key(this, control.key, family, size)
+        control.axis != null -> PadGlyphs.axis(this, control.axis, family, size)
+        else -> control.title
+    }
+
+    private fun familyName(family: PadFamily): String = getString(
+        when (family) {
+            PadFamily.XBOX -> R.string.pad_family_xbox
+            PadFamily.PLAYSTATION -> R.string.pad_family_playstation
+            PadFamily.NINTENDO -> R.string.pad_family_nintendo
+        },
+    )
+
+    /** What this pad's buttons print: as the pad says, or the person's choice of the three families. */
+    private fun chooseLabels() {
+        val device = device() ?: return
+        val chosen = store.chosenFamily(device)
+        val sheet = Sheet(this).title(R.string.profile_labels_title)
+        val detected = PadFamilies.classify(device)
+        sheet.choice(
+            detected?.let { getString(R.string.profile_labels_as_detected, familyName(it)) } ?: getString(R.string.profile_labels_as_detected_unknown),
+            current = chosen == null,
+        ) { store.chooseFamily(device, null); render() }
+        PadFamily.entries.forEach { family ->
+            sheet.choice(familyName(family), current = chosen == family) { store.chooseFamily(device, family); render() }
+        }
+        sheet.show()
+    }
 
     private fun startWizard() {
         captured.clear()

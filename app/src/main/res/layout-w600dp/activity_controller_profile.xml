@@ -104,6 +104,19 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/eh_space_xs" />
 
+
+                <Button
+
+                    android:id="@+id/labelsButton"
+
+                    style="@style/Widget.Enginehost.Button.Secondary"
+
+                    android:layout_width="match_parent"
+
+                    android:layout_height="wrap_content"
+
+                    android:layout_marginTop="@dimen/eh_space_s" />
+
             </LinearLayout>
 
         </ScrollView>
