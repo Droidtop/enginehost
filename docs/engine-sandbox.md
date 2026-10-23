@@ -2176,12 +2176,20 @@ and out of every new one after it. Before lockdown, Enginehost logs which
 signals had such a handler ("Handlers that block SIGSYS while they run"),
 so a rig run shows whether this was the cause.
 
-The pin moved to `8984af3` on 2026-10-23. That commit brings the trace ring and
-the kernel's audit ("When a lockdown kills" below), learning mode that records
-exec and refuses it, and `sbx_syscall_name`. It also brings the other lane's
-Windows backend and `sbx_open`;
-Enginehost uses none of those, and a core's lockdown is the same call as
-before.
+The pin moved to `db8f498` on 2026-10-23. It brings:
+- the trace ring and the kernel's audit ("When a lockdown kills" below);
+- the SIGSYS handler installed with SA_NODEFER, so a trapped call made by
+  another signal's handler while ours waits for the broker is handled as a
+  nested call instead of killing with signal 31. ART's signal chain calls
+  the trapped sigprocmask that way, the likeliest cause of the signal-31
+  deaths on every lockdown core;
+- learning mode that records exec and refuses it;
+- `sbx_syscall_name`;
+- a lockdown that no longer refuses a thread only on its way out.
+
+It also brings the other lane's Windows backend, `sbx_open`,
+`SBX_LOCK_PATHOPS`, `SBX_LOCK_INOTIFY` and `SBX_LOCK_UNIX`. Enginehost asks
+for none of those, so a core's lockdown is the same call as before.
 Enginehost asks for none of the new modes: a core's lockdown is the same
 call with the same flags (none), so cores stay without network. The
 library's own suite passed at both commits on Linux x86_64, every one of
