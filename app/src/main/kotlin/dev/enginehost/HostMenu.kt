@@ -41,7 +41,7 @@ class HostMenuHotkeyStore(context: Context) {
     fun label(): String = label(combo())
 
     companion object {
-        private const val PREFERENCES = "host-menu-v1"
+        internal const val PREFERENCES = "host-menu-v1"
         private const val KEY_COMBO = "combo"
 
         /** Select + Start; see the class comment for why these two. */

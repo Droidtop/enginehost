@@ -342,7 +342,7 @@ class ControllerProfileStore(private val context: Context) {
     private fun nameKey(device: InputDevice) = "name.${device.descriptor}"
 
     companion object {
-        private const val PREFERENCES = "controller-profiles-v1"
+        internal const val PREFERENCES = "controller-profiles-v1"
         private const val KEY_IN_BYPASS = "apply-in-bypass"
     }
 }

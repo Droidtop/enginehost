@@ -2448,6 +2448,21 @@ Read from the dev.405 learning profiles of Ren'Py 7.5, 7.6 and 8.4 and two 8.4 l
   the launch (`/home`, `/usr/lib`, `/var/adm`, `/proc/<pid>/cgroup`, `/dev/cpuctl`, ART's
   profile file) is refused, and Ren'Py carries on without it.
 
+**Rig, 2026-10-23 (Droidtop/tracker#550, comment 6373234141):** with all five pieces, Ren'Py 8.4
+(30YearOldVirgin) and 7.5 (NekoParadise) play to their menus locked down on BlueStacks, with no
+abort and no trap death. What was still refused, and what was done:
+- **The host's own settings in the game process.** The controller bindings (a file in `filesDir`,
+  watched as a folder) and the host-menu and controller-profile preferences were refused, so a
+  person's remapping and shortcut would not have applied in a locked-down game. The bindings now
+  live in `files/controls/`, which a locked-down game may read and write, together with exactly
+  the two preference files (`host-menu-v1.xml`, `controller-profiles-v1.xml`, and their `.bak`).
+  Nothing else of the app's.
+- `unlink main.pyo` in the read-only runtime: Python tidying bytecode. The wrapper sets
+  `PYTHONDONTWRITEBYTECODE`.
+- Python's and BlueStacks' probes (`/home/...`, `/usr/lib/setup`, `/System/Library/...`,
+  `/proc/<pid>/cgroup`, `/mnt/expand`, `/data/downloads/.tmp/.modelProp`): outside the launch, and
+  refusing them is harmless.
+
 Order: the preset (done with this note), the game-writes field (`gameWrites`), the host unpack (`unpack`, `CoreUnpacker`), the wrapper's
 external folder, then the library's brokered watch. Then lockdown 1 with audit 1 on 7.5, 7.6
 and 8.4 on the rig, and Ren'Py declares `lockdown` once all three play.

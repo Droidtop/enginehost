@@ -703,8 +703,11 @@ class ControllerBindingStore internal constructor(
 }
 
 /**
- * Where a binding actually lives: one JSON file in the app's `filesDir`,
- * read by every process that asks for it.
+ * Where a binding actually lives: one JSON file in its own folder of the
+ * app's `filesDir` ([FOLDER]), read by every process that asks for it. Its
+ * own folder, because a locked-down game process reads and watches it
+ * there and nothing else of the app's (docs/engine-sandbox.md, "Ren'Py
+ * under lockdown"; the dev.443 rig run refused a watch on `filesDir`).
  *
  * `SharedPreferences` could not do this job. Its cache is per process and
  * there is no supported way to share one, so the controller screen (the
@@ -779,12 +782,17 @@ internal class ControllerBindingFile private constructor(directory: File) : Bind
         private const val NAME = "controller-bindings-v1.json"
         private const val LEGACY = "controller-bindings-v1"
 
+        /** The folder under `filesDir` that holds the file; a locked-down game may read and write it. */
+        const val FOLDER = "controls"
+
+        fun folder(context: Context): File = File(context.applicationContext.filesDir, FOLDER)
+
         @Volatile private var instance: ControllerBindingFile? = null
 
         fun of(context: Context): ControllerBindingFile {
             instance?.let { return it }
             return synchronized(this) {
-                instance ?: ControllerBindingFile(context.applicationContext.filesDir)
+                instance ?: ControllerBindingFile(folder(context).apply { mkdirs() })
                     .also { adopt(context.applicationContext, it); instance = it }
             }
         }
@@ -797,6 +805,11 @@ internal class ControllerBindingFile private constructor(directory: File) : Bind
          */
         private fun adopt(context: Context, target: ControllerBindingFile) {
             if (target.file.exists()) return
+            // A locked-down game reads only the folder; the app itself moves what is elsewhere.
+            if (RuntimeSandbox.confined) return
+            // Where the file lived before it had a folder of its own.
+            val earlier = File(context.filesDir, NAME)
+            if (earlier.isFile && earlier.renameTo(target.file)) return
             val legacy = context.getSharedPreferences(LEGACY, Context.MODE_PRIVATE)
             val stored = legacy.all
             if (stored.isEmpty()) return

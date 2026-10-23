@@ -245,6 +245,15 @@ object RuntimeSandbox {
         // Shader and plugin caches; the rest of the app's private data stays out.
         rules[context.cacheDir.absolutePath] = SBX_READ or SBX_WRITE
         rules[context.codeCacheDir.absolutePath] = SBX_READ or SBX_WRITE
+        // The host's own settings the game process reads and the in-game menu changes: the
+        // controller bindings in their own folder, and exactly two preference files (each with
+        // the backup SharedPreferences renames it to while writing). Nothing else of the app's.
+        rules[ControllerBindingFile.folder(context).apply { mkdirs() }.absolutePath] = SBX_READ or SBX_WRITE
+        val preferences = File(context.dataDir, "shared_prefs")
+        listOf(HostMenuHotkeyStore.PREFERENCES, ControllerProfileStore.PREFERENCES).forEach { name ->
+            rules[File(preferences, "$name.xml").absolutePath] = SBX_READ or SBX_WRITE
+            rules[File(preferences, "$name.xml.bak").absolutePath] = SBX_READ or SBX_WRITE
+        }
         // HWUI keeps its shader cache in the device-protected code cache.
         rules[context.createDeviceProtectedStorageContext().codeCacheDir.absolutePath] = SBX_READ or SBX_WRITE
         // The engine's bundle and each verified component bundle the launch loads.
