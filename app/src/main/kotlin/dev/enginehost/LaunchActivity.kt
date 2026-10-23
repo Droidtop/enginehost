@@ -189,7 +189,12 @@ class LaunchActivity : EnginehostActivity() {
         val autoInstall = intent.getBooleanExtra(EXTRA_AUTOINSTALL, false)
         val testing = intent.getBooleanExtra(EXTRA_TESTING, false)
         Thread {
-            val plan = runCatching { GameRunner.plan(this, gameFolder, inlineJson, autoInstall, testing) }
+            // Saves go where droidtop keeps them, whoever started the game (Droidtop/tracker#547):
+            // asked before planning, and merged in as the caller's own saveRoot would be.
+            val withSaves = runCatching {
+                DroidtopSaves.withDroidtopSaveRoot(this, gameFolder, inlineJson, intent.getStringExtra(EXTRA_CALLER_KEY))
+            }.getOrDefault(inlineJson)
+            val plan = runCatching { GameRunner.plan(this, gameFolder, withSaves, autoInstall, testing) }
                 .getOrElse { GameRunner.Plan.Failure(ErrorText.of(this, it, R.string.launch_plan_failed), retry = true) }
             runOnUiThread {
                 planning = false
@@ -564,8 +569,13 @@ class LaunchActivity : EnginehostActivity() {
         // user://, Ren'Py's save directory), when it reported one; else the
         // planned folder as before.
         val folder = EngineSaveFolders.recorded(this, gameFolder, File(planned))?.path ?: planned
-        val caller = intent.getStringExtra(EXTRA_CALLER_KEY)
-            ?.takeIf { it != LaunchCaller.UNKNOWN_KEY && it != LaunchCaller.IN_APP_KEY } ?: return
+        val callerKey = intent.getStringExtra(EXTRA_CALLER_KEY)
+        // droidtop learns of saves from a game it did not launch through its plugin
+        // interface (Droidtop/tracker#547); one it launched hears GAME_ENDED below.
+        if (callerKey != DroidtopLink.DROIDTOP_PACKAGE) {
+            DroidtopSaves.reportChanged(this, gameFolder, folder, reason, System.currentTimeMillis())
+        }
+        val caller = callerKey?.takeIf { it != LaunchCaller.UNKNOWN_KEY && it != LaunchCaller.IN_APP_KEY } ?: return
         sendBroadcast(
             Intent(LaunchEntryActivity.ACTION_GAME_ENDED).setPackage(caller)
                 .putExtra(LaunchEntryActivity.EXTRA_GAME_PATH, gameFolder.absolutePath)
