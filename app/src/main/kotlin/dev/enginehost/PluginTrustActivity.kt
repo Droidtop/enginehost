@@ -144,12 +144,29 @@ class PluginTrustActivity : EnginehostActivity() {
         }.start()
     }
 
+    /**
+     * Cards are added a few per main-thread message. All of them in one
+     * message (about sixty after Update all) spent 4.77 s of CPU inflating
+     * rows inside a single Handler message, and BlueStacks answered with
+     * "Enginehost isn't responding" on the first open (rig ANR trace,
+     * Droidtop/tracker#291 comment 6370357050: addPlugin under showPlugins).
+     * Between batches the screen draws and input is handled; a newer render
+     * stops an older one's remaining batches.
+     */
     private fun showPlugins(cards: List<CardFacts>, requestedPackage: String?) {
+        val generation = listGeneration
         list.removeAllViews()
         emptyState.visibility = if (cards.isEmpty()) View.VISIBLE else View.GONE
-        cards.forEach(::addPlugin)
         // Showing one plugin (just installed) is not the place for the updates of the others.
         if (requestedPackage == null) renderUpdates(cards.map { it.plugin }) else updatesPanel.visibility = View.GONE
+        addInBatches(cards, 0, generation)
+    }
+
+    private fun addInBatches(cards: List<CardFacts>, from: Int, generation: Int) {
+        if (isDestroyed || generation != listGeneration || from >= cards.size) return
+        val until = minOf(from + CARDS_PER_BATCH, cards.size)
+        for (index in from until until) addPlugin(cards[index])
+        if (until < cards.size) list.post { addInBatches(cards, until, generation) }
     }
 
     /**
@@ -415,6 +432,9 @@ class PluginTrustActivity : EnginehostActivity() {
 
     companion object {
         const val EXTRA_BUNDLE = "dev.enginehost.trust.BUNDLE"
+
+        /** Cards inflated per main-thread message ([showPlugins]): a few frames' work, not seconds. */
+        private const val CARDS_PER_BATCH = 4
 
         /**
          * Where an install lands. A core that still needs the person's
