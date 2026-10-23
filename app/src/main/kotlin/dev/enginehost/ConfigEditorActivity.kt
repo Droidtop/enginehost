@@ -30,9 +30,12 @@ import java.io.File
  * installed declares yet -- declared vocabularies suggest, they never gate.
  */
 class ConfigEditorActivity : EnginehostActivity() {
-    /** Save once the folder is open; choosing the folder before that. */
+    /**
+     * The first field once the folder is open, never Save: Save was the first
+     * focus, so a mashed A saved (#620 E3). Choosing the folder before that.
+     */
     override fun primaryAction(): View? =
-        findViewById<View>(R.id.editorFields)?.takeIf { it.isShown }?.let { findViewById<View>(R.id.saveConfigButton) }
+        findViewById<View>(R.id.editorFields)?.takeIf { it.isShown }?.let { findViewById<View>(R.id.engineButton) }
             ?: findViewById(R.id.chooseConfigFolderButton)
 
     private var folderUri: Uri? = null
