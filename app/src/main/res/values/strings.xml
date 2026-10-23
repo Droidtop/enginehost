@@ -356,14 +356,14 @@
     <string name="binding_row">%1$s: %2$s</string>
     <string name="binding_unbound">Unbound</string>
     <string name="unbind_action">Unbind %1$s</string>
-    <string name="bypass_on">Bypass controller mappings: ON</string>
-    <string name="bypass_off">Bypass controller mappings: OFF</string>
-    <string name="bypass_hint">%1$s handles the controller itself while bypass is on, and gets no map from here. Turn bypass off to use these bindings.</string>
+    <string name="bypass_on">Let the game read the pad itself: On</string>
+    <string name="bypass_off">Let the game read the pad itself: Off</string>
+    <string name="bypass_hint">%1$s reads the pad itself and gets no map from here. Turn off \"Let the game read the pad itself\" to use these bindings.</string>
     <string name="host_menu_hotkey">Host menu shortcut: %1$s</string>
     <string name="host_menu_hotkey_prompt">Hold the buttons you want, together, then let go. Pressed so far: %1$s</string>
     <string name="host_menu_hotkey_nothing">nothing yet</string>
     <string name="host_menu_hotkey_default">Use the default shortcut</string>
-    <string name="host_menu_hotkey_hint">Press this during a game to open Enginehost\'s menu. It works in every engine, whether bypass is on or off.</string>
+    <string name="host_menu_hotkey_hint">Press this during a game to open Enginehost\'s menu. It works in every engine, also when the game reads the pad itself.</string>
     <string name="controller_profile">Controller profile</string>
     <string name="profile_button">Controller profile: %1$s</string>
     <string name="profile_device">%1$s (%2$s)</string>
@@ -386,8 +386,8 @@
     <string name="profile_skipped">skipped</string>
     <string name="profile_no_corrections">Nothing to correct: this pad reports every control the way Enginehost expects.</string>
     <string name="profile_correction">%1$s is really %2$s</string>
-    <string name="profile_in_bypass_on">Apply the profile while bypass is on: ON</string>
-    <string name="profile_in_bypass_off">Apply the profile while bypass is on: OFF</string>
+    <string name="profile_in_bypass_on">Correct the pad also when the game reads it itself: On</string>
+    <string name="profile_in_bypass_off">Correct the pad also when the game reads it itself: Off</string>
     <string name="reset_all">Reset all</string>
     <string name="reset_scope">Reset %1$s</string>
 
@@ -399,7 +399,7 @@
     <string name="host_menu_legend">Controls</string>
     <string name="host_menu_quit">Quit to Enginehost</string>
     <string name="host_menu_back">Back</string>
-    <string name="host_menu_legend_bypassed">This engine reads the pad itself while bypass is on. Below is the map it would use with bypass off.</string>
+    <string name="host_menu_legend_bypassed">This game reads the pad itself. Below is the map it would get if it did not.</string>
     <string name="host_menu_save_beside_game">This game saves in its own folder, as it does on a computer:\n\n%1$s</string>
     <string name="host_menu_save_named">This game\'s saves are in:\n\n%1$s</string>
     <string name="host_menu_save_engine_namespace">The engine keeps this game\'s saves in a folder it names itself, inside:\n\n%1$s</string>

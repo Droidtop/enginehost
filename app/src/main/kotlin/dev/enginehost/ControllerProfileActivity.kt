@@ -157,24 +157,20 @@ class ControllerProfileActivity : EnginehostActivity(), InputManager.InputDevice
         return profile.keys.map { (from, to) ->
             getString(
                 R.string.profile_correction,
-                KeyEvent.keyCodeToString(to).removePrefix("KEYCODE_"),
-                KeyEvent.keyCodeToString(from).removePrefix("KEYCODE_"),
+                PadNames.key(to),
+                PadNames.key(from),
             )
         } + profile.axes.map { (from, to) ->
             getString(
                 R.string.profile_correction,
-                MotionEvent.axisToString(to).removePrefix("AXIS_"),
-                MotionEvent.axisToString(from).removePrefix("AXIS_"),
+                PadNames.axis(to),
+                PadNames.axis(from),
             )
         }
     }
 
     private fun label(control: StandardControl, physical: Int): String =
-        if (control.key != null) {
-            KeyEvent.keyCodeToString(physical).removePrefix("KEYCODE_")
-        } else {
-            MotionEvent.axisToString(physical).removePrefix("AXIS_")
-        }
+        if (control.key != null) PadNames.key(physical) else PadNames.axis(physical)
 
     private fun startWizard() {
         captured.clear()

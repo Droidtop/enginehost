@@ -14,24 +14,17 @@ import kotlin.math.abs
 
 sealed interface ControllerBinding {
     /**
-     * What this binding is called on the controller screen. Keys and axes
-     * name themselves out of the platform's own vocabulary; only [None]
-     * has a word of ours, which is why a context is needed.
+     * What this binding is called on the controller screen: the name on the
+     * pad ([PadNames]); [None]'s word is a string, which is why a context is needed.
      */
     fun label(context: Context): String
 
     data class Key(val keyCode: Int) : ControllerBinding {
-        override fun label(context: Context): String =
-            KeyEvent.keyCodeToString(keyCode).removePrefix("KEYCODE_")
+        override fun label(context: Context): String = PadNames.key(keyCode)
     }
 
     data class Axis(val axis: Int, val direction: Int = 0) : ControllerBinding {
-        override fun label(context: Context): String =
-            MotionEvent.axisToString(axis).removePrefix("AXIS_") + when (direction) {
-                -1 -> " −"
-                1 -> " +"
-                else -> ""
-            }
+        override fun label(context: Context): String = PadNames.axis(axis, direction)
     }
 
     /**

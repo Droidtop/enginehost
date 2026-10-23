@@ -48,8 +48,7 @@ class HostMenuHotkeyStore(context: Context) {
         val DEFAULT_COMBO: Set<Int> =
             setOf(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START)
 
-        fun label(combo: Set<Int>): String = combo.sorted()
-            .joinToString(" + ") { KeyEvent.keyCodeToString(it).removePrefix("KEYCODE_") }
+        fun label(combo: Set<Int>): String = PadNames.chord(combo)
     }
 }
 

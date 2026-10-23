@@ -319,6 +319,12 @@ a long press on a row the scope does set takes it back, and "Reset this game" cl
 the game's level only. Bypass stays an engine-level choice. The game page's Controls row
 says whether the game has its own buttons or follows the engine's.
 
+Controls are named as the pad prints them: "A", "L2", "Start", "D-pad ↑", "Left stick ←",
+never the platform's constants (`BUTTON_A`, `AXIS_LTRIGGER +`). `PadNames` is the one place
+that names them, for the controller screen, the in-game Controls sheet, the host menu shortcut
+and the profile page; a keyboard key keeps its own name, made readable (#620 E8). "Bypass" is
+not a word the person sees: the switch reads "Let the game read the pad itself".
+
 ## Wide windows: Home's list and the game page side by side
 
 From 840dp wide (`SizeClass.EXPANDED_MIN_DP`) Home shows the library column and a
