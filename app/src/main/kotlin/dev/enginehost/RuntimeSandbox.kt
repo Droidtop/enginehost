@@ -98,12 +98,20 @@ object RuntimeSandbox {
      * none can make a socket, run a program or ptrace. Call before any
      * plugin code is loaded. False when the process could not be confined.
      */
-    fun lockdown(context: Context, plugin: InstalledPlugin, game: File, gameWritable: Boolean, save: File, bundles: List<File>): Boolean {
+    fun lockdown(
+        context: Context,
+        game: File,
+        gameWritable: Boolean,
+        save: File,
+        bundles: List<File>,
+        /** The core being launched; a learning run needs it (null for the debug lockdown probe, which never learns). */
+        plugin: InstalledPlugin? = null,
+    ): Boolean {
         // Once per process: the activity transport's resource relaunch comes
         // through here a second time, already confined.
         if (confined) return true
-        val learn = learning(plugin)
-        if (learn) {
+        val learn = plugin != null && learning(plugin)
+        if (learn && plugin != null) {
             val warning = "LEARNING MODE: ${plugin.bundleId}: nothing is refused, this run has NO sandbox"
             Log.w(TAG, warning)
             HostEvents.record(context, warning)
@@ -123,7 +131,7 @@ object RuntimeSandbox {
                     putBoolean(SandboxBrokerProvider.GAME_WRITABLE, gameWritable)
                     putString(SandboxBrokerProvider.SAVE, save.absolutePath)
                     putStringArray(SandboxBrokerProvider.BUNDLES, bundles.map { it.absolutePath }.toTypedArray())
-                    if (learn) {
+                    if (learn && plugin != null) {
                         putString(SandboxBrokerProvider.LEARN_CORE, plugin.bundleId)
                         putString(SandboxBrokerProvider.LEARN_BUILD, plugin.info.pluginVersion.toString())
                         putString(SandboxBrokerProvider.LEARN_ARCHIVE, plugin.archiveSha256)

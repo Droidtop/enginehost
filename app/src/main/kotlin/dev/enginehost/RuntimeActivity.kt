@@ -108,8 +108,9 @@ class RuntimeActivity : FragmentActivity() {
             // loads; it never runs unconfined (docs/engine-sandbox.md).
             if (RuntimeSandbox.locksDown(resolved.plugin)) {
                 if (!RuntimeSandbox.lockdown(
-                        this, resolved.plugin, gameFolder, resolved.plugin.writesGameFolder, saveFolder,
+                        this, gameFolder, resolved.plugin.writesGameFolder, saveFolder,
                         listOf(resolved.plugin.directory) + resolved.components.map { it.directory },
+                        plugin = resolved.plugin,
                     )
                 ) {
                     return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")
