@@ -141,9 +141,30 @@ private class HostWindowCallback(
     private val tap: RuntimeInputTap,
 ) : Window.Callback {
 
+    private val handler = Handler(Looper.getMainLooper())
+
+    /** Every controller press lasts at least [MinimumPress.MINIMUM_MS] for the engine (#618 C10). */
+    private val presses = MinimumPress<KeyEvent>(
+        now = SystemClock::uptimeMillis,
+        later = { delay, run -> handler.postDelayed(run, delay) },
+    )
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val onward = tap.key(event) { delegate.dispatchKeyEvent(it) } ?: return true
-        return delegate.dispatchKeyEvent(onward)
+        if (!onward.isControllerInput()) return delegate.dispatchKeyEvent(onward)
+        return when {
+            onward.action == KeyEvent.ACTION_DOWN && onward.repeatCount == 0 -> {
+                presses.down(onward.keyCode)
+                delegate.dispatchKeyEvent(onward)
+            }
+            onward.action == KeyEvent.ACTION_UP -> {
+                // A held release is delivered later as a copy: the framework may reuse this one.
+                var answer = true
+                val now = presses.up(onward.keyCode, KeyEvent(onward)) { answer = delegate.dispatchKeyEvent(it) }
+                if (now) answer else true
+            }
+            else -> delegate.dispatchKeyEvent(onward)
+        }
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
