@@ -231,7 +231,11 @@ key:
   `dev.enginehost.GAME_ENDED` once, with the game folder (`path`), where the
   game's saves are (`saveFolder`: the caller's folder when it was taken, else the
   person's own save folder, or the game folder for an engine that saves beside
-  the game) and how it ended (`reason`: `exited` when the
+  the game; for an engine that names its own folder inside the save folder,
+  Godot's `user://` such as `godot/app_userdata/<project>` or Ren'Py's save
+  directory, that folder, as the engine reported it through
+  `EngineHost.reportSaveDirectory` (`EngineSaveFolders`); a core that does not
+  report it leaves the save folder itself) and how it ended (`reason`: `exited` when the
   game closed, by its own Quit, the in-game menu or `END_GAME`; `crashed` when it
   crashed or failed). On a launch flagged `savesSynced` whose `saveRoot` was not
   taken, it also carries `saveRootRefused`, one of `missing`,

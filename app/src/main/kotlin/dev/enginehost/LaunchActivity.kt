@@ -558,8 +558,12 @@ class LaunchActivity : EnginehostActivity() {
      * from a caller Android did not identify, reports to nobody.
      */
     private fun reportGameEnded(reason: String) {
-        val folder = savesIn ?: return
+        val planned = savesIn ?: return
         savesIn = null
+        // The folder the engine itself named inside the planned one (Godot's
+        // user://, Ren'Py's save directory), when it reported one; else the
+        // planned folder as before.
+        val folder = EngineSaveFolders.recorded(this, gameFolder, File(planned))?.path ?: planned
         val caller = intent.getStringExtra(EXTRA_CALLER_KEY)
             ?.takeIf { it != LaunchCaller.UNKNOWN_KEY && it != LaunchCaller.IN_APP_KEY } ?: return
         sendBroadcast(

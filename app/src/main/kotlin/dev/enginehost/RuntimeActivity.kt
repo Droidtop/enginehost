@@ -433,6 +433,12 @@ private class RuntimeHost(
     override fun activity(): Activity = activity
     override fun saveDirectory(): File = save
     override fun gameSaveDirectory(): File? = gameSave
+    /** Where the engine named its own save folder, kept for the launch screen's GAME_ENDED ([EngineSaveFolders]). */
+    override fun reportSaveDirectory(directory: File) {
+        val kept = runCatching { EngineSaveFolders.record(activity, gameFolder, save, directory) }.getOrDefault(false)
+        // Logcat only: a save folder names the game, and host events never do (HostEvents.FILE).
+        android.util.Log.i("Enginehost", if (kept) "engine saves in $directory" else "ignored engine save folder outside the save root: $directory")
+    }
     override fun cacheDirectory(): File = cache
     override fun fileSystem(): EngineFileSystem = files
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {

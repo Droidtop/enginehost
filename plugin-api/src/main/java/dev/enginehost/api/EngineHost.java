@@ -44,6 +44,26 @@ public interface EngineHost {
      */
     default File gameSaveDirectory() { return null; }
 
+    /**
+     * Tells Enginehost the folder this game's saves are actually written in,
+     * once the engine has worked it out: the folder an engine names for
+     * itself inside {@link #saveDirectory()} (Godot's {@code user://}, which
+     * is {@code godot/app_userdata/<project>} or the project's custom user
+     * directory; Ren'Py's save directory). Only the engine knows that name,
+     * so the engine says it, and Enginehost names that folder wherever it
+     * says where a game's saves are (docs/contract.md "Game end").
+     *
+     * <p>A folder that is not {@link #saveDirectory()} itself or inside it is
+     * ignored. An engine that saves beside the game, or uses
+     * {@link #gameSaveDirectory()} as is, has nothing to report.
+     *
+     * <p>Added after the first hosts shipped; the default does nothing, so an
+     * older host simply does not record it. A plugin that may run on an older
+     * Enginehost catches {@link IncompatibleClassChangeError}, as for
+     * {@link #restart}.
+     */
+    default void reportSaveDirectory(File directory) {}
+
     File cacheDirectory();
     EngineFileSystem fileSystem();
 
