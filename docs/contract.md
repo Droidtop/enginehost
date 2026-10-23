@@ -296,9 +296,23 @@ without it, none of this runs and nothing waits for it.
     one more `runner_folder`.
 
   A folder Enginehost cannot read a config for gets no locations.
-- **Asking droidtop** (`saves where` before a launch, `saves report_changed`
-  after it, `library.read list_engine_games`, and knocking on droidtop's door
-  when there is no broker) follows in the next changes.
+- **Before a launch** droidtop did not make, whose caller names no `saveRoot`
+  (a launch from inside Enginehost, or from any other app), Enginehost asks
+  droidtop's `saves where {path}` (`DroidtopSaves`). When droidtop keeps the
+  game's saves, its `saveRoot` and `synced` are used exactly as a caller's own
+  `saveRoot` and `savesSynced` would be (see "A caller's save folder"), so saves
+  land in one place whichever app started the game. droidtop may sync the
+  saves down first, and may ask the person about a conflict, so the launch
+  screen waits up to two minutes. With no answer, or `known: false`, the game
+  saves in Enginehost's own layout, as without droidtop.
+- **After a game ends** that droidtop did not launch, Enginehost tells it with
+  `saves report_changed {path, saveFolder, reason, endedAtMs}`, `saveFolder` being
+  what `GAME_ENDED` would name. A game droidtop launched hears `GAME_ENDED`
+  instead, and is not told twice.
+- **Without a broker** (droidtop has not bound Enginehost since it started),
+  Enginehost knocks on droidtop's door (`IAppInterfaceDoor.knock`, action
+  `dev.droidtop.plugin.APP_INTERFACE_DOOR`) and waits up to five seconds for
+  droidtop to bind it and hand one over.
 
 ## On-device tools
 
