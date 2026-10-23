@@ -603,6 +603,26 @@ and the host's component configs.
 Spine is one component, and shipping games use many more. The user's
 direction: "we only support spine, but there are SO MANY other modules."
 
+**Order of preference (owner, 2026-10-23).** "If games ship them, we just
+need to make sure we can load them properly. That's actually very much
+preferably to having it ourselves". This applies to every core, not only Godot:
+
+1. **Load what the game ships, as shipped.** GDScript and C# addons, Ren'Py
+   Python modules, MV/MZ JavaScript plugins, pure-Lua libraries, and Godot
+   GDExtensions whose package already names an Android arm64 or x86_64
+   library. The core finds and loads them correctly (paths, load order, the
+   extension manifest), and a failure to load one is a core bug, not a missing
+   component.
+2. **Only where the game ships a native library for its desktop platform
+   alone** (a GDExtension with only a Windows `.dll` or Linux `.so`, a KiriKiri
+   DLL plugin, an AGS engine plugin): Enginehost provides an Android build of
+   that same library, at the version the game ships, as a component. It is
+   matched to what the game declares and stands in for the game's own file. It
+   is never bundled by default.
+3. **Spine.** Where a game ships spine-godot as a GDExtension, 1 or 2 applies.
+   Where the game's Godot build had Spine compiled into its engine (every
+   Spine game in the library today), the spine-godot component is the stand-in.
+
 **What a game can depend on.** Two things, resolved by one mechanism:
 
 - **GDExtensions the game ships.** A game carries `*.gdextension` files
