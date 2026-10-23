@@ -250,6 +250,15 @@ class GameLibraryStore(context: Context) : ScanStore {
 
     // ---- Listing ----------------------------------------------------------------
 
+    /** Every path on Home, as stored. */
+    fun addedPaths(): Set<String> {
+        val result = HashSet<String>()
+        helper.readableDatabase.rawQuery("SELECT path FROM games WHERE added = 1", null).use { cursor ->
+            while (cursor.moveToNext()) result += cursor.getString(0)
+        }
+        return result
+    }
+
     /** The rows [filter] shows; [limit] keeps only the first few, for a shelf. */
     fun query(filter: LibraryFilter, limit: Int? = null): List<GameRow> {
         val sql = LibraryQuery.build(filter)

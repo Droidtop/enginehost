@@ -309,6 +309,14 @@ without it, none of this runs and nothing waits for it.
   `saves report_changed {path, saveFolder, reason, endedAtMs}`, `saveFolder` being
   what `GAME_ENDED` would name. A game droidtop launched hears `GAME_ENDED`
   instead, and is not told twice.
+- **droidtop's engine games** are registered on Enginehost's Home
+  (`DroidtopLibrary`, `library.read list_engine_games`) when droidtop connects
+  and when Home comes back, at most every ten minutes. Only the game's folder
+  is taken. Its config stays the person's, made in Game setup, and nothing is
+  written into its folder. A game Enginehost registered this way is dropped
+  only when droidtop's complete list no longer has it **and** its folder is
+  gone, because dropping its row also drops the person's own choices for it.
+  A game the person added themselves is never dropped.
 - **Without a broker** (droidtop has not bound Enginehost since it started),
   Enginehost knocks on droidtop's door (`IAppInterfaceDoor.knock`, action
   `dev.droidtop.plugin.APP_INTERFACE_DOOR`) and waits up to five seconds for
