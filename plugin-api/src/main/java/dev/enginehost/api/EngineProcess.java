@@ -41,6 +41,23 @@ public final class EngineProcess {
      * produces which.
      */
     public static boolean isIsolated() {
+        // Answered once and kept. The process cannot change what it is, and once an isolated
+        // runtime is clamped (RuntimeSandbox.confineIsolated), /proc/self/cmdline is opened by
+        // the broker in Enginehost's main process, which cannot see this one, so a later look
+        // read no name: the answer flipped to false, and CatSystem2, CMVS and Buriko rethrew
+        // their static initialisers' expected UnsatisfiedLinkError (rig, 2026-10-24, #550).
+        // EnginehostApplication asks at process start, before any lockdown.
+        Boolean known = isolated;
+        if (known == null) {
+            known = computeIsolated();
+            isolated = known;
+        }
+        return known;
+    }
+
+    private static volatile Boolean isolated;
+
+    private static boolean computeIsolated() {
         if (Build.VERSION.SDK_INT >= 34) {
             try {
                 return android.os.Process.isIsolated();
