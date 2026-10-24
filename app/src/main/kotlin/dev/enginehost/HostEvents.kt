@@ -37,6 +37,10 @@ object HostEvents {
         Executors.newSingleThreadExecutor { task -> Thread(task, "host-events").apply { isDaemon = true } }
     }
 
+    /** The two rings the runtime process writes, kept writable while it is locked down ([RuntimeSandbox.policy]). */
+    internal fun runtimeFiles(context: Context): List<File> =
+        listOf(FILE, ENGINE_FILE).map { File(context.applicationContext.filesDir, it) }
+
     /** Append one event; returns at once. */
     fun record(context: Context, event: String, name: String = FILE) {
         val file = File(context.applicationContext.filesDir, name)

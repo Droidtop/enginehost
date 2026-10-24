@@ -45,6 +45,9 @@ object EngineSaveFolders {
         return canonical.takeIf { it == canonicalRoot || it.path.startsWith(prefix) }
     }
 
+    /** Where the records are, kept writable while the runtime is locked down ([RuntimeSandbox.policy]). */
+    internal fun directory(context: Context): File = File(context.filesDir, DIRECTORY)
+
     private fun fileFor(context: Context, gameFolder: File): File {
         val path = runCatching { gameFolder.canonicalPath }.getOrDefault(gameFolder.absolutePath)
         val id = MessageDigest.getInstance("SHA-256").digest(path.toByteArray()).joinToString("") { "%02x".format(it) }

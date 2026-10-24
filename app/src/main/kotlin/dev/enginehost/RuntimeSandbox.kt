@@ -301,6 +301,14 @@ object RuntimeSandbox {
             rules[File(preferences, "$name.xml").absolutePath] = SBX_READ or SBX_WRITE
             rules[File(preferences, "$name.xml.bak").absolutePath] = SBX_READ or SBX_WRITE
         }
+        // Enginehost's own notes that its code in this process keeps writing while the game runs:
+        // the session note (CrashWatch: drawn, watched, quit, a crash's trace), the host and
+        // engine event rings, and where the engine saves (EngineSaveFolders). Refused, every
+        // locked-down core lost black-screen detection, crash reports, its log and GAME_ENDED's
+        // save folder (learning profiles, #550, 2026-10-24). Exactly these; nothing else of the app's.
+        (listOf(CrashWatch.noteFile(context)) + HostEvents.runtimeFiles(context))
+            .forEach { rules[it.absolutePath] = SBX_READ or SBX_WRITE }
+        rules[EngineSaveFolders.directory(context).apply { mkdirs() }.absolutePath] = SBX_READ or SBX_WRITE
         // HWUI keeps its shader cache in the device-protected code cache.
         rules[context.createDeviceProtectedStorageContext().codeCacheDir.absolutePath] = SBX_READ or SBX_WRITE
         // The engine's bundle and each verified component bundle the launch loads.

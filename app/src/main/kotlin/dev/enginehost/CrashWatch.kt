@@ -256,4 +256,7 @@ object CrashWatch {
     }
 
     private fun file(context: Context): File = File(context.filesDir, NOTE)
+
+    /** The session note, which the runtime keeps writing while locked down ([RuntimeSandbox.policy]). */
+    internal fun noteFile(context: Context): File = file(context)
 }

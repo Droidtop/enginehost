@@ -2508,11 +2508,23 @@ abort and no trap death. What was still refused, and what was done:
   live in `files/controls/`, which a locked-down game may read and write, together with exactly
   the two preference files (`host-menu-v1.xml`, `controller-profiles-v1.xml`, and their `.bak`).
   Nothing else of the app's.
+- **The host's own notes in the game process** (learning profiles of every core, 2026-10-24).
+  Enginehost's code in the game process keeps writing three things while the game runs:
+  - the session note `files/runtime-session.json` (CrashWatch: drawn, watched, quit, a crash's
+    trace);
+  - the host and engine event rings `files/host-events.log` and `files/engine-events.log`;
+  - where the engine saves, `files/engine-save-folders/`.
+
+  Refused, every locked-down core lost black-screen detection, crash reports, its log, and
+  GAME_ENDED's save folder. Exactly those are writable now. A core could write them too; they
+  are Enginehost's notes about that same game, and the save-folder record is checked against the
+  save root when it is read.
 - `unlink main.pyo` in the read-only runtime: Python tidying bytecode. The wrapper sets
   `PYTHONDONTWRITEBYTECODE`.
 - Python's and BlueStacks' probes (`/home/...`, `/usr/lib/setup`, `/System/Library/...`,
-  `/proc/<pid>/cgroup`, `/mnt/expand`, `/data/downloads/.tmp/.modelProp`): outside the launch, and
-  refusing them is harmless.
+  `/proc/<pid>/cgroup`, `/data/downloads/.tmp/.modelProp`): outside the launch, and refusing them
+  is harmless. `/mnt/expand` was in this list; it is granted since 2026-10-24, because LÖVE,
+  mkxp-z and KiriKiri died right after it was refused.
 
 Order: the preset (done with this note), the game-writes field (`gameWrites`), the host unpack (`unpack`, `CoreUnpacker`), the wrapper's
 external folder, then the library's brokered watch. Then lockdown 1 with audit 1 on 7.5, 7.6
