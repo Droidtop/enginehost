@@ -1,40 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The light palette. A cool, slightly blue-grey neutral family, one blue
-    accent with a tonal container for secondary actions, semantic colours for
-    trust and caution, and one hue per engine family so a game card says
-    what it is before it is read. values-night carries the dark set of the
-    same names.
+    The light palette, in droidtop's visual language (Droidtop/tracker#644,
+    coordination/design/proposals/2026-10-24-menus-and-visual-language.md
+    section 4): a blue-grey ground that is never pure white, surfaces in
+    levels (content, sheet, menu), one accent, and good / warning / danger
+    tones. values-night carries the dark set of the same names, taken from
+    the proposal as written.
+
+    The proposal is dark only; the owner kept light (2026-10-24), so these
+    are its colours put through its own contrast guard: each tone keeps its
+    hue and moves in lightness until it reads at 4.5:1 on the ground. That
+    turns the azure #3BB5FF (2.3:1 on white) into #0072B8. Enginehost's own
+    default accent stands without droidtop. Engine family hues are
+    Enginehost's own.
 -->
 <resources>
-    <color name="eh_background">#F4F5F8</color>
+    <color name="eh_background">#EEF1F6</color>
     <color name="eh_surface">#FFFFFF</color>
-    <color name="eh_surface_variant">#E9ECF2</color>
-    <color name="eh_outline">#D5DAE3</color>
-    <color name="eh_text_primary">#171B22</color>
-    <color name="eh_text_secondary">#5A6270</color>
-    <color name="eh_accent">#2F62D8</color>
-    <color name="eh_accent_pressed">#244FB3</color>
+    <color name="eh_surface_variant">#E4E8EF</color>
+    <color name="eh_surface_sheet">#FFFFFF</color>
+    <color name="eh_surface_menu">#FFFFFF</color>
+    <color name="eh_outline">#D3D9E2</color>
+    <color name="eh_text_primary">#121821</color>
+    <color name="eh_text_secondary">#4B5768</color>
+    <color name="eh_accent">#0072B8</color>
+    <color name="eh_accent_pressed">#005D97</color>
     <color name="eh_on_accent">#FFFFFF</color>
-    <color name="eh_accent_container">#DCE6FB</color>
-    <color name="eh_accent_container_pressed">#C9D8F7</color>
-    <color name="eh_on_accent_container">#173A82</color>
-    <color name="eh_danger">#B3261E</color>
-    <color name="eh_danger_container">#F9DEDC</color>
-    <color name="eh_on_danger_container">#410E0B</color>
-    <color name="eh_official">#1B7A43</color>
-    <color name="eh_official_container">#DCF2E3</color>
-    <color name="eh_on_official_container">#0E4626</color>
-    <color name="eh_caution">#9A5B00</color>
-    <color name="eh_caution_container">#FBEBD2</color>
-    <color name="eh_on_caution_container">#5C3700</color>
+    <color name="eh_accent_container">#E0EEF6</color>
+    <color name="eh_accent_container_pressed">#CCE3F1</color>
+    <color name="eh_on_accent_container">#001C2E</color>
+    <color name="eh_danger">#DC0007</color>
+    <color name="eh_danger_container">#FBE0E1</color>
+    <color name="eh_on_danger_container">#370002</color>
+    <color name="eh_official">#1F7D4A</color>
+    <color name="eh_official_container">#E4EFE9</color>
+    <color name="eh_on_official_container">#081F12</color>
+    <color name="eh_caution">#966308</color>
+    <color name="eh_caution_container">#F2ECE1</color>
+    <color name="eh_on_caution_container">#261902</color>
     <!--
         The one focus idiom (design language: one selection idiom per shell):
         whatever the pad is on wears the accent ring over a raised fill. Every
         focusable's drawable reads these two, never a colour of its own.
     -->
     <color name="eh_focus_ring">@color/eh_accent</color>
-    <color name="eh_focus_fill">@color/eh_surface_variant</color>
+    <color name="eh_focus_fill">@color/eh_accent_container</color>
     <color name="eh_community">#4C555F</color>
     <color name="eh_community_container">#E6E9ED</color>
     <color name="eh_on_community_container">#2E353D</color>

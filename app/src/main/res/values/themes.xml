@@ -61,6 +61,8 @@
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">true</item>
         <item name="android:backgroundDimEnabled">true</item>
+        <!-- The scrim over the screen beneath a sheet (#644 proposal 4.1). -->
+        <item name="android:backgroundDimAmount">0.55</item>
         <item name="android:windowMinWidthMajor">0%</item>
         <item name="android:windowMinWidthMinor">0%</item>
     </style>

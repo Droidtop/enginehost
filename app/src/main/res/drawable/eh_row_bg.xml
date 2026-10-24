@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A tappable settings row: flat on the surface, lit on press and focus. -->
+<!--
+    A tappable row: flat on its surface, lit on press, and on focus the row
+    idiom of #644 (proposal 4.5): the accent's container behind the row and
+    a 4 dp accent bar at its leading edge. Art (cards, tiles) wears the ring
+    instead; the two are never mixed on one surface.
+-->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
@@ -8,11 +13,24 @@
         </shape>
     </item>
     <item android:state_focused="true">
-        <shape android:shape="rectangle">
-            <solid android:color="@color/eh_focus_fill" />
-            <stroke android:width="@dimen/eh_focus_stroke" android:color="@color/eh_focus_ring" />
-            <corners android:radius="@dimen/eh_corner_small" />
-        </shape>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/eh_focus_fill" />
+                    <corners android:radius="@dimen/eh_corner_small" />
+                </shape>
+            </item>
+            <item
+                android:width="@dimen/eh_focus_bar"
+                android:bottom="8dp"
+                android:gravity="start|fill_vertical"
+                android:top="8dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/eh_focus_ring" />
+                    <corners android:radius="2dp" />
+                </shape>
+            </item>
+        </layer-list>
     </item>
     <item>
         <color android:color="@android:color/transparent" />

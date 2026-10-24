@@ -19,6 +19,43 @@ not a fresh redesign from a blank page — the existing screens already carry re
 detail panels, typed failure messages, per-card progress). v2 keeps that and fixes the navigation,
 vocabulary and coverage gaps below.
 
+## Visual language: droidtop's, with Enginehost's own defaults (2026-10-24, Droidtop/tracker#644)
+
+The owner approved the menus and visual-language proposal (tracker
+`coordination/design/proposals/2026-10-24-menus-and-visual-language.md`, dda41db) and
+overruled its decision 8: Enginehost keeps its own full UI, in the same language as
+droidtop. Separate apps, same feel. The pass comes in three layers, each landed and looked
+at on the device before the next.
+
+1. **Tokens and components** (landed). The resource names stay the same; their values
+   change, so every screen follows.
+   - **Surfaces:** level 0 is the ground, level 1 content, level 2 sheets (`eh_surface_sheet`,
+     with a 1 dp edge facing the content and a 55% scrim), level 3 menus (`eh_surface_menu`).
+   - **One accent;** good, warning and danger tones.
+   - **Shape:** 12 dp sheets and cards, 8 dp rows and buttons.
+   - **Type:** Display 32, Body 18, Label 15, Section 13 in capitals; nothing under 13.
+   - **Focus:** a focused row wears the accent's container with a 4 dp leading bar; art and
+     cards keep the ring.
+2. **The accent at run time** (next). Settings > Appearance offers Enginehost's accent,
+   "Match my device" (dynamic colour, API 31+) or a picked colour, all through one contrast
+   guard. A launch from droidtop passes droidtop's resolved accent, which wins for that
+   session.
+3. **Structure and buttons** (to decide with the owner after 1 and 2). The proposal's game
+   page, item menu and button map.
+
+Decisions taken here:
+- **Light and dark both** (owner, 2026-10-24: "Not dark only"). The proposal's colours are
+  dark only. The dark set is the proposal's as written. The light set is the same colours
+  put through the proposal's own contrast guard: each keeps its hue and moves in lightness
+  until it reads at 4.5:1 on its ground. Azure `#3BB5FF` is 2.3:1 on white, so light uses
+  `#0072B8`.
+- **Text on the azure fill is near-black in dark** (`#06121C`, 8.3:1). White on it is
+  2.3:1.
+- **Enginehost's own defaults stand alone** (owner: "give it its own defaults, for if
+  droidtop isn't present"). The accent is azure, the same as droidtop's fallback, so the two
+  apps match when used apart. Enginehost does not read droidtop's tokens. A copy lives here
+  until droidtop-shared (#188) exists.
+
 ## Landed: the updater rework (Droidtop/tracker#23)
 
 Home > Cores now opens the installed list (`PluginTrustActivity`, titled Cores). Add in its

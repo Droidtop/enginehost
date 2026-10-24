@@ -1,30 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Typography -->
+    <!--
+        Typography: the roles of #644 (proposal 4.5). Display 32 for page
+        titles, Title 24, Body 18, Label 15, Section 13 in capitals, Caption
+        13, and nothing smaller: a handheld is read at arm's length.
+    -->
 
     <style name="TextAppearance.Enginehost.ScreenTitle" parent="TextAppearance.AppCompat">
-        <item name="android:textSize">26sp</item>
+        <item name="android:textSize">32sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/eh_text_primary</item>
     </style>
 
     <style name="TextAppearance.Enginehost.SectionTitle" parent="TextAppearance.AppCompat">
         <item name="android:textSize">13sp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:textAllCaps">true</item>
-        <item name="android:letterSpacing">0.08</item>
+        <item name="android:letterSpacing">0.04</item>
         <item name="android:textColor">@color/eh_text_secondary</item>
     </style>
 
     <style name="TextAppearance.Enginehost.ItemTitle" parent="TextAppearance.AppCompat">
-        <item name="android:textSize">16sp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:textColor">@color/eh_text_primary</item>
     </style>
 
     <style name="TextAppearance.Enginehost.Body" parent="TextAppearance.AppCompat">
-        <item name="android:textSize">15sp</item>
+        <item name="android:textSize">18sp</item>
         <item name="android:textColor">@color/eh_text_primary</item>
     </style>
 
@@ -34,7 +38,7 @@
     </style>
 
     <style name="TextAppearance.Enginehost.Mono" parent="TextAppearance.AppCompat">
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:typeface">monospace</item>
         <item name="android:textColor">@color/eh_text_secondary</item>
     </style>
@@ -151,8 +155,8 @@
     <!-- A chip: the engine family on a game card, coloured in code by family. -->
     <style name="Widget.Enginehost.Chip" parent="">
         <item name="android:background">@drawable/eh_chip_bg</item>
-        <item name="android:textSize">12sp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:paddingLeft">10dp</item>
         <item name="android:paddingRight">10dp</item>
         <item name="android:paddingTop">4dp</item>
@@ -171,8 +175,8 @@
         <item name="android:background">@drawable/eh_chip_bg</item>
         <item name="android:backgroundTint">@color/eh_accent_container</item>
         <item name="android:textColor">@color/eh_on_accent_container</item>
-        <item name="android:textSize">12sp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:paddingLeft">10dp</item>
         <item name="android:paddingRight">10dp</item>
         <item name="android:paddingTop">4dp</item>
@@ -196,8 +200,8 @@
 
     <style name="Widget.Enginehost.Badge" parent="">
         <item name="android:background">@drawable/eh_badge_bg</item>
-        <item name="android:textSize">12sp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:paddingLeft">10dp</item>
         <item name="android:paddingRight">10dp</item>
         <item name="android:paddingTop">3dp</item>

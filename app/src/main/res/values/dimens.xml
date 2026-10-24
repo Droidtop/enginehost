@@ -4,8 +4,11 @@
     <dimen name="eh_space_s">8dp</dimen>
     <dimen name="eh_space_m">16dp</dimen>
     <dimen name="eh_space_l">24dp</dimen>
-    <dimen name="eh_corner">16dp</dimen>
-    <dimen name="eh_corner_small">10dp</dimen>
+    <!-- Shape (#644 proposal 4.1): 12 dp on sheets, cards and tiles; 8 dp on rows and buttons; chips are pills. -->
+    <dimen name="eh_corner">12dp</dimen>
+    <dimen name="eh_corner_small">8dp</dimen>
+    <!-- A focused row's leading accent bar (proposal 4.5, "Rows"). -->
+    <dimen name="eh_focus_bar">4dp</dimen>
     <dimen name="eh_touch_target">48dp</dimen>
     <dimen name="eh_focus_stroke">3dp</dimen>
     <dimen name="eh_icon">22dp</dimen>

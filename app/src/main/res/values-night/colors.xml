@@ -1,26 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The dark palette: droidtop's visual language as the proposal gives it
+    (Droidtop/tracker#644, section 4.1 and 4.2). Text on the azure accent is
+    near-black: white on #3BB5FF is 2.3:1.
+-->
 <resources>
-    <color name="eh_background">#12151A</color>
-    <color name="eh_surface">#1B1F26</color>
-    <color name="eh_surface_variant">#242A32</color>
-    <color name="eh_outline">#39404A</color>
-    <color name="eh_text_primary">#E7EAEE</color>
-    <color name="eh_text_secondary">#A0A8B2</color>
-    <color name="eh_accent">#7CA7F4</color>
-    <color name="eh_accent_pressed">#5D8CE0</color>
-    <color name="eh_on_accent">#0D1B33</color>
-    <color name="eh_accent_container">#22375F</color>
-    <color name="eh_accent_container_pressed">#2B457A</color>
-    <color name="eh_on_accent_container">#CFE0FF</color>
-    <color name="eh_danger">#E06C65</color>
-    <color name="eh_danger_container">#8C1D18</color>
-    <color name="eh_on_danger_container">#F9DEDC</color>
-    <color name="eh_official">#63CD8C</color>
-    <color name="eh_official_container">#143221</color>
-    <color name="eh_on_official_container">#BEE9CD</color>
-    <color name="eh_caution">#E9A94F</color>
-    <color name="eh_caution_container">#3A2B10</color>
-    <color name="eh_on_caution_container">#F4D8A8</color>
+    <color name="eh_background">#11151C</color>
+    <color name="eh_surface">#181D26</color>
+    <color name="eh_surface_variant">#222936</color>
+    <color name="eh_surface_sheet">#1E2430</color>
+    <color name="eh_surface_menu">#262D3A</color>
+    <color name="eh_outline">#393E49</color>
+    <color name="eh_text_primary">#F2F5F9</color>
+    <color name="eh_text_secondary">#A9B4C4</color>
+    <color name="eh_accent">#3BB5FF</color>
+    <color name="eh_accent_pressed">#62C4FF</color>
+    <color name="eh_on_accent">#06121C</color>
+    <color name="eh_accent_container">#203E56</color>
+    <color name="eh_accent_container_pressed">#285070</color>
+    <color name="eh_on_accent_container">#CEECFF</color>
+    <color name="eh_danger">#FF5A5F</color>
+    <color name="eh_danger_container">#4B2A33</color>
+    <color name="eh_on_danger_container">#FFD6D7</color>
+    <color name="eh_official">#4CD28A</color>
+    <color name="eh_official_container">#23453C</color>
+    <color name="eh_on_official_container">#D2F4E2</color>
+    <color name="eh_caution">#F5B33D</color>
+    <color name="eh_caution_container">#493E2B</color>
+    <color name="eh_on_caution_container">#FCECCE</color>
     <color name="eh_community">#A0A8B2</color>
     <color name="eh_community_container">#262C34</color>
     <color name="eh_on_community_container">#CDD3DA</color>
