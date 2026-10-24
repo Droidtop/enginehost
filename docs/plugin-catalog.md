@@ -89,6 +89,24 @@ the Refresh button and the scheduled update pass alike:
    against the sha256 the index published and its signed manifest against the
    key pinned for that origin, so the index can make the catalog stale but
    never wrong.
+
+   **Envelope packs (2026-10-24).** Each index entry also names an
+   `envelopePack`: `plugins/envelopes/<owner>__<repo>.json`, every envelope the
+   entry lists, as published, keyed by sha256. When two or more of an origin's
+   listed envelopes are missing here, Enginehost takes them all from the pack
+   in one request and caches each under its own hash, each checked against
+   that hash exactly as one fetched alone. One missing envelope is still
+   fetched alone. After a data reset on dev.480, the core list never finished:
+   with nothing cached, the refresh fetched 509 envelopes one request at a time
+   (Ren'Py 233, Godot 114, most of them per-build history releases;
+   Droidtop/tracker#550). A pack that is missing, fails its hash or does not
+   parse changes nothing: the envelopes are then fetched one by one, as before.
+   Refreshes run one at a time in a process: a second caller (the Cores screen
+   while the update pass runs) waits, then finds the cache current. Every
+   fetch logs one line under `EnginehostFetch`, and every origin's outcome one
+   under `EnginehostCatalog`. A 403 or 429 from the index or asset host carries
+   GitHub's rate-limit headers like an API answer, so the screen names the
+   reset time.
 2. **The GitHub API**, as before, for any origin the index does not name
    (every custom repository) and for all of them when the index is missing or
    more than three days old. That path now sends `If-None-Match` with the

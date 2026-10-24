@@ -47,7 +47,8 @@ class PluginCatalogIndexTest {
              "published_at": "2026-09-01T10:00:00Z",
              "assets": []
             }
-           ]
+           ],
+           "envelopePack": {"path": "envelopes/droidtop__enginehost-renpy-plugin.json", "sha256": "CC33", "size": 8192}
           },
           {
            "repo": "Droidtop/enginehost-cmvs-plugin",
@@ -87,6 +88,14 @@ class PluginCatalogIndexTest {
         assertEquals("aa11", envelope.sha256)
         // GitHub writes its own digests as "sha256:<hex>"; both spellings mean one thing.
         assertEquals("bb22", newest.assets.first { it.name.endsWith(".tar.xz") }.sha256)
+    }
+
+    @Test
+    fun `an entry names its envelope pack, and an entry from an older index has none`() {
+        val parsed = PluginCatalogIndex.parse(index).origins
+        val pack = parsed.getValue("https://github.com/droidtop/enginehost-renpy-plugin").envelopePack
+        assertEquals(EnvelopePack("envelopes/droidtop__enginehost-renpy-plugin.json", "cc33", 8192L), pack)
+        assertNull(parsed.getValue("https://github.com/droidtop/enginehost-cmvs-plugin").envelopePack)
     }
 
     @Test

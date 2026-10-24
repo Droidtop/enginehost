@@ -193,6 +193,13 @@ class GithubPluginCatalogClient(private val context: Context) {
         }
         try {
             val status = connection.responseCode
+            // One line per request (Droidtop/tracker#550): with the allowance left, so a refresh that
+            // runs dry says so in logcat as well as on the screen.
+            android.util.Log.i(
+                "EnginehostFetch",
+                "GET " + url.substringBefore('?') + " -> " + status + ", rate limit remaining " +
+                    connection.getHeaderField("X-RateLimit-Remaining"),
+            )
             if (status == HttpURLConnection.HTTP_NOT_MODIFIED) return null
             if (status !in 200..299) {
                 // The headers are the difference between "you have asked too

@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import android.content.Context
+import android.util.Log
 import java.io.File
 import java.io.IOException
 import java.io.InterruptedIOException
@@ -93,7 +94,9 @@ sealed interface OriginOutcome {
     data class Updated(val plugins: Int) : OriginOutcome
 
     /** The source said nothing changed (a 304, or an index entry we already hold). */
-    object Unchanged : OriginOutcome
+    object Unchanged : OriginOutcome {
+        override fun toString() = "Unchanged"
+    }
 
     /** Nothing was stored and the previous catalog stands. */
     data class Failed(val reason: CatalogFailure) : OriginOutcome
@@ -139,7 +142,18 @@ data class IndexedOrigin(
      * never what decides.
      */
     val certificates: List<String> = emptyList(),
+    /** Every envelope [releases] lists, in one file beside the index ([EnvelopePack]); null in an older index. */
+    val envelopePack: EnvelopePack? = null,
 )
+
+/**
+ * One repository's envelope pack: `plugins/envelopes/<owner>__<repo>.json`, which holds every
+ * release envelope the index lists for it, as published, keyed by sha256. [path] is relative to
+ * the index. A device with none of them cached (a fresh install, cleared data) reads this one file
+ * instead of one request per release. On 2026-10-24 that was 509 requests in a row, and a reset
+ * console never finished its core list (Droidtop/tracker#550).
+ */
+data class EnvelopePack(val path: String, val sha256: String, val size: Long)
 
 data class PluginsIndex(
     val schemaVersion: Int,
@@ -199,6 +213,11 @@ object PluginCatalogIndex {
                 certificates = entry.optJSONArray("certificates")?.let { array ->
                     (0 until array.length()).map(array::getString)
                 }.orEmpty(),
+                envelopePack = entry.optJSONObject("envelopePack")?.let { pack ->
+                    runCatching {
+                        EnvelopePack(pack.getString("path"), pack.getString("sha256").lowercase(), pack.optLong("size"))
+                    }.getOrNull()
+                },
             )
         }
         return PluginsIndex(schemaVersion, generatedAt, parsed)
@@ -276,16 +295,16 @@ class CatalogRefresh(private val context: Context) {
     fun run(
         origins: List<String>,
         indexUrl: String = DEFAULT_INDEX_URL,
-    ): Map<String, OriginOutcome> = refresh(origins, fetchIndex(indexUrl))
+    ): Map<String, OriginOutcome> = synchronized(RUNNING) { refresh(origins, fetchIndex(indexUrl), indexUrl) }
 
     /**
      * Refreshes every origin this device knows, including official ones the
      * index has just introduced: the Plugins screen's refresh, where a newly
      * registered official repository should appear without an app release.
      */
-    fun runAll(indexUrl: String = DEFAULT_INDEX_URL): Map<String, OriginOutcome> {
+    fun runAll(indexUrl: String = DEFAULT_INDEX_URL): Map<String, OriginOutcome> = synchronized(RUNNING) {
         val index = fetchIndex(indexUrl)
-        return refresh(PluginOriginStore(context).all(), index)
+        refresh(PluginOriginStore(context).all(), index, indexUrl)
     }
 
     /**
@@ -307,7 +326,7 @@ class CatalogRefresh(private val context: Context) {
         return index.takeIf { PluginCatalogIndex.isFresh(it, INDEX_MAX_AGE_MS) }
     }
 
-    private fun refresh(origins: List<String>, index: PluginsIndex?): Map<String, OriginOutcome> {
+    private fun refresh(origins: List<String>, index: PluginsIndex?, indexUrl: String): Map<String, OriginOutcome> {
         val cache = PluginCatalogCache(context)
         val revocations = RevocationListStore(context)
         return origins.associateWith { origin ->
@@ -315,8 +334,9 @@ class CatalogRefresh(private val context: Context) {
                 // A repository a person added publishes its own list, under the key they pinned.
                 if (PluginOriginKeyStore(context).custom(origin) != null) runCatching { revocations.refreshAdded(origin) }
                 val indexed = index?.origins?.get(normalizeGithubOrigin(origin))
-                if (indexed == null) fromApi(cache, origin) else fromIndex(cache, indexed, origin)
+                if (indexed == null) fromApi(cache, origin) else fromIndex(cache, indexed, origin, indexUrl)
             }.getOrElse { error -> OriginOutcome.Failed(CatalogFailures.of(error)) }
+                .also { outcome -> Log.i(TAG, "Catalog of " + origin + ": " + outcome) }
         }
     }
 
@@ -324,6 +344,7 @@ class CatalogRefresh(private val context: Context) {
         cache: PluginCatalogCache,
         indexed: IndexedOrigin,
         origin: String,
+        indexUrl: String,
     ): OriginOutcome {
         // What the index says about this origin, reduced to one value. Equal
         // to what we stored means nothing has been published since, so the
@@ -338,6 +359,7 @@ class CatalogRefresh(private val context: Context) {
             },
         )
         if (cache.hasFetched(origin) && cache.etag(origin) == fingerprint) return OriginOutcome.Unchanged
+        fillFromPack(indexed, indexUrl)
         val trust = BundleTrust(context)
         val plugins = mutableListOf<AvailablePlugin>()
         for (release in indexed.releases) {
@@ -370,6 +392,35 @@ class CatalogRefresh(private val context: Context) {
     }
 
     /**
+     * When more than one listed envelope is missing here, takes them all from the repository's
+     * pack ([EnvelopePack]) in one request and caches each under its hash. A pack that is absent,
+     * fails its hash or cannot be read changes nothing: [envelopeText] then fetches each envelope
+     * alone, as before. One or two new builds on a device that has the rest are cheaper alone
+     * than a whole pack.
+     */
+    private fun fillFromPack(indexed: IndexedOrigin, indexUrl: String) {
+        val pack = indexed.envelopePack ?: return
+        val missing = indexed.releases.mapNotNull { release ->
+            release.assets.firstOrNull { it.name in RELEASE_ENVELOPES }?.sha256?.lowercase()
+        }.filterNot { sha256 -> File(context.filesDir, "$ENVELOPE_DIR/$sha256.json").isFile }.toSet()
+        if (missing.size < PACK_THRESHOLD) return
+        runCatching {
+            val text = Transport.get(indexUrl.substringBeforeLast('/') + "/" + pack.path, context)
+            check(Transport.sha256(text) == pack.sha256) { pack.path + " does not match the hash the plugins index published" }
+            val envelopes = JSONObject(text).getJSONObject("envelopes")
+            var kept = 0
+            for (sha256 in missing) {
+                val envelope = envelopes.optString(sha256).takeIf(String::isNotEmpty) ?: continue
+                // Each one is held to its own published hash, exactly as if fetched alone.
+                if (Transport.sha256(envelope) != sha256) continue
+                Transport.write(File(context.filesDir, "$ENVELOPE_DIR/$sha256.json"), envelope)
+                kept++
+            }
+            Log.i(TAG, "Envelope pack " + pack.path + ": " + kept + " of " + missing.size + " missing envelopes")
+        }.onFailure { error -> Log.w(TAG, "Envelope pack " + pack.path + " not used; fetching envelopes one by one", error) }
+    }
+
+    /**
      * The release envelope, by its published hash. Envelopes never change
      * under a hash, so an index that names one we already hold needs no
      * download at all, and one we do not is checked against the hash the
@@ -393,6 +444,14 @@ class CatalogRefresh(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "EnginehostCatalog"
+
+        /** One refresh at a time in this process: a second caller waits, then finds the cache current. */
+        private val RUNNING = Any()
+
+        /** How many missing envelopes make the pack worth one request. */
+        private const val PACK_THRESHOLD = 2
+
         /** The index lives beside the engine registry, in the same platform repository. */
         const val DEFAULT_INDEX_URL = EngineRegistryStore.DEFAULT_BASE_URL + "/plugins/index.json"
 

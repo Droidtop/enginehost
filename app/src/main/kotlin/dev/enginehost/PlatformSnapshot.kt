@@ -1,6 +1,7 @@
 package dev.enginehost
 
 import android.content.Context
+import android.util.Log
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -118,12 +119,28 @@ internal object Transport {
                 connection.setRequestProperty("Authorization", "Bearer $token")
             }
         }
+        val started = System.nanoTime()
         return try {
-            when (val code = connection.responseCode) {
+            val code = connection.responseCode
+            val body = when (code) {
                 200 -> connection.inputStream.bufferedReader().use { it.readText() }
                 404, 410 -> null
-                else -> error("HTTP $code from $url")
+                // The rate-limit headers decide what the screen says (CatalogFailures):
+                // "try again at 14:32", not "HTTP 403 from <url>".
+                else -> throw GithubHttpException(
+                    code,
+                    connection.getHeaderField("X-RateLimit-Remaining")?.toIntOrNull(),
+                    connection.getHeaderField("X-RateLimit-Reset")?.toLongOrNull(),
+                    "HTTP $code from $url",
+                )
             }
+            // One line per fetch (Droidtop/tracker#550): a refresh that stalls says where.
+            Log.i(TAG, "GET " + url.substringBefore('?') + " -> " + code + ", " + (body?.length ?: 0) + " chars, " +
+                (System.nanoTime() - started) / 1_000_000 + " ms")
+            body
+        } catch (failure: java.io.IOException) {
+            Log.w(TAG, "GET " + url.substringBefore('?') + " failed after " + (System.nanoTime() - started) / 1_000_000 + " ms: " + failure.message)
+            throw failure
         } finally {
             connection.disconnect()
         }
@@ -145,4 +162,5 @@ internal object Transport {
         }
 
     private const val HEX = "0123456789abcdef"
+    private const val TAG = "EnginehostFetch"
 }
