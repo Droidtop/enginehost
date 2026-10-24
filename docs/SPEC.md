@@ -211,6 +211,11 @@ SDL `openURL`, Godot `OS.shell_open`, Ren'Py `webbrowser` and `renpy.open_url`, 
 That route also keeps working under the clamp: an isolated core asks through the host's
 callback, and Enginehost's own code does the opening.
 
+A core on the activity transport (Ren'Py, KiriKiri, NScripter, AGS, mkxp-z) runs its own Activity
+and has no `EngineHost`. It calls `dev.enginehost.ActivityLinks.offer(Activity, String)` by name
+instead: the same check and offer. The owner chose this bridge on 2026-10-24 as that transport's
+route until each core moves onto the plugin transport, where `openLink` replaces it.
+
 **Checked strictly (`GameLinks`).**
 - A length cap, no control characters or backslashes, and never `Intent.parseUri`.
 - A web link must name a host, with no user name in front of it and no bracketed IP. The host

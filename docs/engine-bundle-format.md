@@ -717,6 +717,9 @@ selection fails before launch with the component named.
 (docs/SPEC.md, "Links a game opens"). Returns at once; the default answers false. A core routes
 its engine's own link calls here and never calls startActivity for a link. On an older host it
 catches `IncompatibleClassChangeError` and opens nothing.
+A core on the activity transport has no `EngineHost`; it calls
+`dev.enginehost.ActivityLinks.offer(Activity, String)` by reflection (2026-10-24), and opens nothing
+when that class is missing (an older Enginehost).
 
 `EnginePluginSession.runtimeComponents()` (2026-10-02): what the launch
 loads beside the engine, so a core that loads components knows which
