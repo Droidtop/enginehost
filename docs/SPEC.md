@@ -200,6 +200,40 @@ shipped for, as a desktop build would see it, without changing a game file:
 
 A game's options can still choose Android: `"platform": "android"`.
 
+## Links a game opens (decided 2026-10-23)
+
+The owner, 2026-10-23: "Enginehost should parse the link type (safely), and then OFFER to open
+it. A discord link gets offered to discord, etc" (Droidtop/tracker#635).
+
+A core never opens a link itself. Every engine's own route goes to `EngineHost.openLink(url)`:
+SDL `openURL`, Godot `OS.shell_open`, Ren'Py `webbrowser` and `renpy.open_url`, KiriKiri
+`shellExecute`, Ruffle `navigateToURL`, and a WebView's external navigation and `window.open`.
+That route also keeps working under the clamp: an isolated core asks through the host's
+callback, and Enginehost's own code does the opening.
+
+**Checked strictly (`GameLinks`).**
+- A length cap, no control characters or backslashes, and never `Intent.parseUri`.
+- A web link must name a host, with no user name in front of it and no bracketed IP. The host
+  must convert cleanly to ASCII; an internationalized one is shown decoded and in ASCII, so a
+  lookalike shows as one.
+- Only `https`, `http`, `mailto` and the app schemes `assets/link-kinds.json` lists pass. Anything
+  else is refused, and the person is told so: `intent:`, `file:`, `content:`, `javascript:`,
+  `data:`, `steam://run/...`.
+
+**Named by data.** `assets/link-kinds.json` says what a link is, by scheme or by domain and path:
+Discord invites and channels, YouTube, Steam, itch.io, Patreon, X, Reddit. Any other web link is
+a web page; `mailto` is an email.
+
+**Offered every time (`GameLinkOffer`).** A sheet says what the game wants to open and shows the
+link. Its choices, in order:
+1. **Cancel**, first, as the safe choice on every warning sheet;
+2. **Open in Discord** (or YouTube, ...), when an installed app of that kind opens the link;
+3. **Open in browser** (a browser, not whichever app claims the link), or **Open in email**;
+4. **Copy link**.
+
+There is no "always". One offer is shown at a time; a link asked for while one is showing is
+dropped. On a device with a second screen the chosen app opens on the screen the game is not on.
+
 ## A game that shows nothing, stops responding, or closes unseen (decided 2026-10-22)
 
 A crash was the only failure Enginehost noticed; a game that sat on a black

@@ -14,4 +14,6 @@ interface IEngineRuntimeCallback {
     void finish();
     void fail(String message);
     void restart(in String[] arguments);
+    /** EngineHost.openLink: offered to the person by the host (GameLinkOffer); returns at once. */
+    void openLink(String url);
 }

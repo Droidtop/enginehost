@@ -2242,6 +2242,10 @@ the 120 checks at the old pin unchanged at the new one, with 67 new checks.
   Enginehost's UID, so native code can still ask system services for what
   Enginehost may have (MediaProvider, an intent with a URL). A same-UID
   sandbox cannot close that; the isolated runtime (another UID) can.
+  Links are the one such call a game needs, so they go through the host
+  instead: `EngineHost.openLink` (docs/SPEC.md, "Links a game opens"),
+  checked and offered by Enginehost's own code, the same for a locked-down
+  core and an isolated one, which reaches it through its callback.
 
 #### The lockdown is how a core that cannot be isolated is sandboxed (2026-10-17)
 
