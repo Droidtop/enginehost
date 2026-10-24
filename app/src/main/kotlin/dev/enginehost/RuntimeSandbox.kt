@@ -200,12 +200,34 @@ object RuntimeSandbox {
     private fun confine(broker: ParcelFileDescriptor, learn: Boolean): Boolean {
         val audit = DebugProperty.get("audit") == "1"
         if (audit) Log.w(TAG, "AUDIT: the kernel logs every trapped call of this process (audit type=1326)")
+        val probe = DebugProperty.get("npeprobe") == "1"
+        if (probe) probeNullCheck("before the lockdown")
         val result = lockdown0(broker.detachFd(), OWN_OPENS, learn, audit)
         if (result == 0) Log.i(TAG, "Process locked down: files only through the broker, no sockets, no exec")
         else Log.w(TAG, "Process NOT locked down: errno ${-result}")
+        if (probe) probeNullCheck("after the lockdown")
         // EDEADLK: a thread has SIGSYS blocked and would kill the process on its first trapped call.
         if (result == -EDEADLK) Log.w(TAG, "Threads with SIGSYS blocked: ${sigsysBlockedThreads().joinToString()}")
         return result == 0
+    }
+
+    /**
+     * `debug.enginehost.npeprobe 1`: whether ART still turns a null receiver into a
+     * NullPointerException in this process. KiriKiri and mkxp-z died locked down at
+     * libart.so nterp_op_invoke_virtual+0x28, a null receiver on the main thread, as a
+     * raw SIGSEGV instead of the exception ART makes of that fault (Droidtop/tracker#550,
+     * RP5, dev.484). [absent] is a platform type, so `.length` compiles to a plain
+     * invoke-virtual with no check of Kotlin's: ART's implicit null check is what
+     * catches it. Logged under [TAG]; if the process dies here instead, the lockdown
+     * breaks that check for every core.
+     */
+    private fun probeNullCheck(moment: String) {
+        val absent = System.getProperty("dev.enginehost.npe-probe.absent")
+        try {
+            Log.i(TAG, "Null-check probe " + moment + ": no exception, length " + absent.length)
+        } catch (thrown: NullPointerException) {
+            Log.i(TAG, "Null-check probe " + moment + ": ART threw NullPointerException as it should")
+        }
     }
 
     /**

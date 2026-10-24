@@ -2472,6 +2472,14 @@ records of it:
   rather than a proven caller. To read a frame, look up the
   offset in that library's unstripped build (`llvm-addr2line -fe lib….so
   0x…`).
+- **`adb shell setprop debug.enginehost.npeprobe 1`** has a locking-down runtime
+  call a method on a null receiver just before and just after its lockdown,
+  and log whether ART threw NullPointerException ("Null-check probe … as it
+  should") under `EnginehostSandbox`. KiriKiri and mkxp-z died locked down on
+  the RP5 at `nterp_op_invoke_virtual+0x28`: a null receiver that reached
+  Enginehost's fault handler as SIGSEGV instead of becoming that exception
+  (#550, 2026-10-24). If the process dies after "after the lockdown", the
+  lockdown breaks ART's implicit null checks for every core.
 - **`adb shell setprop debug.enginehost.audit 1`** installs the filter with the
   kernel's audit (`SBX_LOCK_AUDIT`). Every trapped or refused call is logged as
   `audit: type=1326` with its number and address, in logcat or `dmesg`. That
