@@ -2478,8 +2478,12 @@ records of it:
   should") under `EnginehostSandbox`. KiriKiri and mkxp-z died locked down on
   the RP5 at `nterp_op_invoke_virtual+0x28`: a null receiver that reached
   Enginehost's fault handler as SIGSEGV instead of becoming that exception
-  (#550, 2026-10-24). If the process dies after "after the lockdown", the
-  lockdown breaks ART's implicit null checks for every core.
+  (#550, 2026-10-24). The cause: ART's fault handler reads the faulting
+  method through `art::SafeCopy`, which uses `process_vm_readv` on its own
+  pid, and the lockdown refused that call, so ART declined its own null
+  checks and every null receiver in Java killed the process. Library 0.1.6
+  allows `process_vm_readv` on the process itself only. The probe should now
+  log ART's exception both before and after the lockdown.
 - **`adb shell setprop debug.enginehost.audit 1`** installs the filter with the
   kernel's audit (`SBX_LOCK_AUDIT`). Every trapped or refused call is logged as
   `audit: type=1326` with its number and address, in logcat or `dmesg`. That
