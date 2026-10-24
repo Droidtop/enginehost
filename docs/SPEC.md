@@ -1,5 +1,16 @@
 # Enginehost UI decisions
 
+## 64-bit only: arm64-v8a and x86_64 (decided 2026-10-24, Droidtop/tracker#646)
+
+Enginehost, its sandbox library and every core build for `arm64-v8a` and `x86_64`
+and nothing else. Owner: "why do we have to care about 32-bit devices? The last
+32 bit arm or x86 cpu was a decade and a half ago". The app's `abiFilters` name
+the two. The native sandbox stops at an `#error` on any other architecture, so
+there are no stubs left that only let a 32-bit build link. A bundle carries
+exactly the two `lib/` directories (engine-bundle-format.md). This is about
+Android ABIs only. Enginehost still recognises a PC game's 32-bit Windows or
+Linux binaries ("32-bit PCs (x86)") when it says which games it cannot host.
+
 ## Core line selection
 
 Engine version detection may select an installed core line only when its

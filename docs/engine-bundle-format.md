@@ -142,9 +142,11 @@ API 29 the application class loader, through which layouts name their view
 classes, is also given the bundle's classes (the platform's own hook for that,
 `AppComponentFactory.instantiateClassLoader`, exists from 29).
 
-A bundle carries **every ABI it supports, in one archive**: `lib/arm64-v8a/` and
-`lib/x86_64/` at minimum, plus `lib/armeabi-v7a/` or `lib/x86/` where the engine's
-upstream provides them. Enginehost picks the directory at load time from
+A bundle carries **both 64-bit ABIs, in one archive**: `lib/arm64-v8a/` and
+`lib/x86_64/`, and no others. The owner dropped 32-bit everywhere on 2026-10-24
+(Droidtop/tracker#646): `armeabi-v7a` and `x86` are neither built nor shipped, even
+where an engine's upstream provides them. Enginehost itself builds only these two.
+Enginehost picks the directory at load time from
 `Build.SUPPORTED_ABIS`, in the device's own order of preference, so there is no
 per-architecture bundle, channel or download to choose between: one bundle
 installs on the console and on an x86_64 device or emulator alike. A core whose
