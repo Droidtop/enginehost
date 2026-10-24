@@ -1,0 +1,16 @@
+{
+  "_comment": "What a game's link is, and which app it is offered to (GameLinks, GameLinkOffer; docs/SPEC.md, 'Links a game opens'). A link matches a kind by scheme, or by domain (the domain itself or any subdomain) and, when given, a path prefix. packages are the apps that handle it, in order of preference; only an installed one that Android says opens the link is offered. A scheme listed here is allowed beside https, http and mailto; nothing else is.",
+  "kinds": [
+    { "id": "discord", "name": "Discord", "schemes": ["discord"],
+      "domains": ["discord.gg", "discord.com", "discordapp.com"], "paths": {"discord.com": ["/invite", "/channels"], "discordapp.com": ["/invite", "/channels"]},
+      "packages": ["com.discord"] },
+    { "id": "youtube", "name": "YouTube",
+      "domains": ["youtube.com", "youtu.be"], "packages": ["com.google.android.youtube"] },
+    { "id": "steam", "name": "Steam",
+      "domains": ["store.steampowered.com", "steamcommunity.com", "s.team"], "packages": ["com.valvesoftware.android.steam.community"] },
+    { "id": "itch", "name": "itch.io", "domains": ["itch.io"], "packages": [] },
+    { "id": "patreon", "name": "Patreon", "domains": ["patreon.com"], "packages": ["com.patreon.android"] },
+    { "id": "x", "name": "X", "domains": ["x.com", "twitter.com"], "packages": ["com.twitter.android"] },
+    { "id": "reddit", "name": "Reddit", "domains": ["reddit.com", "redd.it"], "packages": ["com.reddit.frontpage"] }
+  ]
+}

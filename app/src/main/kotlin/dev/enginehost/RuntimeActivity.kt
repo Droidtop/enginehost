@@ -446,6 +446,11 @@ private class RuntimeHost(
             ?.let { runCatching { Version.parse(it) }.getOrNull() } ?: return null
         return ComponentRequests.request(activity, gameFolder, engine, runtime, name)
     }
+    /** A link the game asked to open: offered to the person, never opened by itself ([GameLinkOffer]). */
+    override fun openLink(url: String): Boolean {
+        GameLinkOffer.offer(activity, url)
+        return true
+    }
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {
         val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()
         Log.println(priority, "enginehost/$tag", message + detail)

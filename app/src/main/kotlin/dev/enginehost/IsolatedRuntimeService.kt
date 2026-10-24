@@ -565,6 +565,8 @@ private class IsolatedEngineHost(
 
     override fun restartArguments(): Array<String> = restartArgs
 
+    override fun openLink(url: String): Boolean = runCatching { callback.openLink(url) }.isSuccess
+
     override fun fail(message: String) {
         runCatching { callback.fail(message) }
     }

@@ -207,6 +207,20 @@
     <string name="component_carried">Cores here carry %1$s %2$s.</string>
     <string name="component_carried_none">No core here carries %1$s.</string>
     <string name="component_request_title">This game needs the %1$s</string>
+    <!-- A link the game asked to open (GameLinkOffer). -->
+    <string name="link_offer_title_app">This game wants to open a %1$s link</string>
+    <string name="link_offer_title_web">This game wants to open a web page</string>
+    <string name="link_offer_title_email">This game wants to write an email</string>
+    <string name="link_offer_host_decoded">%1$s (%2$s)</string>
+    <string name="link_open_in">Open in %1$s</string>
+    <string name="link_open_browser">Open in browser</string>
+    <string name="link_open_email">Open in email</string>
+    <string name="link_copy">Copy link</string>
+    <string name="link_clip_label">Link from a game</string>
+    <string name="link_copied">Link copied</string>
+    <string name="link_no_app">Nothing on this device opens that link</string>
+    <string name="link_refused_title">This game tried to open a link Enginehost does not open</string>
+    <string name="link_refused_message">Enginehost opens only web pages, email addresses and the apps it knows (Discord, YouTube, Steam and others). This one was something else, so it was not opened.</string>
     <string name="component_request_install_message">It is a separate part, installed once, under its own licence (%1$s). The game waits while you decide.</string>
     <string name="component_request_install">Install it</string>
     <string name="component_request_accept_message">It is installed and waiting for you to accept its licence. The game waits while you decide.</string>

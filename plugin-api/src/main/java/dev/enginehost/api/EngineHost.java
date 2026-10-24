@@ -86,6 +86,20 @@ public interface EngineHost {
     default java.io.File requestComponent(String name) { return null; }
 
     /**
+     * A link the game asks to open: a web page, a Discord invite, a store page, an email address.
+     * Enginehost checks it, says what it is, and offers it to the person: open it in the app it
+     * belongs to, in a browser, copy it, or not (docs/SPEC.md, "Links a game opens"). It never
+     * opens one by itself, and a core never calls startActivity for a link: every engine's own
+     * route (SDL openURL, Godot OS.shell_open, Ren'Py webbrowser, ...) comes here instead.
+     *
+     * <p>Returns at once, true when Enginehost took the link (a refused one included: the
+     * person is told). Added after the first hosts shipped; the default answers false, and a
+     * plugin that may run on an older Enginehost catches {@link IncompatibleClassChangeError},
+     * as for {@link #restart}.
+     */
+    default boolean openLink(String url) { return false; }
+
+    /**
      * Host-brokered, read-only access to the game folder, present only
      * when this runtime is isolated (docs/engine-sandbox.md "Layer 2").
      * Null on an ordinary in-process launch, and null on a host too old

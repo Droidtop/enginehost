@@ -713,6 +713,11 @@ selection fails before launch with the component named.
 
 ### Host services added after apiVersion 1 shipped
 
+`EngineHost.openLink(url)` (2026-10-24): a link the game asks to open, offered to the person
+(docs/SPEC.md, "Links a game opens"). Returns at once; the default answers false. A core routes
+its engine's own link calls here and never calls startActivity for a link. On an older host it
+catches `IncompatibleClassChangeError` and opens nothing.
+
 `EnginePluginSession.runtimeComponents()` (2026-10-02): what the launch
 loads beside the engine, so a core that loads components knows which
 (above). A core that may run on an older Enginehost catches

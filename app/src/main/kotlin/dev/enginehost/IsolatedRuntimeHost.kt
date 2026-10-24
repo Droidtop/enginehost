@@ -767,6 +767,10 @@ private class HostRuntimeCallback(
         }
     }
 
+    override fun openLink(url: String) {
+        GameLinkOffer.offer(activity, url)
+    }
+
     override fun fail(message: String) {
         val prefix = if (showedGame()) RuntimeActivity.GAME_STOPPED else RuntimeActivity.STARTUP_FAILED
         activity.runOnUiThread { activity.failAndFinish(prefix + message) }
