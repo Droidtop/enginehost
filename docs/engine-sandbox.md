@@ -2464,7 +2464,12 @@ records of it:
   engine that installs its own handler afterwards replaces them; most such
   handlers abort, and the abort is noted instead. The frames follow the
   trace line: one logcat line each, and in the crash record for any process
-  that ended by a signal or a native crash. To read a frame, look up the
+  that ended by a signal or a native crash. Where the unwinder stops at ART's
+  signal chain (arm64 Retroid Pocket 5), library 0.1.5 walks the crashed
+  thread's frame records instead. The first device record (dev.484) showed
+  the handler's own frames after the faulting pc, and they read as a crash
+  in the sandbox; a frame named "link" is the leaf's caller from x30, a lead
+  rather than a proven caller. To read a frame, look up the
   offset in that library's unstripped build (`llvm-addr2line -fe lib….so
   0x…`).
 - **`adb shell setprop debug.enginehost.audit 1`** installs the filter with the
