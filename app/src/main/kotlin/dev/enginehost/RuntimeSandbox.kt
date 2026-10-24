@@ -406,6 +406,9 @@ object RuntimeSandbox {
      * kernel ties the open file to the opener: binder (libhidl maps
      * /dev/hwbinder; a broker-opened one fails with EINVAL) and the GPU
      * drivers that keep per-process state (kgsl, Mali, DRM render nodes).
+     * Each later open gets an open file of its own (library 0.1.7): the Adreno
+     * driver's own libhidl maps hwbinder a second time, which a duplicate of
+     * one descriptor refused with EBUSY (Droidtop/tracker#550).
      */
     private val OWN_OPENS = arrayOf("/dev/hwbinder", "/dev/kgsl-3d0", "/dev/mali0", "/dev/dri/renderD128")
 
