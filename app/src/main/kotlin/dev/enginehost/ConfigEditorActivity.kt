@@ -88,6 +88,9 @@ class ConfigEditorActivity : EnginehostActivity() {
         execFileButton = findViewById(R.id.execFileButton)
         optionsList = findViewById(R.id.optionsList)
         editorFields = findViewById(R.id.editorFields)
+        // Before openCallerPath below, which shows where the setup comes from.
+        saveToFolderSwitch = findViewById(R.id.saveToFolderSwitch)
+        configSourceNote = findViewById(R.id.configSourceNote)
 
         engineButton.setOnClickListener { pickEngine() }
         contextButton.setOnClickListener { pickContext() }
@@ -104,8 +107,6 @@ class ConfigEditorActivity : EnginehostActivity() {
                 REQUEST_FOLDER,
             )
         }
-        saveToFolderSwitch = findViewById(R.id.saveToFolderSwitch)
-        configSourceNote = findViewById(R.id.configSourceNote)
         findViewById<Button>(R.id.saveConfigButton).setOnClickListener { save() }
         findViewById<Button>(R.id.testConfigButton).setOnClickListener { testRun() }
         findViewById<Button>(R.id.browseAllPluginsButton).setOnClickListener {
