@@ -241,6 +241,9 @@ class IsolatedRuntimeService : Service() {
             // its own descriptors, the game and save folders behind their brokers), so it now
             // drops what it can before any plugin code runs.
             if (sandboxBroker != null) {
+                // Answered while this process can still read its own /proc: after the clamp the
+                // broker would read Enginehost's, and the plugins' static initialisers ask it.
+                dev.enginehost.api.EngineProcess.isIsolated()
                 check(RuntimeSandbox.confineIsolated(sandboxBroker, sandboxLearn)) { "the sandbox could not be set up" }
             }
             val loaded = loadEnginePluginFromInMemoryDex(dexBuffers, entrypointClass, nativeLibraryFdsByName, classLoader)
