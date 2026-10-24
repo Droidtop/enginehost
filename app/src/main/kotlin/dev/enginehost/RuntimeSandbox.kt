@@ -270,6 +270,11 @@ object RuntimeSandbox {
             "/data/dalvik-cache", "/data/fonts", "/data/resource-cache", "/proc", "/sys", "/dev/__properties__",
             // Time zone data (tzdata updates land here, not in /apex).
             "/data/misc/zoneinfo",
+            // Adopted storage's mount root, which Android's storage code stats and opens at start.
+            // Refused, LÖVE died with SIGSEGV about a second in, and it was LÖVE's only refusal
+            // (KiriKiri and mkxp-z too; #550, 2026-10-24). It holds one folder per adopted volume,
+            // whose app folders stay closed to other apps by their own permissions.
+            "/mnt/expand",
             File(context.applicationInfo.sourceDir).parent ?: context.applicationInfo.sourceDir,
             context.applicationInfo.nativeLibraryDir,
         ).forEach { rules[it] = SBX_READ }
