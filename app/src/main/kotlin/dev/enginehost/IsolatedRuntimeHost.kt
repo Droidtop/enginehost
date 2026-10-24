@@ -104,6 +104,9 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
         gameFolder: File,
         saveFolder: File,
         display: FrameLayout,
+        /** The confined side of the lockdown broker ([RuntimeSandbox.brokerForIsolated]); null when the core is not clamped. */
+        sandboxBroker: ParcelFileDescriptor?,
+        sandboxLearn: Boolean,
         onFailure: (String) -> Unit,
     ) {
         onLaunchFailure = onFailure
@@ -158,12 +161,14 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                                 HostFileBroker(saveFolder, readOnly = false),
                                 gameFolder.absolutePath, installed.writesGameFolder, saveFolder.absolutePath,
                                 bridge?.pluginSideBuffer(), bridge?.sampleRate ?: 0,
+                                sandboxBroker, sandboxLearn,
                                 HostRuntimeCallback(activity) { showedGame },
                             )
                         } finally {
                             // AIDL duplicates each descriptor across the binder call; this
                             // process's own copies are spent once init() returns (or throws).
-                            (dexFds.asList() + nativeLibraryFds.asList()).forEach { runCatching { it.close() } }
+                            (dexFds.asList() + nativeLibraryFds.asList() + listOfNotNull(sandboxBroker))
+                                .forEach { runCatching { it.close() } }
                         }
                         // The runtime is up. An engine that boots into its
                         // own scripts may take a while to compose its first

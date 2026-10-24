@@ -113,6 +113,47 @@ object RuntimeSandbox {
         // through here a second time, already confined.
         if (confined) return true
         val learn = plugin != null && learning(plugin)
+        val confinedSide = serveBroker(context, game, gameWritable, save, bundles, gameWrites, plugin, isolated = false)
+            ?: return false
+        // Earlier runtimes that ended locked down (a restart loop leaves one each), then this one's ring.
+        reportEndedTraces(context)
+        val traced = runCatching { trace0(traceFile(context, Process.myPid()).absolutePath) }.getOrDefault(-1)
+        if (traced != 0) Log.w(TAG, "No sandbox trace for this process: errno ${-traced}")
+        confined = confine(confinedSide, learn)
+        return confined
+    }
+
+    /**
+     * The clamp for an isolated runtime (docs/engine-sandbox.md, "Both layers for every core"):
+     * from `:runtime`, has the broker serve [isolatedPolicy] and answers the confined side's end
+     * of the socket, which [IsolatedRuntimeHost] hands the isolated service with its init call
+     * and the service locks itself down on ([confineIsolated]) before any plugin code loads.
+     * Null when the broker did not answer; a launch that needs the lockdown then does not start.
+     * [game], [save] and [bundles] only name paths in a learning run's profile: the isolated
+     * policy grants none of them, because the isolated process reaches the game and save folders
+     * only through the descriptors the host hands it ([HostFileBroker]).
+     */
+    fun brokerForIsolated(context: Context, plugin: InstalledPlugin, game: File, save: File): ParcelFileDescriptor? =
+        serveBroker(context, game, false, save, listOf(plugin.directory), emptyList(), plugin, isolated = true)
+
+    /** In the isolated service: locks this process down on [broker] ([brokerForIsolated]). */
+    fun confineIsolated(broker: ParcelFileDescriptor, learn: Boolean): Boolean {
+        System.loadLibrary("enginehost_sandbox")
+        return confine(broker, learn).also { confined = it }
+    }
+
+    /** Has the broker serve one launch's rules; answers the confined side's end of the socket, or null. */
+    private fun serveBroker(
+        context: Context,
+        game: File,
+        gameWritable: Boolean,
+        save: File,
+        bundles: List<File>,
+        gameWrites: List<String>,
+        plugin: InstalledPlugin?,
+        isolated: Boolean,
+    ): ParcelFileDescriptor? {
+        val learn = plugin != null && learning(plugin)
         if (learn && plugin != null) {
             val warning = "LEARNING MODE: ${plugin.bundleId}: nothing is refused, this run has NO sandbox"
             Log.w(TAG, warning)
@@ -129,6 +170,7 @@ object RuntimeSandbox {
                 SandboxBrokerProvider.METHOD_SERVE, null,
                 Bundle().apply {
                     putParcelable(SandboxBrokerProvider.SOCKET, pair[0])
+                    putBoolean(SandboxBrokerProvider.ISOLATED, isolated)
                     putString(SandboxBrokerProvider.GAME, game.absolutePath)
                     putBoolean(SandboxBrokerProvider.GAME_WRITABLE, gameWritable)
                     putStringArray(SandboxBrokerProvider.GAME_WRITES, gameWrites.toTypedArray())
@@ -149,21 +191,21 @@ object RuntimeSandbox {
         }
         if (!served) {
             pair[1].close()
-            return false
+            return null
         }
-        // Earlier runtimes that ended locked down (a restart loop leaves one each), then this one's ring.
-        reportEndedTraces(context)
-        val traced = runCatching { trace0(traceFile(context, Process.myPid()).absolutePath) }.getOrDefault(-1)
-        if (traced != 0) Log.w(TAG, "No sandbox trace for this process: errno ${-traced}")
+        return pair[1]
+    }
+
+    /** Locks this process down on [broker]; whether it is confined. */
+    private fun confine(broker: ParcelFileDescriptor, learn: Boolean): Boolean {
         val audit = DebugProperty.get("audit") == "1"
         if (audit) Log.w(TAG, "AUDIT: the kernel logs every trapped call of this process (audit type=1326)")
-        val result = lockdown0(pair[1].detachFd(), OWN_OPENS, learn, audit)
+        val result = lockdown0(broker.detachFd(), OWN_OPENS, learn, audit)
         if (result == 0) Log.i(TAG, "Process locked down: files only through the broker, no sockets, no exec")
         else Log.w(TAG, "Process NOT locked down: errno ${-result}")
         // EDEADLK: a thread has SIGSYS blocked and would kill the process on its first trapped call.
         if (result == -EDEADLK) Log.w(TAG, "Threads with SIGSYS blocked: ${sigsysBlockedThreads().joinToString()}")
-        confined = result == 0
-        return confined
+        return result == 0
     }
 
     /**
@@ -272,6 +314,27 @@ object RuntimeSandbox {
         return rules
     }
 
+    /**
+     * The broker's rules for an isolated runtime: only what an isolated process can already
+     * reach (the system's code and data, its own app's code, and a few devices that hold
+     * nothing). The broker opens files as this app, so granting an isolated process the game,
+     * save, cache or any app data here would widen it, not clamp it; those reach it only as
+     * descriptors over binder, as before. No GPU device: an isolated process renders in software.
+     */
+    internal fun isolatedPolicy(context: Context): Map<String, Int> {
+        val rules = LinkedHashMap<String, Int>()
+        listOf(
+            "/system", "/system_ext", "/product", "/vendor", "/odm", "/apex", "/linkerconfig",
+            "/data/dalvik-cache", "/proc", "/sys", "/dev/__properties__", "/data/misc/zoneinfo",
+            File(context.applicationInfo.sourceDir).parent ?: context.applicationInfo.sourceDir,
+            context.applicationInfo.nativeLibraryDir,
+        ).forEach { rules[it] = SBX_READ }
+        val ashmem = runCatching { "/dev/ashmem" + File("/proc/sys/kernel/random/boot_id").readText().trim() }.getOrNull()
+        listOfNotNull("/dev/null", "/dev/zero", "/dev/random", "/dev/urandom", "/dev/ashmem", ashmem)
+            .forEach { rules[it] = SBX_READ or SBX_WRITE }
+        return rules
+    }
+
     /** The current WebView provider's APK folder and native libraries, when there is one. */
     private fun webViewCode(context: Context): List<String> {
         val info = runCatching { android.webkit.WebView.getCurrentWebViewPackage()?.applicationInfo }.getOrNull() ?: return emptyList()
@@ -327,7 +390,7 @@ object RuntimeSandbox {
  * policy is refused.
  */
 class SandboxBrokerProvider : ContentProvider() {
-    private val served = HashSet<Int>()
+    private val served = HashSet<String>()
 
     override fun onCreate(): Boolean = true
 
@@ -335,14 +398,18 @@ class SandboxBrokerProvider : ContentProvider() {
         if (method != METHOD_SERVE || extras == null) return null
         if (Binder.getCallingUid() != Process.myUid()) throw SecurityException("Not this app's process")
         val pid = Binder.getCallingPid()
-        synchronized(served) { if (!served.add(pid)) throw SecurityException("Process $pid already has a broker") }
+        // One broker per process for its own lockdown, and one for the isolated runtime it starts.
+        val isolated = extras.getBoolean(ISOLATED)
+        val session = if (isolated) "$pid:isolated" else "$pid"
+        synchronized(served) { if (!served.add(session)) throw SecurityException("Process $pid already has a broker") }
         @Suppress("DEPRECATION")
         val socket = extras.getParcelable<ParcelFileDescriptor>(SOCKET) ?: return null
         val game = extras.getString(GAME) ?: return null.also { socket.close() }
         val save = extras.getString(SAVE) ?: return null.also { socket.close() }
         val bundles = extras.getStringArray(BUNDLES)?.toList()?.takeIf { it.isNotEmpty() } ?: return null.also { socket.close() }
         val gameWrites = extras.getStringArray(GAME_WRITES)?.toList().orEmpty()
-        val rules = RuntimeSandbox.policy(context!!, game, extras.getBoolean(GAME_WRITABLE), save, bundles, gameWrites)
+        val rules = if (isolated) RuntimeSandbox.isolatedPolicy(context!!)
+        else RuntimeSandbox.policy(context!!, game, extras.getBoolean(GAME_WRITABLE), save, bundles, gameWrites)
         // A learning run (RuntimeSandbox.learning): its broker refuses nothing and records every would-be refusal.
         val learner = extras.getString(LEARN_CORE)?.let { core ->
             SandboxLearner.start(
@@ -364,6 +431,7 @@ class SandboxBrokerProvider : ContentProvider() {
         const val AUTHORITY = "dev.enginehost.sandbox"
         const val METHOD_SERVE = "serve"
         const val SOCKET = "socket"
+        const val ISOLATED = "isolated"
         const val GAME = "game"
         const val GAME_WRITABLE = "gameWritable"
         const val GAME_WRITES = "gameWrites"

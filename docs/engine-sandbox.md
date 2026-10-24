@@ -2125,14 +2125,13 @@ Consequences, decided here:
   SDL engines that composite in software: OpenBGI, AGS's software
   renderer, EasyRPG, onscripter) fit that shape directly.
 - **Engines that need GLES or Vulkan** (Godot, Ren'Py, LOVE, mkxp-z,
-  KiriKiri) can only run isolated on a software GL implementation inside
-  the isolated process, at a real cost in frame rate on a handheld, or
-  under a different UID that is not an isolated one. Which of those is the
-  owner's decision (Droidtop/tracker#26); nothing here assumes it.
+  KiriKiri) are not isolated. They are fully sandboxed by allocate, then
+  clamp, with no software GL and no second UID (owner, 2026-10-23; "Both
+  layers for every core" below).
 - **WebView engines** (HTML, RPG Maker MV/MZ, Flash via Ruffle) cannot
-  draw inside an isolated process for the same reason. Their game code
-  already runs in Chromium's own sandboxed renderer process; whether that
-  counts as their sandbox is part of the same decision.
+  draw inside an isolated process for the same reason. They get the same
+  clamp, and their game code also keeps Chromium's own sandboxed renderer
+  process.
 
 #### Process lockdown: seccomp and a file broker (prototype, 2026-10-10)
 
@@ -2301,6 +2300,54 @@ What the lockdown still does not close is unchanged: Binder (above).
    lines; a core whose run had none gets the flag.
 Ren'Py goes first (owner, 2026-10-17), then the rest of the GL and WebView
 cores in the survey's order.
+
+#### Both layers for every core: allocate, then clamp (owner, 2026-10-23)
+
+The owner, on making every core sandboxed: "Alright, let's push the all those unprotected lines to
+get both layers of protection", and on how a GPU core is sandboxed: "Our sandboxing model DOES
+allow for GPU access. Remember? Allocate and clamp?" ... "We essentially allocate what's needed,
+then drop permissions as much as possible." (Droidtop/tracker#550.)
+
+**The model.** A core's process first sets up everything it needs while it still holds its
+rights: the GPU (EGL, buffers), audio, the binder descriptors the graphics stack opens by itself,
+its code, and its files through the broker. Then it drops every right it can: seccomp, files only
+through the broker, no sockets, no exec. The probe (Droidtop/tracker#470) showed GLES keeps drawing after
+this (the sandbox library's `tests/android/gpu_probe.c`). A GPU core under the clamp is therefore
+fully sandboxed, not a lesser case. This replaces the earlier reading that a GLES core needs
+software GL or a second UID.
+
+**Both layers, by core shape:**
+- **GPU and WebView cores** (Godot, Ren'Py, LOVE, mkxp-z, KiriKiri, MV/MZ, HTML/Twine, Flash):
+  layer 1 (no IP sockets in the engine process) plus the clamp. `isolatedProcess` is not used
+  for them: SELinux denies that domain `gpu_device` outright (above). WebView cores also keep
+  Chromium's sandboxed renderer.
+- **Software-rendering cores** (CatSystem2, CMVS, Buriko, NScripter; AGS's software renderer and
+  EasyRPG once they move to `EngineStepDriven`): layer 2 (their own isolated UID) plus the clamp
+  inside the isolated service (built, 2026-10-24). When such a core is locked down
+  (`RuntimeSandbox.locksDown`: it declares `lockdown`, a learning run, or
+  `debug.enginehost.lockdown`):
+  - `RuntimeActivity` has the broker serve `RuntimeSandbox.isolatedPolicy`;
+  - it passes the confined side of the broker's socket with `IEngineRuntimeService.init`;
+  - the isolated service locks itself down on it after its allocation (code read into memory,
+    native libraries as its own descriptors, the game and save folders behind their binder
+    brokers), and before any plugin code runs. Init fails when it cannot, so a core that is to
+    be clamped never runs unclamped.
+
+  The isolated policy grants only what an isolated process can already reach: the system's code
+  and data, `/proc`, `/sys`, Enginehost's own code, and devices that hold nothing (null, zero,
+  random, ashmem). The broker opens files as Enginehost's UID. Granting an isolated process the
+  game or save folder, a cache or any app data through it would widen that process, not clamp it.
+  Those reach it only as descriptors over binder, as before. Binder itself stays usable: an ART
+  process keeps it (sandbox library, "Binder in an ART process").
+
+**Rollout, per line:**
+1. A learning run (`debug.enginehost.learn`).
+2. A rig run under `debug.enginehost.lockdown 1`.
+3. `"lockdown": true` in the core's manifest.
+4. A stable, re-signed release.
+
+Order: Godot (all nine lines), MV/MZ, HTML/Twine, KiriKiri, mkxp-z, LOVE, Flash; then the four
+isolated cores, then AGS and EasyRPG.
 
 #### Learning mode: training a core's policy before it is flagged (built 2026-10-23)
 

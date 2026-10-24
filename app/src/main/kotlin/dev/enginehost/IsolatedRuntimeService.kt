@@ -84,6 +84,8 @@ class IsolatedRuntimeService : Service() {
             savePath: String,
             audioBuffer: ParcelFileDescriptor?,
             audioSampleRate: Int,
+            sandboxBroker: ParcelFileDescriptor?,
+            sandboxLearn: Boolean,
             callback: IEngineRuntimeCallback,
         ) {
             // dq-sandbox-05 (emulator-5560): a ClassNotFoundException out of
@@ -123,7 +125,7 @@ class IsolatedRuntimeService : Service() {
                     execFile, optionsJson, runtimeRequirementKeys, runtimeRequirementValues,
                     runtimeComponentKeys, runtimeComponentValues,
                     restartArguments, gameBroker, saveBroker, gamePath, gameWritable, savePath,
-                    audioBuffer, audioSampleRate, callback,
+                    audioBuffer, audioSampleRate, sandboxBroker, sandboxLearn, callback,
                 )
             } catch (e: SecurityException) {
                 throw e
@@ -163,6 +165,8 @@ class IsolatedRuntimeService : Service() {
             savePath: String,
             audioBuffer: ParcelFileDescriptor?,
             audioSampleRate: Int,
+            sandboxBroker: ParcelFileDescriptor?,
+            sandboxLearn: Boolean,
             callback: IEngineRuntimeCallback,
         ) {
             this@IsolatedRuntimeService.callback = callback
@@ -231,6 +235,13 @@ class IsolatedRuntimeService : Service() {
             dexFds.forEachIndexed { i, pfd -> Log.i("enginehost-isolated-runtime", "loader input: dex[$i] -> ${dexBuffers[i].remaining()} bytes read directly from ${procFdPath(pfd)}, no path handed to any loader") }
             nativeLibrarySources.forEachIndexed { i, pfd ->
                 logLoaderInput("nativeLib[$i]=${nativeLibraryNames.getOrNull(i)}", pfd)
+            }
+            // Allocate, then clamp (docs/engine-sandbox.md, "Both layers for every core"): what
+            // this process needed is set up above (code read into memory, native libraries as
+            // its own descriptors, the game and save folders behind their brokers), so it now
+            // drops what it can before any plugin code runs.
+            if (sandboxBroker != null) {
+                check(RuntimeSandbox.confineIsolated(sandboxBroker, sandboxLearn)) { "the sandbox could not be set up" }
             }
             val loaded = loadEnginePluginFromInMemoryDex(dexBuffers, entrypointClass, nativeLibraryFdsByName, classLoader)
             resourceHandles += loaded.resourceHandles

@@ -43,6 +43,11 @@ interface IEngineRuntimeService {
      * an in-process launch hands its plugin: the isolated side mounts them
      * onto gameBroker and saveBroker (IsolatedVfs), the game folder
      * writable only when gameWritable (the bundle's writesGameFolder).
+     * sandboxBroker, when not null, is the confined side of the lockdown
+     * broker's socket (RuntimeSandbox.brokerForIsolated): the service locks
+     * itself down on it before any plugin code loads, and fails init when it
+     * cannot, so a core that is to be clamped never runs unclamped.
+     * sandboxLearn makes that lockdown a learning run.
      */
     void init(in ParcelFileDescriptor[] dexFds, String entrypointClass,
               in String[] nativeLibraryNames, in ParcelFileDescriptor[] nativeLibraryFds,
@@ -54,6 +59,7 @@ interface IEngineRuntimeService {
               IEngineFileBroker gameBroker, IEngineFileBroker saveBroker,
               String gamePath, boolean gameWritable, String savePath,
               in ParcelFileDescriptor audioBuffer, int audioSampleRate,
+              in ParcelFileDescriptor sandboxBroker, boolean sandboxLearn,
               IEngineRuntimeCallback callback);
 
     int pixelWidth();

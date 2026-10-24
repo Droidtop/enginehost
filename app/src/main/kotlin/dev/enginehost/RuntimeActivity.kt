@@ -178,6 +178,16 @@ class RuntimeActivity : FragmentActivity() {
             return failAndFinish(STARTUP_FAILED + (e.message ?: e.javaClass.simpleName))
         }
         Log.i(TAG, "verified bundle ${resolved.plugin.bundleId} for isolated launch, apiVersion ${verifiedManifest.apiVersion}")
+        // Both layers (docs/engine-sandbox.md): a core that declares lockdown is clamped inside
+        // its isolated process too, on a broker that grants only what that process can already
+        // reach. One that is to be clamped never starts unclamped.
+        val sandboxLearn = RuntimeSandbox.learning(resolved.plugin)
+        val sandboxBroker = if (RuntimeSandbox.locksDown(resolved.plugin)) {
+            RuntimeSandbox.brokerForIsolated(this, resolved.plugin, gameFolder, saveFolder)
+                ?: return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")
+        } else {
+            null
+        }
         CrashWatch.arm(this, gameFolder, resolved.plugin.bundleId)
         val runtime = IsolatedRuntimeHost(this)
         isolatedRuntime = runtime
@@ -198,6 +208,8 @@ class RuntimeActivity : FragmentActivity() {
             gameFolder,
             saveFolder,
             display,
+            sandboxBroker,
+            sandboxLearn,
         ) { message -> failAndFinish(STARTUP_FAILED + message) }
     }
 
