@@ -2546,6 +2546,13 @@ Order: the preset (done with this note), the game-writes field (`gameWrites`), t
 external folder, then the library's brokered watch. Then lockdown 1 with audit 1 on 7.5, 7.6
 and 8.4 on the rig, and Ren'Py declares `lockdown` once all three play.
 
+#### The loading screen is read before the clamp (2026-10-24, Droidtop/tracker#640)
+
+A game's own loading picture (Ren'Py's presplash, Godot's boot splash, RPG Maker's `Loading.png`)
+is shown while the core starts. The host reads and decodes it in `RuntimeActivity.onCreate`,
+before `RuntimeSandbox.lockdown`, and only draws the decoded bitmap afterwards; the core is given
+no file and no new right. See docs/SPEC.md, "A game's own loading screen".
+
 #### Correction, found while actually building the LOVE adapter: `SDLSurface.java` is far more `SDLActivity`-coupled than the 28-method contract suggested
 
 The static-method-contract finding above (`nativeSetupJNI`'s `cls` parameter)

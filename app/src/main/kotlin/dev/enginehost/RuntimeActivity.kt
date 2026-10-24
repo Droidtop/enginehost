@@ -80,6 +80,10 @@ class RuntimeActivity : FragmentActivity() {
         if (!PluginTrustStore(this).isApproved(resolved.plugin)) {
             return failAndFinish("Core approval is missing")
         }
+        // The game's own loading screen goes up before the core loads and before the sandbox
+        // closes: the host reads the picture now, and nothing may open a file after lockdown.
+        // RuntimeLoadingNotice lifts it at the game's first frame (Droidtop/tracker#640).
+        LoadingCover.prepare(this, gameFolder, config)?.let { LoadingCover.show(this, it) }
         if (resolved.plugin.isolatable) {
             return startIsolatedRuntime(resolved, config, gameFolder, saveFolder, display)
         }
@@ -273,6 +277,7 @@ class RuntimeActivity : FragmentActivity() {
      * extraction only; it is never shown as a demand.
      */
     private fun offerPatch(engineRequiredFile: String?) {
+        LoadingCover.lift()
         pendingRequiredFile = engineRequiredFile
         Sheet(this)
             .title("This game requires a patch")
@@ -329,6 +334,7 @@ class RuntimeActivity : FragmentActivity() {
      */
     internal fun failAndFinish(message: String) {
         Log.e(TAG, message)
+        LoadingCover.lift()
         setResult(RESULT_FIRST_USER, Intent().putExtra(EXTRA_ERROR, message))
         finish()
     }

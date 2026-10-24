@@ -14,6 +14,9 @@ section when a real version is cut.
 
 ### Added
 
+- A game's own loading screen while its engine starts, in place of the plain dark window:
+  Ren'Py's presplash (with its progress fill), Godot's boot splash and RPG Maker
+  MV/MZ's Loading picture, else the game's box art. It goes at the engine's first frame.
 - A permanent, versioned release for every green build of main, so build
   history stops disappearing when the next build lands. The rolling
   "latest" release is now only a pointer to the newest one; it is no

@@ -232,6 +232,13 @@ private const val BLANK_CHANNEL = 12
  * reaches the surface, when no surface can be watched for a while, or after
  * [GIVE_UP_MS] whatever happens. Never takes touches.
  *
+ * It is also what takes the game's own loading screen away ([LoadingCover]):
+ * the moment a surface has had any frame posted, black or not, which is the
+ * core's first frame. A window with no surface to watch (a web view, an
+ * isolated runtime) loses the cover after [NO_SURFACE_COVER_MS], since
+ * nothing could say when to lift it and it must not hide a game for good.
+ * While the game's own picture is up the bar is not drawn over it.
+ *
  * It is also how Enginehost knows a game drew at all. Its first readable
  * frame and its first drawn one are marked in the session note
  * ([CrashWatch.WATCHED], [CrashWatch.DRAWN]), so a game that closes without
@@ -281,7 +288,7 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         val elapsed = SystemClock.uptimeMillis() - startedAt
         if (elapsed > GIVE_UP_MS) return finish()
         // An Activity that set its content after this started cleared the bar.
-        if (bar.parent == null) {
+        if (bar.parent == null && !LoadingCover.coversBar) {
             activity.addContentView(
                 bar,
                 FrameLayout.LayoutParams(
@@ -297,7 +304,10 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         val surfaces = mutableListOf<SurfaceView>().also { collectSurfaces(activity.window.decorView, it) }
         val valid = surfaces.filter { it.holder.surface.isValid }
         when {
-            surfaces.isEmpty() -> if (elapsed > NO_SURFACE_MS) finish() else again()
+            surfaces.isEmpty() -> {
+                if (elapsed > NO_SURFACE_COVER_MS) LoadingCover.lift()
+                if (elapsed > NO_SURFACE_MS) finish() else again()
+            }
             valid.isEmpty() -> {
                 nothingShown()
                 again()
@@ -327,6 +337,8 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
                         sample.getPixels(pixels, 0, SAMPLE, 0, 0, SAMPLE, SAMPLE)
                         !isBlankFrame(pixels)
                     }
+                    // Any posted frame is the core's first: the loading screen has done its job.
+                    if (result == PixelCopy.SUCCESS) LoadingCover.lift()
                     if (read && !watched) {
                         watched = true
                         CrashWatch.mark(activity, CrashWatch.WATCHED)
@@ -360,11 +372,12 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
     }
 
     private fun again() {
-        if (!done) handler.postDelayed(::poll, POLL_MS)
+        if (!done) handler.postDelayed(::poll, if (LoadingCover.showing) COVER_POLL_MS else POLL_MS)
     }
 
     private fun finish() {
         done = true
+        LoadingCover.lift()
         handler.removeCallbacksAndMessages(null)
         (bar.parent as? ViewGroup)?.removeView(bar)
         sample.recycle()
@@ -383,6 +396,12 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
          */
         const val SAMPLE = 64
         const val POLL_MS = 750L
+
+        /** Faster while a loading screen is up, so it does not outlast the first frame by long. */
+        const val COVER_POLL_MS = 200L
+
+        /** No surface this long after the window is up: the loading screen cannot tell when to go, and goes. */
+        const val NO_SURFACE_COVER_MS = 5_000L
         const val NO_SURFACE_MS = 20_000L
         const val GIVE_UP_MS = 180_000L
 

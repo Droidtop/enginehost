@@ -293,6 +293,40 @@ such as a LÖVE game whose `love.draw` is empty.
   separate enginehost-reports repository. Only a title (engine and symptom)
   is in the address; the report itself is copied for the person to paste.
 
+## A game's own loading screen (decided 2026-10-24, Droidtop/tracker#640)
+
+The owner: "the RenPy loading screens would be a nice thing to implement, too. Right now, we just
+use the android splash". The runtime's window used to open black with a "Loading <game>" bar until
+the engine drew; it now opens on the game's own loading picture.
+
+- **The host draws it, before the core loads.** `RuntimeActivity` reads and decodes the picture
+  before the sandbox closes (after the lockdown nothing opens a file except through the broker,
+  the host included) and puts it over the window before any core code runs
+  (`LoadingCover`). The core never sees the file and needs no access to it.
+- **One lookup, one table (`LoadingImages`): each engine family names where its picture is.**
+  Plain files in the game folder only; nothing inside a pack is read.
+  - Ren'Py: `android-presplash.*` beside the game, else `game/presplash.*`. With a background and a
+    foreground picture in `game/`, a progress fill as Ren'Py draws it: the background whole, the
+    foreground over it from the left up to the fraction loaded. Ren'Py's source names them
+    `presplash_background` and `presplash_foreground`; the hyphenated spelling is read too. Ren'Py
+    counts script files loaded, which the host cannot see, so the fill is an estimate that eases
+    towards the end and never fills; the first frame, not the bar, ends it.
+  - Godot: the project's `application/boot_splash/image` (and `boot_splash/bg_color`), when
+    `project.godot` and the image are plain files. A game shipped as a `.pck`, and one with
+    `boot_splash/show_image=false`, are skipped.
+  - RPG Maker MV and MZ: `img/system/Loading.png` (under `www/` when deployed so). Encrypted
+    `.rpgmvp` is skipped.
+  - KiriKiri: skipped. Its pictures are inside `.xp3` archives and it has no plain-file location.
+- **Fallback.** No such picture, or one that cannot be decoded: the game's box art (the game's icon,
+  `GameIcon`) over a dark background; never a screenshot. A game with neither keeps the plain dark
+  window and the "Loading" bar. The bar is not drawn over a game's own picture.
+- **It goes at the core's first frame.** `RuntimeLoadingNotice`, which already watches the game's
+  surface, lifts it when any frame, black or not, has been posted. A window with no surface to
+  watch (a web view, an isolated runtime) loses it after 5 seconds, since nothing could say when to
+  lift it and it must not hide a game for good.
+- **Not done:** an engine that runs in an activity of its own (a core that starts the engine's own
+  `Activity`) is not covered; the cover sits in `RuntimeActivity`'s window.
+
 ## Reporting whether anything is open: the `state` call
 
 droidtop keeps a "Playing" session for the game it started and needs to know when
