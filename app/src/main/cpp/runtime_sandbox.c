@@ -189,7 +189,54 @@ Java_dev_enginehost_RuntimeSandbox_lockdown0(JNIEnv *env, jclass clazz, jint fd,
     return result;
 }
 
-/* The trace ring (sbx_trace) of this process, in the file at path; before lockdown0. 0 or a negative errno. */
+/* The fatal signals whose place the trace ring notes (sbx_trace_fault), and what handled each before. */
+static const int fault_signals[] = {SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGTRAP, SIGABRT};
+static struct sigaction fault_previous[sizeof(fault_signals) / sizeof(fault_signals[0])];
+
+/*
+ * Notes the fault in the ring, then hands the signal to what handled it
+ * before (bionic's crash handler, usually), exactly as if this one were
+ * not there. Under a lockdown that handler cannot start crash_dump, so
+ * the ring is the only record of where the process died.
+ */
+static void note_fault(int signal_number, siginfo_t *info, void *context) {
+    sbx_trace_fault(signal_number, info, context);
+    for (size_t k = 0; k < sizeof(fault_signals) / sizeof(fault_signals[0]); k++) {
+        if (fault_signals[k] != signal_number) continue;
+        struct sigaction previous = fault_previous[k];
+        sigaction(signal_number, &previous, NULL);
+        if (previous.sa_flags & SA_SIGINFO) {
+            if (previous.sa_sigaction) previous.sa_sigaction(signal_number, info, context);
+        } else if (previous.sa_handler != SIG_DFL && previous.sa_handler != SIG_IGN) {
+            previous.sa_handler(signal_number);
+        }
+        /* With the default restored, a fault happens again on return and ends the process as before. */
+        return;
+    }
+}
+
+/*
+ * Through sigaction, which ART's signal chain interposes: its own fault
+ * handling (a Java null check) still comes first and never reaches this.
+ * An engine that later installs its own handler replaces this one; most
+ * pass the signal on or abort, and the abort is noted instead.
+ */
+static void install_fault_handlers(void) {
+    for (size_t k = 0; k < sizeof(fault_signals) / sizeof(fault_signals[0]); k++) {
+        struct sigaction action;
+        memset(&action, 0, sizeof(action));
+        action.sa_sigaction = note_fault;
+        action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+        sigemptyset(&action.sa_mask);
+        sigaction(fault_signals[k], &action, &fault_previous[k]);
+    }
+}
+
+/*
+ * The trace ring (sbx_trace) of this process, in the file at path, and the
+ * handlers that note a fatal signal in it; before lockdown0. 0 or a
+ * negative errno.
+ */
 JNIEXPORT jint JNICALL
 Java_dev_enginehost_RuntimeSandbox_trace0(JNIEnv *env, jclass clazz, jstring path) {
     (void) clazz;
@@ -200,14 +247,17 @@ Java_dev_enginehost_RuntimeSandbox_trace0(JNIEnv *env, jclass clazz, jstring pat
     if (fd < 0) return -errno;
     int result = sbx_trace(fd, 256);
     close(fd);
+    if (result == 0) install_fault_handlers();
     return result;
 }
 
 /*
  * A trace ring as sentences, newest last: the process, whether its filter
  * was on, the last calls the handler took, and first the one it died
- * handling when an entry was entered and never left. NULL when the file
- * holds no ring.
+ * handling when an entry was entered and never left. Then, when the
+ * process died of a fatal signal, that signal and one line per frame:
+ * pc, library and offset in it, nearest symbol. NULL when the file holds
+ * no ring.
  */
 JNIEXPORT jstring JNICALL
 Java_dev_enginehost_RuntimeSandbox_traceSummary0(JNIEnv *env, jclass clazz, jstring path) {
@@ -244,8 +294,12 @@ Java_dev_enginehost_RuntimeSandbox_traceSummary0(JNIEnv *env, jclass clazz, jstr
             found_stuck = 1;
         }
     }
+    struct sbx_trace_fault fault;
+    int faulted = pread(fd, &fault, sizeof(fault), (off_t) SBX_TRACE_FAULT_OFFSET(header.slots)) ==
+                      (ssize_t) sizeof(fault) &&
+                  fault.state != 0;
     close(fd);
-    char text[2048];
+    char text[8192];
     size_t used = 0;
 #define ADD(...)                                                                     \
     do {                                                                             \
@@ -264,6 +318,23 @@ Java_dev_enginehost_RuntimeSandbox_traceSummary0(JNIEnv *env, jclass clazz, jstr
         const char *name = sbx_syscall_name(shown[k].nr);
         ADD(" %s(%d) thread %d %s;", name ? name : "call", shown[k].nr, shown[k].tid,
             (shown[k].state & 0xff) == SBX_TRACE_LEFT ? "done" : "NOT DONE");
+    }
+    if (faulted) {
+        ADD("\nFATAL SIGNAL %d (code %d) for address %#llx on thread %d%s; pc %#llx sp %#llx lr/fp %#llx",
+            fault.signal, fault.code, (unsigned long long) fault.address, fault.tid,
+            fault.state == SBX_TRACE_LEFT ? "" : " (record cut short)", (unsigned long long) fault.pc,
+            (unsigned long long) fault.sp, (unsigned long long) fault.lr);
+        unsigned frames = fault.frames < SBX_TRACE_FRAMES ? fault.frames : SBX_TRACE_FRAMES;
+        for (unsigned k = 0; k < frames; k++) {
+            const struct sbx_trace_frame *frame = &fault.frame[k];
+            ADD("\n#%02u pc %#llx", k, (unsigned long long) frame->pc);
+            if (frame->base == 0) {
+                ADD(" (no library)");
+                continue;
+            }
+            ADD(" %.63s+%#llx", frame->module, (unsigned long long) (frame->pc - frame->base));
+            if (frame->name[0]) ADD(" (%.63s+%#llx)", frame->name, (unsigned long long) (frame->pc - frame->symbol));
+        }
     }
 #undef ADD
     return (*env)->NewStringUTF(env, text);

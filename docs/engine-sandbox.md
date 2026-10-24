@@ -2451,6 +2451,22 @@ records of it:
     have ended under `EnginehostSandbox` ("Sandbox trace of an ended
     runtime"), then deletes them. A restart loop that no launch screen sees
     still leaves one line per dead process.
+- **A fatal signal is noted in the same ring** (sandbox library 0.1.3,
+  `sbx_trace_fault`; built 2026-10-24 for the SIGSEGV of KiriKiri, mkxp-z and
+  LÖVE, Droidtop/tracker#550). Android writes a tombstone by starting
+  crash_dump, a new process, which the lockdown refuses. So a locked-down
+  core that segfaulted left nothing saying where. When the ring is set up,
+  `:runtime` installs handlers for SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGTRAP
+  and SIGABRT. They note the signal, the address, the thread, and up to 32
+  frames (library, offset in it, nearest exported symbol), then pass the
+  signal to whatever handled it before. They are installed through
+  `sigaction`, so ART's signal chain still takes its own faults first. An
+  engine that installs its own handler afterwards replaces them; most such
+  handlers abort, and the abort is noted instead. The frames follow the
+  trace line: one logcat line each, and in the crash record for any process
+  that ended by a signal or a native crash. To read a frame, look up the
+  offset in that library's unstripped build (`llvm-addr2line -fe lib….so
+  0x…`).
 - **`adb shell setprop debug.enginehost.audit 1`** installs the filter with the
   kernel's audit (`SBX_LOCK_AUDIT`). Every trapped or refused call is logged as
   `audit: type=1326` with its number and address, in logcat or `dmesg`. That

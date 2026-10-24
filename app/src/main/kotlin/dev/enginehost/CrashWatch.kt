@@ -28,7 +28,6 @@ object CrashWatch {
     private const val TOMBSTONE_LINES = 30
     private const val SIGKILL = 9
     private const val SIGTERM = 15
-    private const val SIGSYS = 31
     private const val FAILURE = "failure"
 
     /** The game's screen showed something other than black ([RuntimeLoadingNotice]). */
@@ -192,9 +191,12 @@ object CrashWatch {
         val exit = manager.getHistoricalProcessExitReasons(context.packageName, pid, 1).firstOrNull()
             ?: return fromHandler ?: unseen.takeIf { closedUnseen }
         val reason = describe(exit) ?: return unseen.takeIf { closedUnseen }
-        // Signal 31 is a lockdown trap the handler could not take: no
-        // tombstone, so the process's trace ring is the only record of the call.
-        val sandbox = if (exit.reason == ApplicationExitInfo.REASON_SIGNALED && exit.status == SIGSYS) {
+        // A locked-down process leaves no tombstone: Android's crash report needs a new
+        // process. Its trace ring is the only record, of the call a signal 31 died on or
+        // the place a fatal signal hit. Null when the process was not locked down.
+        val signaled = exit.reason == ApplicationExitInfo.REASON_SIGNALED ||
+            exit.reason == ApplicationExitInfo.REASON_CRASH_NATIVE
+        val sandbox = if (signaled) {
             RuntimeSandbox.traceOf(context, pid)?.let { "Sandbox trace: $it" }
         } else {
             null

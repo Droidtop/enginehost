@@ -233,7 +233,10 @@ object RuntimeSandbox {
         folder.listFiles { file -> file.name.endsWith(".bin") }.orEmpty().forEach { file ->
             val pid = file.name.removeSuffix(".bin").toIntOrNull() ?: return@forEach
             if (pid == Process.myPid() || File("/proc/$pid").exists()) return@forEach
-            traceOf(context, pid)?.let { Log.w(TAG, "Sandbox trace of an ended runtime: $it") }
+            // A line per frame of a fatal signal: one logcat message holds about 4 KB.
+            traceOf(context, pid)?.lines()?.forEachIndexed { k, line ->
+                Log.w(TAG, if (k == 0) "Sandbox trace of an ended runtime: $line" else line)
+            }
             file.delete()
         }
     }
