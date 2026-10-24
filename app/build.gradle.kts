@@ -20,6 +20,10 @@ android {
         versionCode = if (versionRevision > 0) versionRevision else 1
         val baseVersion = providers.gradleProperty("enginehost.version").get()
         versionName = if (versionRevision > 0) "$baseVersion-dev-$versionRevision" else "$baseVersion-local"
+        // 64-bit only, the owner's rule (Droidtop/tracker#646): the same two ABIs every core ships.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     val ciKeystore = System.getenv("ENGINEHOST_ANDROID_KEYSTORE")
@@ -47,9 +51,8 @@ android {
         }
     }
 
-    // The :runtime process's network filter (RuntimeSandbox,
-    // docs/engine-sandbox.md). Built for every ABI the NDK targets, so the
-    // APK stays fat; on 32-bit x86 the library reports itself unsupported.
+    // The :runtime process's network filter and lockdown (RuntimeSandbox,
+    // docs/engine-sandbox.md), for the two ABIs in abiFilters.
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")

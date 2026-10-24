@@ -43,7 +43,7 @@ import java.io.File
  * kernel's own audit trail for.
  *
  * Applying it is best effort by decision: a device where the filter cannot
- * be installed (a 32-bit x86 build, a kernel that refuses it) still runs
+ * be installed (a kernel that refuses it) still runs
  * games, as every device did before the sandbox existed, and says so in
  * the log under [TAG].
  */

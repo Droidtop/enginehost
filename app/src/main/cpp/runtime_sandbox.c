@@ -58,8 +58,9 @@
 #define SANDBOX_ARCH AUDIT_ARCH_AARCH64
 #elif defined(__x86_64__)
 #define SANDBOX_ARCH AUDIT_ARCH_X86_64
-#elif defined(__arm__)
-#define SANDBOX_ARCH AUDIT_ARCH_ARM
+#else
+/* Enginehost builds arm64-v8a and x86_64 only (Droidtop/tracker#646). */
+#error "Enginehost's sandbox builds for arm64 and x86_64 only"
 #endif
 
 /* The filter covers every thread of the process. */
@@ -69,13 +70,9 @@
 
 /*
  * Returns SANDBOX_ALL_THREADS or SANDBOX_CALLING_THREAD, or a negative errno
- * when nothing was installed. i386 is not supported: bionic makes sockets
- * there through socketcall(), whose arguments a filter cannot read.
+ * when nothing was installed.
  */
 int enginehost_deny_internet(void) {
-#ifndef SANDBOX_ARCH
-    return -ENOSYS;
-#else
     /* Jump offsets count from the instruction after the jump. */
     struct sock_filter filter[] = {
         /* 0 */ BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, arch)),
@@ -102,7 +99,6 @@ int enginehost_deny_internet(void) {
     /* A positive result names a thread that could not be synchronised; -1 is an error. Either way nothing was installed. */
     if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program, 0, 0) == 0) return SANDBOX_CALLING_THREAD;
     return -errno;
-#endif
 }
 
 #ifdef __ANDROID__
