@@ -69,6 +69,18 @@ class FolderAnalyzerTest {
     }
 
     @Test
+    fun `a game added by hand is detected one wrapper folder down, as Play detects it`() {
+        // The library's classifier for a hand-added folder skips the scan screen (Droidtop/tracker#550:
+        // MGQ Paradox, one folder down, read "Not recognised" while Play ran it).
+        val wrapper = File(tempRoot(), "MGQ Paradox").apply { mkdirs() }
+        unity(File(wrapper, "MGQ Paradox 1.0").apply { mkdirs() })
+
+        assertNull(analyze(wrapper))
+        val unscreened = analyzer.analyze(wrapper, DirEntries.list(wrapper).orEmpty(), 0L, screened = false)
+        assertEquals("unity", unscreened!!.engine)
+    }
+
+    @Test
     fun `a wrapper that the registry sees through still names the builds one folder down`() {
         val wrapper = File(tempRoot(), "Adventure-1.0").apply { mkdirs() }
         File(wrapper, "readme.html").writeText("<html></html>")

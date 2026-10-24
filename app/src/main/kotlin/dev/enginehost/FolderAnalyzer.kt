@@ -102,8 +102,14 @@ class FolderAnalyzer(private val rows: List<EngineRow>) {
     /** Folds the rule set into cached signatures, so a changed registry rescans what it classified. */
     val salt: Long = rows.fold(SCAN_VERSION) { hash, row -> hash * 31 + row.id.hashCode() + row.detect.size }
 
-    fun analyze(dir: File, entries: List<DirEntry>, signature: Long): GameFinding? {
-        val registry = if (screen.matches(entries)) runCatching { EngineDetector.detect(rows, dir) }.getOrNull() else null
+    /**
+     * [screened]: whether the cheap top-level screen decides first if the detector runs at all. A
+     * scan over thousands of folders needs it. A game added by hand is one known folder, and the
+     * screen sees only its top level, so a game one wrapper folder down was never detected there
+     * (MGQ Paradox, "Not recognised", although Play resolved it; Droidtop/tracker#550, 2026-10-24).
+     */
+    fun analyze(dir: File, entries: List<DirEntry>, signature: Long, screened: Boolean = true): GameFinding? {
+        val registry = if (!screened || screen.matches(entries)) runCatching { EngineDetector.detect(rows, dir) }.getOrNull() else null
         return if (registry != null) fromRegistry(dir, entries, registry, signature) else fromNative(dir, entries, signature)
     }
 

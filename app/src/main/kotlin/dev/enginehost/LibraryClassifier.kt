@@ -82,7 +82,8 @@ object LibraryClassifier {
             // Storage that is not mounted right now says nothing about the game; ask again later.
             if (!folder.isDirectory) continue
             val finding = fromConfig(context, folder) ?: runCatching {
-                analyzer.analyze(folder, DirEntries.list(folder).orEmpty(), 0L)
+                // Unscreened: the same detection Play runs on a folder without a config, wrapper folder included.
+                analyzer.analyze(folder, DirEntries.list(folder).orEmpty(), 0L, screened = false)
             }.getOrNull()
             library.classify(path, finding)
             changed = true

@@ -85,6 +85,10 @@ internal class LibraryDb private constructor(private val appContext: Context) :
             db.execSQL("ALTER TABLE games ADD COLUMN play_ms INTEGER NOT NULL DEFAULT 0")
             db.execSQL("ALTER TABLE games ADD COLUMN last_exit INTEGER NOT NULL DEFAULT 0")
         }
+        // Version 5: games added by hand that nothing recognised are classified again. The classifier
+        // used to screen a folder's top level before detecting, and missed a game one wrapper folder
+        // down that Play ran (Droidtop/tracker#550, 2026-10-24).
+        if (oldVersion < 5) db.execSQL("UPDATE games SET classified = 0 WHERE added = 1 AND engine IS NULL")
     }
 
     /** The earlier library was a JSON list of paths, newest first, in preferences. */
@@ -111,7 +115,7 @@ internal class LibraryDb private constructor(private val appContext: Context) :
 
     companion object {
         private const val NAME = "game-library.db"
-        private const val VERSION = 4
+        private const val VERSION = 5
 
         /** One JSON object per game, keyed by its path: config keys the person set for this game, layered over the folder's file. */
         private const val OVERRIDES_TABLE = "CREATE TABLE IF NOT EXISTS game_overrides (path TEXT PRIMARY KEY NOT NULL, json TEXT NOT NULL)"
