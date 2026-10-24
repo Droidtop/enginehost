@@ -56,14 +56,23 @@ assets=("$bundle" "$envelope")
 [ -z "$keydoc" ] || assets+=("$keydoc")
 [ -z "$certificate" ] || assets+=("$certificate")
 
-notes="Signed Enginehost bundle \`$id\` on the **$CHANNEL** channel, built from \`$REF_NAME\` at \`$SHA\` (build $RUN_NUMBER). Install it through Enginehost rather than unpacking it by hand: the bundle is verified file by file at install time against the key pinned for this repository."
+slug="$(printf '%s' "$id" | sed 's/^dev\.enginehost\.//; s/\./-/g')"
+history_tag="${slug}-build.${RUN_NUMBER}"
+
+notes="Signed Enginehost bundle \`$id\` on the **$CHANNEL** channel, built from \`$REF_NAME\` at \`$SHA\` (build $RUN_NUMBER, kept permanently as \`$history_tag\`). Install it through Enginehost rather than unpacking it by hand: the bundle is verified file by file at install time against the key pinned for this repository."
 if [ "$CHANNEL" = unstable ] || [ "$CHANNEL" = testing ]; then
   # Rolling: the newest green build of the line is the whole release.
   gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true
   gh release create "$tag" "${assets[@]}" --target "$SHA" \
     --title "$id ($CHANNEL)" $prerelease --notes "$notes"
 elif gh release view "$tag" >/dev/null 2>&1; then
+  # Stable is one kept release whose files a promotion changes. Its tag moves with them, to
+  # the commit they were built from: uploading alone left the tag on the first stable
+  # build's commit while it served a later build's files (godot-v45-v1 on 6fcee5876f with
+  # files from cdb1d37fa, 2026-10-23). Every build it ever served is its own history
+  # release below, so nothing is lost when the pointer moves.
   gh release upload "$tag" "${assets[@]}" --clobber
+  gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$tag" -f sha="$SHA" -F force=true >/dev/null
   gh release edit "$tag" --notes "$notes"
 else
   gh release create "$tag" "${assets[@]}" --target "$SHA" \
@@ -74,8 +83,6 @@ fi
 # replaces them, so they are not history. This is the record that a given
 # bundle build ever existed, never overwritten except by a rerun of this exact
 # workflow run, and it covers a promotion of a commit the push never built.
-slug="$(printf '%s' "$id" | sed 's/^dev\.enginehost\.//; s/\./-/g')"
-history_tag="${slug}-build.${RUN_NUMBER}"
 history_notes="Signed Enginehost bundle \`$id\`, build $RUN_NUMBER, built from \`$REF_NAME\` at \`$SHA\`. This is permanent build history, never overwritten; install from the unstable, testing or stable release instead, whichever tracks what you want."
 if gh release view "$history_tag" >/dev/null 2>&1; then
   gh release delete "$history_tag" --yes --cleanup-tag

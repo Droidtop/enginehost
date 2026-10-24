@@ -20,7 +20,8 @@ name: Publish engine bundle
 #       PLATFORMS_DISPATCH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
 #
 # It publishes the channel release (a rolling pointer for unstable and
-# testing, a kept tag for stable), the build's permanent history release, and
+# testing; for stable a kept release whose tag moves to each promoted build's
+# commit), the build's permanent history release, and
 # asks droidtop-platforms to reindex. No signing key reaches it: the bundle
 # arrives already signed. The release logic is scripts/publish-engine-release.sh
 # at the pinned commit.
