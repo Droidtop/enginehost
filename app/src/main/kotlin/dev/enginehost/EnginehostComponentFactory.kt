@@ -39,7 +39,7 @@ class EnginehostComponentFactory : AppComponentFactory() {
         val manifest = InstalledBundleVerifier.verify(context, installed)
         require(manifest.entrypoint == installed.entrypointClass)
         Log.i(TAG, "Loading bundle=$bundleId entrypoint=${installed.entrypointClass}")
-        intent.getStringExtra(RuntimeActivity.EXTRA_PATH)?.let { CrashWatch.arm(context, File(it), bundleId) }
+        intent.getStringExtra(RuntimeActivity.EXTRA_GAME)?.let { CrashWatch.arm(context, File(it), bundleId) }
         // A core that declares it is locked down here, before its resources
         // or code are opened, as the plugin transport is before loadPlugin:
         // one lockdown, two places a core loads (docs/engine-sandbox.md, owner

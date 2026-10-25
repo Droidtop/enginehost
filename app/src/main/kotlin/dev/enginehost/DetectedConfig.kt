@@ -87,6 +87,7 @@ object DetectedConfig {
         fill("engineContext", detection.engineContext)
         fill("engineVersion", detection.engineVersion)
         fill("execFile", detection.execFile)
+        fill("root", detection.root)
         fill("title", detection.title)
         val engine = document.optString("engine")
         val engineContext = document.optString("engineContext").takeIf { it.isNotBlank() }

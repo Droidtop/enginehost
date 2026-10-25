@@ -151,13 +151,20 @@ object GameRunner {
         missingExecFile(gameFolder, config)?.let { execFile ->
             return Plan.Failure(context.getString(R.string.launch_exec_file_missing, execFile), retry = false)
         }
+        val engineFolder = engineFolder(gameFolder, config)
+        if (!engineFolder.isDirectory) {
+            return Plan.Failure(context.getString(R.string.launch_folder_missing, engineFolder.absolutePath), retry = true)
+        }
         val runtimeClass = if (resolved.plugin.runtimeTransport == RUNTIME_TRANSPORT_ACTIVITY) {
             BundledActivityProxy::class.java
         } else {
             RuntimeActivity::class.java
         }
         val intent = Intent(context, runtimeClass).apply {
-            putExtra(RuntimeActivity.EXTRA_PATH, gameFolder.absolutePath)
+            // The engine starts in the folder that holds the game; Enginehost's
+            // own records of it (settings, saves, crash watch) stay keyed to the game folder.
+            putExtra(RuntimeActivity.EXTRA_PATH, engineFolder.absolutePath)
+            putExtra(RuntimeActivity.EXTRA_GAME, gameFolder.absolutePath)
             putExtra(RuntimeActivity.EXTRA_PLUGIN_BUNDLE, resolved.plugin.bundleId)
             // Which build: several builds of one line can be installed, and the
             // runtime must load the one planned and approved here.
@@ -180,13 +187,13 @@ object GameRunner {
             ControllerBindingStore(context, ControllerScope.of(config.engine, config.engineContext), gameFolder.absolutePath)
                 .takeUnless { it.isBypassed() }
                 ?.let { putExtra(RuntimeActivity.EXTRA_CONTROLLER_BINDINGS, it.exportJson().toString()) }
-            config.execFile?.let { putExtra(RuntimeActivity.EXTRA_EXEC_FILE, it) }
+            engineExecFile(config)?.let { putExtra(RuntimeActivity.EXTRA_EXEC_FILE, it) }
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
             launchJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
             testingJson?.let { putExtra(RuntimeActivity.EXTRA_TESTING_CONFIG, it) }
             overridesJson?.let { putExtra(RuntimeActivity.EXTRA_OVERRIDES, it) }
         }
-        val savesIn = if (besideTheGame) gameFolder else saveFolder
+        val savesIn = if (besideTheGame) engineFolder else saveFolder
         // Earlier saves are offered from the person's own save location only.
         return Plan.Runtime(
             intent, config, resolved, if (callerRoot == null) saves.earlierSavesFor(config, gameFolder) else null, savesIn,
@@ -328,6 +335,14 @@ object GameRunner {
      * this app has no Robolectric, so [plan] itself cannot be. [plan] turns
      * a non-null answer into a Plan.Failure sentence, not a crash.
      */
+    /** The folder the engine runs in: [gameFolder], or the game inside it when [EngineConfig.root] names one. */
+    fun engineFolder(gameFolder: File, config: EngineConfig): File =
+        config.root?.let { File(gameFolder, it) } ?: gameFolder
+
+    /** [EngineConfig.execFile] as the engine sees it: relative to [engineFolder]. */
+    fun engineExecFile(config: EngineConfig): String? =
+        config.execFile?.let { execFile -> config.root?.let { execFile.removePrefix("$it/") } ?: execFile }
+
     fun missingExecFile(gameFolder: File, config: EngineConfig): String? =
         config.execFile?.takeIf { !File(gameFolder, it).isFile }
 }

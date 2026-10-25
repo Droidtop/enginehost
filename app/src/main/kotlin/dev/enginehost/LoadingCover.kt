@@ -54,7 +54,7 @@ internal object LoadingCover {
     fun prepare(context: Context, gameFolder: File, config: EngineConfig): Prepared? = try {
         val dark = context.getColor(R.color.eh_background)
         val side = context.resources.displayMetrics.let { maxOf(it.widthPixels, it.heightPixels) }
-        val own = when (val art = LoadingImages.find(gameFolder, config.engine, config.engineContext)) {
+        val own = when (val art = LoadingImages.find(GameRunner.engineFolder(gameFolder, config), config.engine, config.engineContext)) {
             is LoadingArt.Still -> decode(art.file, side)?.let { Prepared(art.background ?: dark, it, null, boxArt = false) }
             is LoadingArt.Progress -> {
                 val background = decode(art.background, side)

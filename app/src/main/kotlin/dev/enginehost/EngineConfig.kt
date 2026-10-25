@@ -42,6 +42,10 @@ const val CONFIG_FILE_NAME = "enginehost.json"
  * ranges constraining plugin *builds* (not engine versions) -- see
  * [VersionConstraint]. `execFile` is optional, the specific file within
  * the folder to run, for engines that need one rather than scanning it.
+ * Optional `root` is the folder inside the game folder the engine runs in,
+ * for a game folder that wraps the game beside other folders (detection
+ * writes it when it found the game one level down); `execFile` stays
+ * relative to the game folder and lies inside it.
  * `runtimeRequirements` is an optional map of embedded component names to
  * exact dotted-numeric versions. It participates in plugin resolution: a
  * capability must advertise the same component/version before it can be
@@ -75,6 +79,14 @@ data class EngineConfig(
      */
     val saveFolder: String? = null,
     val options: JSONObject?,
+    /**
+     * The folder inside the game folder that holds the game, when the game
+     * folder wraps it ("MGQ Paradox 3.06" in "MGQ Paradox", beside a
+     * "Pictures" folder): what the engine is started in. The game folder
+     * stays the game's identity (its library entry, saves, settings), and
+     * [execFile] stays relative to the game folder, so it starts with this.
+     */
+    val root: String? = null,
 )
 
 class InvalidEngineConfigException(message: String) : Exception(message)
@@ -230,7 +242,21 @@ object EngineConfigReader {
                 }
             },
             options = json.optJSONObject("options"),
+            root = parseRoot(json),
         )
+    }
+
+    /** A relative folder path inside the game folder, holding the execFile when there is one. */
+    private fun parseRoot(json: JSONObject): String? {
+        val root = json.optString("root").trim().trimEnd('/').takeIf { it.isNotBlank() } ?: return null
+        if ('\\' in root || root.split('/').any { it.isBlank() || it == "." || it == ".." }) {
+            throw InvalidEngineConfigException("Config field \"root\" must be a folder inside the game folder")
+        }
+        val execFile = json.optString("execFile").takeIf { it.isNotBlank() }
+        if (execFile != null && !execFile.startsWith("$root/")) {
+            throw InvalidEngineConfigException("Config field \"execFile\" must be inside \"root\" ($root)")
+        }
+        return root
     }
 
     private fun parseRuntimeRequirements(json: JSONObject): Map<String, Version> {

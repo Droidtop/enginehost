@@ -44,7 +44,7 @@ class RuntimeActivity : FragmentActivity() {
         RuntimeControllerRouter(
             this,
             ControllerScope.of(intent.getStringExtra(EXTRA_ENGINE), intent.getStringExtra(EXTRA_ENGINE_CONTEXT)),
-            intent.getStringExtra(EXTRA_PATH),
+            intent.getStringExtra(EXTRA_GAME),
         ) { plugin }
     }
 
@@ -52,7 +52,7 @@ class RuntimeActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         val display = FrameLayout(this)
         setContentView(display)
-        val gameFolder = intent.getStringExtra(EXTRA_PATH)?.let(::File)
+        val gameFolder = intent.getStringExtra(EXTRA_GAME)?.let(::File)
             ?: return failAndFinish("Runtime launch omitted the game path")
         val expectedBundle = intent.getStringExtra(EXTRA_PLUGIN_BUNDLE)
             ?: return failAndFinish("Runtime launch omitted the selected core")
@@ -67,6 +67,8 @@ class RuntimeActivity : FragmentActivity() {
         } catch (e: InvalidEngineConfigException) {
             return failAndFinish(e.message ?: "Invalid $CONFIG_FILE_NAME")
         }
+        // Where the engine runs; the planner checked it is there (GameRunner.engineFolder).
+        val engineFolder = GameRunner.engineFolder(gameFolder, config)
         val resolved = PluginRegistry.resolve(
             this, config.engine, config.engineContext, config.engineVersion,
             config.runtimeRequirements, config.pluginVersionConstraint,
@@ -85,7 +87,7 @@ class RuntimeActivity : FragmentActivity() {
         // RuntimeLoadingNotice lifts it at the game's first frame (Droidtop/tracker#640).
         LoadingCover.prepare(this, gameFolder, config)?.let { LoadingCover.show(this, it) }
         if (resolved.plugin.isolatable) {
-            return startIsolatedRuntime(resolved, config, gameFolder, saveFolder, display)
+            return startIsolatedRuntime(resolved, config, gameFolder, engineFolder, saveFolder, display)
         }
 
         CrashWatch.arm(this, gameFolder, resolved.plugin.bundleId)
@@ -95,7 +97,7 @@ class RuntimeActivity : FragmentActivity() {
             // loads; it never runs unconfined (docs/engine-sandbox.md).
             if (RuntimeSandbox.locksDown(resolved.plugin)) {
                 if (!RuntimeSandbox.lockdown(
-                        this, gameFolder, resolved.plugin.writesGameFolder, saveFolder,
+                        this, engineFolder, resolved.plugin.writesGameFolder, saveFolder,
                         listOf(resolved.plugin.directory),
                         gameWrites = resolved.plugin.gameWrites,
                         plugin = resolved.plugin,
@@ -106,15 +108,15 @@ class RuntimeActivity : FragmentActivity() {
             }
             val instance = loadPlugin(resolved.plugin)
             val host = RuntimeHost(
-                this, gameFolder, resolved.plugin.bundleId, saveFolder,
+                this, gameFolder, engineFolder, resolved.plugin.bundleId, saveFolder,
                 intent.getStringExtra(EXTRA_GAME_SAVE_PATH)?.let(::File),
             )
             instance.onCreate(
                 EnginePluginSession(
-                    resolved.plugin.directory, display, host, gameFolder.absolutePath, config.engine,
+                    resolved.plugin.directory, display, host, engineFolder.absolutePath, config.engine,
                     resolved.capability.engineContext, config.engineVersion.toString(),
                     resolved.capability.runtimeVersion.toString(), resolved.capability.id,
-                    config.execFile, config.options?.toString(),
+                    GameRunner.engineExecFile(config), config.options?.toString(),
                     config.runtimeRequirements.mapValues { it.value.toString() },
                     resolved.capability.runtimeComponents.mapValues { it.value.toString() },
                     // Components are no longer chosen before a launch: the game asks ([requestComponent]).
@@ -170,6 +172,7 @@ class RuntimeActivity : FragmentActivity() {
         resolved: ResolvedPlugin,
         config: EngineConfig,
         gameFolder: File,
+        engineFolder: File,
         saveFolder: File,
         display: FrameLayout,
     ) {
@@ -187,7 +190,7 @@ class RuntimeActivity : FragmentActivity() {
         // reach. One that is to be clamped never starts unclamped.
         val sandboxLearn = RuntimeSandbox.learning(resolved.plugin)
         val sandboxBroker = if (RuntimeSandbox.locksDown(resolved.plugin)) {
-            RuntimeSandbox.brokerForIsolated(this, resolved.plugin, gameFolder, saveFolder)
+            RuntimeSandbox.brokerForIsolated(this, resolved.plugin, engineFolder, saveFolder)
                 ?: return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")
         } else {
             null
@@ -204,12 +207,12 @@ class RuntimeActivity : FragmentActivity() {
             config.engineVersion.toString(),
             resolved.capability.runtimeVersion.toString(),
             resolved.capability.id,
-            config.execFile,
+            GameRunner.engineExecFile(config),
             config.options?.toString(),
             config.runtimeRequirements.mapValues { it.value.toString() },
             resolved.capability.runtimeComponents.mapValues { it.value.toString() },
             intent.getStringArrayExtra(EXTRA_RESTART_ARGUMENTS) ?: emptyArray(),
-            gameFolder,
+            engineFolder,
             saveFolder,
             display,
             sandboxBroker,
@@ -346,7 +349,10 @@ class RuntimeActivity : FragmentActivity() {
         /** An engine's [dev.enginehost.api.EngineHost.fail] once its game was on screen (the isolated runtime knows). */
         const val GAME_STOPPED = "The game stopped: "
         private const val REQUEST_PATCH = 0x9a71
+        /** The folder the engine runs in: the game folder, or the game inside it ([EngineConfig.root]). Cores read it. */
         const val EXTRA_PATH = "dev.enginehost.runtime.PATH"
+        /** The game folder as Enginehost knows it (library, settings, saves, crash watch); host code reads it. */
+        const val EXTRA_GAME = "dev.enginehost.runtime.GAME"
         /** On a failed startup's result: the sentence the runtime has for the launch screen. */
         const val EXTRA_ERROR = "dev.enginehost.runtime.ERROR"
         /** Result extra: the engine asked to be restarted. See [EngineHost.restart]. */
@@ -420,7 +426,10 @@ internal fun resolveWithinRoot(root: File, relativePath: String): File {
 
 private class RuntimeHost(
     private val activity: Activity,
+    /** The game as Enginehost knows it: what its cache and recorded save folder are keyed to. */
     private val gameFolder: File,
+    /** Where the engine runs, and what it reads ([GameRunner.engineFolder]). */
+    private val engineFolder: File,
     pluginPackage: String,
     private val save: File,
     /** The caller's folder for the game's own saves, used as is ([EngineHost.gameSaveDirectory]). */
@@ -429,7 +438,7 @@ private class RuntimeHost(
     private val gameId = MessageDigest.getInstance("SHA-256")
         .digest(gameFolder.canonicalPath.toByteArray()).take(12).joinToString("") { "%02x".format(it) }
     private val cache = File(activity.cacheDir, "plugins/$pluginPackage/$gameId").apply { mkdirs() }
-    private val files = RuntimeFileSystem(gameFolder)
+    private val files = RuntimeFileSystem(engineFolder)
 
     override fun context(): Context = activity
     /** EngineHost.activity(); this launch is never isolated (RuntimeHost is the in-process EngineHost only). */
@@ -450,7 +459,7 @@ private class RuntimeHost(
         val engine = activity.intent.getStringExtra(RuntimeActivity.EXTRA_ENGINE) ?: return null
         val runtime = activity.intent.getStringExtra(RuntimeActivity.EXTRA_RUNTIME_VERSION)
             ?.let { runCatching { Version.parse(it) }.getOrNull() } ?: return null
-        return ComponentRequests.request(activity, gameFolder, engine, runtime, name)
+        return ComponentRequests.request(activity, engineFolder, engine, runtime, name)
     }
     /** A link the game asked to open: offered to the person, never opened by itself ([GameLinkOffer]). */
     override fun openLink(url: String): Boolean {

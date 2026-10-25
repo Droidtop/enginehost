@@ -722,6 +722,12 @@ class ConfigEditorActivity : EnginehostActivity() {
         // The title and save folder ride along in the document: they are the
         // game's own facts, not choices, and the editor preserves them.
         if (!loadedDocument.has("title")) detection.title?.let { loadedDocument.put("title", it) }
+        // The folder the game was found in, inside a wrapper: where it runs (EngineConfig.root).
+        if (!loadedDocument.has("root") && detection.root != null &&
+            execFile.let { it == null || it.startsWith("${detection.root}/") }
+        ) {
+            loadedDocument.put("root", detection.root)
+        }
         if (!loadedDocument.has("saveFolder")) {
             SaveFolders.defaultFor(engine ?: detection.engine, engineContext, detection.saveFolder, currentFolderName())
                 ?.let { loadedDocument.put("saveFolder", it) }

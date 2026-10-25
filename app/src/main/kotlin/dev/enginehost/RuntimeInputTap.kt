@@ -264,7 +264,7 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         val density = activity.resources.displayMetrics.density
         val pad = (12 * density).toInt()
         val size = (22 * density).toInt()
-        val name = activity.intent?.getStringExtra(RuntimeActivity.EXTRA_PATH)?.let { File(it).name }.orEmpty()
+        val name = activity.intent?.getStringExtra(RuntimeActivity.EXTRA_GAME)?.let { File(it).name }.orEmpty()
         return LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -367,7 +367,7 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         if (asked || !RuntimeWatchdog.inFront || SystemClock.uptimeMillis() - startedAt < BLACK_SCREEN_MS) return
         asked = true
         GameTroubleActivity.ask(
-            activity, GameTroubleActivity.BLACK_SCREEN, activity.intent?.getStringExtra(RuntimeActivity.EXTRA_PATH),
+            activity, GameTroubleActivity.BLACK_SCREEN, activity.intent?.getStringExtra(RuntimeActivity.EXTRA_GAME),
         )
     }
 
@@ -441,7 +441,7 @@ object RuntimeInputInstaller : Application.ActivityLifecycleCallbacks {
     override fun onActivityResumed(activity: Activity) {
         if (!isGame(activity)) return
         RuntimeWatchdog.inFront = true
-        RuntimeWatchdog.start(activity, activity.intent?.getStringExtra(RuntimeActivity.EXTRA_PATH))
+        RuntimeWatchdog.start(activity, activity.intent?.getStringExtra(RuntimeActivity.EXTRA_GAME))
     }
     override fun onActivityPaused(activity: Activity) {
         if (isGame(activity)) RuntimeWatchdog.inFront = false

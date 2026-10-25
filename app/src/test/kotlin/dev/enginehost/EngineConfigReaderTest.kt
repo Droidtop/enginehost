@@ -3,6 +3,7 @@ package dev.enginehost
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -115,5 +116,16 @@ class EngineConfigReaderTest {
         assertEquals("Folder Says", authoritative.title)
 
         assertNull(EngineConfigReader.parseDocument("""{"engine":"renpy","engineVersion":"8.2.1","title":"   "}""").title)
+    }
+
+    @Test
+    fun `a root must be a folder inside the game folder that holds the execFile`() {
+        fun parse(json: String) = runCatching { EngineConfigReader.parseDocument(json) }
+        val base = "\"engine\":\"rpgmaker\",\"engineVersion\":\"3.1\""
+        assertEquals("Game 1.0", parse("{$base,\"root\":\"Game 1.0/\",\"execFile\":\"Game 1.0/Game.exe\"}").getOrThrow().root)
+        listOf("/abs", "../up", "a/../b", "a\\\\b").forEach { root ->
+            assertTrue(root, parse("{$base,\"root\":\"$root\"}").exceptionOrNull() is InvalidEngineConfigException)
+        }
+        assertTrue(parse("{$base,\"root\":\"Game 1.0\",\"execFile\":\"Other/Game.exe\"}").exceptionOrNull() is InvalidEngineConfigException)
     }
 }

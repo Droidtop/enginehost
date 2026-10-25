@@ -109,6 +109,18 @@ permits, letting a game exclude core revisions with known bugs.
 `execFile` is optional — the
 specific file to run within the folder, for engines that need one.
 
+`root` is optional: the folder inside the game folder that holds the game, for a
+game folder that wraps it beside other folders (MGQ Paradox's "MGQ Paradox" holds
+"MGQ Paradox 3.06" and "Pictures"; Droidtop/tracker#636). Detection looks in the
+folder itself and then one level down, and writes `root` when it found the game
+there. The engine starts in that folder, for every core: the runtime's path extra
+(`dev.enginehost.runtime.PATH`, which cores read) names it, and `execFile` is
+handed to the core relative to it. The game folder stays the game's identity:
+its library entry, Game setup, overrides, controller settings, crash watch and
+save folders are keyed to it, and it travels to host code as
+`dev.enginehost.runtime.GAME`. `execFile` stays relative to the game folder and
+must lie inside `root`; `root` must be a relative path with no `.` or `..` parts.
+
 `title` is optional: the name the launch screen shows, when the game's
 files state one (a Twine story's name). `saveFolder` is optional and only
 meaningful for engines whose SYSTEM save location has no per-game name of its

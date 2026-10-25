@@ -23,6 +23,8 @@ data class EngineDetection(
      * ([UnhostedEngine]) instead of asking for setup.
      */
     val hosted: Boolean = true,
+    /** The subfolder the game was found in, when the folder wraps it ([EngineConfig.root]); null for the folder itself. */
+    val root: String? = null,
 )
 
 /**
@@ -68,11 +70,15 @@ object EngineDetector {
      * same nested-wrapper handling droidtop's `detectGame` applies for
      * distribution zips that wrap the real game in a version-named
      * folder, name-ordered so the answer never depends on listing order.
+     * A find one level down names that folder as its [EngineDetection.root]:
+     * the engine runs there, not in the wrapper (MGQ Paradox's wrapper holds
+     * the game beside a Pictures folder, and mkxp-z started in the wrapper
+     * found no Game.ini and fell back to RGSS1; Droidtop/tracker#636).
      */
     internal fun detect(rows: List<EngineRow>, tree: GameTree): EngineDetection? {
         classify(rows, tree)?.let { return it }
         return tree.dirPaths.filter { '/' !in it }.sorted().firstNotNullOfOrNull { dir ->
-            classify(rows, tree.subtree(dir))
+            classify(rows, tree.subtree(dir))?.copy(root = dir)
         }
     }
 

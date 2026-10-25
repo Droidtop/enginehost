@@ -235,7 +235,7 @@ object HostMenu {
     }
 
     /** The game this session is playing, as the controller screen names it ("This game"). */
-    fun gameOf(activity: Activity): String? = activity.intent.getStringExtra(RuntimeActivity.EXTRA_PATH)
+    fun gameOf(activity: Activity): String? = activity.intent.getStringExtra(RuntimeActivity.EXTRA_GAME)
 
     /** The scope this session is playing under; the same one settings shows. */
     fun scopeOf(activity: Activity): String? = ControllerScope.of(

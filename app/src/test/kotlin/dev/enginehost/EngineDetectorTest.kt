@@ -158,6 +158,38 @@ class EngineDetectorTest {
     }
 
     @Test
+    fun `a game wrapped beside a sibling folder runs in the folder it was found in`() {
+        // MGQ Paradox's layout (Droidtop/tracker#636): the game one folder down, a Pictures folder beside it.
+        val root = tempRoot()
+        File(root, "Pictures").mkdirs()
+        File(root, "Pictures/cover.png").writeBytes(byteArrayOf(1))
+        val inner = File(root, "MGQ Paradox 3.06").apply { mkdirs() }
+        File(inner, "Game.ini").writeText("[Game]\r\nLibrary=System\\RGSS301.dll\r\n")
+        File(inner, "Game.exe").writeBytes(byteArrayOf(0x4d, 0x5a))
+        File(inner, "Game.rgss3a").writeBytes(byteArrayOf(1))
+
+        val detection = detect(root)!!
+        assertEquals("vxace", detection.engineContext)
+        assertEquals("3.1", detection.engineVersion)
+        assertEquals("MGQ Paradox 3.06", detection.root)
+        assertEquals("MGQ Paradox 3.06/Game.exe", detection.execFile)
+
+        val config = EngineConfigReader.parseDocument(DetectedConfig.launchDocument(detection, root.name, null)!!)
+        assertEquals(inner, GameRunner.engineFolder(root, config))
+        assertEquals("Game.exe", GameRunner.engineExecFile(config))
+    }
+
+    @Test
+    fun `a game found in the folder itself has no root`() {
+        val root = tempRoot()
+        File(root, "Pictures").mkdirs()
+        File(root, "Game.ini").writeText("[Game]\r\nLibrary=System\\RGSS301.dll\r\n")
+        File(root, "Game.rgss3a").writeBytes(byteArrayOf(1))
+
+        assertNull(detect(root)!!.root)
+    }
+
+    @Test
     fun `kirikiri detects from startup tjs with no archive`() {
         val root = tempRoot()
         File(root, "startup.tjs").writeText(";startup")

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -191,11 +192,17 @@ class LaunchActivity : EnginehostActivity() {
         Thread {
             // Saves go where droidtop keeps them, whoever started the game (Droidtop/tracker#547):
             // asked before planning, and merged in as the caller's own saveRoot would be.
+            val started = SystemClock.elapsedRealtime()
             val withSaves = runCatching {
                 DroidtopSaves.withDroidtopSaveRoot(this, gameFolder, inlineJson, intent.getStringExtra(EXTRA_CALLER_KEY))
             }.getOrDefault(inlineJson)
+            val asked = SystemClock.elapsedRealtime()
             val plan = runCatching { GameRunner.plan(this, gameFolder, withSaves, autoInstall, testing) }
                 .getOrElse { GameRunner.Plan.Failure(ErrorText.of(this, it, R.string.launch_plan_failed), retry = true) }
+            // Which half of the wait between Play and the plan is slow, on the device that has it
+            // (23 s for a wrapped game on a card, Droidtop/tracker#636): droidtop's save folder, or
+            // the plan itself (detection lists the folder four levels deep, plugins resolve).
+            HostEvents.record(this, "planned in ${SystemClock.elapsedRealtime() - asked} ms after ${asked - started} ms asking droidtop for saves")
             runOnUiThread {
                 planning = false
                 if (isDestroyed || isFinishing) return@runOnUiThread
