@@ -61,7 +61,7 @@ import java.util.WeakHashMap
  * from the view hierarchy. No installed plugin is built that way.
  */
 class RuntimeInputTap(private val activity: Activity) {
-    private val combo = HostMenuCombo(HostMenuHotkeyStore(activity).combo())
+    private val combo = HostMenuCombo()
     private val profiles = ControllerProfileStore(activity)
     private val cache = mutableMapOf<Int, ControllerProfile>()
 
@@ -94,7 +94,7 @@ class RuntimeInputTap(private val activity: Activity) {
     /**
      * @param forward how to deliver an event the host is synthesising --
      *   the release of a button whose press had already reached the game
-     *   when the combination completed.
+     *   when the hold completed.
      * @return the event to hand on, or null when the host has taken it.
      */
     fun key(event: KeyEvent, forward: (KeyEvent) -> Unit): KeyEvent? {
@@ -108,10 +108,19 @@ class RuntimeInputTap(private val activity: Activity) {
         }
         if (!event.isControllerInput()) return event
         val corrected = profile(event.deviceId).apply(event)
+        val now = SystemClock.uptimeMillis()
         val verdict = when (corrected.action) {
-            KeyEvent.ACTION_DOWN -> combo.down(corrected.keyCode)
-            KeyEvent.ACTION_UP -> combo.up(corrected.keyCode)
+            KeyEvent.ACTION_DOWN -> combo.down(corrected.keyCode, now)
+            KeyEvent.ACTION_UP -> combo.up(corrected.keyCode, now)
             else -> HostMenuCombo.Verdict.Pass
+        }
+        // Check for hold completion on every event
+        combo.tick(now)?.let { tickVerdict ->
+            if (tickVerdict is HostMenuCombo.Verdict.Open) {
+                tickVerdict.stuck.forEach { forward(release(corrected, it)) }
+                HostMenu.show(activity)
+                return null
+            }
         }
         return when (verdict) {
             is HostMenuCombo.Verdict.Open -> {

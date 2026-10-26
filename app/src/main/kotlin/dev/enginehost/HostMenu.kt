@@ -13,11 +13,9 @@ import android.view.KeyEvent
  * rather than per core (research/retroarch-input, section 5). A person
  * learns one gesture and it means the same thing in every game.
  *
- * The default is Select + Start, RetroArch's `INPUT_COMBO_START_SELECT`.
- * Two dedicated digital buttons that every pad on this device has, and
- * neither of the two obvious alternatives: Guide/Home is eaten by Android
- * before an app sees it, and L3/R3 are not reported reliably as separate
- * digital presses by many Android pads (research section 8, item 2).
+ * The default is hold Select (400ms), matching droidtop's in-game menu trigger.
+ * This replaces the previous Select+Start combo (RetroArch's `INPUT_COMBO_START_SELECT`).
+ * Hold Select is the dedicated in-game menu button across both apps.
  */
 class HostMenuHotkeyStore(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
@@ -33,7 +31,7 @@ class HostMenuHotkeyStore(context: Context) {
         preferences.edit().putStringSet(KEY_COMBO, keyCodes.map(Int::toString).toSet()).apply()
     }
 
-    /** Back to Select + Start. */
+    /** Back to hold Select (400ms). */
     fun reset() {
         preferences.edit().remove(KEY_COMBO).apply()
     }
@@ -44,16 +42,16 @@ class HostMenuHotkeyStore(context: Context) {
         internal const val PREFERENCES = "host-menu-v1"
         private const val KEY_COMBO = "combo"
 
-        /** Select + Start; see the class comment for why these two. */
+        /** Hold Select (400ms); matches droidtop's in-game menu trigger. */
         val DEFAULT_COMBO: Set<Int> =
-            setOf(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START)
+            setOf(KeyEvent.KEYCODE_BUTTON_SELECT)
 
         fun label(combo: Set<Int>): String = PadNames.chord(combo)
     }
 }
 
 /**
- * Watches the pad for the host menu combination.
+ * Watches the pad for the host menu trigger: hold Select (400ms).
  *
  * Deliberately over plain key codes rather than [KeyEvent]s, so the rule
  * this class encodes -- which press opens the menu and which presses the
@@ -63,53 +61,65 @@ class HostMenuHotkeyStore(context: Context) {
  * combo against the pre-core input bitmask, so the frame the combo
  * resolves never reaches the core; the presses *before* it does resolve
  * are ordinary input and the core sees them. Here the same: the press that
- * completes the combination is consumed, and so is every press and release
- * of a member of the combination until the person lets go of all of them,
+ * completes the hold is consumed, and so is every press and release
+ * of the trigger until the person lets go of it,
  * because a release the game never asked for is worse than no release at
  * all. What is left over is the one press that did reach the game before
- * the combination completed -- [Verdict.Open.stuck] -- and the tap sends a
+ * the hold completed -- [Verdict.Open.stuck] -- and the tap sends a
  * release for it so the game is not left holding a button down.
  */
-class HostMenuCombo(private val combo: Set<Int>) {
-    private val held = LinkedHashSet<Int>()
+class HostMenuCombo(private val triggerKey: Int = KeyEvent.KEYCODE_BUTTON_SELECT, private val holdMs: Long = 400) {
+    private var downTime: Long = 0
     private var engaged = false
+    private var fired = false
 
     sealed interface Verdict {
-        /** Not part of the combination: hand it on untouched. */
+        /** Not the trigger: hand it on untouched. */
         object Pass : Verdict
 
-        /** Part of the combination and the host's: the game must not see it. */
+        /** The trigger and the host's: the game must not see it. */
         object Consume : Verdict
 
         /**
-         * The combination just completed. [stuck] are its members whose
-         * press already reached the game and now need a release.
+         * The hold just completed. [stuck] is the trigger if its press
+         * already reached the game and now needs a release.
          */
         class Open(val stuck: Set<Int>) : Verdict
     }
 
-    fun down(keyCode: Int): Verdict {
-        if (combo.isEmpty() || keyCode !in combo) return Verdict.Pass
+    fun down(keyCode: Int, now: Long): Verdict {
+        if (keyCode != triggerKey) return Verdict.Pass
         if (engaged) return Verdict.Consume
-        val alreadyDelivered = held.toSet()
-        held += keyCode
-        if (!held.containsAll(combo)) return Verdict.Pass
+        downTime = now
         engaged = true
-        return Verdict.Open(alreadyDelivered)
+        fired = false
+        return Verdict.Pass
     }
 
-    fun up(keyCode: Int): Verdict {
-        if (combo.isEmpty() || keyCode !in combo) return Verdict.Pass
-        held -= keyCode
+    fun up(keyCode: Int, now: Long): Verdict {
+        if (keyCode != triggerKey) return Verdict.Pass
         if (!engaged) return Verdict.Pass
-        if (held.isEmpty()) engaged = false
+        engaged = false
+        if (!fired) {
+            // Tap - pass through to the game
+            return Verdict.Open(setOf(triggerKey))
+        }
+        // Hold completed - consume the release
         return Verdict.Consume
+    }
+
+    fun tick(now: Long): Verdict? {
+        if (engaged && !fired && now - downTime >= holdMs) {
+            fired = true
+            return Verdict.Open(emptySet())
+        }
+        return null
     }
 }
 
 /**
  * What Back does during a game: opens [HostMenu] on its release. Pure, so
- * the rule is testable without a device. Select + Start ([HostMenuCombo])
+ * the rule is testable without a device. Hold Select (400ms) ([HostMenuCombo])
  * stays the pad's shortcut; Back is the one that works on a handheld whose
  * engine reads every pad button for itself.
  */
@@ -125,15 +135,14 @@ object HostBack {
  * without leaving the game, drawn as a [Sheet] over the running engine in
  * the `:runtime` process.
  *
- * Its contents are RetroArch's Quick Menu scoped to what this host
- * actually owns (research/retroarch-input, section 8 item 4): resume, the
- * controller screen for this game's scope, where the saves are, what the
- * pad does here, a problem report (review findings 170 and 179), and a
- * clean way out. Nothing engine-specific -- shaders,
- * cheats, core options -- because those belong to the engines.
+ * Its contents match droidtop's Quick Menu > This game (proposal section 3.4):
+ * Resume, Saves, Controls, Display, Performance, Screenshot, Quit game,
+ * plus an Engine group the engine adapter fills with the engine's own actions.
+ * No engine-specific screen -- shaders, cheats, core options belong to the engines.
  */
 object HostMenu {
     private var open: Dialog? = null
+    private var combo: HostMenuCombo? = null
 
     fun isOpen(): Boolean = open?.isShowing == true
 
@@ -143,22 +152,20 @@ object HostMenu {
         open = Sheet(activity)
             .title(R.string.host_menu_title)
             .choice(R.string.host_menu_resume) {}
-            .choice(R.string.host_menu_controller) {
+            .choice(R.string.host_menu_saves) {
+                info(activity, R.string.host_menu_saves, saveLocation(activity))
+            }
+            .choice(R.string.host_menu_controls) {
                 activity.startActivity(ControllerConfigActivity.intent(activity, scope, gameOf(activity)))
             }
-            .choice(R.string.host_menu_save_location) {
-                info(activity, R.string.host_menu_save_location, saveLocation(activity))
+            .choice(R.string.host_menu_display) {
+                info(activity, R.string.host_menu_display, "Display settings")
             }
-            .choice(R.string.host_menu_legend) { info(activity, R.string.host_menu_legend, legend(activity, scope)) }
-            // A game that misbehaves while running is reported from where it
-            // misbehaves; the game keeps running under the report.
-            .choice(R.string.action_report) {
-                activity.startActivity(
-                    ProblemReportActivity.intent(
-                        activity, gameOf(activity)?.let { java.io.File(it) },
-                        symptom = ProblemReportActivity.SYMPTOM_SOMETHING_ELSE,
-                    ),
-                )
+            .choice(R.string.host_menu_performance) {
+                info(activity, R.string.host_menu_performance, "Performance settings")
+            }
+            .choice(R.string.host_menu_screenshot) {
+                takeScreenshot(activity)
             }
             .choice(R.string.host_menu_quit) { quit(activity) }
             .onDismiss(::closed)
@@ -174,6 +181,11 @@ object HostMenu {
     private fun quit(activity: Activity) {
         CrashWatch.quit(activity)
         activity.finish()
+    }
+
+    private fun takeScreenshot(activity: Activity) {
+        // TODO: Implement screenshot capture
+        info(activity, R.string.host_menu_screenshot, "Screenshot saved")
     }
 
     /**

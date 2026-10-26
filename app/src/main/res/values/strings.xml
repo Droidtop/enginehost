@@ -335,6 +335,11 @@
     <string name="play_time_hm">%1$dh %2$dm</string>
     <string name="sort_playtime">Time played</string>
     <string name="settings_title">Settings</string>
+    <string name="appearance_section">Appearance</string>
+    <string name="appearance">Appearance</string>
+    <string name="enginehost_accent">Enginehost accent</string>
+    <string name="match_device_accent">Match my device</string>
+    <string name="pick_accent">Pick a colour</string>
     <string name="save_location">Saves</string>
     <string name="choose_folder">Choose folder</string>
     <string name="migrate_saves">Move old saves here</string>
@@ -427,10 +432,12 @@
     <!-- The in-game host menu -->
     <string name="host_menu_title">Enginehost</string>
     <string name="host_menu_resume">Resume</string>
-    <string name="host_menu_controller">Controller settings</string>
-    <string name="host_menu_save_location">Save location</string>
-    <string name="host_menu_legend">Controls</string>
-    <string name="host_menu_quit">Quit to Enginehost</string>
+    <string name="host_menu_saves">Saves</string>
+    <string name="host_menu_controls">Controls</string>
+    <string name="host_menu_display">Display</string>
+    <string name="host_menu_performance">Performance</string>
+    <string name="host_menu_screenshot">Screenshot</string>
+    <string name="host_menu_quit">Quit game</string>
     <string name="host_menu_back">Back</string>
     <string name="host_menu_legend_bypassed">This game reads the pad itself. Below is the map it would get if it did not.</string>
     <string name="host_menu_save_beside_game">This game saves in its own folder, as it does on a computer:\n\n%1$s</string>

@@ -32,6 +32,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     private lateinit var browserStartLocation: TextView
     private lateinit var updateCheck: PluginUpdateCheck
     private lateinit var tokenStore: GithubTokenStore
+    private lateinit var appearanceValue: TextView
 
     /** Engine families with an installed plugin, in the order their rows are shown. */
     private var engines: List<String> = emptyList()
@@ -56,6 +57,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         location = findViewById(R.id.saveLocationValue)
         engineSaveRows = findViewById(R.id.engineSaveRows)
         browserStartLocation = findViewById(R.id.browserStartValue)
+        appearanceValue = findViewById(R.id.appearanceValue)
 
         findViewById<View>(R.id.saveRootRow).setOnClickListener {
             choose(
@@ -78,6 +80,16 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                         browserStartStore.clear()
                         refresh()
                     },
+                ),
+            )
+        }
+        findViewById<View>(R.id.appearanceRow).setOnClickListener {
+            choose(
+                R.string.appearance,
+                listOf(
+                    getString(R.string.enginehost_accent) to { setAccent(Accent.ENGINEHOST) },
+                    getString(R.string.match_device_accent) to { setAccent(Accent.MATCH_DEVICE) },
+                    getString(R.string.pick_accent) to { pickAccent() },
                 ),
             )
         }
@@ -456,6 +468,22 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 ).show()
             }
         }.start()
+    }
+
+    private enum class Accent {
+        ENGINEHOST,
+        MATCH_DEVICE,
+        PICKED,
+    }
+
+    private fun setAccent(accent: Accent) {
+        // TODO: Implement accent setting
+        refresh()
+    }
+
+    private fun pickAccent() {
+        // TODO: Implement color picker
+        refresh()
     }
 
     companion object {
