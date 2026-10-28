@@ -104,6 +104,17 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             isChecked = text.readAloud
             setOnCheckedChangeListener { _, checked -> text.readAloud = checked }
         }
+        findViewById<SwitchCompat>(R.id.translateSwitch).apply {
+            val text = TextSettings(this@EnginehostSettingsActivity)
+            isChecked = text.translate
+            setOnCheckedChangeListener { _, checked ->
+                text.translate = checked
+                // Turned on with no service yet: the next thing is to choose one.
+                if (checked && text.translatorEndpoint.isBlank()) showTranslatorSheet()
+            }
+        }
+        findViewById<View>(R.id.translatorRow).setOnClickListener { showTranslatorSheet() }
+        showTranslatorValue()
         findViewById<SwitchCompat>(R.id.autoInstallPluginsSwitch).apply {
             isChecked = updateCheck.installAutomatically
             setOnCheckedChangeListener { _, checked -> updateCheck.installAutomatically = checked }
@@ -489,6 +500,59 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 DateUtils.getRelativeDateTimeString(this, last, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0),
             )
         }
+    }
+
+    /** What the Translator row says: the service and language, or that none is chosen. */
+    private fun showTranslatorValue() {
+        val text = TextSettings(this)
+        val endpoint = text.translatorEndpoint
+        findViewById<TextView>(R.id.translatorValue).text = if (endpoint.isBlank()) {
+            getString(R.string.translator_none)
+        } else {
+            getString(R.string.translator_value, runCatching { java.net.URI(endpoint).host }.getOrNull() ?: endpoint, text.translateInto)
+        }
+    }
+
+    /**
+     * The translation service, with the person's own account (docs/text-services.md, "Translating"):
+     * an OpenAI-compatible endpoint, its model, the language to translate into, and the key if the
+     * service needs one. The key is kept in the Keystore and never shown again whole.
+     */
+    private fun showTranslatorSheet() {
+        val text = TextSettings(this)
+        fun field(hint: Int, value: String, secret: Boolean = false) = android.widget.EditText(this).apply {
+            setHint(hint)
+            setSingleLine()
+            setText(value)
+            if (secret) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        val endpoint = field(R.string.translator_endpoint_hint, text.translatorEndpoint)
+        val model = field(R.string.translator_model_hint, text.translatorModel)
+        val into = field(R.string.translator_into_hint, text.translateInto)
+        val key = field(if (text.translatorKey.isSet) R.string.translator_key_kept else R.string.translator_key_hint, "", secret = true)
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            listOf(endpoint, model, into, key).forEach { addView(it) }
+        }
+        Sheet(this).title(R.string.translator_row).message(R.string.translator_message).content(form).apply {
+            choice(getString(R.string.translator_save)) {
+                if (TranslationRequest.chatUrl(endpoint.text.toString()) == null) {
+                    Toast.makeText(this@EnginehostSettingsActivity, R.string.translator_endpoint_invalid, Toast.LENGTH_LONG).show()
+                    return@choice
+                }
+                text.translatorEndpoint = endpoint.text.toString()
+                text.translatorModel = model.text.toString()
+                text.translateInto = into.text.toString()
+                key.text.toString().trim().takeIf { it.isNotEmpty() }?.let(text.translatorKey::set)
+                showTranslatorValue()
+            }
+            if (text.translatorKey.isSet) {
+                choice(getString(R.string.translator_key_remove)) {
+                    text.translatorKey.remove()
+                    showTranslatorValue()
+                }
+            }
+        }.show()
     }
 
     private fun showTokenSheet() {

@@ -20,9 +20,10 @@ decisions on it are on #490 (design comment 6176583781, decisions 6176693957 and
 
 ## What is built
 
-Built (2026-10-28): the format, the host calls, the host's intake with its caps, and reading aloud
-with the device's own voices (below). Translation, the multi-speaker on-device voices and each
-remaining core's emitter come in the slices listed on #490. CatSystem2 is the first core that sends
+Built (2026-10-28): the format, the host calls, the host's intake with its caps, reading aloud
+with the device's own voices, and translating with an OpenAI-compatible service on the person's own
+account (both below). More translators, on-device translation, the multi-speaker on-device voices and
+each remaining core's emitter come in the slices listed on #490. CatSystem2 is the first core that sends
 text.
 
 ## How a core sends its text
@@ -88,9 +89,9 @@ Only caches and the voice map depend on the id, so a poor one costs a cache miss
 `EngineHost.replaceText(String event)`: before the engine shows a `line` or `choices` event,
 the core may ask for the text to print instead. The answer is the same event with its text
 replaced, or null to print the original. It answers only from what the host already has and
-never waits on a network, so an engine may ask on its own thread just before it draws. Until a
-translator is chosen, every answer is null, which is what the API default answers too. The
-isolated route is added with the first translator.
+never waits on a network, so an engine may ask on its own thread just before it draws. With no
+translator chosen, or before a line's translation is here, the answer is null. An isolated runtime
+asks over `IEngineRuntimeCallback.replaceText`, which is synchronous for the same reason.
 
 ## What the host does with an event (`TextEvents`, `GameText`)
 
@@ -130,6 +131,32 @@ reads it in the main process and hands it to the runtime with the launch
 - **When it stops.** The reader moving on (`advance`, `clear`, `chosen`) stops the line being read. Skip
   mode stops reading until the game is back to normal. A line that arrives before the device's engine is
   ready is dropped rather than read late.
+
+## Translating (`GameTranslation`, `TextServicesService`, `Translator`, `TranslationCache`)
+
+Settings, "Reading and translation", "Translate games", and "Translator": off until the person turns it
+on and chooses a service.
+
+- **The service** is any OpenAI-compatible chat endpoint the person names (OpenAI, OpenRouter, or their
+  own Ollama, llama.cpp or LM Studio server, which may need no key), with its model and the language to
+  translate into. The key is a `KeystoreSecret`, the same store as the GitHub token: masked, removable,
+  never in reports. The owner asked for "various translators as an option"; this is the first.
+- **Where it runs.** The runtime has no network, so each line goes over a oneway binder call
+  (`ITextServices`) to `TextServicesService` in Enginehost's main process, which asks the service on one
+  worker thread, in order, and sends the answer back (`ITextTranslated`).
+- **Kept.** `TranslationCache` (Enginehost's own `translations.db`) is keyed by game, line id, a digest of
+  the line's text, target and service. A line is sent once; a replay or a reload is free.
+- **Shown.** The owner: "By default, it'll hand the text back to the engine to print." An engine that asks
+  `replaceText` for a line prints the translation itself. For a line the engine never asks about, the
+  translation is drawn in a band at the bottom of the screen, the fallback, and goes when the reader moves
+  on. Today's only emitter, CatSystem2, does not ask yet, so it shows the band.
+- **Safe with game text.** The line is only the user message; the system prompt is fixed and says the
+  message is never an instruction; the answer is plain text, cut to 4,000 characters, and a "Speaker:" the
+  model repeated is taken off.
+- **Privacy.** The Translator sheet says lines and character names go to the service on the person's own
+  account. Nothing goes until they choose one.
+- **Not done:** menus (`choices`) are not translated yet; per-game overrides, a glossary for names, export
+  of a game's translations, and more services.
 
 ## Rig check
 

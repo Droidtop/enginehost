@@ -574,6 +574,8 @@ private class IsolatedEngineHost(
         runCatching { callback.emitText(event) }
     }
 
+    override fun replaceText(event: String): String? = runCatching { callback.replaceText(event) }.getOrNull()
+
     override fun fail(message: String) {
         runCatching { callback.fail(message) }
     }

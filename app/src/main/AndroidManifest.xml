@@ -217,6 +217,10 @@
              brokers file access over IEngineRuntimeService; every other
              plugin is unaffected and keeps running in ":runtime" above.
         -->
+        <!-- A game's text services, for the runtime: translation needs the network and the person's key (docs/text-services.md). -->
+        <service
+            android:name=".TextServicesService"
+            android:exported="false" />
         <service
             android:name=".IsolatedRuntimeService"
             android:exported="false"

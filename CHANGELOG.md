@@ -17,7 +17,11 @@ section when a real version is cut.
 - Read text aloud (Settings, Reading and translation): a game's lines in the device's own voices,
   one per character, stopping when you move on. It works with cores that report their text, which
   is CatSystem2 so far; Enginehost now takes the lines, speakers and menus a core reports in one
-  format (`ehtext/1`), the groundwork for translation too.
+  format (`ehtext/1`).
+- Translate games (Settings, Reading and translation): a game's lines in your language, through an
+  OpenAI-compatible service on your own account (OpenAI, OpenRouter, or your own Ollama or LM Studio
+  server). Each line is sent once and kept on the device. An engine that can print the translation
+  does; otherwise it shows at the bottom of the screen.
 - A game's own loading screen while its engine starts, in place of the plain dark window:
   Ren'Py's presplash (with its progress fill), Godot's boot splash and RPG Maker
   MV/MZ's Loading picture, else the game's box art. It goes at the engine's first frame.

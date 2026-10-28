@@ -421,6 +421,11 @@ its engine shows (docs/text-services.md).
   stays the same; the game's own voiced lines are not read; moving on stops the line. The planner hands
   the choice to the runtime with the launch. Multi-speaker on-device voices and translation follow in
   #490's slices; the first emitter is CatSystem2, an isolated core, so it proves the binder path.
+- **Translated, with the person's own service, when they turn it on** (2026-10-28). Settings,
+  "Translate games" and "Translator": an OpenAI-compatible endpoint, model, language and key (Keystore).
+  The runtime has no network, so lines go to `TextServicesService` in the main process; answers are kept
+  per game and line (`TranslationCache`) so a line is sent once. An engine that asks `replaceText` prints
+  the translation; one that never asks gets it in a band at the bottom, the fallback.
 - **For the rig.** `debug.enginehost.text 1` draws the newest six events over the game.
 - **Not done:** a core on the activity transport (Ren'Py, KiriKiri) has no `EngineHost` to send
   to. It gets text when it moves onto the plugin transport; no second bridge is added for it.

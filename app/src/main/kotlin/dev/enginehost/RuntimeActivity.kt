@@ -390,6 +390,8 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_EXEC_FILE = "dev.enginehost.runtime.EXEC_FILE"
         /** The person chose to have the game's text read aloud ([TextSettings], [GameSpeech]). */
         const val EXTRA_READ_ALOUD = "dev.enginehost.runtime.READ_ALOUD"
+        /** The person chose to have the game's text translated ([TextSettings], [GameTranslation]). */
+        const val EXTRA_TRANSLATE = "dev.enginehost.runtime.TRANSLATE"
         const val EXTRA_OPTIONS = "dev.enginehost.runtime.OPTIONS"
         /**
          * The person's controller map for this engine; see
@@ -471,6 +473,8 @@ private class RuntimeHost(
     }
     /** One event of the game's text ([GameText]). */
     override fun emitText(event: String) = GameText.emit(activity, event)
+    /** The translated line to print, from what the runtime already holds ([GameText.replace]). */
+    override fun replaceText(event: String): String? = GameText.replace(event)
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {
         val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()
         Log.println(priority, "enginehost/$tag", message + detail)

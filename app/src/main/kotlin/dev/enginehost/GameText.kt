@@ -16,8 +16,8 @@ import android.widget.TextView
  * process, fed by the in-process host and by the isolated runtime's callback alike.
  *
  * Every event passes [TextRate] and [TextEvents] first, off the main thread where it arrives.
- * [GameSpeech] reads lines aloud when the person turned that on; translation comes in a later
- * slice (Droidtop/tracker#490). For the rig, with `debug.enginehost.text` set to 1, the last
+ * [GameSpeech] reads lines aloud and [GameTranslation] translates them, each when the person
+ * turned it on (Droidtop/tracker#490). For the rig, with `debug.enginehost.text` set to 1, the last
  * few events are also drawn over the top of the game. Game text is never logged: it can be anything
  * the game shows, and host events never carry a game's content.
  */
@@ -30,21 +30,32 @@ object GameText {
     fun emit(activity: Activity, json: String) {
         if (!rate.take(SystemClock.elapsedRealtime())) return
         val event = TextEvents.parse(json) ?: return
-        speech(activity)?.take(event)
+        services(activity)
+        speech?.take(event)
+        translation?.take(event, json)
         if (showEvents) activity.runOnUiThread { EventsOverlay.show(activity, event) }
     }
 
-    private var speechChecked = false
-    private var speech: GameSpeech? = null
+    /**
+     * The line the engine is about to print, in the person's language, or null to print the original
+     * ([GameTranslation.replace]). Any thread; never waits.
+     */
+    fun replace(json: String): String? = translation?.replace(json)
 
-    /** The reader of this launch, when the person turned on "Read text aloud" (the launch says so). */
+    private var servicesChecked = false
+    @Volatile private var speech: GameSpeech? = null
+    @Volatile private var translation: GameTranslation? = null
+
+    /** This launch's reader and translator, as the person chose them (the launch says which). */
     @Synchronized
-    private fun speech(activity: Activity): GameSpeech? {
-        if (!speechChecked) {
-            speechChecked = true
-            if (activity.intent?.getBooleanExtra(RuntimeActivity.EXTRA_READ_ALOUD, false) == true) speech = GameSpeech(activity)
+    private fun services(activity: Activity) {
+        if (servicesChecked) return
+        servicesChecked = true
+        val intent = activity.intent ?: return
+        if (intent.getBooleanExtra(RuntimeActivity.EXTRA_READ_ALOUD, false)) speech = GameSpeech(activity)
+        if (intent.getBooleanExtra(RuntimeActivity.EXTRA_TRANSLATE, false)) {
+            intent.getStringExtra(RuntimeActivity.EXTRA_GAME)?.let { translation = GameTranslation(activity, it) }
         }
-        return speech
     }
 
     /** The rig check's view of the stream: the newest events, one per line, over the game; never takes a touch. */

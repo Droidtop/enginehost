@@ -18,4 +18,6 @@ interface IEngineRuntimeCallback {
     void openLink(String url);
     /** EngineHost.emitText: one ehtext/1 event (GameText); oneway, so a slow host never stalls the engine. */
     oneway void emitText(String event);
+    /** EngineHost.replaceText: the translated line to print, from what the host holds; never waits on a network. */
+    String replaceText(String event);
 }
