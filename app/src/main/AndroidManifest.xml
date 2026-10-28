@@ -42,6 +42,10 @@
     -->
     <queries>
         <package android:name="dev.droidtop.app" />
+        <!-- The device's text-to-speech engines, which GameSpeech reads a game's lines with (docs/text-services.md). -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

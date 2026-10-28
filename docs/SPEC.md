@@ -416,9 +416,12 @@ its engine shows (docs/text-services.md).
 - **Untrusted, capped, never logged.** Each event is rate-capped at 120 a second (bursts of
   240), size-capped at 16 KiB, read whole or dropped, and stripped of control characters. Game
   text never goes into logs or host events.
-- **Seen on the rig only, for now.** `debug.enginehost.text 1` draws the newest six events over
-  the game. Read-aloud, translation and each core's emitter follow in #490's slices; the first
-  emitter is CatSystem2, an isolated core, so it proves the binder path.
+- **Read aloud, with the device's voices, when the person turns it on** (2026-10-28). Settings,
+  "Read text aloud", off by default: a voice per character, picked from a hash of the speaker so it
+  stays the same; the game's own voiced lines are not read; moving on stops the line. The planner hands
+  the choice to the runtime with the launch. Multi-speaker on-device voices and translation follow in
+  #490's slices; the first emitter is CatSystem2, an isolated core, so it proves the binder path.
+- **For the rig.** `debug.enginehost.text 1` draws the newest six events over the game.
 - **Not done:** a core on the activity transport (Ren'Py, KiriKiri) has no `EngineHost` to send
   to. It gets text when it moves onto the plugin transport; no second bridge is added for it.
 

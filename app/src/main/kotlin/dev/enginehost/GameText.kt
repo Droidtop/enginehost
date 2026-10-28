@@ -16,9 +16,9 @@ import android.widget.TextView
  * process, fed by the in-process host and by the isolated runtime's callback alike.
  *
  * Every event passes [TextRate] and [TextEvents] first, off the main thread where it arrives.
- * Read-aloud and translation consume it in later slices (Droidtop/tracker#490). Until then
- * the only reader is the rig check: with `debug.enginehost.text` set to 1, the last few
- * events are drawn over the top of the game. Game text is never logged: it can be anything
+ * [GameSpeech] reads lines aloud when the person turned that on; translation comes in a later
+ * slice (Droidtop/tracker#490). For the rig, with `debug.enginehost.text` set to 1, the last
+ * few events are also drawn over the top of the game. Game text is never logged: it can be anything
  * the game shows, and host events never carry a game's content.
  */
 object GameText {
@@ -30,7 +30,21 @@ object GameText {
     fun emit(activity: Activity, json: String) {
         if (!rate.take(SystemClock.elapsedRealtime())) return
         val event = TextEvents.parse(json) ?: return
+        speech(activity)?.take(event)
         if (showEvents) activity.runOnUiThread { EventsOverlay.show(activity, event) }
+    }
+
+    private var speechChecked = false
+    private var speech: GameSpeech? = null
+
+    /** The reader of this launch, when the person turned on "Read text aloud" (the launch says so). */
+    @Synchronized
+    private fun speech(activity: Activity): GameSpeech? {
+        if (!speechChecked) {
+            speechChecked = true
+            if (activity.intent?.getBooleanExtra(RuntimeActivity.EXTRA_READ_ALOUD, false) == true) speech = GameSpeech(activity)
+        }
+        return speech
     }
 
     /** The rig check's view of the stream: the newest events, one per line, over the game; never takes a touch. */

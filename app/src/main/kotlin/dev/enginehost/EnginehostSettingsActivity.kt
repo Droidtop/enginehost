@@ -99,6 +99,11 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             isChecked = updateCheck.unmeteredOnly
             setOnCheckedChangeListener { _, checked -> updateCheck.unmeteredOnly = checked }
         }
+        findViewById<SwitchCompat>(R.id.readAloudSwitch).apply {
+            val text = TextSettings(this@EnginehostSettingsActivity)
+            isChecked = text.readAloud
+            setOnCheckedChangeListener { _, checked -> text.readAloud = checked }
+        }
         findViewById<SwitchCompat>(R.id.autoInstallPluginsSwitch).apply {
             isChecked = updateCheck.installAutomatically
             setOnCheckedChangeListener { _, checked -> updateCheck.installAutomatically = checked }

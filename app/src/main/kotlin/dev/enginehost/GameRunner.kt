@@ -189,6 +189,7 @@ object GameRunner {
                 ?.let { putExtra(RuntimeActivity.EXTRA_CONTROLLER_BINDINGS, it.exportJson().toString()) }
             engineExecFile(config)?.let { putExtra(RuntimeActivity.EXTRA_EXEC_FILE, it) }
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
+            putExtra(RuntimeActivity.EXTRA_READ_ALOUD, TextSettings(context).readAloud)
             launchJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }
             testingJson?.let { putExtra(RuntimeActivity.EXTRA_TESTING_CONFIG, it) }
             overridesJson?.let { putExtra(RuntimeActivity.EXTRA_OVERRIDES, it) }

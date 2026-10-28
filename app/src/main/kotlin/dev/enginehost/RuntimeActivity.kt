@@ -388,6 +388,8 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_CAPABILITY_ID = "dev.enginehost.runtime.CAPABILITY_ID"
         const val EXTRA_RUNTIME_REQUIREMENTS = "dev.enginehost.runtime.RUNTIME_REQUIREMENTS"
         const val EXTRA_EXEC_FILE = "dev.enginehost.runtime.EXEC_FILE"
+        /** The person chose to have the game's text read aloud ([TextSettings], [GameSpeech]). */
+        const val EXTRA_READ_ALOUD = "dev.enginehost.runtime.READ_ALOUD"
         const val EXTRA_OPTIONS = "dev.enginehost.runtime.OPTIONS"
         /**
          * The person's controller map for this engine; see

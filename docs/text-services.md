@@ -20,9 +20,10 @@ decisions on it are on #490 (design comment 6176583781, decisions 6176693957 and
 
 ## What is built
 
-Built (2026-10-28): the format, the host calls, and the host's intake with its caps. The only
-reader so far is the rig check below. Read-aloud, translation and each core's emitter come in
-the slices listed on #490.
+Built (2026-10-28): the format, the host calls, the host's intake with its caps, and reading aloud
+with the device's own voices (below). Translation, the multi-speaker on-device voices and each
+remaining core's emitter come in the slices listed on #490. CatSystem2 is the first core that sends
+text.
 
 ## How a core sends its text
 
@@ -110,6 +111,25 @@ Every event is untrusted game data:
 - **Display.** Text is shown as plain text only, never as markup or HTML.
 - **Logging.** Game text is never logged: it can be anything the game shows, and host events
   never carry a game's content.
+
+## Reading aloud (`GameSpeech`, `VoicePick`)
+
+Settings, "Reading and translation", "Read text aloud": off until the person turns it on. The planner
+reads it in the main process and hands it to the runtime with the launch
+(`RuntimeActivity.EXTRA_READ_ALOUD`), so the runtime reads no preferences after its sandbox closes.
+
+- **Voices.** The device's own text-to-speech (`android.speech.tts`), its voices for the device's
+  language that need no network. This is one backend of the several the owner asked for; the owner's
+  default for many distinct voices on the device is a multi-speaker engine (sherpa-onnx), a later slice.
+- **One voice per character** (owner, 2026-10-14). `VoicePick` hashes the speaker's id (else its name)
+  over the voices there are, so a character keeps its voice every launch with nothing stored. With fewer
+  than eight voices each character also gets a pitch of its own, so two that share a voice still differ.
+  Narration is read by the first voice at its own pitch.
+- **What is read.** A line, unless the game voices it itself (`voiced`) or it is `ui` or `system` text. A
+  line that continues the previous one (`append`) is queued after it; any other replaces it.
+- **When it stops.** The reader moving on (`advance`, `clear`, `chosen`) stops the line being read. Skip
+  mode stops reading until the game is back to normal. A line that arrives before the device's engine is
+  ready is dropped rather than read late.
 
 ## Rig check
 
