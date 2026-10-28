@@ -33,6 +33,9 @@ class LaunchEntryActivity : Activity() {
             return
         }
         intent.getStringExtra(LaunchActivity.EXTRA_PATH)?.let { path ->
+            // The caller's accent, when it names one, draws this session's screens (Accent.sessionAccent);
+            // a launch that names none is drawn in the person's own choice.
+            Accent.sessionAccent = Accent.parse(intent.getStringExtra(EXTRA_ACCENT))
             GameRunner.run(
                 this,
                 File(path),
@@ -83,6 +86,9 @@ class LaunchEntryActivity : Activity() {
         /** On a launch flagged savesSynced whose saveRoot was not taken: why (SaveRoot's reasons). */
         const val EXTRA_SAVE_ROOT_REFUSED = "saveRootRefused"
         const val EXTRA_ERROR = "error"
+
+        /** On dev.enginehost.LAUNCH: the caller's accent, "#RRGGBB", for the screens of the session it starts. */
+        const val EXTRA_ACCENT = "accent"
         const val ERROR_UNTRUSTED_CALLER = "untrusted_caller"
     }
 }

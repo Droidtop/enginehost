@@ -126,6 +126,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 .show()
             true
         }
+        findViewById<View>(R.id.appearanceRow).setOnClickListener { chooseAccent() }
         findViewById<View>(R.id.launchAccessRow).setOnClickListener {
             startActivity(Intent(this, CallerAccessSettingsActivity::class.java))
         }
@@ -141,6 +142,75 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         super.onResume()
         refresh()
         endHandOver?.invoke()
+    }
+
+    /** What the Appearance row says the accent is. */
+    private fun showAccent() {
+        val chosen = when (Accent.choice(this)) {
+            Accent.Choice.ENGINEHOST -> getString(R.string.appearance_enginehost)
+            Accent.Choice.DEVICE -> getString(R.string.appearance_device)
+            Accent.Choice.PICKED -> getString(R.string.appearance_picked)
+        }
+        findViewById<TextView>(R.id.appearanceValue).text =
+            if (Accent.sessionAccent != null) getString(R.string.appearance_session, chosen) else chosen
+    }
+
+    /** Settings > Appearance: Enginehost's blue, the device's colour, or a hue of the person's own. */
+    private fun chooseAccent() {
+        val current = Accent.choice(this)
+        Sheet(this).title(R.string.appearance_accent).apply {
+            choice(getString(R.string.appearance_enginehost), current = current == Accent.Choice.ENGINEHOST) {
+                Accent.set(this@EnginehostSettingsActivity, Accent.Choice.ENGINEHOST)
+                recreate()
+            }
+            if (Accent.deviceColourAvailable()) {
+                choice(getString(R.string.appearance_device), getString(R.string.appearance_device_detail), current = current == Accent.Choice.DEVICE) {
+                    Accent.set(this@EnginehostSettingsActivity, Accent.Choice.DEVICE)
+                    recreate()
+                }
+            }
+            choice(getString(R.string.appearance_picked), getString(R.string.appearance_picked_detail), current = current == Accent.Choice.PICKED) {
+                pickHue()
+            }
+        }.show()
+    }
+
+    /**
+     * A hue slider with the colour it comes out as beside it, already through the contrast
+     * guard, so what the person sees is what the app will use. The pad moves it with left
+     * and right.
+     */
+    private fun pickHue() {
+        val size = resources.getDimensionPixelSize(R.dimen.eh_touch_target)
+        val swatch = View(this)
+        val slider = android.widget.SeekBar(this).apply {
+            max = 359
+            progress = Accent.pickedHue(this@EnginehostSettingsActivity).toInt()
+            keyProgressIncrement = 5
+            // Made in code, so it is painted here as the inflater paints a layout's bars.
+            val accent = android.content.res.ColorStateList.valueOf(AccentViewInflater.colour(this@EnginehostSettingsActivity, R.color.eh_accent))
+            progressTintList = accent
+            thumbTintList = accent
+        }
+        fun preview(hue: Int) = swatch.setBackgroundColor(Accent.pickedPreview(this, hue.toFloat()))
+        preview(slider.progress)
+        slider.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: android.widget.SeekBar, value: Int, fromUser: Boolean) = preview(value)
+            override fun onStartTrackingTouch(bar: android.widget.SeekBar) = Unit
+            override fun onStopTrackingTouch(bar: android.widget.SeekBar) = Unit
+        })
+        val content = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            addView(swatch, android.widget.LinearLayout.LayoutParams(size, size))
+            addView(slider, android.widget.LinearLayout.LayoutParams(0, size, 1f))
+        }
+        Sheet(this).title(R.string.appearance_pick_title).content(content).apply {
+            choice(getString(R.string.appearance_use)) {
+                Accent.set(this@EnginehostSettingsActivity, Accent.Choice.PICKED, slider.progress.toFloat())
+                recreate()
+            }
+        }.show()
     }
 
     /** A short list of actions for one row. */
@@ -318,6 +388,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     }
 
     private fun refresh() {
+        showAccent()
         val tokenValue = findViewById<TextView>(R.id.githubTokenValue)
         tokenValue.text = if (tokenStore.hasToken) getString(R.string.github_token_masked, tokenStore.masked()) else getString(R.string.github_token_hint)
         location.text = store.root().path

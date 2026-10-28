@@ -25,6 +25,8 @@
         <item name="editTextStyle">@style/Widget.Enginehost.EditText</item>
         <item name="android:editTextStyle">@style/Widget.Enginehost.EditText</item>
         <item name="switchStyle">@style/Widget.Enginehost.Switch</item>
+        <!-- Every inflated view passes through the accent painter (Accent, Settings > Appearance). -->
+        <item name="viewInflaterClass">dev.enginehost.AccentViewInflater</item>
     </style>
 
     <!-- The launch screen: the app theme, edge to edge, no bars. -->

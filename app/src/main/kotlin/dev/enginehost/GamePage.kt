@@ -47,7 +47,7 @@ class GamePage(
         root.findViewById<TextView>(R.id.gamePath).apply {
             isClickable = true
             isFocusable = true
-            setBackgroundResource(R.drawable.eh_row_bg)
+            background = AccentViewInflater.drawable(context, R.drawable.eh_row_bg)
             setOnClickListener {
                 folderLineExpanded = !folderLineExpanded
                 showFolderLine()

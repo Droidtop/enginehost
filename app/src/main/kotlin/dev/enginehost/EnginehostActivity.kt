@@ -137,8 +137,16 @@ abstract class EnginehostActivity : AppCompatActivity() {
      */
     protected open val reportsRuntimeCrashes = true
 
+    /** The accent this screen was drawn in ([Accent.generation]); a change since redraws it. */
+    private var accentGeneration = Accent.generation
+
     override fun onResume() {
         super.onResume()
+        if (accentGeneration != Accent.generation) {
+            accentGeneration = Accent.generation
+            recreate()
+            return
+        }
         // Enginehost's own crash is unconditional -- it does not belong to
         // any one screen the way a game's runtime crash belongs to whatever
         // screen was watching it launch -- so it is not gated on

@@ -145,6 +145,17 @@ cores are the cores that run a game engine; trust, update and error text keep
 "plugin" for the signed bundle. A Cores screen showing one just-installed core
 (`EXTRA_BUNDLE`) is opened inside a flow and draws no bar.
 
+## Settings > Appearance: the accent colour
+
+Settings has an Appearance section with one row, Accent colour. Its sheet offers
+Enginehost blue (the default; azure, droidtop's own fallback), Match my device (shown from
+Android 12, the system's dynamic accent) and My own colour (a hue slider with the colour it
+comes out as beside it). Every choice keeps its hue and is moved in lightness until it reads
+at 4.5:1 on the ground, in light and in dark. A launch that names an `accent`
+(docs/contract.md) draws that session in it instead, and the row says so. A change redraws
+every open screen when it is next shown. How it is drawn is docs/ui-v2.md, "The accent at run
+time".
+
 ## A launch shows only the game and what it needs
 
 A launch, from another app (`dev.enginehost.LAUNCH`) or from Play, shows the game and the

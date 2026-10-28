@@ -201,6 +201,15 @@ may append fields the file omitted, including missing keys inside
 `options`, but can never override a value already present in the file.
 When the folder has no config file, the inline config is used by itself.
 
+### A caller's accent: `accent` (2026-10-28)
+
+`LAUNCH` may carry a string extra `accent`, `"#RRGGBB"`: the caller's own accent
+colour (droidtop sends the one its ES-DE theme resolved). Enginehost draws the screens of
+the session that launch starts in it, through the same contrast guard as Settings >
+Appearance (`Accent`, `AccentPalette`), so the two apps look like one while droidtop
+drives. It lasts until Enginehost's process ends and is never stored. A launch without it
+is drawn in the person's own choice. Anything but six hex digits is ignored.
+
 ### A caller's save folder: `saveRoot` (2026-10-17)
 
 Owner, Droidtop/tracker#580: "we can pass data back and forth using the API,

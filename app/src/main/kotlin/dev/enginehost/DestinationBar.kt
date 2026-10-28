@@ -44,7 +44,7 @@ object DestinationBar {
 
     private fun item(context: Context, destination: Destination, selected: Boolean, rail: Boolean, onPick: (Destination) -> Unit): View {
         val res = context.resources
-        val ink = ContextCompat.getColor(context, if (selected) R.color.eh_on_accent_container else R.color.eh_text_secondary)
+        val ink = AccentViewInflater.colour(context, if (selected) R.color.eh_on_accent_container else R.color.eh_text_secondary)
         val item = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -58,11 +58,11 @@ object DestinationBar {
             contentDescription = context.getString(destination.label)
             background = if (selected) {
                 GradientDrawable().apply {
-                    setColor(ContextCompat.getColor(context, R.color.eh_accent_container))
+                    setColor(AccentViewInflater.colour(context, R.color.eh_accent_container))
                     cornerRadius = res.getDimension(R.dimen.eh_corner_small)
                 }
             } else {
-                ContextCompat.getDrawable(context, R.drawable.eh_row_bg)
+                AccentViewInflater.drawable(context, R.drawable.eh_row_bg)
             }
             setOnClickListener { onPick(destination) }
         }

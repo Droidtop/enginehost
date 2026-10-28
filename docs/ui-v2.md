@@ -36,10 +36,24 @@ at on the device before the next.
    - **Type:** Display 32, Body 18, Label 15, Section 13 in capitals; nothing under 13.
    - **Focus:** a focused row wears the accent's container with a 4 dp leading bar; art and
      cards keep the ring.
-2. **The accent at run time** (next). Settings > Appearance offers Enginehost's accent,
-   "Match my device" (dynamic colour, API 31+) or a picked colour, all through one contrast
-   guard. A launch from droidtop passes droidtop's resolved accent, which wins for that
-   session.
+2. **The accent at run time** (built, Droidtop/tracker#644). Settings > Appearance offers
+   Enginehost's blue, "Match my device" (the system's dynamic accent, API 31+) or a hue of the
+   person's own on a slider. All of them go through one contrast guard (`AccentPalette.guard`):
+   the hue stays and only the lightness moves, until the accent reads at 4.5:1 on the ground.
+   A launch can name its caller's accent (`accent` on `dev.enginehost.LAUNCH`,
+   docs/contract.md), and that wins for the session it starts (`Accent.sessionAccent`).
+   - **How it is drawn.** Android cannot recolour a resource at run time. So the app theme
+     names `AccentViewInflater` as AppCompat's `viewInflaterClass`, and every inflated view
+     whose background, text colour or tint names an accent drawable or colour gets it rebuilt
+     in the palette (`AccentDrawables`). With Enginehost's own blue nothing is touched, and the
+     XML palette is the look.
+   - **Code-built views** use `AccentViewInflater.drawable` and `.colour`.
+   - **Kept in step.** The seven accent drawables exist twice, as XML for the default and in
+     code for any other accent; a change to one is made in both.
+     `scripts/check-accent-references.py` (run with the scripts' tests in CI) refuses an accent
+     colour anywhere the painter does not read.
+   - **Not painted:** the scroll edge glow (`colorEdgeEffect`, a window attribute) and sheets
+     shown over an engine's own activity in the in-game menu. Both keep the shipped blue.
 3. **Structure and buttons** (to decide with the owner after 1 and 2). The proposal's game
    page, item menu and button map.
 

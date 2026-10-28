@@ -36,7 +36,7 @@ object HintRow {
                 gravity = Gravity.CENTER_VERTICAL
                 minimumHeight = resources.getDimensionPixelSize(R.dimen.eh_touch_target)
                 setPadding(space, 0, space, 0)
-                setBackgroundResource(R.drawable.eh_row_bg)
+                background = AccentViewInflater.drawable(context, R.drawable.eh_row_bg)
                 // Pressable by touch, never a stop for the D-pad: the row
                 // names the pad's buttons, it is not somewhere to move to.
                 isClickable = true
