@@ -805,3 +805,17 @@ review, #768).
 
 What a repository a person added is verified to is unchanged: the key they pinned for it.
 docs/engine-bundle-format.md, "Legacy signatures".
+## TyranoScript runs on the HTML core (decided 2026-10-28, Droidtop/tracker#637)
+
+A TyranoScript game is a web page: `index.html`, the `tyrano/` engine folder and `data/`. The
+shared database's `tyranoscript` row maps it to the HTML core (`html`, `compiled-html`), so no
+core of its own is built. In the HTML core's WebView there is no Node, so Tyrano takes its
+browser path, and its `configSave` of `webstorage` (its template's default) or
+`webstorage_compress` saves through `localStorage`, which the HTML core keeps in the game's save
+folder. The detector reads `data/system/Config.tjs` the way Tyrano's own `compileConfig` does:
+`System.title` names the game and its save folder.
+
+A game whose `configSave` is `file` writes `.sav` files through its PC build's
+`window.studio_api.fs`, which no WebView has: it runs, but Tyrano says saving does not work. The
+detection says so before it is played. Answering that API from the HTML core is later work, not
+a reason to hold back the games that save through `localStorage`.

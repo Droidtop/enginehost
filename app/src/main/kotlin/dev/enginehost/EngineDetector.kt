@@ -111,6 +111,7 @@ object EngineDetector {
             )
             family == "renpy" -> renpy(row, tree)
             family == "godot" -> godot(row, tree)
+            family == "html" && row.id == "tyranoscript" -> tyrano(row, tree)
             family == "html" -> html(row, tree)
             family == "flash_air" && row.context == "swf" -> swf(row, tree)
             family == "flash_air" -> air(row, tree)
@@ -411,6 +412,38 @@ object EngineDetector {
             title = name, saveFolder = name,
         )
     }
+
+    /**
+     * A TyranoScript game, run on the HTML core (docs/SPEC.md, "TyranoScript"). Its
+     * data/system/Config.tjs names the title and how it saves, read the way Tyrano's own
+     * kag.parser.js compileConfig reads it: lines starting ";", "//" comments cut, every ";"
+     * and '"' dropped, the value the text between the first and second "=".
+     */
+    private fun tyrano(row: EngineRow, tree: GameTree): EngineDetection {
+        val config = tree.filePaths.firstOrNull { it.equals("data/system/Config.tjs", ignoreCase = true) }
+            ?.let { tyranoConfig(String(tree.readHead(it, 256 * 1024), Charsets.UTF_8)) }.orEmpty()
+        val title = config["System.title"]?.takeIf { it.isNotBlank() }
+        val page = tree.filePaths.firstOrNull { it.equals("index.html", ignoreCase = true) }
+        // "file" saves go through the PC build's window.studio_api.fs, which a WebView lacks.
+        val evidence = if (config["configSave"] == "file") {
+            "Found a TyranoScript game that saves to files, which only its PC build can do: it runs here but cannot save"
+        } else {
+            "Found a TyranoScript game"
+        }
+        return EngineDetection(
+            "html", row.context, "1.0", page?.let { tree.pathPrefix + it }, evidence,
+            title = title, saveFolder = title,
+        )
+    }
+
+    internal fun tyranoConfig(text: String): Map<String, String> = text.lineSequence()
+        .map { it.trim() }
+        .filter { it.startsWith(";") }
+        .mapNotNull { line ->
+            val parts = line.substringBefore("//").trim().replace(";", "").replace("\"", "").split("=")
+            if (parts.size < 2) null else parts[0].trim() to parts[1].trim()
+        }
+        .toMap()
 
     private fun decodeEntities(text: String): String = text
         .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")

@@ -3,6 +3,7 @@ package dev.enginehost
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.nio.ByteBuffer
@@ -495,5 +496,49 @@ class EngineDetectorTest {
             assertEquals("nscripter", detection.engine)
             assertEquals("1.0", detection.engineVersion)
         }
+    }
+
+    private fun tyranoGame(configSave: String): File {
+        val root = tempRoot()
+        File(root, "tyrano").mkdirs()
+        File(root, "data/system").mkdirs()
+        File(root, "data/scenario").mkdirs()
+        File(root, "index.html").writeText("<html></html>")
+        File(root, "data/scenario/first.ks").writeText("*start\n")
+        // Lines as Tyrano's own Config.tjs template writes them (ShikemokuMK/tyranoscript).
+        File(root, "data/system/Config.tjs").writeText(
+            "// Config.tjs\n;global.config_version = \"5.00\"; // keep\n" +
+                ";System.title = \"The Rift Below\";\n;projectID = rift;\n" +
+                ";configSave     = $configSave\n",
+        )
+        return root
+    }
+
+    @Test
+    fun `a tyrano game runs on the html core under its own title`() {
+        val detection = detect(tyranoGame("webstorage"))!!
+        assertEquals("html", detection.engine)
+        assertEquals("compiled-html", detection.engineContext)
+        assertEquals("index.html", detection.execFile)
+        assertEquals("The Rift Below", detection.title)
+        assertEquals("The Rift Below", detection.saveFolder)
+        assertEquals("Found a TyranoScript game", detection.evidence)
+    }
+
+    @Test
+    fun `a tyrano game that saves to files says it cannot save here`() {
+        val detection = detect(tyranoGame("file"))!!
+        assertEquals("html", detection.engine)
+        assertTrue(detection.evidence.contains("cannot save"))
+    }
+
+    @Test
+    fun `tyrano config is read the way tyrano reads it`() {
+        val config = EngineDetector.tyranoConfig(
+            "// a comment = no\n  ;System.title = \"A = B\"; // note\n;scWidth=1280\nnot a setting = 1\n",
+        )
+        assertEquals("A", config["System.title"])
+        assertEquals("1280", config["scWidth"])
+        assertEquals(2, config.size)
     }
 }
