@@ -49,6 +49,12 @@ jobs:
       - name: Test the isolated file layer
         run: sh app/src/test/native/run.sh "$RUNNER_TEMP/enginehost-vfs-test"
 
+      # The scripts every core's signing workflow runs (version check,
+      # conformance layer 1a, re-signing, release history); nothing ran
+      # their tests before. Network-free: the tests stub the gh calls.
+      - name: Test the bundle scripts
+        run: python3 -m unittest discover -s scripts -p "test_*.py"
+
       - name: Restore official Enginehost APK signing subkey
         env:
           ENGINEHOST_ANDROID_KEYSTORE_BASE64: ${{ secrets.ENGINEHOST_ANDROID_KEYSTORE_BASE64 }}
