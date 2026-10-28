@@ -91,92 +91,109 @@
             android:visibility="gone">
 
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_m"
-                android:text="@string/label_engine_family"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
-
-            <Button
-                android:id="@+id/engineButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs" />
-
-            <TextView
-                android:layout_width="match_parent"
+                android:id="@+id/detectedToggle"
+                style="@style/Widget.Enginehost.Link"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/eh_space_s"
-                android:text="@string/label_engine_context"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                android:text="@string/detected_change"
+                android:visibility="gone" />
 
-            <Button
-                android:id="@+id/contextButton"
+            <LinearLayout
+                android:id="@+id/detectedFields"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs" />
+                android:orientation="vertical">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_s"
-                android:text="@string/label_engine_version"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_m"
+                    android:text="@string/label_engine_family"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <EditText
-                android:id="@+id/engineVersionField"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:importantForAutofill="no"
-                android:inputType="text"
-                android:maxLines="1" />
+                <Button
+                    android:id="@+id/engineButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs"
-                android:text="@string/engine_version_help"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/label_engine_context"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_s"
-                android:text="@string/label_runtimes"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                <Button
+                    android:id="@+id/contextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs" />
 
-            <Button
-                android:id="@+id/runtimesButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/label_engine_version"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_s"
-                android:text="@string/label_plugin_versions"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                <EditText
+                    android:id="@+id/engineVersionField"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:importantForAutofill="no"
+                    android:inputType="text"
+                    android:maxLines="1" />
 
-            <Button
-                android:id="@+id/pluginVersionButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs"
+                    android:text="@string/engine_version_help"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_s"
-                android:text="@string/label_exec_file"
-                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/label_runtimes"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
-            <Button
-                android:id="@+id/execFileButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/eh_space_xs" />
+                <Button
+                    android:id="@+id/runtimesButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/label_plugin_versions"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <Button
+                    android:id="@+id/pluginVersionButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_s"
+                    android:text="@string/label_exec_file"
+                    android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                <Button
+                    android:id="@+id/execFileButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/eh_space_xs" />
+
+            </LinearLayout>
 
             <TextView
                 android:layout_width="match_parent"

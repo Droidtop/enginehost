@@ -35,7 +35,8 @@ class ConfigEditorActivity : EnginehostActivity() {
      * focus, so a mashed A saved (#620 E3). Choosing the folder before that.
      */
     override fun primaryAction(): View? =
-        findViewById<View>(R.id.editorFields)?.takeIf { it.isShown }?.let { findViewById<View>(R.id.engineButton) }
+        findViewById<View>(R.id.engineButton)?.takeIf { it.isShown }
+            ?: findViewById<View>(R.id.detectedToggle)?.takeIf { it.isShown }
             ?: findViewById(R.id.chooseConfigFolderButton)
 
     private var folderUri: Uri? = null
@@ -64,6 +65,9 @@ class ConfigEditorActivity : EnginehostActivity() {
     private lateinit var execFileButton: Button
     private lateinit var optionsList: LinearLayout
     private lateinit var editorFields: View
+    /** Engine, version, core builds and entry file: folded away when detection filled them in (#620 E13). */
+    private lateinit var detectedFields: View
+    private lateinit var detectedToggle: TextView
     private lateinit var saveToFolderSwitch: androidx.appcompat.widget.SwitchCompat
     private lateinit var configSourceNote: TextView
 
@@ -88,6 +92,9 @@ class ConfigEditorActivity : EnginehostActivity() {
         execFileButton = findViewById(R.id.execFileButton)
         optionsList = findViewById(R.id.optionsList)
         editorFields = findViewById(R.id.editorFields)
+        detectedFields = findViewById(R.id.detectedFields)
+        detectedToggle = findViewById(R.id.detectedToggle)
+        detectedToggle.setOnClickListener { showDetectedFields(true) }
         // Before openCallerPath below, which shows where the setup comes from.
         saveToFolderSwitch = findViewById(R.id.saveToFolderSwitch)
         configSourceNote = findViewById(R.id.configSourceNote)
@@ -129,6 +136,7 @@ class ConfigEditorActivity : EnginehostActivity() {
             versionField.setText(data.getStringExtra("engineVersion"))
             refreshEditors()
             detectionLabel.setText(R.string.plugin_selected_manually)
+            showDetectedFields(true)
             return
         }
         if (requestCode == REQUEST_OPTION_FOLDER && resultCode == RESULT_OK) {
@@ -737,8 +745,24 @@ class ConfigEditorActivity : EnginehostActivity() {
         detectionLabel.text = if (versionField.text.isBlank()) {
             "$found\n${getString(R.string.engine_version_not_found)}"
         } else {
-            found
+            "$found\n${getString(R.string.detected_nothing_to_change)}"
         }
+        // Detection filled engine and version: the game is set up, and the fields that hold it fold
+        // away behind one link (#620 E13). A missing version keeps them open, since one is needed.
+        showDetectedFields(engine == null || versionField.text.isBlank())
+    }
+
+    /** Shows the detected fields, or folds them behind "Change what was detected". */
+    private fun showDetectedFields(open: Boolean) {
+        // Focus follows what is shown: a folded field cannot keep it, and an opened fold starts on its first.
+        val moveTo = when {
+            open && detectedToggle.hasFocus() -> findViewById<View>(R.id.engineButton)
+            !open && detectedFields.hasFocus() -> detectedToggle
+            else -> null
+        }
+        detectedFields.visibility = if (open) View.VISIBLE else View.GONE
+        detectedToggle.visibility = if (open) View.GONE else View.VISIBLE
+        moveTo?.requestFocus()
     }
 
     /** The chosen folder's own name, whichever way it was chosen. */
@@ -784,6 +808,7 @@ class ConfigEditorActivity : EnginehostActivity() {
         val document = try {
             buildDocument().also { EngineConfigReader.parseDocument(it.toString()) }
         } catch (error: Exception) {
+            showDetectedFields(true)
             return report(R.string.could_not_save, error.message ?: getString(R.string.config_needs_attention))
         }
         val folder = currentFolder()
@@ -857,6 +882,7 @@ class ConfigEditorActivity : EnginehostActivity() {
             TestingConfigStore.of(this).set(folder, buildDocument())
             GameRunner.run(this, folder, testing = true)
         } catch (error: Exception) {
+            showDetectedFields(true)
             report(R.string.test_not_started, error.message ?: getString(R.string.config_not_ready))
         }
     }

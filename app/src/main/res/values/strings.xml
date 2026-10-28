@@ -549,6 +549,8 @@
     <string name="detection_failed_choose">Could not read the folder: %1$s. Choose the engine from the core list.</string>
     <string name="detection_failed_manual">Could not read the folder: %1$s. Enter the engine.</string>
     <string name="detected_engine">%1$s · %2$s</string>
+    <string name="detected_nothing_to_change">Nothing to change: Play runs it as detected.</string>
+    <string name="detected_change">Change what was detected</string>
     <string name="plugin_selected_manually">Engine chosen by hand; check the version before saving.</string>
     <string name="saved_config">Saved</string>
     <string name="save_to_folder">Also save to the game folder</string>

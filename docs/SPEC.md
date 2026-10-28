@@ -447,6 +447,15 @@ offers Choose a folder and, for an engine with its own, Use the save folder. App
 screen and the scan screen name a caller through `CallerLabels.of`, the one place that says how: adb's
 "Shell" package reads "adb or a script", and a caller with no package reads "An unrecognized caller".
 
+## Game setup opens on what was detected (decided 2026-10-28, Droidtop/tracker#620 E13)
+
+Game setup showed engine, variant, version, core builds and entry file for a game detected correctly,
+eight fields before any option. When detection fills the engine and version, those fields fold behind
+"Change what was detected", and the line above says "Nothing to change: Play runs it as detected". The
+fold stays open when the version was not found, after a core is chosen by hand, and it opens when Save or
+Test refuses the setup, so the field at fault is in view. Focus moves to the link when the fold closes
+and to the first field when it opens. Not done: Add option as short titles with the description on Y.
+
 ## The game page's sections
 
 A game's page reads, top to bottom, in the owner's order (Droidtop/tracker#644,
