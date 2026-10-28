@@ -203,6 +203,22 @@ tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
 `verify-engine-bundle.py`, `provision-signing-certificates.py`,
 `make-publisher-certificate.py`, `sign-revocation-list.py`.
 
+### Shared trust code (Droidtop/tracker#191 and #193)
+
+The verifier and the container reader are not Enginehost's own code. droidtop and Enginehost each vendor
+`Droidtop/droidtop-shared` and neither depends on the other: Enginehost pins it as the submodule
+`vendor/droidtop-shared` and compiles its `version` and `trust` sources into the app (`app/build.gradle.kts`).
+`CertificateSignatures` is Enginehost's names and types (a `TrustAnchor`, a `RevokedSet`, a `VerifiedJws`, and the
+convention that a signature which does not verify throws `IllegalArgumentException` with the reason) over the library's
+`ChainSignature`; `Version`, `VersionSeries` and `VersionConstraint` are the library's; the archive reader
+(`EngineBundleInstaller.extractVerified`) streams entries through its `BundleTar`, which refuses an unsafe path, a link
+or special file, a repeated path and an xz stream that asks for more than 512 MiB of decoder memory, and keeps what is
+Enginehost's here: the manifest first, then the signatures, then exactly the signed payload in the signed order, with
+the signer deciding before a payload byte is written. The library pins no key; the Enginehost root and the keys a
+person pinned stay in this app. A certificate that marks an extension critical which the verifier does not read is
+refused (as PKIX requires), and a signature's JWS header is read with `kotlinx-serialization-json`, a dependency this
+app gained for it. The older root-certified origin-key document (`OriginKeyDocuments`) is not part of the library.
+
 ### The anchor
 
 The hierarchy (owner, 2026-10-15: "enginehost gets its key separately derived

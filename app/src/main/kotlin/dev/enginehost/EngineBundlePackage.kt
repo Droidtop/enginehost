@@ -1,15 +1,15 @@
 package dev.enginehost
 
+import dev.droidtop.shared.trust.BundleTar
+import dev.droidtop.shared.trust.BundleTarException
+import dev.droidtop.shared.version.Version
+import dev.droidtop.shared.version.VersionSeries
 import android.content.Context
 import android.os.Build
 import android.system.Os
 import dev.enginehost.api.EnginePluginContract
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
@@ -384,85 +384,90 @@ object EngineBundleInstaller {
      * `enginehost-bundle.sig` (legacy), `enginehost-bundle.jws` (v1) or
      * both in that order, then the payload.
      */
-    private fun extractVerified(
+    internal fun extractVerified(
         archive: File,
         staging: File,
         verify: (EngineBundleManifest, BundleSignatures) -> BundleSigner,
     ): ExtractedBundle {
-        archive.inputStream().buffered().use { compressed ->
-            @Suppress("DEPRECATION")
-            XZCompressorInputStream(compressed, false, XZ_MEMORY_LIMIT_KIB).use { xz ->
-                TarArchiveInputStream(BufferedInputStream(xz)).use { tar ->
-                    val manifestEntry = tar.nextEntry ?: error("Bundle is empty")
-                    requireHeader(manifestEntry, EnginePluginContract.ENGINE_BUNDLE_MANIFEST, MAX_MANIFEST_BYTES)
-                    val manifest = EngineBundleManifestReader.parse(readEntry(tar, manifestEntry.size, MAX_MANIFEST_BYTES))
+        var manifest: EngineBundleManifest? = null
+        var legacy: ByteArray? = null
+        var jws: String? = null
+        var signatures: BundleSignatures? = null
+        var signer: BundleSigner? = null
+        var expected: Map<String, BundleFileRecord> = emptyMap()
+        var orderedPaths: List<String> = emptyList()
+        val seen = linkedSetOf<String>()
+        val payloadDigest = MessageDigest.getInstance("SHA-256")
+        var fileIndex = 0
 
-                    var entry: TarArchiveEntry? = tar.nextEntry ?: error("Bundle signature is missing")
-                    var legacy: ByteArray? = null
-                    val legacyEntry = entry
-                    if (legacyEntry != null && legacyEntry.name == EnginePluginContract.ENGINE_BUNDLE_SIGNATURE) {
-                        requireHeader(legacyEntry, EnginePluginContract.ENGINE_BUNDLE_SIGNATURE, MAX_SIGNATURE_BYTES)
-                        legacy = Base64.getMimeDecoder().decode(
-                            readEntry(tar, legacyEntry.size, MAX_SIGNATURE_BYTES).toString(Charsets.US_ASCII).trim(),
-                        )
-                        entry = tar.nextEntry
-                    }
-                    var jws: String? = null
-                    val jwsEntry = entry
-                    if (jwsEntry != null && jwsEntry.name == ENGINE_BUNDLE_JWS) {
-                        requireHeader(jwsEntry, ENGINE_BUNDLE_JWS, MAX_JWS_BYTES)
-                        jws = readEntry(tar, jwsEntry.size, MAX_JWS_BYTES).toString(Charsets.US_ASCII).trim()
-                        entry = tar.nextEntry
-                    }
-                    require(legacy != null || jws != null) { "Bundle signature is missing" }
-                    val signatures = BundleSignatures(jws, legacy)
-                    val signer = verify(manifest, signatures)
-
-                    val expected = manifest.files.associateBy { it.path }
-                    val orderedPaths = manifest.files.map { it.path }
-                    val seen = linkedSetOf<String>()
-                    val payloadDigest = MessageDigest.getInstance("SHA-256")
-                    var fileIndex = 0
-                    while (entry != null) {
-                        require(!entry.isSymbolicLink && !entry.isLink) { "Archive links are forbidden" }
-                        if (entry.isDirectory) {
-                            val directory = validateBundleDirectoryPath(entry.name)
-                            require(orderedPaths.any { it.startsWith("$directory/") }) {
-                                "Unsigned tar directory: $directory"
-                            }
-                            entry = tar.nextEntry
-                            continue
-                        }
-                        val path = validateBundlePath(entry.name)
-                        require(entry.isFile) { "Unsupported tar entry: $path" }
-                        require(seen.add(path)) { "Duplicate tar entry: $path" }
-                        val record = requireNotNull(expected[path]) { "Unsigned tar entry: $path" }
-                        require(fileIndex < orderedPaths.size && orderedPaths[fileIndex] == path) {
-                            "Payload order does not match the signed manifest"
-                        }
-                        fileIndex += 1
-                        require(entry.size == record.size) { "Size mismatch for $path" }
-                        require((entry.mode and 0x1ff) == record.mode) { "Mode mismatch for $path" }
-                        val output = safeChild(staging, path)
-                        output.parentFile?.mkdirs()
-                        val fileDigest = MessageDigest.getInstance("SHA-256")
-                        FileOutputStream(output).use { sink ->
-                            copyExact(tar, sink, record.size, fileDigest, payloadDigest, path)
-                        }
-                        require(fileDigest.digest().hex() == record.sha256) { "Digest mismatch for $path" }
-                        applySignedFileMode(output, record.mode)
-                        entry = tar.nextEntry
-                    }
-                    require(seen == expected.keys) { "Bundle payload is missing signed files" }
-                    require(payloadDigest.digest().hex() == manifest.payloadSha256) { "Bundle payload digest mismatch" }
-                    return ExtractedBundle(manifest, signatures, signer)
-                }
-            }
+        /** The signatures are all in: the signer decides before a single payload byte is written. */
+        fun signaturesDone() {
+            if (signer != null) return
+            val declared = requireNotNull(manifest) { "Bundle is empty" }
+            require(legacy != null || jws != null) { "Bundle signature is missing" }
+            val read = BundleSignatures(jws, legacy)
+            signatures = read
+            signer = verify(declared, read)
+            expected = declared.files.associateBy { it.path }
+            orderedPaths = declared.files.map { it.path }
         }
+
+        // BundleTar (vendor/droidtop-shared, :trust) refuses an unsafe path, a link or special file, a repeated path and
+        // an xz stream that asks for too much memory. The signed manifest bounds the size and count of the files, so no
+        // cap of its own is set here.
+        val limits = BundleTar.Limits(maxEntryBytes = Long.MAX_VALUE, maxEntries = Int.MAX_VALUE, xzMemoryKiB = XZ_MEMORY_LIMIT_KIB)
+        BundleTar.read(archive, limits, onDirectory = { directory ->
+            signaturesDone()
+            require(orderedPaths.any { it.startsWith("$directory/") }) { "Unsigned tar directory: $directory" }
+        }) { entry ->
+            if (manifest == null) {
+                // The archive is the manifest, then enginehost-bundle.sig (legacy), enginehost-bundle.jws (v1) or both in that
+                // order, then the payload.
+                requireHeader(entry, EnginePluginContract.ENGINE_BUNDLE_MANIFEST, MAX_MANIFEST_BYTES)
+                manifest = EngineBundleManifestReader.parse(entry.readBytes(MAX_MANIFEST_BYTES))
+                return@read
+            }
+            if (signer == null) {
+                if (entry.path == EnginePluginContract.ENGINE_BUNDLE_SIGNATURE && legacy == null && jws == null) {
+                    requireHeader(entry, EnginePluginContract.ENGINE_BUNDLE_SIGNATURE, MAX_SIGNATURE_BYTES)
+                    legacy = Base64.getMimeDecoder().decode(entry.readBytes(MAX_SIGNATURE_BYTES).toString(Charsets.US_ASCII).trim())
+                    return@read
+                }
+                if (entry.path == ENGINE_BUNDLE_JWS && jws == null) {
+                    requireHeader(entry, ENGINE_BUNDLE_JWS, MAX_JWS_BYTES)
+                    jws = entry.readBytes(MAX_JWS_BYTES).toString(Charsets.US_ASCII).trim()
+                    return@read
+                }
+                signaturesDone()
+            }
+            val path = entry.path
+            val record = requireNotNull(expected[path]) { "Unsigned tar entry: $path" }
+            require(seen.add(path)) { "Duplicate tar entry: $path" }
+            require(fileIndex < orderedPaths.size && orderedPaths[fileIndex] == path) {
+                "Payload order does not match the signed manifest"
+            }
+            fileIndex += 1
+            require(entry.size == record.size) { "Size mismatch for $path" }
+            require((entry.mode and 0x1ff) == record.mode) { "Mode mismatch for $path" }
+            val output = safeChild(staging, path)
+            output.parentFile?.mkdirs()
+            val fileDigest = MessageDigest.getInstance("SHA-256")
+            FileOutputStream(output).use { sink ->
+                copyExact(entry.input, sink, record.size, fileDigest, payloadDigest, path)
+            }
+            require(fileDigest.digest().hex() == record.sha256) { "Digest mismatch for $path" }
+            applySignedFileMode(output, record.mode)
+        }
+        // A bundle whose archive ends before any payload entry still has its signature decided here.
+        signaturesDone()
+        val declared = requireNotNull(manifest) { "Bundle is empty" }
+        require(seen == expected.keys) { "Bundle payload is missing signed files" }
+        require(payloadDigest.digest().hex() == declared.payloadSha256) { "Bundle payload digest mismatch" }
+        return ExtractedBundle(declared, requireNotNull(signatures), requireNotNull(signer))
     }
 
-    private fun requireHeader(entry: TarArchiveEntry, name: String, maxSize: Long) {
-        require(entry.name == name && entry.isFile && entry.size in 1..maxSize) { "Invalid $name header" }
+    private fun requireHeader(entry: BundleTar.Entry, name: String, maxSize: Long) {
+        require(entry.path == name && entry.size in 1..maxSize) { "Invalid $name header" }
     }
 }
 
@@ -623,20 +628,8 @@ internal class BundleStamps(context: Context) {
     private fun file(bundle: File) = File(directory, "${bundle.name}.json")
 }
 
-private fun readEntry(tar: TarArchiveInputStream, size: Long, maximum: Long): ByteArray {
-    require(size in 0..maximum)
-    val result = ByteArray(size.toInt())
-    var offset = 0
-    while (offset < result.size) {
-        val read = tar.read(result, offset, result.size - offset)
-        require(read > 0) { "Truncated tar entry" }
-        offset += read
-    }
-    return result
-}
-
 private fun copyExact(
-    input: TarArchiveInputStream,
+    input: java.io.InputStream,
     output: FileOutputStream,
     size: Long,
     fileDigest: MessageDigest,
@@ -681,19 +674,12 @@ private fun safeChild(root: File, path: String): File {
     return file
 }
 
-internal fun validateBundlePath(path: String): String = path.replace('\\', '/').also {
-    require(it.isNotBlank() && !it.startsWith('/') && !it.endsWith('/')) { "Invalid bundle path" }
-    require(it.split('/').none { part -> part.isBlank() || part == "." || part == ".." }) { "Unsafe bundle path" }
-    require(it.matches(Regex("[A-Za-z0-9._+@/-]+"))) { "Unsupported characters in bundle path" }
-}
-
-private fun validateBundleDirectoryPath(path: String): String = path.replace('\\', '/').trimEnd('/').also {
-    require(it.isNotBlank() && !it.startsWith('/')) { "Invalid bundle directory" }
-    require(it.split('/').none { part -> part.isBlank() || part == "." || part == ".." }) {
-        "Unsafe bundle directory"
+internal fun validateBundlePath(path: String): String =
+    try {
+        BundleTar.validatePath(path)
+    } catch (e: BundleTarException) {
+        throw IllegalArgumentException(e.message, e)
     }
-    require(it.matches(Regex("[A-Za-z0-9._+@/-]+"))) { "Unsupported characters in bundle directory" }
-}
 
 private fun applySignedFileMode(file: File, mode: Int) {
     file.setReadable((mode and 0b100_100_100) != 0, false)

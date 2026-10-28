@@ -4,3 +4,6 @@
 [submodule "vendor/sandbox"]
 	path = vendor/sandbox
 	url = https://github.com/bi0shacker001/sandbox.git
+[submodule "vendor/droidtop-shared"]
+	path = vendor/droidtop-shared
+	url = https://github.com/Droidtop/droidtop-shared

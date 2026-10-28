@@ -1,5 +1,7 @@
 package dev.enginehost
 
+import dev.droidtop.shared.version.Version
+import dev.droidtop.shared.version.VersionSeries
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.database.Cursor

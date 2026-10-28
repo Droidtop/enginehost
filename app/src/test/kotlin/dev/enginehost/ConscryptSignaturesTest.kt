@@ -2,7 +2,6 @@ package dev.enginehost
 
 import org.conscrypt.Conscrypt
 import org.junit.AfterClass
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.BeforeClass
@@ -66,18 +65,5 @@ class ConscryptSignaturesTest {
             fail("a catalog certificate signed a plugin under Conscrypt")
         } catch (expected: IllegalArgumentException) {
         }
-    }
-
-    @Test
-    fun `the extendedKeyUsage DER reads the same OIDs on both providers`() {
-        val der = pki.leaf().der
-        val oids = CertificateSignatures.extendedKeyUsage(
-            CertificateFactory.getInstance("X.509").generateCertificate(der.inputStream()) as X509Certificate,
-        )!!
-        assertEquals(1, oids.size)
-        assertTrue(oids.single().contentEquals(CertificateSignatures.encodeOid(SignaturePurpose.PLUGIN.oid)))
-        // And the encoding matches an independent DER encoder's.
-        val reference = org.bouncycastle.asn1.ASN1ObjectIdentifier(SignaturePurpose.PLUGIN.oid).encoded
-        assertTrue(reference.copyOfRange(2, reference.size).contentEquals(CertificateSignatures.encodeOid(SignaturePurpose.PLUGIN.oid)))
     }
 }

@@ -1,16 +1,11 @@
 package dev.enginehost
 
-import org.json.JSONArray
+import dev.droidtop.shared.trust.ChainSignature
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.math.BigInteger
 import java.security.PublicKey
-import java.security.Signature
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
-import java.security.interfaces.ECPublicKey
-import java.security.interfaces.RSAPublicKey
 import java.util.Base64
 
 /*
@@ -20,7 +15,7 @@ import java.util.Base64
  * anchor and never past it. The anchor is the pinned Enginehost signing
  * root's public key for Enginehost's own plugins, or the key a person pinned for a
  * repository they added. Nothing here touches Android: it is the JDK's
- * CertificateFactory and Signature, base64 and org.json, so plain JVM tests
+ * shared verifier (vendor/droidtop-shared) and org.json for the revocation lists, so plain JVM tests
  * exercise exactly what a device runs.
  */
 
@@ -65,6 +60,9 @@ data class RevokedSet(val certSha256: Set<String> = emptySet(), val keySha256: S
     fun revokesCertificate(der: ByteArray) = sha256(der) in certSha256
     fun revokesKey(spki: ByteArray) = revokesKey(sha256(spki))
     fun revokesKey(keySha256: String) = keySha256.uppercase() in this.keySha256
+
+    /** A chain certificate is revoked by its own hash or by its key's. */
+    fun revokesChainCertificate(certificate: X509Certificate) = revokesCertificate(certificate.encoded) || revokesKey(certificate.publicKey.encoded)
 
     operator fun plus(other: RevokedSet) = RevokedSet(certSha256 + other.certSha256, keySha256 + other.keySha256)
 
@@ -129,48 +127,18 @@ class VerifiedJws(
     }
 }
 
+/**
+ * Enginehost's names for the shared verifier (vendor/droidtop-shared, `:trust`, `ChainSignature`): the same JWS-with-`x5c`
+ * format droidtop checks, verified up to one anchor and no further. This object keeps Enginehost's types (a
+ * [TrustAnchor], a [RevokedSet], a [VerifiedJws]) and its convention that a signature which does not verify throws
+ * [IllegalArgumentException] with the reason; the checks themselves are the library's.
+ */
 object CertificateSignatures {
-    private const val MAX_INTERMEDIATES = 2
-    private const val MAX_JWS_CHARS = 64 * 1024
-
-    private const val KEY_USAGE_DIGITAL_SIGNATURE = 0
-    private const val KEY_USAGE_KEY_CERT_SIGN = 5
-
-    /** Signature algorithms a chain certificate may be signed with: sha256/384/512WithRSA, ecdsa-with-SHA256/384. */
-    private val CERTIFICATE_ALGORITHMS = setOf(
-        "1.2.840.113549.1.1.11",
-        "1.2.840.113549.1.1.12",
-        "1.2.840.113549.1.1.13",
-        "1.2.840.10045.4.3.2",
-        "1.2.840.10045.4.3.3",
-    )
-
     /**
-     * Extensions this verifier reads. A certificate marking any other one
-     * critical is refused, as PKIX requires of an extension a verifier does
-     * not process.
-     */
-    private val UNDERSTOOD_CRITICAL = setOf(
-        "2.5.29.15", // keyUsage
-        "2.5.29.17", // subjectAltName
-        "2.5.29.19", // basicConstraints
-        "2.5.29.32", // certificatePolicies (informational)
-        "2.5.29.37", // extendedKeyUsage
-    )
-
-    private val BASE64URL = Regex("[A-Za-z0-9_-]*")
-
-    /**
-     * Verifies a JWS whose content is [detachedContent] (bundle manifests,
-     * catalog indexes: the payload part is empty and the signing input is the
-     * header and the content's base64url) or, when that is null, carried in
-     * the JWS itself (revocation lists).
-     *
-     * No certificate's validity period is read, at any moment: expiry never
-     * invalidates a signature (owner, Droidtop/tracker#550: "We don't want
-     * older plugins to be invalidated"), and a JWS carries no trusted time it
-     * could be checked against. Only [revoked] withdraws trust: it refuses any
-     * chain certificate or key it names, the anchor's key included.
+     * Verifies a JWS whose content is [detachedContent] (bundle manifests, catalog indexes) or, when that is null, carried in
+     * the JWS itself (revocation lists). No certificate's validity period is read: expiry never invalidates a signature (owner,
+     * Droidtop/tracker#550: "We don't want older plugins to be invalidated"); only [revoked] withdraws trust, and it names any
+     * chain certificate or key, the anchor's key included.
      */
     fun verify(
         compact: String,
@@ -178,50 +146,19 @@ object CertificateSignatures {
         anchor: TrustAnchor,
         detachedContent: ByteArray?,
         revoked: RevokedSet = RevokedSet.NONE,
-    ): VerifiedJws {
-        require(compact.length <= MAX_JWS_CHARS) { "Signature is too large" }
-        val parts = compact.trim().split('.')
-        require(parts.size == 3 && parts.all { BASE64URL.matches(it) }) { "Not a compact JWS" }
-        val (headerPart, payloadPart, signaturePart) = parts
-        val header = JSONObject(base64Url(headerPart).toString(Charsets.UTF_8))
-        require(!header.has("crit")) { "A signature with critical header parameters is refused" }
-        require(header.optString("typ") == purpose.typ) { "Signature is not a ${purpose.typ}" }
-        val algorithm = header.optString("alg")
-        require(algorithm == "ES256" || algorithm == "RS256") { "Unsupported signature algorithm $algorithm" }
-
-        val payload: ByteArray
-        val signingPayload: String
-        if (detachedContent != null) {
-            require(payloadPart.isEmpty()) { "A detached signature carries no payload" }
-            payload = detachedContent
-            signingPayload = base64UrlEncode(detachedContent)
-        } else {
-            require(payloadPart.isNotEmpty()) { "Signature payload is missing" }
-            payload = base64Url(payloadPart)
-            signingPayload = payloadPart
+    ): VerifiedJws =
+        when (
+            val result = ChainSignature.verify(
+                compact, purpose.shared(), anchor.shared(), detachedContent, revoked::revokesChainCertificate, revoked.revokesKey(anchor.keySha256),
+            )
+        ) {
+            is ChainSignature.Result.Refused -> throw IllegalArgumentException(result.reason)
+            is ChainSignature.Result.Verified -> VerifiedJws(result.chain, detachedContent ?: requireNotNull(result.payload) { "Signature payload is missing" })
         }
-
-        val chain = verifyChain(certificates(header.optJSONArray("x5c")), purpose, anchor, revoked)
-        val leaf = chain.first()
-        checkLeafAlgorithm(leaf, algorithm)
-
-        val signer = when (algorithm) {
-            "ES256" -> Signature.getInstance("SHA256withECDSA")
-            else -> Signature.getInstance("SHA256withRSA")
-        }
-        signer.initVerify(leaf.publicKey)
-        signer.update("$headerPart.$signingPayload".toByteArray(Charsets.US_ASCII))
-        val signature = base64Url(signaturePart)
-        require(signer.verify(if (algorithm == "ES256") rawEcdsaToDer(signature) else signature)) {
-            "Signature does not verify"
-        }
-        return VerifiedJws(chain, payload)
-    }
 
     /**
-     * Verifies [chain] (leaf first, the anchor excluded) for [purpose] up to
-     * [anchor] and no further: the checks of [verify] without a signature
-     * around them. An origin's published certificate is checked this way.
+     * Verifies [chain] (leaf first, the anchor excluded) for [purpose] up to [anchor] and no further: the checks of [verify] without a
+     * signature around them. An origin's published certificate is checked this way.
      */
     fun verifyChain(
         chain: List<X509Certificate>,
@@ -229,174 +166,27 @@ object CertificateSignatures {
         anchor: TrustAnchor,
         revoked: RevokedSet = RevokedSet.NONE,
     ): List<X509Certificate> {
-        require(chain.size in 1..(1 + MAX_INTERMEDIATES)) { "Certificate chain is empty or too long" }
-        checkLeaf(chain.first(), purpose)
-        chain.drop(1).forEachIndexed { index, intermediate -> checkIntermediate(intermediate, below = index) }
-        chain.forEach(::checkCommon)
-
-        // Each certificate is signed by the next, and names it as its issuer.
-        chain.zipWithNext().forEach { (child, parent) ->
-            require(child.issuerX500Principal == parent.subjectX500Principal) { "Certificate chain is out of order" }
-            child.verify(parent.publicKey)
-        }
-        checkAnchor(chain.last(), chain, anchor)
-
-        chain.forEach { certificate ->
-            require(!revoked.revokesCertificate(certificate.encoded)) { "A certificate in the chain is revoked" }
-            require(!revoked.revokesKey(certificate.publicKey.encoded)) { "A key in the chain is revoked" }
-        }
-        require(!revoked.revokesKey(anchor.keySha256)) { "The anchor key is revoked" }
+        ChainSignature.verifyChain(chain, purpose.shared(), anchor.shared(), revoked::revokesChainCertificate, revoked.revokesKey(anchor.keySha256))
+            ?.let { throw IllegalArgumentException(it) }
         return chain
     }
 
     /**
-     * The SHA-256 of the key a JWS's leaf certificate names, read without
-     * verifying anything: only for telling a person which key a refused
-     * signature claims, never for trusting it.
+     * The SHA-256 of the key a JWS's leaf certificate names, read without verifying anything: only for telling a person
+     * which key a refused signature claims, never for trusting it.
      */
-    fun claimedLeafKeySha256(compact: String): String {
-        val header = JSONObject(base64Url(compact.trim().substringBefore('.')).toString(Charsets.UTF_8))
-        return sha256(certificates(header.optJSONArray("x5c")).first().publicKey.encoded)
-    }
+    fun claimedLeafKeySha256(compact: String): String =
+        requireNotNull(ChainSignature.claimedLeafKeySha256(compact)) { "Signature carries no readable certificate chain" }
 
     /** x5c-style standard base64 DER certificates, leaf first. */
     fun parseChain(base64Der: List<String>): List<X509Certificate> =
         base64Der.map { parseCertificate(Base64.getDecoder().decode(it)) }
 
     /** The URIs among [certificate]'s subjectAltName entries. */
-    internal fun uris(certificate: X509Certificate): List<String> =
-        certificate.subjectAlternativeNames.orEmpty()
-            .filter { it.size >= 2 && it[0] == 6 }
-            .mapNotNull { it[1] as? String }
+    internal fun uris(certificate: X509Certificate): List<String> = ChainSignature.uris(certificate)
 
     fun parseCertificate(der: ByteArray): X509Certificate =
         CertificateFactory.getInstance("X.509").generateCertificate(ByteArrayInputStream(der)) as X509Certificate
-
-    private fun certificates(x5c: JSONArray?): List<X509Certificate> {
-        requireNotNull(x5c) { "Signature carries no certificate chain" }
-        require(x5c.length() in 1..(1 + MAX_INTERMEDIATES)) { "Certificate chain is empty or too long" }
-        return (0 until x5c.length()).map { index ->
-            // x5c is standard base64, not the url-safe alphabet (RFC 7515 4.1.6).
-            parseCertificate(Base64.getDecoder().decode(x5c.getString(index)))
-        }
-    }
-
-    private fun checkCommon(certificate: X509Certificate) {
-        require(certificate.version == 3) { "Chain certificates must be X.509 v3" }
-        require(certificate.sigAlgOID in CERTIFICATE_ALGORITHMS) {
-            "Unsupported certificate signature algorithm ${certificate.sigAlgName}"
-        }
-        val unknown = certificate.criticalExtensionOIDs.orEmpty() - UNDERSTOOD_CRITICAL
-        require(unknown.isEmpty()) { "Certificate has unsupported critical extensions $unknown" }
-    }
-
-    private fun checkLeaf(leaf: X509Certificate, purpose: SignaturePurpose) {
-        require(leaf.basicConstraints == -1) { "The signing certificate must not be a CA" }
-        val usage = requireNotNull(leaf.keyUsage) { "The signing certificate has no key usage" }
-        require(usage.bit(KEY_USAGE_DIGITAL_SIGNATURE)) { "The signing certificate does not allow digital signatures" }
-        require(!usage.bit(KEY_USAGE_KEY_CERT_SIGN)) { "The signing certificate may not sign certificates" }
-        val extended = requireNotNull(extendedKeyUsage(leaf)) { "The signing certificate has no extended key usage" }
-        require(extended.any { it.contentEquals(encodeOid(purpose.oid)) }) { "The signing certificate is not for ${purpose.typ}" }
-        when (val key = leaf.publicKey) {
-            is ECPublicKey -> require(key.params.curve.field.fieldSize == 256) { "EC signing keys must be P-256" }
-            is RSAPublicKey -> require(key.modulus.bitLength() >= 2048) { "RSA signing keys must be 2048 bits or more" }
-            else -> throw IllegalArgumentException("Unsupported signing key type ${key.algorithm}")
-        }
-    }
-
-    /** The header's `alg` must match the leaf's key type. */
-    private fun checkLeafAlgorithm(leaf: X509Certificate, algorithm: String) {
-        when (leaf.publicKey) {
-            is ECPublicKey -> require(algorithm == "ES256") { "An EC signing key signs ES256" }
-            is RSAPublicKey -> require(algorithm == "RS256") { "An RSA signing key signs RS256" }
-        }
-    }
-
-    /** [below] is how many intermediates sit between this one and the leaf. */
-    private fun checkIntermediate(intermediate: X509Certificate, below: Int) {
-        val pathLength = intermediate.basicConstraints
-        require(pathLength >= 0) { "An intermediate certificate must be a CA" }
-        require(pathLength >= below) { "An intermediate's path length constraint is exceeded" }
-        val usage = requireNotNull(intermediate.keyUsage) { "An intermediate certificate has no key usage" }
-        require(usage.bit(KEY_USAGE_KEY_CERT_SIGN)) { "An intermediate certificate may not sign certificates" }
-    }
-
-    private fun checkAnchor(last: X509Certificate, chain: List<X509Certificate>, anchor: TrustAnchor) {
-        when (anchor) {
-            is TrustAnchor.Root -> {
-                // The walk stops at the root: no certificate carrying the
-                // root's key (its own self-signed one, or any re-issue of it)
-                // has a place in the chain, and nothing above it (the
-                // Droidtop CA) signs bundles. There is no pinned certificate,
-                // so there is no issuer name to compare; the signature decides.
-                require(chain.none { it.publicKey.encoded.contentEquals(anchor.spki) }) {
-                    "The chain may not contain a certificate carrying the Enginehost root's key"
-                }
-                last.verify(publicKey(anchor.spki))
-            }
-            // Signed by the pinned key: a certificate it issued, or the
-            // publisher's self-signed certificate that carries it.
-            is TrustAnchor.PinnedKey -> last.verify(publicKey(anchor.spki))
-        }
-    }
-
-    /**
-     * The extendedKeyUsage OIDs of [certificate], each as its DER content
-     * bytes, or null when it has none. Read from the extension's own DER, never
-     * X509Certificate.getExtendedKeyUsage: Android's provider (Conscrypt,
-     * BoringSSL) throws on the purpose OIDs' UUID arc, which is wider than 64
-     * bits, so that call would refuse every Droidtop certificate on a device
-     * (found by droidtop's Conscrypt test, Droidtop/tracker#550 07:04).
-     */
-    internal fun extendedKeyUsage(certificate: X509Certificate): List<ByteArray>? {
-        val wrapped = certificate.getExtensionValue("2.5.29.37") ?: return null
-        val sequence = Der(wrapped).element(0x04).let { Der(it).element(0x30) }
-        val reader = Der(sequence)
-        val oids = mutableListOf<ByteArray>()
-        while (!reader.done) oids += reader.element(0x06)
-        return oids
-    }
-
-    /** A dotted OID as the content bytes of its DER encoding (X.690 8.19). */
-    internal fun encodeOid(dotted: String): ByteArray {
-        val arcs = dotted.split('.').map(::BigInteger)
-        require(arcs.size >= 2) { "Not an OID: $dotted" }
-        val out = ByteArrayOutputStream()
-        (listOf(arcs[0] * BigInteger.valueOf(40) + arcs[1]) + arcs.drop(2)).forEach { arc ->
-            val groups = mutableListOf<Int>()
-            var rest = arc
-            do {
-                groups += rest.and(BigInteger.valueOf(0x7f)).toInt()
-                rest = rest.shiftRight(7)
-            } while (rest.signum() > 0)
-            groups.asReversed().forEachIndexed { index, group ->
-                out.write(if (index < groups.size - 1) group or 0x80 else group)
-            }
-        }
-        return out.toByteArray()
-    }
-
-    /** A minimal DER reader: definite lengths only, which is all DER has. */
-    private class Der(private val bytes: ByteArray) {
-        private var offset = 0
-        val done: Boolean get() = offset >= bytes.size
-
-        fun element(tag: Int): ByteArray {
-            require(offset < bytes.size && (bytes[offset].toInt() and 0xff) == tag) { "Malformed extension" }
-            offset += 1
-            require(offset < bytes.size) { "Malformed extension" }
-            var length = bytes[offset].toInt() and 0xff
-            offset += 1
-            if (length and 0x80 != 0) {
-                val count = length and 0x7f
-                require(count in 1..3 && offset + count <= bytes.size) { "Malformed extension" }
-                length = 0
-                repeat(count) { length = (length shl 8) or (bytes[offset].toInt() and 0xff); offset += 1 }
-            }
-            require(length >= 0 && offset + length <= bytes.size) { "Malformed extension" }
-            return bytes.copyOfRange(offset, offset + length).also { offset += length }
-        }
-    }
 
     /** A PEM `PUBLIC KEY` block (SubjectPublicKeyInfo), as DER: the pinned Enginehost root key. */
     fun parsePemPublicKey(pem: String): ByteArray {
@@ -407,32 +197,21 @@ object CertificateSignatures {
         return spki
     }
 
-    private fun publicKey(spki: ByteArray): PublicKey {
+    internal fun publicKey(spki: ByteArray): PublicKey {
         val spec = java.security.spec.X509EncodedKeySpec(spki)
         return runCatching { java.security.KeyFactory.getInstance("EC").generatePublic(spec) }
             .recoverCatching { java.security.KeyFactory.getInstance("RSA").generatePublic(spec) }
             .getOrElse { throw IllegalArgumentException("The pinned key is not an EC or RSA key") }
     }
 
-    private fun BooleanArray.bit(index: Int) = index < size && this[index]
-
-    private fun base64Url(part: String): ByteArray = Base64.getUrlDecoder().decode(part)
-
     fun base64UrlEncode(bytes: ByteArray): String = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
 
-    /** ES256 signs as R‖S, 32 bytes each (RFC 7518 3.4); the JDK verifies a DER SEQUENCE of two INTEGERs. */
-    internal fun rawEcdsaToDer(raw: ByteArray): ByteArray {
-        require(raw.size == 64) { "An ES256 signature is 64 bytes" }
-        fun integer(bytes: ByteArray): ByteArray {
-            val value = BigInteger(1, bytes).toByteArray()
-            return byteArrayOf(0x02, value.size.toByte()) + value
-        }
-        val body = integer(raw.copyOfRange(0, 32)) + integer(raw.copyOfRange(32, 64))
-        return ByteArrayOutputStream().apply {
-            write(0x30)
-            write(body.size)
-            write(body)
-        }.toByteArray()
+    private fun SignaturePurpose.shared(): ChainSignature.Purpose = ChainSignature.Purpose.entries.single { it.typ == typ }
+
+    /** The root is the library's pinned anchor (the chain stops below it); a pinned key may also be a publisher's own certificate's. */
+    private fun TrustAnchor.shared(): ChainSignature.Anchor = when (this) {
+        is TrustAnchor.Root -> ChainSignature.Anchor(publicKey(spki), pinned = true)
+        is TrustAnchor.PinnedKey -> ChainSignature.Anchor(publicKey(spki))
     }
 }
 

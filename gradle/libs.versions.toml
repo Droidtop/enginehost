@@ -9,6 +9,7 @@ bouncycastle = "1.78.1"
 conscrypt = "2.5.2"
 commons-compress = "1.28.0"
 xz = "1.10"
+kotlinx-serialization = "1.9.0"
 
 [libraries]
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "core" }
@@ -21,6 +22,8 @@ bouncycastle-pkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = 
 conscrypt-openjdk = { module = "org.conscrypt:conscrypt-openjdk-uber", version.ref = "conscrypt" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 xz = { module = "org.tukaani:xz", version.ref = "xz" }
+# Read by the shared signature verifier (vendor/droidtop-shared), for a JWS header.
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

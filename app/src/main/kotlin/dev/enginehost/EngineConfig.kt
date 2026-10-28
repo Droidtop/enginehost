@@ -1,5 +1,7 @@
 package dev.enginehost
 
+import dev.droidtop.shared.version.Version
+import dev.droidtop.shared.version.VersionConstraint
 import org.json.JSONObject
 import org.json.JSONException
 import java.io.File

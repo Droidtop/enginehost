@@ -27,6 +27,13 @@ section when a real version is cut.
 
 ### Changed
 
+- The signature verifier, the bundle archive reader and the version ordering are now the library
+  droidtop and Enginehost share (Droidtop/droidtop-shared, pinned as `vendor/droidtop-shared`) instead of
+  Enginehost's own copies (Droidtop/tracker#193). Behaviour is the same except that the shared verifier
+  also checks key sizes on every certificate of a chain and not only the leaf's, and the archive reader
+  refuses a link or special file, a repeated path and an xz stream over 512 MiB the same way as before
+  but in one place. Adds the `kotlinx-serialization-json` library.
+
 - Engine plugins are called cores everywhere you read them: the Cores
   screen, the catalog, update notices, error messages, problem reports and
   the docs. Enginehost is to visual-novel and PC-game engines what
