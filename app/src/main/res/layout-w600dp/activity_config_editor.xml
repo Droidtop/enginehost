@@ -128,7 +128,17 @@
             android:orientation="vertical"
             android:visibility="gone">
 
+            <TextView
+                android:id="@+id/detectedToggle"
+                style="@style/Widget.Enginehost.Link"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/eh_space_s"
+                android:text="@string/detected_change"
+                android:visibility="gone" />
+
             <GridLayout
+                android:id="@+id/detectedFields"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/eh_space_s"
