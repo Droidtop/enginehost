@@ -63,6 +63,27 @@ first, then the line.
 - The version check (`scripts/check-declared-version.py`) does not count
   `enginehost/line.json` or `enginehost/lines/` as a revision of the core.
 
+## What CI builds
+
+Every core repository triggers the same way (checked 2026-10-28 on all fourteen):
+
+- **`plugin/<id>`** is the only branch that compiles. A push builds the line, signs it and
+  publishes it on the unstable channel, replacing the previous unstable build. A manual
+  dispatch with `publish` promotes a build to testing or stable. The build workflow's name
+  differs per repository (`android-plugin.yml`, `android.yml`, `enginehost-android.yml`);
+  its signing job runs only on `refs/heads/plugin/`.
+- **`plugin-core`** runs `plugin-line.yml` only: it composes every declared line and
+  compiles nothing. A wrapper change is first compiled when a line composed from it is
+  pushed.
+- **The upstream-facing branch**, the default branch of most core repositories, carries no
+  Enginehost build. Where it is a mirror, `sync-upstream.yml` merges upstream into it daily.
+  A merge that touches upstream's own `.github/workflows` files can be pushed only with a
+  token that has the workflow scope, so the sync uses the `SYNC_UPSTREAM_PAT` secret when one
+  is set and `GITHUB_TOKEN` otherwise. A sync that cannot push fails its run every day and
+  keeps one issue open; it never reports green.
+- **Any other branch** (`ci/<topic>` and the like) builds nothing. To compile a change, push
+  plugin-core and compose it into `plugin/<id>`.
+
 ## Changing a line
 
 - **Wrapper change:** commit it to plugin-core, then recompose each line it
