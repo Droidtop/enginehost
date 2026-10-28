@@ -438,6 +438,15 @@ search, which has its own field, and the sort. The sheet keeps its Search row, b
 reaches Home's search field. The game page drops its "Ready" line; the status shows only when something
 stands in the way of Play. Not done: the review's Engine and Platform chips in place of their own sheets.
 
+## Settings: one row for engines' save folders; callers named plainly (decided 2026-10-28, Droidtop/tracker#620 E9)
+
+Settings listed every installed engine under Saves, each reading "Shared folder" (15 rows on the rig).
+Saves now has the save folder, one row "Engines that save elsewhere" (it names the engines with a folder of
+their own, or "None"), and "Browse from". That row's sheet lists every engine with its folder; picking one
+offers Choose a folder and, for an engine with its own, Use the save folder. App launch access, the launch
+screen and the scan screen name a caller through `CallerLabels.of`, the one place that says how: adb's
+"Shell" package reads "adb or a script", and a caller with no package reads "An unrecognized caller".
+
 ## The game page's sections
 
 A game's page reads, top to bottom, in the owner's order (Droidtop/tracker#644,

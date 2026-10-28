@@ -3,7 +3,6 @@ package dev.enginehost
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 
 /** One launchable app as the "Add an app" picker sees it. */
 data class CallerCandidate(
@@ -75,9 +74,18 @@ object CallerPicker {
     }
 }
 
-/** How a caller is named to a person: the app's own name, its package id only when the device will not say. */
+/**
+ * How a caller is named to a person: the app's own name, its package id only when the device will
+ * not say. adb runs as Android's "Shell" package, a name that tells a person nothing, so it reads
+ * "adb or a script" (Droidtop/tracker#620, E9); a caller with no package reads as unrecognized.
+ */
 object CallerLabels {
-    fun of(pm: PackageManager, key: String): String =
-        runCatching { pm.getApplicationLabel(pm.getApplicationInfo(key, 0)).toString() }
+    private const val SHELL = "com.android.shell"
+
+    fun of(context: Context, key: String): String = when (key) {
+        LaunchCaller.UNKNOWN_KEY -> context.getString(R.string.caller_access_unknown_label)
+        SHELL -> context.getString(R.string.caller_shell_label)
+        else -> runCatching { context.packageManager.let { pm -> pm.getApplicationLabel(pm.getApplicationInfo(key, 0)).toString() } }
             .getOrNull()?.takeIf { it.isNotBlank() } ?: key
+    }
 }

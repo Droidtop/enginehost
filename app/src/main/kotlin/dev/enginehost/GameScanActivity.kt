@@ -111,7 +111,7 @@ class GameScanActivity : EnginehostActivity() {
             EffectiveAccess.Allow -> startScan(folder, full = false)
             is EffectiveAccess.Block -> Unit
             EffectiveAccess.Ask -> {
-                val name = if (caller == LaunchCaller.Unknown) getString(R.string.caller_access_unknown_label) else CallerLabels.of(packageManager, caller.storeKey)
+                val name = CallerLabels.of(this, caller.storeKey)
                 Sheet(this)
                     .title(R.string.scan_request_title)
                     .message(getString(R.string.scan_request_message, name, folder.absolutePath))

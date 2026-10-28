@@ -388,6 +388,9 @@
     <string name="choose_folder">Choose folder</string>
     <string name="migrate_saves">Move old saves here</string>
     <string name="use_default_internal">Use internal storage</string>
+    <string name="engine_save_elsewhere">Engines that save elsewhere</string>
+    <string name="engine_save_elsewhere_none">None: every engine uses the save folder</string>
+    <string name="engine_save_elsewhere_message">Choose an engine to give its saves a folder of their own.</string>
     <string name="engine_save_none_installed">No cores installed yet.</string>
     <string name="engine_save_uses_shared">Shared folder</string>
     <string name="use_shared_save_folder">Use the shared folder</string>
@@ -731,6 +734,7 @@
     <string name="launch_access_blocked">Blocked</string>
     <string name="launch_access_ask">Asked each time</string>
     <string name="caller_access_unknown_label">An unrecognized caller (e.g. adb)</string>
+    <string name="caller_shell_label">adb or a script</string>
     <string name="caller_access_ask_title">Launch this game?</string>
     <string name="caller_access_ask_message">%1$s asked Enginehost to launch “%2$s”.</string>
     <string name="caller_access_always_allow">Always allow this app</string>

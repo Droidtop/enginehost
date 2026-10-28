@@ -66,7 +66,7 @@ class CallerAccessSettingsActivity : EnginehostActivity() {
     }
 
     private fun displayName(key: String): String =
-        if (key == LaunchCaller.UNKNOWN_KEY) getString(R.string.caller_access_unknown_label) else CallerLabels.of(packageManager, key)
+        CallerLabels.of(this, key)
 
     private fun offerChange(key: String, current: CallerDecision?) {
         Sheet(this)

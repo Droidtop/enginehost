@@ -330,7 +330,7 @@ class LaunchActivity : EnginehostActivity() {
     }
 
     private fun callerAccessLabel(callerKey: String): String =
-        if (callerKey == LaunchCaller.UNKNOWN_KEY) getString(R.string.caller_access_unknown_label) else CallerLabels.of(packageManager, callerKey)
+        CallerLabels.of(this, callerKey)
 
     /**
      * This plugin has no isolated runtime (docs/engine-sandbox.md "Layer

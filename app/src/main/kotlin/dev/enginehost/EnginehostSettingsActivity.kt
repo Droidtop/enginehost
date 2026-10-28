@@ -432,17 +432,31 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         }.start()
     }
 
+    /**
+     * One row for every engine's save folder (Droidtop/tracker#620, E9). Fifteen rows that each said
+     * "Shared folder" buried the one setting most people change, so the row names only the engines
+     * that save somewhere else, and its sheet lists every engine.
+     */
     private fun showEngineRows(installed: List<String>) {
         engines = (installed + store.overrides().keys).distinct().sortedBy { EngineNames.family(it) }
         engineSaveRows.removeAllViews()
-        val inflater = LayoutInflater.from(this)
-        engines.forEachIndexed { index, engine ->
-            val row = inflater.inflate(R.layout.item_engine_save, engineSaveRows, false)
-            row.findViewById<TextView>(R.id.engineName).text = EngineNames.family(engine)
-            val override = store.overrideFor(engine)
+        if (engines.isNotEmpty()) {
+            val row = LayoutInflater.from(this).inflate(R.layout.item_engine_save, engineSaveRows, false)
+            row.findViewById<TextView>(R.id.engineName).setText(R.string.engine_save_elsewhere)
+            val elsewhere = engines.filter { store.overrideFor(it) != null }.map { EngineNames.family(it) }
             row.findViewById<TextView>(R.id.engineSavePath).text =
-                override?.path ?: getString(R.string.engine_save_uses_shared)
-            row.setOnClickListener {
+                if (elsewhere.isEmpty()) getString(R.string.engine_save_elsewhere_none) else elsewhere.joinToString(", ")
+            row.setOnClickListener { showEngineSheet() }
+            engineSaveRows.addView(row)
+        }
+        findViewById<TextView>(R.id.engineSaveEmpty).visibility = if (engines.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun showEngineSheet() {
+        val sheet = Sheet(this).title(R.string.engine_save_elsewhere).message(R.string.engine_save_elsewhere_message)
+        engines.forEachIndexed { index, engine ->
+            val override = store.overrideFor(engine)
+            sheet.choice(EngineNames.family(engine), override?.path ?: getString(R.string.engine_save_uses_shared)) {
                 val actions = mutableListOf<Pair<String, () -> Unit>>(
                     getString(R.string.choose_folder) to {
                         startActivityForResult(StorageFolder.pickerIntent(), REQUEST_ENGINE_FOLDER + index)
@@ -456,9 +470,8 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 }
                 choose(EngineNames.family(engine), actions)
             }
-            engineSaveRows.addView(row)
         }
-        findViewById<TextView>(R.id.engineSaveEmpty).visibility = if (engines.isEmpty()) View.VISIBLE else View.GONE
+        sheet.show()
     }
 
     private fun refreshLastChecked() {
