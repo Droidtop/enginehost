@@ -145,6 +145,18 @@ cores are the cores that run a game engine; trust, update and error text keep
 "plugin" for the signed bundle. A Cores screen showing one just-installed core
 (`EXTRA_BUNDLE`) is opened inside a flow and draws no bar.
 
+## A launch shows only the game and what it needs
+
+A launch, from another app (`dev.enginehost.LAUNCH`) or from Play, shows the game and the
+screens its plan needs on the way: the launch screen, the catalog filtered to the game,
+the trust screen for one core, Game setup, the unsandboxed question. None of them is one
+of the four places, and none leads into one, so a game started from droidtop never
+leaves the person in Enginehost's library (owner, 2026-10-24, Droidtop/tracker#644:
+"Launched from droidtop: only the game, with sheets as needed"). A catalog a launch
+opened installs a newer build of an installed core on its own card ("Update"), where a
+catalog opened from Cores sends updates to Cores. The missing-core detour to the catalog
+stays as it is (owner: "that redirect is valid and as expected").
+
 ## An empty library leads to a next step
 
 A library with no games at all (not a filter that matches none) says so and

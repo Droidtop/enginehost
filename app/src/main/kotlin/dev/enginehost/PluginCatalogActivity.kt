@@ -757,9 +757,14 @@ class PluginCatalogActivity : EnginehostActivity() {
             val update = !installedIdle && installed.isNotEmpty() &&
                 PluginUpdates.isNewerBuildOf(installed.maxBy { it.info.pluginVersion }, plugin.manifest)
             val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
+            // A launch that stopped here for a core too old to start (GameRunner's stale plan)
+            // updates it on this card: a launch shows only the game and what it needs, never the
+            // app's own places (Droidtop/tracker#644). Outside a launch, updates stay in Cores.
+            val updateHere = update && launchedFor() != null
             val idleLabel = when {
                 installedIdle -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
+                updateHere -> getString(R.string.update)
                 update -> getString(R.string.update_in_cores)
                 // Its size, when the release lists one, so the person knows what Install costs.
                 plugin.archiveSize > 0 -> getString(R.string.install_with_size, Formatter.formatShortFileSize(this, plugin.archiveSize))
@@ -786,8 +791,8 @@ class PluginCatalogActivity : EnginehostActivity() {
                 progress.visibility = View.VISIBLE
             }
             button.setOnClickListener {
-                // Updates live in one place, Cores with its Update all (#620 E6).
-                if (update) {
+                // Updates live in one place, Cores with its Update all (#620 E6), except in a launch.
+                if (update && !updateHere) {
                     startActivity(Intent(this, PluginTrustActivity::class.java))
                     return@setOnClickListener
                 }
