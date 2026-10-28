@@ -487,6 +487,7 @@ class LibraryBrowser(
         val chip: TextView = view.findViewById(R.id.gameEngine)
         val mark: TextView = view.findViewById(R.id.gameMark)
         val chevron: View = view.findViewById(R.id.gameChevron)
+        val art: android.widget.ImageView = view.findViewById(R.id.gameArt)
     }
 
     private inner class RowAdapter : BaseAdapter() {
@@ -512,6 +513,7 @@ class LibraryBrowser(
             val row = rows[position]
             val support = supports[position]
             holder.title.text = row.name
+            GameArt.bind(holder.art, row)
             holder.status.text = statusLine(row, support)
             holder.status.setTextColor(
                 ContextCompat.getColor(activity, if (support == Support.NEEDS_PLUGIN) R.color.eh_caution else R.color.eh_text_secondary),

@@ -68,6 +68,9 @@
     <string name="action_edit_config">Game setup</string>
     <string name="action_remove">Remove from list</string>
     <string name="action_manage">Manage</string>
+    <string name="action_choose_picture">Choose a picture</string>
+    <string name="action_own_picture">Use the game\'s own picture</string>
+    <string name="picture_unusable">That picture could not be used</string>
     <string name="launch_needs_config">A few details could not be read from the game. Check them, then save or test.</string>
     <string name="unhosted_engine">This is a %1$s game. No Enginehost core runs %1$s games, so it cannot be started here.</string>
     <string name="unhosted_unity">This is a Unity game%1$s. Enginehost cannot run it: Unity\'s engine is closed source, and no Unity runtime exists for Android to run the game with.</string>

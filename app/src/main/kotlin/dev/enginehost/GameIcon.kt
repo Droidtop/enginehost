@@ -12,6 +12,9 @@ import java.io.RandomAccessFile
  * executable. Every game enginehost runs was built for Windows first, so
  * the executable is always there even when nothing else is.
  *
+ * [GameArt] is how screens ask for a game's picture: a picture the person chose
+ * comes first, then this.
+ *
  * Returns null when there is nothing usable; the launch screen then shows
  * the title alone. Never throws: this runs while the runtime is already
  * starting, and the only acceptable failure is a missing picture.
@@ -22,8 +25,9 @@ object GameIcon {
     /** Executables that are installers or redistributables, never the game. */
     private val NOT_THE_GAME = listOf("unins", "setup", "install", "dxwebsetup", "dxsetup", "vcredist", "vc_redist", "dotnet")
 
-    fun load(gameFolder: File, config: EngineConfig): Bitmap? = try {
-        configuredIcon(gameFolder, config) ?: executableIcon(gameFolder, config)
+    /** [engine], [engineContext] and [execFile] are the game's, from its config or its library row. */
+    fun load(gameFolder: File, engine: String?, engineContext: String?, execFile: String?): Bitmap? = try {
+        configuredIcon(gameFolder, engine, engineContext) ?: executableIcon(gameFolder, execFile)
     } catch (_: Exception) {
         null
     }
@@ -35,10 +39,10 @@ object GameIcon {
      * (under `www/` when deployed unpacked); a Godot project exported
      * with its files unpacked keeps `config/icon` as `icon.png`.
      */
-    private fun configuredIcon(folder: File, config: EngineConfig): Bitmap? {
-        val candidates = when (config.engine) {
+    private fun configuredIcon(folder: File, engine: String?, engineContext: String?): Bitmap? {
+        val candidates = when (engine) {
             "renpy" -> listOf("game/gui/window_icon.png")
-            "rpgmaker" -> when (config.engineContext) {
+            "rpgmaker" -> when (engineContext) {
                 "mv", "mz" -> listOf("icon/icon.png", "www/icon/icon.png")
                 else -> emptyList()
             }
@@ -61,8 +65,8 @@ object GameIcon {
      * that is not an installer. Ren'Py's `-32` sibling sorts after the
      * 64-bit build so the two never disagree.
      */
-    fun executable(folder: File, config: EngineConfig): File? {
-        config.execFile?.let { File(folder, it) }
+    fun executable(folder: File, execFile: String?): File? {
+        execFile?.let { File(folder, it) }
             ?.takeIf { it.isFile && it.extension.equals("exe", ignoreCase = true) }
             ?.let { return it }
         val executables = folder.listFiles { f ->
@@ -75,8 +79,8 @@ object GameIcon {
         return executables.sortedWith(compareBy({ it.nameWithoutExtension.endsWith("-32") }, { it.name.lowercase() })).first()
     }
 
-    private fun executableIcon(folder: File, config: EngineConfig): Bitmap? {
-        val exe = executable(folder, config) ?: return null
+    private fun executableIcon(folder: File, execFile: String?): Bitmap? {
+        val exe = executable(folder, execFile) ?: return null
         val images = RandomAccessFile(exe, "r").use { PeIcon.extract(RandomAccessFileReadAt(it)) } ?: return null
         return PeIcon.best(images)?.let(::toBitmap)
     }

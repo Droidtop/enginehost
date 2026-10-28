@@ -454,7 +454,7 @@ class LaunchActivity : EnginehostActivity() {
             return
         }
         Thread {
-            val bitmap = GameIcon.load(gameFolder, config)
+            val bitmap = GameArt.load(this, gameFolder, config)
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 if (bitmap != null) icon.setImageBitmap(bitmap) else icon.visibility = View.GONE

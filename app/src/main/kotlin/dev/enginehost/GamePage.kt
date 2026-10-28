@@ -32,6 +32,9 @@ class GamePage(
     /** What the primary button does; Play until the state has been read. */
     private var primary = GamePrimary.PLAY
     private var favourite = false
+
+    /** Whether the person chose this game's picture, read with the rest of its state. */
+    private var chosenPicture = false
     private var folderLineExpanded = false
 
     val playButton: Button get() = root.findViewById(R.id.playButton)
@@ -104,15 +107,17 @@ class GamePage(
                 if (!activity.isDestroyed && current == generation && folder == game) showTestingRow(game, testing)
             }
             val isFavourite = runCatching { GameLibraryStore(activity.applicationContext).isFavourite(game) }.getOrDefault(false)
+            val hasChosenPicture = GameArt.hasChosen(activity, game)
             val status = GameStatus.of(activity, game)
             // The art is the game's own icon (GameIcon), read from the same
             // config the status just resolved. The executable can sit on
             // removable storage, so this stays off the thread that is drawing.
-            val art = status.config?.let { GameIcon.load(game, it) }
+            val art = status.config?.let { GameArt.load(activity, game, it) }
             activity.runOnUiThread {
                 if (activity.isDestroyed || activity.isFinishing || folder != game || current != generation) return@runOnUiThread
                 showTitle(game, status.title)
                 showFavourite(isFavourite)
+                chosenPicture = hasChosenPicture
                 primary = status.primary
                 playButton.apply {
                     setText(status.primary.label)
@@ -205,9 +210,43 @@ class GamePage(
         Sheet(activity)
             .title(R.string.action_manage)
             .choice(if (favourite) R.string.action_remove_favourite else R.string.action_add_favourite) { toggleFavourite() }
+            .choice(R.string.action_choose_picture) { choosePicture(game) }
+            .apply {
+                if (chosenPicture) choice(R.string.action_own_picture) { ownPicture(game) }
+            }
             .choice(R.string.action_report) { activity.startActivity(ProblemReportActivity.intent(activity, game)) }
             .choice(R.string.action_remove, Sheet.Tone.DANGER) { confirmRemove() }
             .show()
+    }
+
+    /** A picture of the person's own for this game (Droidtop/tracker#240), from the device's picker. */
+    private fun choosePicture(game: File) {
+        val key = "game-art-${System.nanoTime()}"
+        var launcher: androidx.activity.result.ActivityResultLauncher<Intent>? = null
+        launcher = activity.activityResultRegistry.register(
+            key,
+            androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            launcher?.unregister()
+            val uri = result.data?.data ?: return@register
+            Thread {
+                val failure = runCatching { GameArt.choose(activity.applicationContext, game, uri) }.exceptionOrNull()
+                activity.runOnUiThread {
+                    if (failure != null) {
+                        Toast.makeText(activity, ErrorText.of(activity, failure, R.string.picture_unusable), Toast.LENGTH_LONG).show()
+                    }
+                    refresh()
+                }
+            }.apply { isDaemon = true }.start()
+        }
+        launcher.launch(StorageFolder.filePickerIntent(listOf("image/*")))
+    }
+
+    private fun ownPicture(game: File) {
+        Thread {
+            GameArt.clearChosen(activity.applicationContext, game)
+            activity.runOnUiThread { refresh() }
+        }.apply { isDaemon = true }.start()
     }
 
     private fun openSetup() {

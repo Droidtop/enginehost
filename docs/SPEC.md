@@ -145,6 +145,18 @@ cores are the cores that run a game engine; trust, update and error text keep
 "plugin" for the signed bundle. A Cores screen showing one just-installed core
 (`EXTRA_BUNDLE`) is opened inside a flow and draws no bar.
 
+## A game's picture, from local sources only (Droidtop/tracker#240)
+
+Every screen that shows a game's picture asks `GameArt`: a picture the person chose for the
+game (Manage > Choose a picture, kept scaled down in Enginehost's own files), else the game's
+own icon (`GameIcon`: the window icon its engine configures, or its executable's icon). Nothing
+is fetched and nothing is made up: a game with neither wears a plate in its engine's colour with
+its initial. Library rows show it at the start of the row and Home's shelf cards as a cover.
+A row's picture is resolved once off the main thread and kept as a small thumbnail in the
+app's cache, keyed by the game's path and the modification times of its folder and of the
+chosen picture, with the newest in memory, so scrolling a long library reads no file on the
+main thread. Manage > Use the game's own picture removes the chosen one.
+
 ## Settings > Appearance: the accent colour
 
 Settings has an Appearance section with one row, Accent colour. Its sheet offers

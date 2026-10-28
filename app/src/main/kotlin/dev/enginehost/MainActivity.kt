@@ -259,6 +259,7 @@ class MainActivity : EnginehostActivity() {
         card.tag = ShelfGame(game.path)
         card.contentDescription = getString(R.string.open_game_description, game.name)
         card.findViewById<TextView>(R.id.shelfTitle).text = game.name
+        GameArt.bind(card.findViewById(R.id.shelfArt), game)
         card.findViewById<TextView>(R.id.shelfEngine).apply {
             val engine = game.engine
             visibility = if (engine == null) View.GONE else View.VISIBLE

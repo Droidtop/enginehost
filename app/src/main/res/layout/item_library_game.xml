@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One game in a library list: its name, one line of state (builds, what
+    One game in a library list: its picture, its name, one line of state (builds, what
     this device can do with it, size), the engine as a coloured chip, and a
     chevron, or a word on the right when the row is acting on a choice (the
     scan's Add). The row itself is not a focus target: the list selects it,
@@ -14,6 +14,15 @@
     android:gravity="center_vertical"
     android:minHeight="@dimen/eh_touch_target"
     android:orientation="horizontal">
+
+    <!-- The game's picture or its plate (GameArt), drawn off the main thread. -->
+    <ImageView
+        android:id="@+id/gameArt"
+        android:layout_width="@dimen/eh_row_art"
+        android:layout_height="@dimen/eh_row_art"
+        android:layout_marginEnd="@dimen/eh_space_m"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
 
     <LinearLayout
         android:layout_width="0dp"

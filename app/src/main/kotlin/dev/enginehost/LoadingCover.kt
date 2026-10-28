@@ -63,7 +63,7 @@ internal object LoadingCover {
             }
             null -> null
         }
-        own ?: GameIcon.load(gameFolder, config)?.let { Prepared(dark, it, null, boxArt = true) }
+        own ?: GameArt.load(context, gameFolder, config)?.let { Prepared(dark, it, null, boxArt = true) }
     } catch (_: Exception) {
         null
     } catch (_: OutOfMemoryError) {
