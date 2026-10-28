@@ -427,8 +427,14 @@ its engine shows (docs/text-services.md).
   per game and line (`TranslationCache`) so a line is sent once. An engine that asks `replaceText` prints
   the translation; one that never asks gets it in a band at the bottom, the fallback.
 - **For the rig.** `debug.enginehost.text 1` draws the newest six events over the game.
-- **Not done:** a core on the activity transport (Ren'Py, KiriKiri) has no `EngineHost` to send
-  to. It gets text when it moves onto the plugin transport; no second bridge is added for it.
+- **A core on the activity transport sends through `ActivityText`** (owner, 2026-10-28, option 1
+  on #490: "1, yeah"). Ren'Py runs its own Activity and has no `EngineHost`, so it calls
+  `dev.enginehost.ActivityText.emit(Activity, String)` and `replace(String)` by name: the same
+  `GameText` as `emitText` and `replaceText`, the same kind of named bridge as `ActivityLinks`.
+  Ren'Py's injected script reports every line from 7.3 to 8.5 through pyjnius, and prints the
+  translation in its own text box through `config.say_menu_text_filter`. The bridge is deleted
+  with `ActivityLinks` when Ren'Py moves onto the plugin transport. KiriKiri, also on the
+  activity transport, has no emitter yet.
 
 ## Reporting whether anything is open: the `state` call
 

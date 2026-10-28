@@ -23,8 +23,8 @@ decisions on it are on #490 (design comment 6176583781, decisions 6176693957 and
 Built (2026-10-28): the format, the host calls, the host's intake with its caps, reading aloud
 with the device's own voices, and translating with an OpenAI-compatible service on the person's own
 account (both below). More translators, on-device translation, the multi-speaker on-device voices and
-each remaining core's emitter come in the slices listed on #490. CatSystem2 is the first core that sends
-text.
+each remaining core's emitter come in the slices listed on #490. CatSystem2 sends text, and so does
+Ren'Py, through `ActivityText`.
 
 ## How a core sends its text
 
@@ -33,6 +33,13 @@ called from any thread. When the runtime is isolated, it crosses to the host as 
 (`IEngineRuntimeCallback.emitText`), so a slow host never stalls a frame. On a host too old to
 know it, the call fails to link with `IncompatibleClassChangeError`: the core catches that once
 and stops sending.
+
+A core on the activity transport (Ren'Py) runs its own Activity and has no `EngineHost`. It calls
+`dev.enginehost.ActivityText.emit(Activity, String)` and `ActivityText.replace(String)` by name,
+through reflection, from that Activity: the same intake as `emitText` and `replaceText`, chosen by
+the owner on 2026-10-28 until the core moves onto the plugin transport, the same way as
+`ActivityLinks`. Ren'Py's side is its plugin's `renpy/enginehost_text.py` (ENGINEHOST.md there):
+every line from `display_say`, and the translation printed through `config.say_menu_text_filter`.
 
 A core declares nothing to send. A core that sends nothing gets nothing, and nothing pretends
 otherwise.
