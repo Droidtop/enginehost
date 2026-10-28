@@ -771,6 +771,8 @@ private class HostRuntimeCallback(
         GameLinkOffer.offer(activity, url)
     }
 
+    override fun emitText(event: String) = GameText.emit(activity, event)
+
     override fun fail(message: String) {
         val prefix = if (showedGame()) RuntimeActivity.GAME_STOPPED else RuntimeActivity.STARTUP_FAILED
         activity.runOnUiThread { activity.failAndFinish(prefix + message) }

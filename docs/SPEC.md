@@ -398,6 +398,26 @@ the engine drew; it now opens on the game's own loading picture.
 - **Not done:** an engine that runs in an activity of its own (a core that starts the engine's own
   `Activity`) is not covered; the cover sits in `RuntimeActivity`'s window.
 
+## A game's text reaches the host in one format (decided 2026-10-28, Droidtop/tracker#490)
+
+Reading aloud and translating are Enginehost's, once, for every core. A core only reports what
+its engine shows (docs/text-services.md).
+
+- **One format, one call.** `ehtext/1` events through `EngineHost.emitText(json)`. An isolated
+  runtime sends them over a oneway binder call, so the engine never waits on the host. There is
+  no second transport: a native or WebView engine forwards to the same call.
+- **The engine prints the translation.** `EngineHost.replaceText(event)` answers synchronously,
+  from what the host already holds, and never waits on a network (owner, 2026-10-14). It
+  answers null, meaning print the original, until a translator is chosen.
+- **Untrusted, capped, never logged.** Each event is rate-capped at 120 a second (bursts of
+  240), size-capped at 16 KiB, read whole or dropped, and stripped of control characters. Game
+  text never goes into logs or host events.
+- **Seen on the rig only, for now.** `debug.enginehost.text 1` draws the newest six events over
+  the game. Read-aloud, translation and each core's emitter follow in #490's slices; the first
+  emitter is CatSystem2, an isolated core, so it proves the binder path.
+- **Not done:** a core on the activity transport (Ren'Py, KiriKiri) has no `EngineHost` to send
+  to. It gets text when it moves onto the plugin transport; no second bridge is added for it.
+
 ## Reporting whether anything is open: the `state` call
 
 droidtop keeps a "Playing" session for the game it started and needs to know when

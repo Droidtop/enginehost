@@ -466,6 +466,8 @@ private class RuntimeHost(
         GameLinkOffer.offer(activity, url)
         return true
     }
+    /** One event of the game's text ([GameText]). */
+    override fun emitText(event: String) = GameText.emit(activity, event)
     override fun log(priority: Int, tag: String, message: String, error: Throwable?) {
         val detail = error?.let { "\n${Log.getStackTraceString(it)}" }.orEmpty()
         Log.println(priority, "enginehost/$tag", message + detail)

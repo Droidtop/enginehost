@@ -100,6 +100,30 @@ public interface EngineHost {
     default boolean openLink(String url) { return false; }
 
     /**
+     * One event of the game's text: a line on screen with its speaker, a menu, the reader moving
+     * on, a scene change. {@code event} is one JSON object in the {@code ehtext/1} format
+     * (docs/text-services.md). Enginehost reads the game's text aloud and translates it from these
+     * (Droidtop/tracker#490); a core never does either itself, it only reports what the engine
+     * shows. Speaker names come from the engine wherever it knows them.
+     *
+     * <p>Returns at once and may be called from any thread; an event the host cannot read, or
+     * one past the rate cap, is dropped without a word. Added after the first hosts shipped; the
+     * default does nothing, and a plugin that may run on an older Enginehost catches
+     * {@link IncompatibleClassChangeError}, as for {@link #restart}, and stops sending.
+     */
+    default void emitText(String event) {}
+
+    /**
+     * The text to print instead of a line or a menu, for an engine that prints translated text
+     * in its own text box (docs/text-services.md, "Printing translated text"): {@code event} is
+     * the {@code line} or {@code choices} event the core is about to show, and the answer is the
+     * same event with its text replaced, or null to print the original. Answers from what the
+     * host already has and never waits on a network, so an engine may ask on its own thread
+     * before it draws. The default, and any host without a chosen translator, answers null.
+     */
+    default String replaceText(String event) { return null; }
+
+    /**
      * Host-brokered, read-only access to the game folder, present only
      * when this runtime is isolated (docs/engine-sandbox.md "Layer 2").
      * Null on an ordinary in-process launch, and null on a host too old

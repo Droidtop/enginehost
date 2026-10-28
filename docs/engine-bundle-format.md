@@ -715,6 +715,12 @@ selection fails before launch with the component named.
 
 ### Host services added after apiVersion 1 shipped
 
+`EngineHost.emitText(event)` and `EngineHost.replaceText(event)` (2026-10-28): the game's text, in
+the `ehtext/1` format, for Enginehost to read aloud and translate, and the translated text to
+print instead (docs/text-services.md). `emitText` returns at once from any thread; the defaults
+do nothing and answer null. On an older host a core catches `IncompatibleClassChangeError` and
+stops sending.
+
 `EngineHost.openLink(url)` (2026-10-24): a link the game asks to open, offered to the person
 (docs/SPEC.md, "Links a game opens"). Returns at once; the default answers false. A core routes
 its engine's own link calls here and never calls startActivity for a link. On an older host it

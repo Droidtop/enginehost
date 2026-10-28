@@ -570,6 +570,10 @@ private class IsolatedEngineHost(
 
     override fun openLink(url: String): Boolean = runCatching { callback.openLink(url) }.isSuccess
 
+    override fun emitText(event: String) {
+        runCatching { callback.emitText(event) }
+    }
+
     override fun fail(message: String) {
         runCatching { callback.fail(message) }
     }

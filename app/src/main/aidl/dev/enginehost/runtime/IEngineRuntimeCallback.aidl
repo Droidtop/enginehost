@@ -16,4 +16,6 @@ interface IEngineRuntimeCallback {
     void restart(in String[] arguments);
     /** EngineHost.openLink: offered to the person by the host (GameLinkOffer); returns at once. */
     void openLink(String url);
+    /** EngineHost.emitText: one ehtext/1 event (GameText); oneway, so a slow host never stalls the engine. */
+    oneway void emitText(String event);
 }
