@@ -136,8 +136,46 @@ jobs:
           python3 enginehost-tooling/scripts/check-declared-version.py \
             --metadata unsigned/bundle-metadata.json \
             --repository "$GITHUB_REPOSITORY" --checkout repository
+  conformance:
+    # Conformance layer 1a (docs/conformance-test-games.md, Droidtop/tracker#27):
+    # the unsigned payload and metadata checked offline before anything is
+    # signed -- both 64-bit ABIs and only those, each library built for the
+    # directory it sits in, declared files present, engine ids the app can
+    # name. scripts/check-bundle-conformance.py reads bytes and runs none.
+    # No secret reaches this job.
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check the inputs
+        env:
+          TOOLING_SHA: ${{ inputs.tooling-sha }}
+        run: |
+          set -euo pipefail
+          [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
+      - name: Check out the conformance tooling and the app's engine names
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: Droidtop/enginehost
+          ref: ${{ inputs.tooling-sha }}
+          path: enginehost-tooling
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            app/src/main/kotlin/dev/enginehost/EngineNames.kt
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ inputs.unsigned-artifact }}
+          path: unsigned-download
+      - name: Layer 1a, the static bundle check
+        run: |
+          set -euo pipefail
+          mkdir -p unsigned
+          tar -xpf unsigned-download/unsigned.tar -C unsigned --no-same-owner
+          python3 enginehost-tooling/scripts/check-bundle-conformance.py \
+            --metadata unsigned/bundle-metadata.json --payload unsigned/payload \
+            --engine-names enginehost-tooling/app/src/main/kotlin/dev/enginehost/EngineNames.kt
   sign:
-    needs: version
+    needs: [version, conformance]
     runs-on: ubuntu-24.04
     steps:
       - name: Check the inputs
