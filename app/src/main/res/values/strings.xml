@@ -302,7 +302,7 @@
     <string name="settings_save_folder">Save folder</string>
     <string name="text_services_section">Reading and translation</string>
     <string name="read_aloud">Read text aloud</string>
-    <string name="read_aloud_detail">With this device's own voices, one per character. Lines the game voices itself are not read. Only cores that report their text can be read: CatSystem2 so far.</string>
+    <string name="read_aloud_detail">With this device\'s own voices, one per character. Lines the game voices itself are not read. Only cores that report their text can be read: CatSystem2 so far.</string>
     <string name="settings_about">About</string>
     <string name="stream_stable_desc">Stable · played on real games</string>
     <string name="stream_testing_desc">Testing · runs games, still being lived with</string>
