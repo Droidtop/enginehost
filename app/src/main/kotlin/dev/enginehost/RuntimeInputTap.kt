@@ -436,7 +436,12 @@ object RuntimeInputInstaller : Application.ActivityLifecycleCallbacks {
     // setContentView clears the content, and runs after Created.
     override fun onActivityStarted(activity: Activity) {
         install(activity)
-        if (isGame(activity) && noticed.put(activity, true) == null) RuntimeLoadingNotice(activity).start()
+        if (isGame(activity) && noticed.put(activity, true) == null) {
+            // RuntimeActivity puts up its own cover; an engine's own Activity gets the one the
+            // factory read for it, before the notice, so the bar knows it is covered.
+            if (activity !is RuntimeActivity) LoadingCover.showOnEngineActivity(activity)
+            RuntimeLoadingNotice(activity).start()
+        }
     }
     override fun onActivityResumed(activity: Activity) {
         if (!isGame(activity)) return

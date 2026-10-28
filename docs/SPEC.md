@@ -395,8 +395,12 @@ the engine drew; it now opens on the game's own loading picture.
   surface, lifts it when any frame, black or not, has been posted. A window with no surface to
   watch (a web view, an isolated runtime) loses it after 5 seconds, since nothing could say when to
   lift it and it must not hide a game for good.
-- **Not done:** an engine that runs in an activity of its own (a core that starts the engine's own
-  `Activity`) is not covered; the cover sits in `RuntimeActivity`'s window.
+- **An engine with an Activity of its own gets the same cover** (2026-10-28). Ren'Py and KiriKiri run on
+  the activity transport and never show `RuntimeActivity`, and Ren'Py drew RAPT's generic presplash from
+  its runtime APK. `EnginehostComponentFactory` reads the picture from the launch's intent before it locks
+  the process down (`LoadingCover.prepareForEngineActivity`), and `RuntimeInputInstaller` puts it over the
+  core's Activity when it starts, before the loading notice, which lifts it at the first frame as before.
+  One table, one cover, two places it goes up. KiriKiri, which has no plain-file picture, gets the box art.
 
 ## A game's text reaches the host in one format (decided 2026-10-28, Droidtop/tracker#490)
 

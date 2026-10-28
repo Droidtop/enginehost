@@ -2,6 +2,7 @@ package dev.enginehost
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -51,10 +52,22 @@ internal object LoadingCover {
      * and before any core code runs; never throws, since the only acceptable
      * failure is a missing picture.
      */
-    fun prepare(context: Context, gameFolder: File, config: EngineConfig): Prepared? = try {
+    fun prepare(context: Context, gameFolder: File, config: EngineConfig): Prepared? = prepare(
+        context, gameFolder, GameRunner.engineFolder(gameFolder, config), config.engine, config.engineContext, config.execFile,
+    )
+
+    /** [prepare] for the folders and engine of a launch, as its runtime intent carries them. */
+    private fun prepare(
+        context: Context,
+        gameFolder: File,
+        engineFolder: File,
+        engine: String,
+        engineContext: String?,
+        execFile: String?,
+    ): Prepared? = try {
         val dark = context.getColor(R.color.eh_background)
         val side = context.resources.displayMetrics.let { maxOf(it.widthPixels, it.heightPixels) }
-        val own = when (val art = LoadingImages.find(GameRunner.engineFolder(gameFolder, config), config.engine, config.engineContext)) {
+        val own = when (val art = LoadingImages.find(engineFolder, engine, engineContext)) {
             is LoadingArt.Still -> decode(art.file, side)?.let { Prepared(art.background ?: dark, it, null, boxArt = false) }
             is LoadingArt.Progress -> {
                 val background = decode(art.background, side)
@@ -63,12 +76,39 @@ internal object LoadingCover {
             }
             null -> null
         }
-        own ?: GameArt.load(context, gameFolder, config)?.let { Prepared(dark, it, null, boxArt = true) }
+        own ?: GameArt.load(context, gameFolder, engine, engineContext, execFile)?.let { Prepared(dark, it, null, boxArt = true) }
     } catch (_: Exception) {
         null
     } catch (_: OutOfMemoryError) {
         null
     }
+
+    /**
+     * A core that runs an Activity of its own (Ren'Py, KiriKiri: the activity transport) never
+     * shows RuntimeActivity, so its cover is read here, from the launch's intent, by the factory
+     * that makes the core's Activity, before it locks the process down
+     * ([EnginehostComponentFactory]). It goes up when that Activity starts ([showOnEngineActivity]).
+     */
+    fun prepareForEngineActivity(context: Context, intent: Intent) {
+        if (pending != null) return
+        val game = intent.getStringExtra(RuntimeActivity.EXTRA_GAME)?.let(::File) ?: return
+        val engineFolder = intent.getStringExtra(RuntimeActivity.EXTRA_PATH)?.let(::File) ?: return
+        val engine = intent.getStringExtra(RuntimeActivity.EXTRA_ENGINE) ?: return
+        pending = prepare(
+            context, game, engineFolder, engine,
+            intent.getStringExtra(RuntimeActivity.EXTRA_ENGINE_CONTEXT), intent.getStringExtra(RuntimeActivity.EXTRA_EXEC_FILE),
+        )
+    }
+
+    /** Puts the cover [prepareForEngineActivity] read over [activity], once. Main thread. */
+    fun showOnEngineActivity(activity: Activity) {
+        val prepared = pending ?: return
+        pending = null
+        show(activity, prepared)
+    }
+
+    /** Read for an engine's own Activity and not shown yet. */
+    private var pending: Prepared? = null
 
     /** A picture decoded no larger than the screen needs; null for one too big or unreadable. */
     private fun decode(file: File, screenSide: Int): Bitmap? {
