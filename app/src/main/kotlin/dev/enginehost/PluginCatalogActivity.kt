@@ -4,11 +4,13 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.text.format.DateFormat
+import android.text.format.Formatter
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -177,8 +179,18 @@ class PluginCatalogActivity : EnginehostActivity() {
         }.start()
     }
 
+    /**
+     * The game a launch opened this catalog for, by the name the person knows it by: the screen
+     * says that game needs a core, not that every core is up to date (owner's test, 2026-10-24).
+     */
+    private fun launchedFor(): String? = intent.getStringExtra(EXTRA_GAME_PATH)?.let { path ->
+        requestedConfig?.title ?: File(path).name
+    }
+
+    private fun intro(): String = launchedFor()?.let { getString(R.string.catalog_for_game, it) } ?: getString(R.string.catalog_intro)
+
     private fun render(message: String? = null) {
-        statusText.text = message ?: getString(R.string.catalog_intro)
+        statusText.text = message ?: intro()
         refreshButton.setText(if (refreshing) R.string.refreshing else R.string.refresh_all)
         refreshButton.isEnabled = !refreshing
         catalogStreamValue.text = streamName(updateCheck.stream)
@@ -189,6 +201,8 @@ class PluginCatalogActivity : EnginehostActivity() {
             runOnUiThread {
                 if (isDestroyed || isFinishing || generation != renderGeneration) return@runOnUiThread
                 snapshot = read
+                // The game's own title is known once its config is read, here.
+                if (message == null) statusText.text = intro()
                 renderOrigins()
                 renderQuickAdd()
                 renderSourcesToggle()
@@ -554,7 +568,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         ) {
             autoAttempted = true
             PluginInstaller.install(this, nextToInstall, ::toast) { status ->
-                runOnUiThread { statusText.text = status }
+                runOnUiThread { statusText.text = status.text }
             }
         } else if (
             intent.getBooleanExtra(EXTRA_AUTOINSTALL, false) && matches.isEmpty() &&
@@ -638,7 +652,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         }
         card.findViewById<TextView>(R.id.releaseVersion).apply {
             // A runtime that accepts any engine version ships no version worth a number.
-            text = if (component != null) "" else EngineNames.shippedVersions(plugin.info.capabilities)
+            text = if (component != null) "" else EngineNames.shippedVersions(plugin.info.engine, plugin.info.capabilities)
             visibility = if (text.isBlank()) View.GONE else View.VISIBLE
         }
         card.findViewById<TextView>(R.id.releaseCompatibility).text = if (component != null) {
@@ -678,7 +692,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                 thirdParty.maintainerName,
             )
         }
-        val progress = card.findViewById<View>(R.id.releaseProgress)
+        val progress = card.findViewById<ProgressBar>(R.id.releaseProgress)
         // Read once for this card: the older builds and the primary button both depend on it.
         val installed = snapshot?.installed.orEmpty().filter { it.bundleId == plugin.bundleId }
         val olderList = card.findViewById<LinearLayout>(R.id.releaseOlderList)
@@ -710,7 +724,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                         this@PluginCatalogActivity,
                         build,
                         onError = { message -> view.isEnabled = true; toast(message) },
-                        onStatus = { status -> runOnUiThread { statusText.text = status } },
+                        onStatus = { status -> runOnUiThread { statusText.text = status.text } },
                     )
                 }
                 olderList.addView(row)
@@ -747,6 +761,8 @@ class PluginCatalogActivity : EnginehostActivity() {
                 installedIdle -> getString(R.string.installed)
                 !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
                 update -> getString(R.string.update_in_cores)
+                // Its size, when the release lists one, so the person knows what Install costs.
+                plugin.archiveSize > 0 -> getString(R.string.install_with_size, Formatter.formatShortFileSize(this, plugin.archiveSize))
                 else -> getString(R.string.install)
             }
             button.text = idleLabel
@@ -776,11 +792,10 @@ class PluginCatalogActivity : EnginehostActivity() {
                     return@setOnClickListener
                 }
                 // Progress belongs on the card being installed, not in a
-                // status line somewhere else on the screen.
-                installing += plugin.bundleId
+                // status line somewhere else on the screen. It starts once the
+                // unsandboxed warning, if any, is answered; until then the
+                // button only stops a second press.
                 button.isEnabled = false
-                button.setText(R.string.installing)
-                progress.visibility = View.VISIBLE
                 PluginInstaller.install(
                     this@PluginCatalogActivity,
                     plugin,
@@ -793,12 +808,32 @@ class PluginCatalogActivity : EnginehostActivity() {
                             toast(message)
                         }
                     },
-                    onStatus = { status -> runOnUiThread { button.text = status } },
+                    onStarted = {
+                        installing += plugin.bundleId
+                        button.setText(R.string.installing)
+                        progress.isIndeterminate = true
+                        progress.visibility = View.VISIBLE
+                    },
+                    onStatus = { status ->
+                        runOnUiThread {
+                            button.text = status.text
+                            showProgress(progress, status.fraction)
+                        }
+                    },
                 )
             }
             actions.addView(button)
         }
         parent.addView(card)
+    }
+
+    /** A download's share done fills the card's bar; while its size is unknown the bar keeps moving. */
+    private fun showProgress(bar: ProgressBar, fraction: Float?) {
+        bar.isIndeterminate = fraction == null
+        if (fraction != null) {
+            bar.max = PROGRESS_STEPS
+            bar.progress = (fraction.coerceIn(0f, 1f) * PROGRESS_STEPS).toInt()
+        }
     }
 
     /** Neither picking an engine for one game nor filtered to one game's needs: the plain store. */
@@ -908,8 +943,10 @@ class PluginCatalogActivity : EnginehostActivity() {
      * one reason IS the message; otherwise it names who could not be reached
      * and why.
      */
-    private fun refreshSummary(outcomes: Map<String, OriginOutcome>, pendingUpdates: Int): String {
+    private fun refreshSummary(outcomes: Map<String, OriginOutcome>, pendingUpdates: Int): String? {
         val failed = outcomes.filterValues { it is OriginOutcome.Failed }
+        // A catalog a launch opened keeps saying which game is waiting: a refresh that worked is not news there.
+        if (failed.isEmpty() && launchedFor() != null) return null
         // "Up to date." here used to mean only that the refresh worked, and
         // read as "nothing to update" beside Home's "16 plugin updates are
         // available" (rig, dq-ehfix-01). It now says which.
@@ -973,6 +1010,9 @@ class PluginCatalogActivity : EnginehostActivity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
+        /** The card's bar in thousandths, fine enough that a large core moves visibly. */
+        private const val PROGRESS_STEPS = 1000
+
         const val EXTRA_GAME_PATH = "dev.enginehost.catalog.GAME_PATH"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.catalog.CALLER_CONFIG"
         const val EXTRA_AUTOINSTALL = "dev.enginehost.catalog.AUTOINSTALL"

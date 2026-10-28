@@ -114,7 +114,6 @@ class ComponentRequestActivity : EnginehostActivity() {
 
     private fun install(plugin: AvailablePlugin) {
         action.isEnabled = false
-        progress.visibility = View.VISIBLE
         PluginInstaller.install(
             this,
             plugin,
@@ -123,7 +122,9 @@ class ComponentRequestActivity : EnginehostActivity() {
                 progress.visibility = View.GONE
                 message.text = error
             },
-            onStatus = { status -> runOnUiThread { message.text = status } },
+            // The bar appears once the install starts, after any unsandboxed warning is answered.
+            onStarted = { progress.visibility = View.VISIBLE },
+            onStatus = { status -> runOnUiThread { message.text = status.text } },
         )
         // The installer opens the trust screen over this one; coming back reads the state again.
     }

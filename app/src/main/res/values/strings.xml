@@ -137,9 +137,10 @@
     <string name="arch_dotnet">.NET</string>
 
     <!-- Core install progress -->
-    <string name="downloading_progress">Downloading… %2$d of %3$d MB</string>
-    <string name="downloading_progress_unknown">Downloading… %2$d MB</string>
+    <string name="downloading_progress">Downloading… %1$d of %2$d MB</string>
+    <string name="downloading_progress_unknown">Downloading… %1$d MB</string>
     <string name="installing">Installing…</string>
+    <string name="install_with_size">Install · %1$s</string>
 
     <!-- Core trust -->
     <string name="trust_title">Cores</string>
@@ -179,6 +180,7 @@
     <!-- Core catalog -->
     <string name="catalog_title">Add a core</string>
     <string name="catalog_intro">One core per engine. Install what your games need.</string>
+    <string name="catalog_for_game">%1$s needs one of these cores to play.</string>
     <string name="origin_url_hint">https://github.com/owner/repo</string>
     <string name="add_custom_origin">Add</string>
     <string name="origin_added">Source added. Refresh to see its cores.</string>

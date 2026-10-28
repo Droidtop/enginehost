@@ -46,6 +46,8 @@ data class AvailablePlugin(
     val archiveUrl: String,
     val archiveSha256: String?,
     val stream: PluginStream,
+    /** The archive's size in bytes as its release lists it, 0 when unknown (a catalog cached before sizes were kept). */
+    val archiveSize: Long = 0,
 ) {
     val info: PluginInfo get() = manifest.info
     val origin: String get() = manifest.origin
@@ -53,6 +55,9 @@ data class AvailablePlugin(
     val apiVersion: Int get() = manifest.apiVersion
     val signerFingerprints: Set<String> get() = setOf(signer.keySha256)
 }
+
+/** One file of a release: where to download it, its digest when the host states one, and its size (0 when unknown). */
+data class ReleaseAsset(val url: String, val sha256: String?, val size: Long)
 
 object PluginReleaseReader {
     /**
@@ -65,7 +70,7 @@ object PluginReleaseReader {
         expectedOrigin: String,
         releaseTag: String,
         prerelease: Boolean,
-        releaseAssets: Map<String, Pair<String, String?>>,
+        releaseAssets: Map<String, ReleaseAsset>,
         trust: BundleTrust,
     ): List<AvailablePlugin> {
         val root = JSONObject(raw)
@@ -97,9 +102,10 @@ object PluginReleaseReader {
                 signatures,
                 signer,
                 releaseTag,
-                asset.first,
-                asset.second?.let(::normalizeGithubDigest),
+                asset.url,
+                asset.sha256?.let(::normalizeGithubDigest),
                 stream,
+                asset.size,
             )
         }
     }
@@ -148,13 +154,13 @@ class GithubPluginCatalogClient(private val context: Context) {
                 if (release.optBoolean("draft")) continue
                 val prerelease = release.optBoolean("prerelease")
                 val assets = release.getJSONArray("assets")
-                val byName = linkedMapOf<String, Pair<String, String?>>()
+                val byName = linkedMapOf<String, ReleaseAsset>()
                 var catalogUrl: String? = null
                 for (assetIndex in 0 until assets.length()) {
                     val asset = assets.getJSONObject(assetIndex)
                     val name = asset.getString("name")
                     val url = asset.getString("browser_download_url")
-                    byName[name] = url to asset.optString("digest").takeIf(String::isNotBlank)
+                    byName[name] = ReleaseAsset(url, asset.optString("digest").takeIf(String::isNotBlank), asset.optLong("size", 0))
                     if (name in CatalogRefresh.RELEASE_ENVELOPES) catalogUrl = url
                 }
                 if (catalogUrl == null) continue
@@ -368,6 +374,7 @@ private fun AvailablePlugin.toJson() = JSONObject()
     .put("archiveUrl", archiveUrl)
     .put("archiveSha256", archiveSha256)
     .put("stream", stream.channel)
+    .put("archiveSize", archiveSize)
 
 /**
  * A release envelope entry's signatures: `jws` (format v1), `signatureBase64`
@@ -396,6 +403,7 @@ private fun availablePluginFromJson(json: JSONObject, trust: BundleTrust): Avail
         json.requiredString("archiveUrl"),
         json.optString("archiveSha256").takeIf(String::isNotBlank)?.let(::normalizeGithubDigest),
         PluginStream.fromChannel(json.optString("stream").takeIf(String::isNotBlank), json.optBoolean("prerelease")),
+        json.optLong("archiveSize", 0),
     )
 }
 

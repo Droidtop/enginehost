@@ -369,7 +369,7 @@ class CatalogRefresh(private val context: Context) {
                 origin,
                 release.tag,
                 release.stream != PluginStream.STABLE,
-                release.assets.associate { it.name to (it.url to it.sha256) },
+                release.assets.associate { it.name to ReleaseAsset(it.url, it.sha256, it.size) },
                 trust,
             )
         }

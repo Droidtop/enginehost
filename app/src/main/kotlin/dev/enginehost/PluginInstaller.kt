@@ -8,17 +8,33 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
+/**
+ * Where an install is, for the card or screen that started it: a sentence, and how much of the
+ * download is done (0 to 1) while its size is known, null otherwise. The bar follows [fraction]
+ * instead of spinning (owner's test, 2026-10-24: the install bar showed neither size nor progress).
+ */
+class InstallStatus(val text: String, val fraction: Float?)
+
 /** Downloads, verifies and atomically installs a self-contained engine bundle. */
 object PluginInstaller {
+    /**
+     * [onStarted] runs on the main thread once the install really starts: after the unsandboxed
+     * warning, when there is one, is answered. A screen says "Installing" from there, not before
+     * the person has said yes (owner's test, 2026-10-24).
+     */
     fun install(
         activity: Activity,
         plugin: AvailablePlugin,
         onError: (String) -> Unit,
-        onStatus: ((String) -> Unit)? = null,
+        onStarted: (() -> Unit)? = null,
+        onStatus: ((InstallStatus) -> Unit)? = null,
     ) = UnsandboxedWarning.beforeInstall(
         activity,
         listOf(plugin),
-        proceed = { installWarned(activity, plugin, onError, onStatus) },
+        proceed = {
+            onStarted?.invoke()
+            installWarned(activity, plugin, onError, onStatus)
+        },
         cancel = { onError(activity.getString(R.string.unsandboxed_install_cancelled)) },
     )
 
@@ -26,7 +42,7 @@ object PluginInstaller {
         activity: Activity,
         plugin: AvailablePlugin,
         onError: (String) -> Unit,
-        onStatus: ((String) -> Unit)?,
+        onStatus: ((InstallStatus) -> Unit)?,
     ) {
         inFlight(activity) {
             runCatching {
@@ -105,7 +121,7 @@ object PluginInstaller {
     fun installQuietly(
         context: Context,
         plugin: AvailablePlugin,
-        onStatus: ((String) -> Unit)? = null,
+        onStatus: ((InstallStatus) -> Unit)? = null,
     ): InstalledPlugin = EngineBundleInstaller.install(context, download(context, plugin, onStatus), plugin.manifest)
 
     private fun copyIn(activity: Activity, uri: Uri): File {
@@ -121,7 +137,7 @@ object PluginInstaller {
     private fun download(
         context: Context,
         plugin: AvailablePlugin,
-        onStatus: ((String) -> Unit)? = null,
+        onStatus: ((InstallStatus) -> Unit)? = null,
     ): File {
         val directory = File(context.cacheDir, "engine-bundle-downloads").apply { mkdirs() }
         val cacheName = plugin.archiveSha256?.lowercase() ?: sha256(plugin.archiveUrl.toByteArray()).lowercase()
@@ -168,7 +184,7 @@ object PluginInstaller {
         context: Context,
         plugin: AvailablePlugin,
         temporary: File,
-        onStatus: ((String) -> Unit)?,
+        onStatus: ((InstallStatus) -> Unit)?,
     ) {
         val connection = URL(plugin.archiveUrl).openConnection() as HttpURLConnection
         connection.connectTimeout = 20_000
@@ -211,22 +227,19 @@ object PluginInstaller {
                             reportedMegabytes = megabytes
                             onStatus(
                                 if (totalBytes > 0) {
-                                    context.getString(
-                                        R.string.downloading_progress,
-                                        plugin.manifest.assetName, megabytes, totalBytes shr 20,
+                                    InstallStatus(
+                                        context.getString(R.string.downloading_progress, megabytes, totalBytes shr 20),
+                                        copied.toFloat() / totalBytes,
                                     )
                                 } else {
-                                    context.getString(
-                                        R.string.downloading_progress_unknown,
-                                        plugin.manifest.assetName, megabytes,
-                                    )
+                                    InstallStatus(context.getString(R.string.downloading_progress_unknown, megabytes), null)
                                 },
                             )
                         }
                     }
                 }
             }
-            onStatus?.invoke(context.getString(R.string.installing))
+            onStatus?.invoke(InstallStatus(context.getString(R.string.installing), null))
             require(temporary.length() <= MAX_ARCHIVE_BYTES) { "Engine bundle exceeds the download size limit" }
             // A server that declared Content-Length and then sent a different
             // number of bytes is itself evidence worth having on hand the next

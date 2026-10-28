@@ -182,6 +182,20 @@ filter; there is no separate list of them.
 hint row names it: at the header's far right it was hard to find (owner's test,
 2026-10-24).
 
+## Core cards and installs (owner's test, 2026-10-24)
+
+- **A core card names engines, not runtimes.** A line whose name says which engine it is
+  (RPG Maker VX Ace, KiriKiri 2, CMVS PS3) shows no version: those numbers are the
+  runtime's own (RGSS 1.0/2.0/3.1). The language runtimes a core embeds (Ruby, Python,
+  liblcf) are not named; a component a game's author chose (Spine) is. Lines named only by
+  family (Godot, Ren'Py) keep their versions. `EngineNames` decides this for every screen
+  that lists a core.
+- **A catalog a launch opened says why:** "<game> needs one of these cores to play", and a
+  refresh that worked does not replace that line with "every core is up to date".
+- **Install shows its size** ("Install · 106 MB") when the release lists one, says
+  "Installing" only once the unsandboxed warning (if any) is answered, and fills the card's
+  bar with the download's share done while its size is known (`InstallStatus`).
+
 ## Ending the running game: `dev.enginehost.END_GAME`
 
 droidtop's Kill cannot confirm that an Enginehost game ended when Shizuku is not

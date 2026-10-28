@@ -41,20 +41,27 @@ object EngineNames {
     /**
      * What a bundle runs, said the way a person asks the question: which
      * engine, which versions of it. One line per compatibility line the
-     * bundle declares, e.g. "Ren'Py 8.2.x" or "RPG Maker VX Ace 1.x · Ruby
-     * 1.9.2". Built only from what the capability declares; nothing is
-     * inferred from the runtime version, which is the bundle's own build and
-     * not the games it accepts.
+     * bundle declares, e.g. "Ren'Py 8.2.x" or "RPG Maker VX Ace". Built only
+     * from what the capability declares; nothing is inferred from the runtime
+     * version, which is the bundle's own build and not the games it accepts.
+     *
+     * A line whose name already says which engine it is (RPG Maker VX Ace,
+     * KiriKiri 2, CMVS PS3) carries no version: its numbers are the runtime's
+     * own (RGSS 3.1), which no game's player knows. Nor are the language
+     * runtimes a core embeds named ([shownComponent]): "Ruby 1.9.2 / 3.1.3"
+     * and "1.0 / 2.0 / 3.1" on the cards were jargon (owner's test,
+     * 2026-10-24).
      */
     fun compatibility(engine: String, capabilities: List<EngineCapability>): List<String> =
         capabilities.groupBy { line(it.engine ?: engine, it.engineContext) }.map { (lineName, group) ->
-            val versions = group.flatMap { capability ->
+            val versions = if (namesItsVariant(group.first().engine ?: engine, group.first().engineContext)) emptyList() else group.flatMap { capability ->
                 capability.supportedSeries.map { "$it.x" } +
                     capability.supportedVersions.map(Version::toString) +
                     capability.supportedRanges.map { "${it.min} to ${it.max}" } +
                     (if (capability.acceptsAnyEngineVersion) listOf("any version") else emptyList())
             }.distinct()
             val components = group.flatMap { it.runtimeComponents.entries }
+                .filter { shownComponent(it.key) }
                 .groupBy({ it.key }, { it.value })
                 .map { (name, values) -> "${componentName(name)} ${values.distinct().sorted().joinToString(" / ")}" }
             buildString {
@@ -68,17 +75,30 @@ object EngineNames {
     fun engines(manifest: EngineBundleManifest): List<String> =
         manifest.info.capabilities.map { line(manifest.info.engineOf(it), it.engineContext) }.distinct()
 
-    /** "Includes Ruby 1.9.2 / 3.1.3 · Spine 4.2", or null when a bundle carries no extra runtime components. */
+    /** "Includes Spine 4.2", or null when a bundle carries no runtime component a person would know. */
     fun includes(capabilities: List<EngineCapability>): String? =
         capabilities.flatMap { it.runtimeComponents.entries }
+            .filter { shownComponent(it.key) }
             .groupBy({ it.key }, { it.value })
             .map { (name, values) -> "${componentName(name)} ${values.distinct().sorted().joinToString(" / ")}" }
             .takeIf { it.isNotEmpty() }
             ?.joinToString(" · ")
 
     /** The engine versions a bundle ships, for the right-hand side of its card. */
-    fun shippedVersions(capabilities: List<EngineCapability>): String =
-        capabilities.filterNot { it.acceptsAnyEngineVersion }.map { it.runtimeVersion }.distinct().sorted().joinToString(" / ")
+    fun shippedVersions(engine: String, capabilities: List<EngineCapability>): String =
+        capabilities.filterNot { it.acceptsAnyEngineVersion || namesItsVariant(it.engine ?: engine, it.engineContext) }
+            .map { it.runtimeVersion }.distinct().sorted().joinToString(" / ")
+
+    /** Whether a line's name says which engine it is, as "RPG Maker VX Ace" does and "Godot" does not. */
+    private fun namesItsVariant(engine: String, engineContext: String?): Boolean = line(engine, engineContext) != family(engine)
+
+    /**
+     * A runtime component worth naming on a card: one a game's author chose (Spine), not the
+     * language a core is written in (Ruby, Python) or its own data library (liblcf).
+     */
+    private fun shownComponent(component: String): Boolean = component !in INTERNAL_COMPONENTS
+
+    private val INTERNAL_COMPONENTS = setOf("ruby", "python", "liblcf")
 
     /** Runtime component names as a person knows them; unknown ones pass through. */
     fun componentName(component: String): String = when (component) {
