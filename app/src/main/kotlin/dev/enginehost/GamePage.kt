@@ -125,6 +125,8 @@ class GamePage(
                 }
                 root.findViewById<TextView>(R.id.gameStatus).apply {
                     text = status.text
+                    // "Ready" said nothing Play does not (Droidtop/tracker#620, E10): the line shows only what stands in the way.
+                    visibility = if (status.ok) View.GONE else View.VISIBLE
                     setTextColor(
                         ContextCompat.getColor(activity, if (status.ok) R.color.eh_text_secondary else R.color.eh_caution),
                     )

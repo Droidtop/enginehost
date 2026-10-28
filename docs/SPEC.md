@@ -427,6 +427,17 @@ for this game wins over it, nested `options` merged key by key. The planner
 resolves it once and hands it to the runtime as an extra
 (`RuntimeActivity.EXTRA_OVERRIDES`) so both resolve the same config.
 
+## A row says what is unusual, else when it was played (decided 2026-10-28, Droidtop/tracker#620 E10)
+
+Every row on Home said "Android-runnable · Runs here", 22 identical lines. A line that is the same on every
+row tells the reader nothing, so a row's second line now names only what stands out: the builds and
+"Needs a core" or "Not supported here" for a game that does not run here, and "unconfirmed" for a guessed
+engine. Otherwise it says when the game was last played, or "Not played yet". The size shows only while
+the list is sorted by size. The Filters button counts the filters in use ("Filters (2)") and leaves out the
+search, which has its own field, and the sort. The sheet keeps its Search row, because the pad never
+reaches Home's search field. The game page drops its "Ready" line; the status shows only when something
+stands in the way of Play. Not done: the review's Engine and Platform chips in place of their own sheets.
+
 ## The game page's sections
 
 A game's page reads, top to bottom, in the owner's order (Droidtop/tracker#644,

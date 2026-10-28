@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
+import android.text.format.DateUtils
 import android.text.format.Formatter
 import android.view.LayoutInflater
 import android.view.View
@@ -67,7 +68,6 @@ class LibraryBrowser(
     private var lastReload = 0L
     private var reloadScheduled = false
     private var applyingText = false
-    private val defaultSort = initial.sort
     private val reloadNow = Runnable { reload() }
 
     /** The row the list was scrolled to before the screen was recreated, applied once the first list is drawn. */
@@ -244,7 +244,8 @@ class LibraryBrowser(
         }
         empty.visibility = if (loaded.rows.isEmpty()) View.VISIBLE else View.GONE
         empty.setText(if (loaded.total == 0) emptyText else R.string.search_no_matches)
-        filterButton.setText(if (filter.unfiltered && filter.sort == defaultSort) R.string.filter_button else R.string.filter_button_active)
+        val narrowing = filtersOn(filter)
+        filterButton.text = if (narrowing == 0) activity.getString(R.string.filter_button) else activity.getString(R.string.filter_button_count, narrowing)
         val index = keep?.let { path -> loaded.rows.indexOfFirst { it.path == path } } ?: -1
         val restored = pendingFirst
         pendingFirst = null
@@ -258,9 +259,17 @@ class LibraryBrowser(
 
     // ---- Filters ----------------------------------------------------------------
 
+    /**
+     * How many filters narrow the list, for the Filters button (Droidtop/tracker#620, E10). The
+     * search shows in its own field on Home and the sort narrows nothing, so neither is counted.
+     */
+    private fun filtersOn(f: LibraryFilter): Int =
+        listOf(f.engine != null, f.platform != null, f.support != null, f.folder != null, f.favourites).count { it }
+
     fun showFilters() {
         val f = filter
         val sheet = Sheet(activity).title(R.string.filter_title)
+        // The pad never reaches Home's search field, so the sheet is its way to search.
         sheet.choice(activity.getString(R.string.filter_search), f.text.ifBlank { null }) { pickSearch() }
         sheet.choice(activity.getString(R.string.filter_engine), engineName(f.engine)) { pickEngine() }
         sheet.choice(activity.getString(R.string.filter_platform), f.platform?.let { platformName(it) }) { pickPlatform() }
@@ -276,10 +285,9 @@ class LibraryBrowser(
                 reload()
             }
         }
-        if (!f.unfiltered) {
+        if (filtersOn(f) > 0) {
             sheet.choice(activity.getString(R.string.filter_clear)) {
-                filter = filter.copy(engine = null, platform = null, support = null, folder = null, text = "", favourites = false)
-                setSearchText("")
+                filter = filter.copy(engine = null, platform = null, support = null, folder = null, favourites = false)
                 reload()
             }
         }
@@ -448,17 +456,35 @@ class LibraryBrowser(
 
     // ---- Rows -------------------------------------------------------------------
 
+    /**
+     * A row's second line (Droidtop/tracker#620, E10): what is unusual about the game (it needs a
+     * core, it does not run here, its engine is a guess), and otherwise when it was last played.
+     * A line that says the same thing on every row says nothing. The size shows while the list is
+     * sorted by it.
+     */
     private fun statusLine(row: GameRow, support: Support): String {
         val parts = ArrayList<String>(5)
-        val builds = BuildPlatform.of(row.platforms).filter { it != BuildPlatform.WEB || row.platforms and BuildPlatform.PORTABLE.bit == 0 }
-        parts += builds.joinToString("/") { platformName(it) }
-        if (!row.hosted) {
-            archLabel(row.architecture)?.let { parts += it }
-            if (row.dotNet) parts += activity.getString(R.string.arch_dotnet)
+        if (support != Support.RUNS_HERE) {
+            val builds = BuildPlatform.of(row.platforms).filter { it != BuildPlatform.WEB || row.platforms and BuildPlatform.PORTABLE.bit == 0 }
+            parts += builds.joinToString("/") { platformName(it) }
+            if (!row.hosted) {
+                archLabel(row.architecture)?.let { parts += it }
+                if (row.dotNet) parts += activity.getString(R.string.arch_dotnet)
+            }
+            parts += supportName(support)
         }
-        parts += supportName(support)
         if (row.confidence != Confidence.HIGH && row.kind == FindingKind.FOLDER) parts += activity.getString(R.string.unconfirmed)
-        if (row.sizeBytes >= 0) parts += Formatter.formatShortFileSize(activity, row.sizeBytes)
+        if (parts.none { it.isNotEmpty() }) {
+            parts += if (row.playedAt > 0) {
+                activity.getString(
+                    R.string.row_played,
+                    DateUtils.getRelativeTimeSpanString(row.playedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS),
+                )
+            } else {
+                activity.getString(R.string.row_never_played)
+            }
+        }
+        if (filter.sort == SortOrder.SIZE && row.sizeBytes >= 0) parts += Formatter.formatShortFileSize(activity, row.sizeBytes)
         return parts.filter { it.isNotEmpty() }.joinToString(" · ")
     }
 

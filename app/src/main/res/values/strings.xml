@@ -113,7 +113,7 @@
     <!-- Library list: filters, sorting and what a row says -->
     <string name="hint_filters">Filters</string>
     <string name="filter_button">Filters</string>
-    <string name="filter_button_active">Filters (on)</string>
+    <string name="filter_button_count">Filters (%1$d)</string>
     <string name="filter_title">Filter and sort</string>
     <string name="filter_search">Search</string>
     <string name="filter_apply">Search</string>
@@ -142,6 +142,8 @@
     <string name="library_summary">%1$d of %2$d games</string>
     <string name="library_summary_all">%1$d games</string>
     <string name="unconfirmed">unconfirmed</string>
+    <string name="row_played">Played %1$s</string>
+    <string name="row_never_played">Not played yet</string>
     <string name="arch_64">64-bit</string>
     <string name="arch_32">32-bit</string>
     <string name="arch_arm64">ARM64</string>

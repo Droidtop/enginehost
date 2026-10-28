@@ -118,8 +118,13 @@ or the buttons above it; A opens the selected row (on the scan screen it adds a 
 already added); X opens the filter sheet (every filter, search, sort, clear); Y plays on Home and
 opens the scan menu (choose a folder, rescan changed, rescan everything, stop, add all shown) on the
 scan screen. Touch taps a row; the search field and Filters button are touch targets; the list has
-fast scroll. A row's status line says builds, architecture, what this device can do, and size; "Needs
-a plugin" is the only caution colour.
+fast scroll. A row's second line says only what is unusual about the game: its builds, architecture
+and "Needs a core" or "Not supported here" when it does not run here, and "unconfirmed" when its engine
+is a guess. Otherwise it says when the game was last played, or "Not played yet"; while the list is
+sorted by size it adds the size (Droidtop/tracker#620, E10). "Needs a core" is the only caution
+colour. The Filters button counts the filters that narrow the list (engine, platform, status, folder,
+favourites), not the search or the sort. The game page shows its status line only when something
+stands in the way of Play.
 
 Droidtop (or any caller) can still open a scan at a folder it knows with `dev.enginehost.SCAN` and a
 `path` extra. Droidtop's scan starts at once; another app's follows the person's `LAUNCH` decision for
