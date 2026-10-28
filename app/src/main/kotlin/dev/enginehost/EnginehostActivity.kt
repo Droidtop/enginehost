@@ -49,7 +49,7 @@ abstract class EnginehostActivity : AppCompatActivity() {
     protected abstract fun primaryAction(): View?
 
     /**
-     * Which of the app's three destinations this screen is, or null for a screen opened inside
+     * Which of the app's four destinations this screen is, or null for a screen opened inside
      * one. A destination screen gets the [DestinationBar] and answers L1 and R1 by moving to the
      * previous and next destination.
      */

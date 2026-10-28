@@ -6,10 +6,11 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 
 /**
- * The three places the app is organised around (Droidtop/tracker#234): the
- * Library of games, the Cores that run them (the installed plugins) and
- * Settings. Adding games is the Library's one primary action, not a place.
- * Everything else opens inside the destination that owns it.
+ * The four places the app is organised around (Droidtop/tracker#234, #644): the
+ * Library of games, the Cores that run them (the installed plugins), Controls (the
+ * button maps and pad profiles every engine reads) and Settings. Adding games is the
+ * Library's one primary action, not a place. Everything else opens inside the
+ * destination that owns it.
  */
 enum class Destination(
     @StringRes val label: Int,
@@ -18,6 +19,7 @@ enum class Destination(
 ) {
     LIBRARY(R.string.nav_library, R.drawable.ic_play, MainActivity::class.java),
     CORES(R.string.nav_cores, R.drawable.ic_plugins, PluginTrustActivity::class.java),
+    CONTROLS(R.string.nav_controls, R.drawable.ic_controller, ControllerConfigActivity::class.java),
     SETTINGS(R.string.nav_settings, R.drawable.ic_settings, EnginehostSettingsActivity::class.java),
 }
 

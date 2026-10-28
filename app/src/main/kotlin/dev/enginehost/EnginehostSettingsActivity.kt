@@ -126,9 +126,6 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 .show()
             true
         }
-        findViewById<View>(R.id.controllerRow).setOnClickListener {
-            startActivity(Intent(this, ControllerConfigActivity::class.java))
-        }
         findViewById<View>(R.id.launchAccessRow).setOnClickListener {
             startActivity(Intent(this, CallerAccessSettingsActivity::class.java))
         }

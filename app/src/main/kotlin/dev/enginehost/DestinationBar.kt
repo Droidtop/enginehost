@@ -10,7 +10,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 
 /**
- * The chrome that names the three [Destination]s and says which one this is:
+ * The chrome that names the four [Destination]s and says which one this is:
  * a bar along the bottom of a narrow window, a rail along the left edge of a
  * wide or short one ([SizeClass.usesRail]). Touch moves between them; the pad
  * does it with L1 and R1, so no item takes focus (the D-pad moves within a

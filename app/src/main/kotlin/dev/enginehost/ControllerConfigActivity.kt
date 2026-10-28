@@ -15,6 +15,13 @@ import kotlin.math.abs
 
 /** Global controller remapping shared by every engine bundle. */
 class ControllerConfigActivity : EnginehostActivity(), InputManager.InputDeviceListener {
+    /**
+     * The Controls destination when opened as a place, on the global map; a screen inside
+     * whatever opened it when it is for a game or an engine (its page, the in-game menu).
+     */
+    override val destination: Destination?
+        get() = if (intent.hasExtra(EXTRA_GAME_PATH) || intent.hasExtra(EXTRA_SCOPE)) null else Destination.CONTROLS
+
     /** The first action's binding: rebinding is what this screen is for. */
     override fun primaryAction(): View? =
         firstSelectable(findViewById(R.id.bindingList)) ?: findViewById(R.id.hotkeyButton)
