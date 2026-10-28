@@ -394,13 +394,12 @@ resolves it once and hands it to the runtime as an extra
 
 ## The game page's sections
 
-Under its status line a game's page shows rows, read off the main thread after the
-page itself (`GameSectionsLoader`, drawn by `GameSectionsView`):
+A game's page reads, top to bottom, in the owner's order (Droidtop/tracker#644,
+2026-10-24: "Play, Run with, Controls, Saves, Game setup, Manage"): Play, then rows read
+off the main thread after the page itself (`GameSectionsLoader`, drawn by
+`GameSectionsView`), then Game setup and Manage.
 
-- **Controls** (first, so it is never under the fold at 1920x1080; review,
-  Droidtop/tracker#618): whether the game has its own buttons or follows the
-  engine's; it opens the controller screen on "This game". Shown when a core resolves.
-- **Core**: the build that runs the game and whether it is "newest that fits" or
+- **Run with**: the build that runs the game and whether it is "newest that fits" or
   "fixed for this game". Its sheet lists "Newest that fits" and every installed
   build that could run the game (`PluginResolver.ranked` without an allowlist), with
   its sandbox state. A fixed build is the per-game override `pluginVersion`.
@@ -408,16 +407,22 @@ page itself (`GameSectionsLoader`, drawn by `GameSectionsView`):
   build of the core and the game is not fixed to one; it installs through the quiet
   path Cores' Update uses, and the same-key approval carries over. It is a row,
   not the primary button, so Play stays Play while an update waits.
+- **Controls**: whether the game has its own buttons or follows the engine's; it opens
+  the Controls screen on "This game". Shown when a core resolves.
+- **Saves**: where the saves are, when they last changed and how big they are
+  (a bounded look at the save folder). For an engine that saves beside the game the
+  place is the game's folder and nothing is measured.
 - **Options**: one row per option the core declares (`DeclaredOptionsReader`),
   showing the value this game runs on and its source: engine default, the game's own
   setting (its `enginehost.json`), or this game (an override). Boolean, choice,
   number and string options are edited here and written as overrides (`options.<name>`);
   a "Back to the default" choice takes the override back. Path, file and repeated options are
-  set in Game setup, which edits the game's own file.
-- **Saves**: where the saves are, when they last changed and how big they are
-  (a bounded look at the save folder). For an engine that saves beside the game the
-  place is the game's folder and nothing is measured.
+  set in Game setup, which edits the game's own file. They come after Saves so that a
+  core with many of them never pushes Controls under the fold at 1920x1080, the reason
+  Controls once came first (Droidtop/tracker#618).
 - **History**: time played, starts, when it last started and how the last session ended.
+- **Manage**, a button under Game setup: one sheet with the game's favourite mark, Report a
+  problem, and Remove from list. They were three buttons of their own.
 
 Play history (`launches`, `play_ms`, `last_exit` on the library row, database version 4) is
 written by the launch screen: a start counts a launch; the session's length is

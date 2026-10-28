@@ -34,17 +34,19 @@ class GameSectionsView(
         val focused = container.focusedChild?.let(container::indexOfChild) ?: -1
         container.removeAllViews()
         val core = sections.core
-        // Controls first: below the core's options it sat under the fold at
-        // 1920x1080, and it is what a player changes most (Droidtop/tracker#618, C12).
+        // The owner's order for a game page (Droidtop/tracker#644, 2026-10-24): "Play, Run with,
+        // Controls, Saves, Game setup, Manage". The engine's own options follow Saves, so a long
+        // list of them never pushes Controls under the fold, which is why Controls once came
+        // first (Droidtop/tracker#618, C12). Play is above these rows; Game setup and Manage below.
         if (core != null) {
-            addControls(sections)
             addCore(sections, core)
         } else {
             sections.pinned?.let { addMissingPin(sections, it) }
         }
         sections.update?.let { addUpdate(it, sections.core) }
-        sections.options.forEach { addOption(it) }
+        if (core != null) addControls(sections)
         sections.saves?.let { addSaves(it) }
+        sections.options.forEach { addOption(it) }
         addHistory(sections.history)
         if (focused >= 0 && container.childCount > 0) {
             (focused.coerceAtMost(container.childCount - 1) downTo 0)

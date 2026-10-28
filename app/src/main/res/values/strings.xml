@@ -57,6 +57,7 @@
     <string name="action_launch">Play</string>
     <string name="action_edit_config">Game setup</string>
     <string name="action_remove">Remove from list</string>
+    <string name="action_manage">Manage</string>
     <string name="launch_needs_config">A few details could not be read from the game. Check them, then save or test.</string>
     <string name="unhosted_engine">This is a %1$s game. No Enginehost core runs %1$s games, so it cannot be started here.</string>
     <string name="unhosted_unity">This is a Unity game%1$s. Enginehost cannot run it: Unity\'s engine is closed source, and no Unity runtime exists for Android to run the game with.</string>
@@ -298,7 +299,7 @@
     <string name="action_folder_missing">Folder not available</string>
     <string name="action_not_supported">Not supported here</string>
     <string name="pane_choose_game">Choose a game to see its page here.</string>
-    <string name="section_core">Core</string>
+    <string name="section_core">Run with</string>
     <string name="section_core_update">Update the core</string>
     <string name="section_saves">Saves</string>
     <string name="section_history">History</string>

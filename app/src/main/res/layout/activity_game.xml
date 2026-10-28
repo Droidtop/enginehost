@@ -152,7 +152,7 @@
             android:drawableStart="@drawable/ic_play"
             android:text="@string/action_launch" />
 
-        <!-- Core, options, saves and history; filled by GameActivity once they are read. -->
+        <!-- Run with, Controls, Saves, the engine's options and history; filled by GamePage once they are read. -->
         <LinearLayout
             android:id="@+id/gameSections"
             android:layout_width="match_parent"
@@ -171,30 +171,12 @@
             android:text="@string/action_edit_config" />
 
         <Button
-            android:id="@+id/favouriteButton"
+            android:id="@+id/manageButton"
             style="@style/Widget.Enginehost.Button.Nav"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/action_add_favourite" />
-
-
-        <Button
-            android:id="@+id/reportButton"
-            style="@style/Widget.Enginehost.Button.Nav"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:drawableStart="@drawable/ic_report"
-            android:text="@string/action_report" />
-
-        <Button
-            android:id="@+id/removeButton"
-            style="@style/Widget.Enginehost.Button.Danger"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/eh_space_s"
-            android:text="@string/action_remove" />
+            android:text="@string/action_manage" />
 
     </LinearLayout>
 </ScrollView>

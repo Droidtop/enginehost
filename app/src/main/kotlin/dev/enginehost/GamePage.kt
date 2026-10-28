@@ -11,9 +11,9 @@ import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
- * One game's page: its name, engine and state, the cover plate, the one
- * primary button, its sections and the rest of what applies to this one game
- * (its setup, favourite, a problem report, taking it off the list). It draws
+ * One game's page: its name, engine and state, the cover plate, Play, then Run
+ * with, Controls and Saves, then Game setup and Manage (its favourite, a problem
+ * report, taking it off the list). It draws
  * into whatever view tree it is given, so the same page is the
  * [GameActivity] on a narrow window and a pane beside Home's list on a wide
  * one (Droidtop/tracker#234); there is one page, not two.
@@ -43,11 +43,7 @@ class GamePage(
             if (primary == GamePrimary.SET_UP) openSetup() else play()
         }
         root.findViewById<Button>(R.id.setupButton).setOnClickListener { openSetup() }
-        root.findViewById<Button>(R.id.favouriteButton).setOnClickListener { toggleFavourite() }
-        root.findViewById<Button>(R.id.reportButton).setOnClickListener {
-            folder?.let { activity.startActivity(ProblemReportActivity.intent(activity, it)) }
-        }
-        root.findViewById<Button>(R.id.removeButton).setOnClickListener { confirmRemove() }
+        root.findViewById<Button>(R.id.manageButton).setOnClickListener { showManage() }
         root.findViewById<TextView>(R.id.gamePath).apply {
             isClickable = true
             isFocusable = true
@@ -198,8 +194,20 @@ class GamePage(
 
     private fun showFavourite(on: Boolean) {
         favourite = on
-        root.findViewById<Button>(R.id.favouriteButton)
-            .setText(if (on) R.string.action_remove_favourite else R.string.action_add_favourite)
+    }
+
+    /**
+     * Manage: what is done to the game rather than with it, in one sheet below Game setup
+     * (Droidtop/tracker#644): its favourite mark, a problem report, and taking it off the list.
+     */
+    private fun showManage() {
+        val game = folder ?: return
+        Sheet(activity)
+            .title(R.string.action_manage)
+            .choice(if (favourite) R.string.action_remove_favourite else R.string.action_add_favourite) { toggleFavourite() }
+            .choice(R.string.action_report) { activity.startActivity(ProblemReportActivity.intent(activity, game)) }
+            .choice(R.string.action_remove, Sheet.Tone.DANGER) { confirmRemove() }
+            .show()
     }
 
     private fun openSetup() {
