@@ -434,7 +434,22 @@ off the main thread after the page itself (`GameSectionsLoader`, drawn by
   the Controls screen on "This game". Shown when a core resolves.
 - **Saves**: where the saves are, when they last changed and how big they are
   (a bounded look at the save folder). For an engine that saves beside the game the
-  place is the game's folder and nothing is measured.
+  place is the game's folder and nothing is measured. Its sheet manages them
+  (Droidtop/tracker#238, `SaveBackups`, `SavesSheet`):
+  - **Back up now** copies the save folders into a new folder named for the moment,
+    under `<save location>/save-backups/<game>-<digest>/`. It never writes into a backup
+    that exists.
+  - **Restore a backup** lists them newest first with their sizes. It asks first, backs
+    the current saves up, then copies the backup's files over them. Saves the backup
+    doesn't have are kept, and nothing is deleted.
+  - **Copy to a folder** puts a copy in a new "<game> saves" folder inside a folder the
+    person picks.
+  - Symbolic links are neither followed nor copied, and every copy runs off the main
+    thread with a running file count.
+  - What counts as saves: the game's save folder, or, for an engine that saves beside the
+    game, only the folders its core declares it writes there (`gameWrites`, such as
+    KiriKiri's `savedata`). With none declared the sheet says where the saves are and
+    offers no copy, because the game's own files are never copied.
 - **Options**: one row per option the core declares (`DeclaredOptionsReader`),
   showing the value this game runs on and its source: engine default, the game's own
   setting (its `enginehost.json`), or this game (an override). Boolean, choice,

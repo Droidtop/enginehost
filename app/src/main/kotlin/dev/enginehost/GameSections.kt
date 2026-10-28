@@ -17,6 +17,15 @@ class SavesInfo(
     val folder: File?,
     val lastWrittenAt: Long,
     val bytes: Long,
+    /**
+     * The folders that are this game's saves and nothing else, for Back up, Restore and Copy
+     * (Droidtop/tracker#238). Beside the game that is only what the core declares it writes
+     * there (`gameWrites`, KiriKiri's `savedata`): the game's own files are never copied.
+     * Empty when no folder is known to hold only saves.
+     */
+    val sources: List<File> = emptyList(),
+    /** Where this game's backups are kept ([SaveBackups.folderFor]). */
+    val backups: File? = null,
 )
 
 /**
@@ -59,7 +68,7 @@ object GameSectionsLoader {
             compatible = compatible,
             update = if (core != null && pinned == null) newerBuild(context, core) else null,
             options = optionRows(context, folder, config, core, overrides),
-            saves = runCatching { savesOf(context, folder, config) }.getOrNull(),
+            saves = runCatching { savesOf(context, folder, config, core) }.getOrNull(),
             history = history,
             controlsScope = controlsScope,
             ownControls = runCatching {
@@ -94,11 +103,17 @@ object GameSectionsLoader {
         }
     }
 
-    private fun savesOf(context: Context, folder: File, config: EngineConfig): SavesInfo {
+    private fun savesOf(context: Context, folder: File, config: EngineConfig, core: InstalledPlugin?): SavesInfo {
         val place = SaveFolders.placeOf(config.engine, config.engineContext)
-        if (place == SaveFolders.Place.BESIDE_THE_GAME) return SavesInfo(true, folder, 0L, -1L)
+        val store = SaveLocationStore(context)
+        val backups = SaveBackups.folderFor(store.rootFor(config.engine), folder)
+        if (place == SaveFolders.Place.BESIDE_THE_GAME) {
+            val engineFolder = GameRunner.engineFolder(folder, config)
+            val declared = core?.gameWrites.orEmpty().map { File(engineFolder, it) }.filter { it.isDirectory }
+            return SavesInfo(true, folder, 0L, -1L, declared, backups)
+        }
         // Located, not made: a folder that is not there yet simply has nothing in it.
-        val saves = SaveLocationStore(context).saveFolderPathFor(config)
+        val saves = store.saveFolderPathFor(config)
         var latest = 0L
         var bytes = 0L
         var seen = 0
@@ -108,6 +123,6 @@ object GameSectionsLoader {
             latest = maxOf(latest, file.lastModified())
             bytes += file.length()
         }
-        return SavesInfo(false, saves, latest, bytes)
+        return SavesInfo(false, saves, latest, bytes, listOf(saves).filter { it.isDirectory }, backups)
     }
 }

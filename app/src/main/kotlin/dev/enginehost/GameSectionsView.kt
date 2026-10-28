@@ -221,7 +221,6 @@ class GameSectionsView(
     // ---- Saves and history ------------------------------------------------------
 
     private fun addSaves(saves: SavesInfo) {
-        val folderPath = saves.folder?.absolutePath.orEmpty()
         val value = if (saves.besideGame) {
             activity.getString(R.string.saves_beside_game)
         } else if (saves.lastWrittenAt > 0) {
@@ -233,9 +232,7 @@ class GameSectionsView(
         } else {
             activity.getString(R.string.saves_none_yet)
         }
-        row(activity.getString(R.string.section_saves), value) {
-            Sheet(activity).title(R.string.section_saves).message(folderPath).choice(R.string.ok) {}.show()
-        }
+        row(activity.getString(R.string.section_saves), value) { SavesSheet(activity, folder, saves, onChanged).show() }
     }
 
     private fun addHistory(history: PlayHistory) {

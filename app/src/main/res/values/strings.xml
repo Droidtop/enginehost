@@ -312,6 +312,38 @@
     <string name="section_core">Run with</string>
     <string name="section_core_update">Update the core</string>
     <string name="section_saves">Saves</string>
+    <string name="saves_back_up">Back up now</string>
+    <string name="saves_restore">Restore a backup</string>
+    <string name="saves_copy">Copy to a folder</string>
+    <string name="saves_copy_detail">A copy to keep somewhere else, such as a memory card</string>
+    <string name="saves_copy_folder">%1$s saves</string>
+    <string name="saves_beside_folders">This engine saves in the game\'s own folder, here:\n%1$s</string>
+    <string name="saves_beside_no_folder">This engine saves among the game\'s own files, in %1$s. Back up and restore aren\'t offered for it, because they would copy the game itself.</string>
+    <string name="saves_backing_up">Backing up</string>
+    <string name="saves_restoring">Restoring</string>
+    <string name="saves_copying">Copying</string>
+    <string name="saves_no_backups">No backups yet. Back up now makes one.</string>
+    <string name="saves_restore_title">Restore this backup?</string>
+    <string name="saves_restore_message">Your current saves are backed up first. Saves this backup doesn\'t have are kept.</string>
+    <string name="saves_restore_confirm">Restore</string>
+    <string name="saves_copied">Copied to %1$s</string>
+    <string name="saves_failed">The saves could not be copied</string>
+    <plurals name="saves_backed_up">
+        <item quantity="one">Backed up %d file.</item>
+        <item quantity="other">Backed up %d files.</item>
+    </plurals>
+    <plurals name="saves_restored">
+        <item quantity="one">Restored %d file.</item>
+        <item quantity="other">Restored %d files.</item>
+    </plurals>
+    <plurals name="saves_files_done">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
+    <plurals name="saves_skipped">
+        <item quantity="one">%d item was left out: a link, or a file that could not be read.</item>
+        <item quantity="other">%d items were left out: links, or files that could not be read.</item>
+    </plurals>
     <string name="section_history">History</string>
     <string name="core_value">%1$s · %2$s</string>
     <string name="core_newest">newest that fits</string>
