@@ -52,7 +52,7 @@ class MainActivity : EnginehostActivity() {
             filterButton = findViewById<Button>(R.id.gameFilterButton),
             summary = findViewById<TextView>(R.id.gameSummary),
             empty = findViewById<TextView>(R.id.gameEmpty),
-            initial = LibraryFilter(sort = SortOrder.RECENTLY_PLAYED),
+            initial = LibraryFilter(sort = SortOrder.NAME),
             emptyText = R.string.games_empty,
             onLoaded = {
                 showEmptyState()
@@ -132,7 +132,8 @@ class MainActivity : EnginehostActivity() {
     override fun hints(): List<Hint> {
         // The base class draws the hint row while the content is being set, before the list exists.
         if (!::browser.isInitialized) return super.hints()
-        val hints = super.hints() + Hint("X", R.string.hint_filters) { browser.showFilters() }
+        val hints = super.hints() + Hint("X", R.string.hint_filters) { browser.showFilters() } +
+            Hint(START, R.string.add_games) { chooseHowToAdd() }
         // A game on a shelf takes Y as a library row does.
         (currentFocus?.tag as? ShelfGame)?.let { shelf -> return hints + Hint("Y", R.string.hint_play) { launchGame(File(shelf.path)) } }
         val focusedGame = browser.takeIf { currentFocus === grid }?.selectedRow()?.takeIf { it.kind == FindingKind.FOLDER }
@@ -213,7 +214,9 @@ class MainActivity : EnginehostActivity() {
      * from the list.
      */
     private fun showShelves() {
-        if (!browser.filter.unfiltered || browser.total <= 0) {
+        // A library a shelf could hold whole would show every game twice, on the shelf and in the
+        // list under it (owner's test, 2026-10-24): it is the list alone until it outgrows a shelf.
+        if (!browser.filter.unfiltered || browser.total <= LibraryBrowser.SHELF_SIZE) {
             drawShelves(null)
             return
         }

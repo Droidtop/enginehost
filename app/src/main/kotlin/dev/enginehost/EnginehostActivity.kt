@@ -190,7 +190,8 @@ abstract class EnginehostActivity : AppCompatActivity() {
     }
 
     private fun owns(keyCode: Int): Boolean =
-        keyCode in OWNED_BUTTONS || (destination != null && keyCode in SECTION_BUTTONS)
+        keyCode in OWNED_BUTTONS || (destination != null && keyCode in SECTION_BUTTONS) ||
+            (keyCode == KeyEvent.KEYCODE_BUTTON_START && hints().any { it.button == START })
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (!owns(keyCode)) return super.onKeyDown(keyCode, event)
@@ -213,7 +214,11 @@ abstract class EnginehostActivity : AppCompatActivity() {
             if (target != null && !event.isCanceled) press(target)
             return true
         }
-        val button = if (keyCode == KeyEvent.KEYCODE_BUTTON_X) "X" else "Y"
+        val button = when (keyCode) {
+            KeyEvent.KEYCODE_BUTTON_X -> "X"
+            KeyEvent.KEYCODE_BUTTON_START -> START
+            else -> "Y"
+        }
         hints().firstOrNull { it.button == button }?.press?.invoke()
         return true
     }
@@ -276,7 +281,10 @@ abstract class EnginehostActivity : AppCompatActivity() {
 
     private fun fill(row: LinearLayout) = HintRow.fill(row, hints())
 
-    private companion object {
+    protected companion object {
+        /** A screen's one way to add something (Home's Add games), on the hint row and on Start. */
+        const val START = "Start"
+
         val OWNED_BUTTONS = setOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y)
 
         /** Taken only by a destination screen, where they move between destinations. */

@@ -164,8 +164,11 @@ build will run it and whether it is sandboxed ("Core 1.0.1-2 · Sandboxed").
 
 ## Home shelves and favourites
 
-While nothing narrows the list, Home shows two shelves above it: Continue
-playing (the games played last, from `played_at`) and Favourites. Each is a row of
+While nothing narrows the list and the library holds more games than one shelf,
+Home shows two shelves above it: Continue playing (the games played last, from
+`played_at`) and Favourites. A library a shelf could hold whole is the list alone,
+and the list is in name order, so the shelf is not a copy of the list's top
+(owner's test, 2026-10-24: "the library lists a game twice"). Each is a row of
 at most `LibraryBrowser.SHELF_SIZE` game cards; a shelf with no games is not
 drawn, and a window under 480dp tall shows only the first that has games, so a
 handheld held sideways keeps its list. A card opens the game's screen as a
@@ -174,6 +177,10 @@ the list. A shelf is a saved query plus a limit, not a second taxonomy: Favourit
 is the `favourite` column (database version 2) that a game's screen toggles, and
 the Filters sheet can show only favourites. Engine shelves are the existing engine
 filter; there is no separate list of them.
+
+**Add games** sits beside Home's title and answers Start from anywhere on Home, and the
+hint row names it: at the header's far right it was hard to find (owner's test,
+2026-10-24).
 
 ## Ending the running game: `dev.enginehost.END_GAME`
 

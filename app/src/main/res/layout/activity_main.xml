@@ -23,11 +23,28 @@
         android:orientation="horizontal">
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_marginEnd="@dimen/eh_space_m"
             android:text="@string/app_name"
             android:textAppearance="@style/TextAppearance.Enginehost.ScreenTitle" />
+
+        <!--
+            Add games beside the title, where reading starts, and on Start from anywhere on Home
+            (the hint row says so): at the far right it was hard to find (owner's test, 2026-10-24).
+        -->
+        <Button
+            android:id="@+id/addGamesButton"
+            style="@style/Widget.Enginehost.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_add"
+            android:text="@string/add_games" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <!--
             Updates, in the header beside Add games and as tall as it, so its
@@ -54,14 +71,6 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:visibility="gone" />
-
-        <Button
-            android:id="@+id/addGamesButton"
-            style="@style/Widget.Enginehost.Button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:drawableStart="@drawable/ic_add"
-            android:text="@string/add_games" />
 
     </LinearLayout>
 
