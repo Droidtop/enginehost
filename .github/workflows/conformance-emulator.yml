@@ -49,8 +49,8 @@ jobs:
         run: ./gradlew :app:assembleDebug --stacktrace
 
       # Each family's rolling unstable core: the build its users get next. One core per family
-      # whose test game in this repository runs as it is (Ren'Py's needs the SDK's runtime beside
-      # it, Godot's needs exporting to a .pck; both wait for that).
+      # whose test game in this repository runs (Ren'Py's needs the SDK's runtime beside it and
+      # waits for that); Godot's plays on its 4.4 line, the one its game is exported with below.
       - name: Fetch the cores
         env:
           GH_TOKEN: ${{ github.token }}
@@ -62,8 +62,27 @@ jobs:
           enginehost-html-plugin html-v1-unstable
           enginehost-love2d-plugin love2d-11-v1-unstable
           enginehost-nscripter-plugin nscripter-onsyuri-v1-unstable
+          enginehost-godot-plugin godot-v44-v1-unstable
           EOF
           ls -l cores
+
+      # The Godot core runs only an exported game, a .pck: the test game's project is exported
+      # with Godot's own editor, a pinned release whose archive is checked before it runs.
+      - name: Export the Godot test game
+        env:
+          GODOT_ZIP: Godot_v4.4.1-stable_linux.x86_64.zip
+          GODOT_SHA256: d6e382fb531019f85630c1f485a561a0d20c4a2344b6c3847735cfee7da812aa
+        run: |
+          mkdir -p godot-editor exported/godot
+          curl -fsSL -o "godot-editor/$GODOT_ZIP" "https://github.com/godotengine/godot/releases/download/4.4.1-stable/$GODOT_ZIP"
+          echo "$GODOT_SHA256  godot-editor/$GODOT_ZIP" | sha256sum -c -
+          unzip -q "godot-editor/$GODOT_ZIP" -d godot-editor
+          editor=godot-editor/Godot_v4.4.1-stable_linux.x86_64
+          "$editor" --headless --path test-games/godot --import
+          "$editor" --headless --path test-games/godot --export-pack pack "$PWD/exported/godot/game.pck"
+          # A Godot pack starts with GDPC.
+          test "$(head -c 4 exported/godot/game.pck)" = GDPC
+          ls -l exported/godot
 
       - name: Let the emulator use KVM
         run: |
@@ -84,7 +103,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash tools/core-harness/conformance-emulator.sh app/build/outputs/apk/debug/app-debug.apk cores results
+          script: bash tools/core-harness/conformance-emulator.sh app/build/outputs/apk/debug/app-debug.apk cores results exported
 
       # The report as the run's summary: read where the logs' download is refused.
       - name: Summarise

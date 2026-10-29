@@ -1,5 +1,6 @@
 {
   "html": ["/sdcard/EnginehostConformance/html"],
   "love2d": ["/sdcard/EnginehostConformance/love2d"],
-  "nscripter": ["/sdcard/EnginehostConformance/nscripter"]
+  "nscripter": ["/sdcard/EnginehostConformance/nscripter"],
+  "godot": ["/sdcard/EnginehostConformance/godot"]
 }

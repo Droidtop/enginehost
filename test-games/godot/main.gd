@@ -4,7 +4,7 @@
 # every node at runtime, so the project needs no imported assets and no
 # editor pass.  It exercises the three things every conformance game must:
 # a frame that changes on its own (the moving square), an input response
-# (any key press flips the phase), and a save under user:// that is read
+# (any key press or touch flips the phase and grows the white bar), and a save under user:// that is read
 # back on the next launch, so the relaunch check verifies the save
 # survived.  user:// is wherever Enginehost mapped the engine's save root.
 
@@ -20,6 +20,10 @@ var time := 0.0
 var background: ColorRect
 var square: ColorRect
 var label: Label
+# Inputs seen this run. The bar it draws only grows: flips alone cancel out
+# (the harness sends four keys, four flips), and the screen must still answer.
+var inputs := 0
+var bar: ColorRect
 
 
 func _ready() -> void:
@@ -31,6 +35,11 @@ func _ready() -> void:
 	square.color = Color(0.9, 0.8, 0.3)
 	square.size = Vector2(48, 48)
 	add_child(square)
+
+	bar = ColorRect.new()
+	bar.color = Color(1, 1, 1)
+	bar.position = Vector2(0, 120)
+	add_child(bar)
 
 	label = Label.new()
 	label.position = Vector2(16, 16)
@@ -44,15 +53,19 @@ func _process(delta: float) -> void:
 	# The square moves every frame, so the screen is never static.
 	square.position = Vector2(fmod(time * 160.0, WINDOW.x), 336.0)
 	background.color = Color(0.22, 0.35, 0.6) if phase == 1 else Color(0.6, 0.22, 0.35)
-	label.text = "phase %d\n%s\npress any key: flips the phase and saves" % [phase, note]
+	bar.size = Vector2(min(inputs, 10) * 128.0, 160.0)
+	label.text = "phase %d\n%s\npress any key or touch: flips the phase and saves" % [phase, note]
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
+	var key: bool = event is InputEventKey and event.pressed and not event.echo
+	var touch: bool = event is InputEventScreenTouch and event.pressed
+	if key or touch:
 		flip_phase()
 
 
 func flip_phase() -> void:
+	inputs += 1
 	phase = 2 if phase == 1 else 1
 	var save := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if save:
