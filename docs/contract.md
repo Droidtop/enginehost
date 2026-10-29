@@ -486,7 +486,10 @@ eligible only when every entry in the game's `runtimeRequirements` map is carrie
 `runtimeComponents` at exactly that version, or named in its `loadsComponents`, whatever the version.
 
 The entrypoint implements the Java interface in the publishable `plugin-api`
-module (cores depend on it as `compileOnly`). It receives a host-owned render
+module (cores depend on it as `compileOnly`). A core compiles against this repository's
+`plugin-api/` itself, checked out by the `.github/actions/plugin-api` action pinned by commit, as
+the signing workflow is; it commits no copy of the API of its own (Droidtop/tracker#768: ten cores
+carried hand copies, all out of date). It receives a host-owned render
 container, lifecycle callbacks, the game path, engine/context/requested and
 selected runtime versions, capability ID, runtime requirements, executable,
 raw options JSON, save/cache directories, logging/finish services, and an
