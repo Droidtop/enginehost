@@ -89,6 +89,8 @@ android {
     // One GitHub client for both apps: which requests may carry the token, redirects decided per hop, releases, downloads
     // (Droidtop/tracker#194, #195; GithubClients).
     sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/net/src/main/kotlin")
+    // What a problem report takes out of text before it leaves the device (ProblemReport.scrub; Droidtop/tracker#768).
+    sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/report/src/main/kotlin")
 }
 
 // --- The bundled engine registry is a SNAPSHOT of droidtop-platforms -----
