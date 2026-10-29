@@ -352,6 +352,15 @@ such as a LÖVE game whose `love.draw` is empty.
   on the launch screen as "Closed before it showed anything", with Try again
   and Report, instead of returning silently. A Back press that closes such a
   game is reported the same way.
+- **Android stopped the game (owner, 2026-10-29, Droidtop/tracker#27).** A game
+  whose process Android ended from outside is a failure, not a clean close: the
+  launch screen says "Android stopped the game: it needed the memory." (low
+  memory), "...: a system service it was using stopped." (a provider it used
+  died, as Google Play services' font provider did to WebView on an emulator) or
+  "...: it was using too much of the device." (excessive resource use), with Try
+  again and Report, and `GAME_ENDED` reports `crashed`. It was "game ended
+  (exited)" and a silent return to the library. The person swiping it away and
+  the game's own exit stay clean (`CrashWatch.stoppedByAndroid`).
 - **Report a problem** is also in the in-game menu (review findings 170 and
   179), and the report can be saved as a text file, besides Share, Copy and
   posting it on GitHub; nothing leaves the device unless the person picks one.

@@ -164,7 +164,7 @@ abstract class EnginehostActivity : AppCompatActivity() {
         val crash = CrashWatch.consume(this) ?: return
         Sheet(this)
             .title(getString(R.string.game_stopped_title, crash.gameFolder.name))
-            .message(getString(R.string.launch_crashed, crash.reason))
+            .message(CrashWatch.sentence(this, crash))
             .choice(R.string.action_report) {
                 startActivity(ProblemReportActivity.intent(this, crash.gameFolder, crash.reason, crash.trace))
             }

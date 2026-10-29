@@ -714,6 +714,7 @@
     <string name="launch_engine_line">%1$s %2$s</string>
     <string name="launch_runtime_line">Engine build %1$s · runtime %2$s</string>
     <string name="launch_crashed">Stopped unexpectedly: %1$s.</string>
+    <string name="launch_stopped_by_android">Android stopped the game: %1$s.</string>
     <string name="launch_engine_stale">This game\'s engine needs updating: the one installed has an old signature that Enginehost no longer accepts.</string>
     <string name="launch_update_engine">Update the engine</string>
     <string name="game_stopped_title">%1$s stopped</string>
