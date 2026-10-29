@@ -90,6 +90,7 @@ class DroidtopInterfaceService : Service() {
             val op = envelope.optString("op")
             return try {
                 when {
+                    point == "engines.cores" && op == "list_cores" -> ok(EngineCores.list(context))
                     point == "saves.roots" && op == "roots" ->
                         ok(SaveRoots.roots(context, envelope.optJSONObject("args") ?: JSONObject()))
                     else -> error("UNSUPPORTED", "Enginehost does not provide $point $op")

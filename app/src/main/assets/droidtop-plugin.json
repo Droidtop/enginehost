@@ -2,7 +2,7 @@
   "id": "dev.enginehost.app",
   "origin": "enginehost",
   "label": "Enginehost",
-  "version": "2",
+  "version": "3",
   "kind": "app_interface",
   "contractVersion": 3,
   "minDroidtop": "0.2",
@@ -16,6 +16,12 @@
       "version": 1,
       "id": "enginehost",
       "label": "Enginehost games"
+    },
+    {
+      "point": "engines.cores",
+      "version": 1,
+      "id": "enginehost",
+      "label": "Enginehost's engine cores"
     }
   ],
   "permissions": [

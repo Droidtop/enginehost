@@ -261,6 +261,9 @@ object PluginCatalogIndex {
 
     internal fun keep(context: Context, text: String) = Transport.write(File(context.filesDir, CACHED_INDEX), text)
 
+    /** When the plugins index was last fetched, in ms since the epoch, 0 when it never was. */
+    fun fetchedAtMs(context: Context): Long = File(context.filesDir, CACHED_INDEX).lastModified()
+
     private const val CACHED_INDEX = "plugins-index.json"
 }
 

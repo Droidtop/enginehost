@@ -205,7 +205,7 @@ object AvailablePluginResolver {
     }
 }
 
-class PluginCatalogCache(context: Context) {
+class PluginCatalogCache(private val context: Context) {
     private val directory = File(context.filesDir, "plugin-catalogs-v2").apply { mkdirs() }
     private val trust = BundleTrust(context)
 
@@ -223,7 +223,12 @@ class PluginCatalogCache(context: Context) {
         etag?.let { root.put("etag", it) }
         file(origin).writeText(root.toString())
         synchronized(decoded) { decoded.remove(file(origin).path) }
+        // A stored catalog can change what droidtop may offer to install (EngineCores).
+        EngineCores.reportChanged(context)
     }
+
+    /** When a catalog was last stored, in ms since the epoch, 0 when none is. */
+    fun storedAtMs(): Long = directory.listFiles()?.maxOfOrNull { it.lastModified() } ?: 0L
 
     /** The validator stored with this origin's catalog, if it has one. */
     fun etag(origin: String): String? = runCatching {

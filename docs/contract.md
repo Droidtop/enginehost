@@ -301,8 +301,8 @@ without it, none of this runs and nothing waits for it.
 
 - **The manifest** is the asset `assets/droidtop-plugin.json`: kind
   `app_interface`, the app `dev.enginehost` and its service
-  `dev.enginehost.DroidtopInterfaceService`. It provides `saves.roots@1`
-  and asks for `saves.exchange` and `library.read`, each with its reason.
+  `dev.enginehost.DroidtopInterfaceService`. It provides `saves.roots@1` and
+  `engines.cores@1`, and asks for `saves.exchange` and `library.read`, each with its reason.
   Its `version` moves whenever the asset changes.
 - **The service** answers the action `dev.droidtop.plugin.APP_INTERFACE`
   with droidtop's `IPluginRuntime` (its AIDL copied unchanged under
@@ -330,6 +330,27 @@ without it, none of this runs and nothing waits for it.
 
   Roots only, never files. droidtop checks every path (C10, D12) before using it and
   writes nothing because of this answer alone.
+- **`engines.cores` `list_cores {}`** (Droidtop/tracker#752: an engine game's own runner
+  comes before Wine, and droidtop reads Enginehost's cores instead of guessing). It answers
+  `{cores, catalogCheckedAtMs}`, one entry per core line, installed or installable
+  (`EngineCores`):
+  - `id`, the bundle id, stable across versions;
+  - `engine` and `contexts`, Enginehost's names, as in `saves.roots` and the launch config,
+    with `engines` listed too for a bundle that runs several (the HTML runtime);
+  - `label`, the line as the Cores screen names it ("Ren'Py 8.3.x");
+  - `engineVersions {series, any}`, the game versions it runs, `any` for a core that takes
+    every version;
+  - `rows`, the detection hints: the ids of the engines-database rows (droidtop-platforms
+    `engines-database.json`, which droidtop detects with too) whose `enginehost` mapping
+    the core serves;
+  - `installed`, `installedVersion` (installed only), `availableVersion` (when the official
+    catalog lists it) and `updateAvailable`.
+  It reads the installed bundles and the cached catalog only, and never fetches;
+  `catalogCheckedAtMs` says how old the catalog part is.
+- **When the list changes** (a core installed or removed, a catalog stored), Enginehost tells
+  droidtop with `engines report_changed {}` while droidtop is connected, and droidtop asks
+  `list_cores` again; nothing polls. A droidtop that does not yet answer the call refuses it,
+  and Enginehost logs that and carries on.
 - **Before a launch** droidtop did not make, whose caller names no `saveRoot`
   (a launch from inside Enginehost, or from any other app), Enginehost asks
   droidtop's `saves where {path}` (`DroidtopSaves`). When droidtop keeps the

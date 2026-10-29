@@ -313,6 +313,7 @@ object EngineBundleInstaller {
             }
             return PluginRegistry.readRecord(destination).also { installed ->
                 PluginTrustStore(context).carryApproval(existing, installed)
+                EngineCores.reportChanged(context)
             }
         } catch (error: Throwable) {
             forceDeleteRecursively(staging)

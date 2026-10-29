@@ -354,7 +354,10 @@ object PluginRegistry {
         if (discoverAll(context).none { it.directory.canonicalFile == directory }) return false
         directory.walkBottomUp().forEach { it.setWritable(true, true) }
         if (plugin.unpack != null) CoreUnpacker.forget(context, plugin)
-        return directory.deleteRecursively().also { BundleStamps(context).forget(directory) }
+        return directory.deleteRecursively().also {
+            BundleStamps(context).forget(directory)
+            EngineCores.reportChanged(context)
+        }
     }
 
     /** Every installed build that could run [config], best first, one entry per bundle build. */
