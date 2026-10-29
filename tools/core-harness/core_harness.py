@@ -41,6 +41,11 @@ PACKAGE = "dev.enginehost"
 RUNTIME_PROCESS = "dev.enginehost:runtime"
 LAUNCH_ACTION = "dev.enginehost.LAUNCH"
 EVENTS_TAG = "enginehost-events"
+# Enginehost's own word on the first frame (RuntimeLoadingNotice): once it is watching the
+# game's screen, its "drew" event is the first frame, so its loading screen is never taken for
+# the game. An engine it does not watch falls back to what the screenshot shows.
+SCREEN_WATCHED = "watching the game's screen"
+FIRST_FRAME = "the game drew its first frame"
 # The launch screen's choice that runs a core with no sandbox (sandbox_consent_run).
 UNSANDBOXED_CHOICE = "Run unsandboxed"
 UI_DUMP = "/sdcard/core-harness-ui.xml"
@@ -108,6 +113,18 @@ def changed_fraction(a, b, threshold=12):
     if not a or len(a) != len(b):
         return 1.0
     return sum(1 for x, y in zip(a, b) if distance(x, y) > threshold) / len(a)
+
+
+def first_frame_shown(events, picture):
+    """Whether the game has drawn: Enginehost's [FIRST_FRAME] event once it is watching the
+    game's screen ([SCREEN_WATCHED]), else [picture], a screenshot of more than one colour.
+    The screenshot alone passed Enginehost's loading screen as the Ren'Py game's first frame
+    (emulator run 40887903439), while the game itself was still black behind it."""
+    if FIRST_FRAME in events:
+        return True
+    if SCREEN_WATCHED in events:
+        return False
+    return picture
 
 
 GAMEPAD = "gamepad:"
@@ -274,7 +291,8 @@ def run_game(device, engine, folder, steps, out_dir, args):
                 continue
         if device.pid(RUNTIME_PROCESS) and PACKAGE in last_focus and "LaunchActivity" not in last_focus:
             frame = shot("first-frame-candidate")
-            if frame and not is_flat(sample(*frame)):
+            events = device.run("logcat", "-d", "-s", EVENTS_TAG + ":I")
+            if first_frame_shown(events, bool(frame) and not is_flat(sample(*frame))):
                 first = time.time() - started
                 break
     if result.get("skipped"):

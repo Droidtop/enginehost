@@ -48,6 +48,15 @@ class FrameTest(unittest.TestCase):
         self.assertEqual(0.0, h.changed_fraction([grey, white], [grey, white]))
         self.assertEqual(0.5, h.changed_fraction([grey, grey], [grey, white]))
 
+    def test_a_watched_game_has_drawn_only_when_enginehost_says_so(self):
+        watched = "I enginehost-events: watching the game's screen\n"
+        drew = watched + "I enginehost-events: the game drew its first frame\n"
+        self.assertFalse(h.first_frame_shown(watched, True))
+        self.assertTrue(h.first_frame_shown(drew, False))
+        # An engine Enginehost does not watch: the screenshot decides.
+        self.assertTrue(h.first_frame_shown("", True))
+        self.assertFalse(h.first_frame_shown("", False))
+
     def test_a_gamepad_key_is_sent_as_a_gamepads(self):
         self.assertEqual("input keyevent KEYCODE_ENTER", h.key_command("KEYCODE_ENTER"))
         self.assertEqual("input gamepad keyevent KEYCODE_BUTTON_A", h.key_command("gamepad:KEYCODE_BUTTON_A"))

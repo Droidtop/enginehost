@@ -18,7 +18,7 @@ moves or writes anything in a game folder.
 
 | check | passes when | otherwise |
 | --- | --- | --- |
-| first frame | the runtime is in front and the screen shows more than one flat colour, within `--first-frame-seconds` (90) | fails, and says whether the launch screen never gave way, the runtime showed one flat colour (a black screen), or no runtime ran; the screen's UI text is saved |
+| first frame | the runtime is in front and, once Enginehost logs that it is watching the game's screen, Enginehost logs "the game drew its first frame"; for an engine it does not watch, the screen shows more than one flat colour; within `--first-frame-seconds` (90). A screenshot alone took Enginehost's loading screen for the game | fails, and says whether the launch screen never gave way, the runtime showed one flat colour (a black screen), or no runtime ran; the screen's UI text is saved |
 | input | after pad keys and a tap, the screen changes more than it does by itself | fails |
 | stays alive | the runtime still runs `--play-seconds` (20) later, with nothing in the crash buffer | fails |
 | save | the engine's save keys (from the games file) make a file in its save folder newer | not tested without keys |

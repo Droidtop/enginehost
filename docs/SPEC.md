@@ -328,7 +328,10 @@ such as a LÖVE game whose `love.draw` is empty.
   drawn. Still black at 45 s with the game in front, it asks once
   (`GameTroubleActivity`): Keep waiting, End game, Report a problem. An engine
   with no SurfaceView is not watched, and a game whose surface cannot be read
-  is never called black.
+  is never called black. Both steps are host events ("watching the game's
+  screen", "the game drew its first frame"), which the core harness waits on
+  instead of a screenshot: the loading screen passed for the Ren'Py test
+  game's first frame while the game was still black behind it.
 - **Hang.** In the runtime, the main thread beats every second and a watcher
   thread that sees no beat for 15 s, with the game in front, asks the same
   question; a stall that goes on is asked about again every 30 s

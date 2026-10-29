@@ -339,12 +339,16 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
                     }
                     // Any posted frame is the core's first: the loading screen has done its job.
                     if (result == PixelCopy.SUCCESS) LoadingCover.lift()
+                    // Both are host events too: the core harness waits on the second, not
+                    // on what a screenshot shows, which the loading screen also passes.
                     if (read && !watched) {
                         watched = true
                         CrashWatch.mark(activity, CrashWatch.WATCHED)
+                        HostEvents.record(activity, SCREEN_WATCHED)
                     }
                     if (drawn) {
                         CrashWatch.mark(activity, CrashWatch.DRAWN)
+                        HostEvents.record(activity, FIRST_FRAME)
                         finish()
                     } else {
                         look(surfaces, index + 1, readAny || read)
@@ -399,6 +403,13 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
 
         /** Faster while a loading screen is up, so it does not outlast the first frame by long. */
         const val COVER_POLL_MS = 200L
+
+        /**
+         * Host events (`enginehost-events`): the game's screen can be read, and it showed
+         * something other than black. tools/core-harness matches these sentences.
+         */
+        const val SCREEN_WATCHED = "watching the game's screen"
+        const val FIRST_FRAME = "the game drew its first frame"
 
         /** No surface this long after the window is up: the loading screen cannot tell when to go, and goes. */
         const val NO_SURFACE_COVER_MS = 5_000L
