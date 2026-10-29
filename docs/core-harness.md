@@ -34,6 +34,9 @@ Per game it saves `first-frame.png` and the other screenshots, `logcat.txt`,
 `enginehost-events`: the plan, the runtime starting, how it ended), and
 `result.json`. The run writes `report.md` and `report.json`.
 
+The same harness also runs in CI, on an emulator, against the MIT test games in `test-games/`
+only: conformance layer 1b (docs/conformance-test-games.md, "Layer 1b").
+
 ## The games file
 
 ```json

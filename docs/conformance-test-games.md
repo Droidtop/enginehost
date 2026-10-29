@@ -41,6 +41,29 @@ Ren'Py 8.5's (`1.0.13-1`, published 2026-10-24) still carries
 `lib/armeabi-v7a/` and an `armeabi-v7a` library in `runtime.apk`, which it
 must drop before its next signed build.
 
+## Layer 1b: on an emulator (built)
+
+Layer 1b is `.github/workflows/conformance-emulator.yml`, nightly and on dispatch on any branch.
+It builds that commit's debug Enginehost and fetches each family's rolling unstable core from
+the core's own releases. It boots an x86_64 API 34 emulator with software GL, and runs
+`tools/core-harness/conformance-emulator.sh`:
+
+- install the APK, and grant the all-files access a person grants (`appops`);
+- allow adb launches with the debug-only `DebugCallerAccessActivity`, the setting a person allows
+  once in Settings > App launch access;
+- install every core through the debug installer, which verifies it as the app does and approves
+  only an official signer;
+- push the in-repository test games and run the core harness (docs/core-harness.md) on them.
+
+Its report is the run's summary, and the screenshots, logcat and per-game results are the run's
+`conformance-emulator` artifact.
+
+It runs only the games written for it, in this repository: godot (the 4.0 line), html, love2d
+and nscripter. Ren'Py's needs the SDK's runtime beside `game/`, and is not wired yet. Games
+from the owner's library are tested on the rig, never in the cloud (docs/core-harness.md). An
+emulator with software GL is not a device: a pass here means the core starts, draws, answers
+input and keeps running, not that it plays well on the rig.
+
 A conformance game must exercise three things, and the row says which of the
 three apply:
 
