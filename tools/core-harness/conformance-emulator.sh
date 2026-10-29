@@ -52,4 +52,16 @@ for family in godot html love2d nscripter; do
     adb push "$repo/test-games/$family" "$games_root/" >/dev/null
 done
 
-python3 "$here/core_harness.py" --games "$here/conformance-games.json" --out "$out" --first-frame-seconds 120 --play-seconds 15
+status=0
+python3 "$here/core_harness.py" --games "$here/conformance-games.json" --out "$out" --first-frame-seconds 120 --play-seconds 15 || status=$?
+
+# The report and each game's evidence, in the job's log: some readers get the log but not the artifact.
+cat "$out/report.md" || true
+for game in "$out"/*/; do
+    echo "=== $(basename "$game")"
+    [ -f "$game/host-events.txt" ] && tail -n 25 "$game/host-events.txt"
+    [ -f "$game/screen-ui.xml" ] && { echo "--- on screen:"; grep -o 'text="[^"]\+"' "$game/screen-ui.xml" | head -n 25; }
+    [ -f "$game/crash.txt" ] && head -n 40 "$game/crash.txt"
+    [ -f "$game/logcat.txt" ] && { echo "--- Enginehost errors:"; grep -E " [EF] (Enginehost|enginehost|AndroidRuntime|DEBUG)" "$game/logcat.txt" | tail -n 25; }
+done
+exit $status
