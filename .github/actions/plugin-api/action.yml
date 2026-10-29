@@ -11,11 +11,18 @@ inputs:
 runs:
   using: composite
   steps:
+    # The commit the caller pinned this action to, read in a step of the action's own: inside
+    # the checkout step's inputs, github.action_ref names actions/checkout's ref instead.
+    - id: pin
+      shell: bash
+      env:
+        ACTION_REF: ${{ github.action_ref }}
+      run: echo "ref=$ACTION_REF" >> "$GITHUB_OUTPUT"
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         repository: Droidtop/enginehost
-        # The commit the caller pinned this action to: the API and the action always match.
-        ref: ${{ github.action_ref }}
+        # The API and the action always match.
+        ref: ${{ steps.pin.outputs.ref }}
         path: ${{ inputs.path }}
         sparse-checkout: plugin-api
         sparse-checkout-cone-mode: true
