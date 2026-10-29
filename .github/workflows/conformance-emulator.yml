@@ -9,11 +9,13 @@ on:
   schedule:
     - cron: "41 3 * * *"
   workflow_dispatch:
-  # A change to the harness, the test games or this workflow is run where it is pushed.
+  # A change to the harness (its scripts and the debug build's adb hooks), the test games or this
+  # workflow is run where it is pushed.
   push:
     paths:
       - ".github/workflows/conformance-emulator.yml"
       - "tools/core-harness/**"
+      - "app/src/debug/**"
       - "test-games/**"
 
 permissions:
