@@ -58,11 +58,9 @@ class PluginTrustStore(private val context: Context) {
 
     /**
      * Official: signed in format v1 by a certificate the Enginehost signing root issued for its own
-     * origin, still unrevoked; or, for a legacy signature, by its origin's
-     * root-certified key, compiled in or learned from the plugins index.
+     * origin, still unrevoked. A legacy-signed core is never official: it does not start.
      */
-    fun isOfficial(plugin: InstalledPlugin): Boolean = certifiedSigner(plugin)?.let { it.kind == SignerKind.OFFICIAL }
-        ?: PluginOriginKeyStore(context).let { keys -> plugin.signerFingerprints.any { keys.isOfficial(plugin.origin, it) } }
+    fun isOfficial(plugin: InstalledPlugin): Boolean = certifiedSigner(plugin)?.kind == SignerKind.OFFICIAL
 
     /** A v1 signer recorded at install that still holds; null for a legacy-signed bundle. */
     private fun certifiedSigner(plugin: InstalledPlugin): BundleSigner? =
@@ -78,7 +76,7 @@ class PluginTrustStore(private val context: Context) {
         if (isOfficial(plugin)) return null
         return PluginOriginStore(context).thirdParty(plugin.origin)
             ?.takeIf { listing ->
-                // The key the listing named is the anchor a v1 chain ends at, or the legacy signer itself.
+                // The key the listing named is the anchor a v1 chain ends at.
                 val keys = plugin.signerFingerprints + listOfNotNull(plugin.signer?.anchorKeySha256)
                 keys.any { it.equals(listing.keySha256, ignoreCase = true) }
             }
@@ -88,8 +86,7 @@ class PluginTrustStore(private val context: Context) {
      * Signed with the primary developer's key rather than the origin's own key.
      * Such a build is deliberately installable, and deliberately never official.
      */
-    fun isDeveloperDebug(plugin: InstalledPlugin): Boolean = certifiedSigner(plugin)?.let { it.kind == SignerKind.DEVELOPER }
-        ?: PluginOriginKeyStore(context).let { keys -> plugin.signerFingerprints.any { keys.isDeveloperDebug(it) } }
+    fun isDeveloperDebug(plugin: InstalledPlugin): Boolean = certifiedSigner(plugin)?.kind == SignerKind.DEVELOPER
 
     companion object {
         /** Whether [updated] inherits [previous]'s stored decision. Only an explicit approval carries. */

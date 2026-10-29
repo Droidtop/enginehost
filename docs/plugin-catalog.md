@@ -51,9 +51,9 @@ every origin never reaches a device over the network.
 
 The older hierarchy (an offline primary seed whose root certifies each
 repository's raw key, `enginehost-public-key.json`) is the legacy format.
-Releases still carry its signature beside the v1 one during the transition and
-installed cores signed only that way keep running, but once the root is
-pinned a new install or update needs v1.
+Enginehost no longer verifies it (2026-10-29, Droidtop/tracker#768): a release that
+carries only its signature is not offered, and a core installed with only it does not
+start (engine-bundle-format.md "Legacy signatures").
 
 Every applicable release contains one or more `*.enginehost.tar.xz` engine
 bundles, one `enginehost-release.json` browsing envelope conforming to
@@ -153,17 +153,16 @@ repositories worked through the same attachment mechanism; the code never sent t
 
 The index also carries each official repository's signing certificate
 (`certificates`, issued by the Enginehost signing root for that exact origin)
-and, during the transition, its legacy key document. On every fetch of the
-index, Enginehost verifies each against the root key compiled into the APK
+and, during the transition, its legacy key document, which Enginehost no longer
+reads. On every fetch of the index, Enginehost verifies the certificates against the root key compiled into the APK
 and adds the origin as official when it verifies
 (`PluginOriginStore.learnOfficial`): a repository Droidtop registers after
 this build shipped appears on the Cores screen at the next refresh, with
 the Official badge, and cannot be removed by the person, exactly like a
 compiled-in one. The index's own `trust` field is not consulted; only the
 root's signature makes an origin official, so nothing the index says (or
-whoever can write it) can. A compiled-in or learned key is replaced only by a
-rotation (below), and a person's own entry for the same repository is folded
-into the official one. Trust is withdrawn only by the signed revocation list
+whoever can write it) can. A person's own entry for the same repository, and
+the key they pinned for it, are folded into the official one. Trust is withdrawn only by the signed revocation list
 (`plugins/revocations.jws` in droidtop-platforms), which stops a certificate
 or key at every moment, launches included.
 
@@ -185,7 +184,9 @@ workflow then signs v1 and checks the bundle against the pinned root before
 publishing. The key is deterministic: running the same command again derives
 the same key, so a lost secret needs no new certificate.
 
-**Legacy format.** Until it is retired, every official repository's raw key is
+**Legacy format.** Enginehost no longer verifies these keys (2026-10-29,
+Droidtop/tracker#768); this and the rotation paragraph below record how the
+signing side made them, until it stops producing them. Every official repository's raw key is
 derived from the offline master seed for its origin and certified by the old
 root (`scripts/derive-official-key.py`,
 `scripts/certify-repository-key.py`; both run only where the seed is, on
@@ -346,7 +347,7 @@ and signer, so an automatically installed update of a Third party or Community
 bundle is unapproved until the user approves that exact new archive -- the
 trust prompt appears before it runs anything, exactly as for a manual install.
 Approval is never inherited across an update. The one default is Official
-(below): a bundle signed by its origin's root-certified key is approved unless
+(below): a bundle signed by a certificate the root issued for its origin is approved unless
 the person denied it.
 
 The Enginehost APK itself follows the same pattern one level up: CI
@@ -376,12 +377,11 @@ signature.
 - **Verified provenance** means the bundle's signature verifies to the anchor
   for its declared GitHub origin -- its certificate chain to the pinned Enginehost
   signing root's key, or to the key a person pinned for a repository they added
-  (format v1); or, for the legacy format, the key pinned for that origin -- and
+  (format v1) -- and
   every payload byte matches the signed manifest (engine-bundle-format.md
   "Signatures").
 - **Official** means a certificate the Droidtop CA issued for that origin signed
-  it (format v1), or, for the legacy format, the official root certified that
-  origin/key pair; Enginehost verified either itself, whether built in or
+  it (format v1); Enginehost verified it itself, whether the origin is built in or
   learned from the plugins index as above.
 - **Third party** means the person added the origin from droidtop-platforms'
   third-party list, and the bundle is signed by the key that listing names.

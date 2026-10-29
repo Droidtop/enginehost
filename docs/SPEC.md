@@ -769,3 +769,17 @@ timeouts and User-Agent and a catch that made every failure null. `Http` works a
 - It never sends an Authorization header over plain http.
 - Every read has a bound.
 - A failure is an `Http.Failure` that says what went wrong.
+
+## Only v1 signatures are verified (decided 2026-10-29, Droidtop/tracker#768)
+
+The legacy raw-key bundle signature has no verifier any more. Every shipped build pins the
+signing root, so the legacy path was already unreachable there. `LegacyBundleSignatures.kt`, the
+root-certified repository key documents and the developer's key went with it (code quality
+review, #768).
+- A bundle or catalog entry that carries only the legacy signature is refused, and is not offered.
+- A core installed with it does not start: its card offers Remove alone, and the launch says to
+  remove it and install it again.
+- A `.sig` beside a JWS, and a manifest's `signing` block, are passed over.
+
+What a repository a person added is verified to is unchanged: the key they pinned for it.
+docs/engine-bundle-format.md, "Legacy signatures".

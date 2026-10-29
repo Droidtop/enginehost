@@ -21,27 +21,26 @@ needed to verify it are members of the archive, not required sidecar files.
 The first regular-file members must be, in this order:
 
 1. `enginehost-bundle.json` — the exact UTF-8 manifest bytes being signed.
-2. `enginehost-bundle.sig` — the legacy signature (below), when the bundle carries one.
+2. `enginehost-bundle.sig` — the legacy signature (below), when the bundle carries one. Enginehost
+   passes over it and no longer verifies it.
 3. `enginehost-bundle.jws` — the format-v1 signature ("Signatures" below), when it carries one.
 
-At least one of the two signatures is present. The remaining regular-file
+At least one of the two signatures is present, and only the v1 one is verified. The remaining regular-file
 members are payload. Their order must exactly match
 the manifest's `files` array. Safe directory entries are allowed, but links,
 devices, absolute paths, parent traversal, duplicate files, unsigned files, and
 special tar entries are rejected.
 
 Signature format v1 is an X.509 certificate chain to the pinned Enginehost
-signing root's key ("Signatures"). The legacy signature is `SHA256withECDSA` by a P-256
-key the manifest's `signing` block carries (X.509 SubjectPublicKeyInfo and its
-SHA-256 fingerprint), which Enginehost requires to equal the key pinned for the
-manifest's `origin`; replacing both an archive and its self-declared key
-therefore does not impersonate the repository. A bundle signed in v1 alone has
-no `signing` block. Older Enginehost builds read only the legacy layout, so they
-cannot install a bundle that carries `enginehost-bundle.jws`; they update
-themselves first.
+signing root's key ("Signatures"). The legacy signature was `SHA256withECDSA` by a P-256
+key the manifest's `signing` block carries; Enginehost ignores that block and
+refuses a bundle whose only signature is the legacy one ("Legacy signatures").
+A bundle signed in v1 alone has no `signing` block. Older Enginehost builds read
+only the legacy layout, so they cannot install a bundle that carries
+`enginehost-bundle.jws`; they update themselves first.
 
 The manifest includes `bundleId`, `assetName`, `engine`, `pluginVersion`,
-`apiVersion`, `entrypoint`, `origin`, `signing` (legacy only), `dexFiles`, `capabilities`,
+`apiVersion`, `entrypoint`, `origin`, `signing` (legacy only, ignored), `dexFiles`, `capabilities`,
 `payloadSha256`, and `files`. A bundle that runs several engines (the web
 runtime serves `html`, `rpgmaker` and `flash_air` from one browser) lists
 their ids in an optional `engines` array and names the engine each
@@ -198,7 +197,7 @@ NOT want to chain the signature past this key"). The same format droidtop
 verifies; this section is Enginehost's side of it and what Enginehost adds.
 Code: `CertificateSignatures.kt` (the JWS and chain checks), `BundleVerification.kt`
 (which signature decides, at which moment), `BundleTrust.kt` (the pinned root,
-revocation lists), `LegacyBundleSignatures.kt` (the bounded legacy path);
+revocation lists);
 tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
 `verify-engine-bundle.py`, `provision-signing-certificates.py`,
 `make-publisher-certificate.py`, `sign-revocation-list.py`.
@@ -256,16 +255,13 @@ them is trusted here.
   BoringSSL) throws on the purpose OIDs' UUID arc, which is wider than 64 bits.
   `ConscryptSignaturesTest` runs the verifier under Conscrypt.
 - **A repository a person added** (by URL, or from the third-party list) is
-  anchored at the key they pinned for it, the same pin a legacy signature was
-  checked against; existing pins carry over with no new prompt. The chain's last
+  anchored at the key they pinned for it; existing pins carry over with no new prompt. The chain's last
   certificate is signed by that key, or is the publisher's own certificate that
   carries it.
 - **The signing root outranks a pin.** A bundle whose chain reaches the root
-  for its origin is official, as a root-certified key was; a person's pin is
-  tried only when it does not.
+  for its origin is official; a person's pin is tried only when it does not.
 - **A build without the root's key** pins no root: no official v1 signature
-  can be verified, and the legacy signature keeps working for new installs
-  ("Legacy signatures").
+  can be verified, and only a repository the person pinned a key for installs.
 
 ### Certificates
 
@@ -300,8 +296,8 @@ protected header is the only header: `alg` (`ES256`, signature R‖S, or
 `RS256`, matching the key), `typ` (`droidtop-plugin+jws`), and `x5c` (standard
 base64 DER, the signing certificate first, the root excluded). A `crit` parameter
 refuses the signature; other unknown parameters are ignored. A release
-envelope entry carries the same text as `jws`, beside or instead of the legacy
-`signatureBase64`; the plugins index entry of an official repository carries
+envelope entry carries the same text as `jws` (an older entry's legacy
+`signatureBase64` beside it is not read); the plugins index entry of an official repository carries
 the repository's chain as `certificates` (x5c form), which is how an official
 origin is learned without an app release.
 
@@ -314,8 +310,7 @@ don't want older plugins to be invalidated" / "We don't use the certificate
 itself's validity period"): an expired or not-yet-valid certificate verifies,
 a JWS carries no trusted time to check one against, and a device's clock never
 matters. Only the revocation list withdraws trust ("Revocation"). When the bundle's origin has an
-anchor (the signing root, or the person's pin), the JWS alone decides: a v1 signature that
-fails is never rescued by a legacy one beside it. The signer recorded at
+anchor (the signing root, or the person's pin), the JWS alone decides. The signer recorded at
 install (`signer` in the installation record: its key, kind, format and anchor)
 must match what each launch verifies. The signer's key (the signing
 certificate's SubjectPublicKeyInfo SHA-256) is the identity approvals are kept
@@ -327,23 +322,25 @@ under, so an update under the same certificate key carries an approval
 Legacy keys are deprecated (owner, 2026-10-16: "Deprecate legacy keys. One
 droidtop installation currently exists, and it's mine. Detect legacy plugins
 if someone DOES have one installed, and instruct the user to delete the old
-one and download the new one"). The legacy `enginehost-bundle.sig` is
-accepted only while this build pins no root key, where nothing else could be
-verified. With the root pinned it is refused at every moment:
+one and download the new one"). Enginehost no longer verifies the legacy
+`enginehost-bundle.sig` at all: its verifier, `LegacyBundleSignatures.kt`, and
+the official-root key documents that went with it (the compiled-in
+`default_plugin_keys`, `official_plugin_root_key` and `developer_debug_key`,
+and the keys learned from the plugins index's `key` documents) were deleted on
+2026-10-29 (Droidtop/tracker#768; every official core had shipped v1). A
+legacy signature is refused at every moment, whether or not the build pins a root:
 
-- a new install, update or catalog entry needs a v1 signature;
+- a new install, update or catalog entry needs a v1 signature; a release that
+  carries only the legacy one is not offered;
 - a core already installed with only the legacy signature does not start.
-  Its card on Cores, and the launch's error, say to remove it and install it
-  again (`BundleVerifier.LEGACY_INSTALLED`, `InstalledPlugin.legacySigned`).
-  Every published official stable build has a v1-signed release to install
-  instead, the same build re-signed where it predates v1.
+  Its card on Cores offers Remove alone, and the launch's error says to remove
+  it and install it again (`BundleVerifier.LEGACY_INSTALLED`,
+  `InstalledPlugin.legacySigned`). Every published official stable build has a
+  v1-signed release to install instead.
 
-The legacy verifier is `LegacyBundleSignatures.kt` and the official-root key
-documents in `PluginOriginKeys.kt`. They are deleted, with the manifest's
-`signing` block and the signing workflow's `ENGINEHOST_SIGNING_KEY_PEM`, in
-the release after every official core has shipped a release signed in v1.
-Until then a revocation list stops a legacy key by its SubjectPublicKeyInfo
-SHA-256.
+A bundle may still carry the `.sig` beside its JWS, and a manifest its
+`signing` block: both are passed over. Producing them (`build-engine-bundle.py`
+and the signing workflow's `ENGINEHOST_SIGNING_KEY_PEM`) is removed separately.
 
 ### Revocation
 
@@ -359,8 +356,7 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
 
 - **Enginehost's own list**, catalog `enginehost`, is `plugins/revocations.jws`
   in droidtop-platforms beside the plugins index, signed by the root's
-  revocation-list certificate. It applies to every root-anchored chain and to
-  legacy official and developer keys.
+  revocation-list certificate. It applies to every root-anchored chain.
 - **An added repository's list**, catalog `<owner>/<repo>`, is `revocations.jws`
   on its core branch, under the key the person pinned; read at most once a
   day per repository (GitHub API allowance). It applies only to that origin.
@@ -410,8 +406,8 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   each repository commits to plugin-core as `enginehost-signing-certificate.pem`.
   Left to the owner: sign and publish the first `plugins/revocations.jws` when
   something is revoked, and hand the developer certificate and its key to the
-  developer; once every official core has a v1 release, drop
-  `ENGINEHOST_SIGNING_KEY_PEM` and delete the legacy verifier.
+  developer. The legacy verifier was deleted on 2026-10-29 (Droidtop/tracker#768);
+  dropping `ENGINEHOST_SIGNING_KEY_PEM` from the signing side is its own change.
 
 ## Declared options
 

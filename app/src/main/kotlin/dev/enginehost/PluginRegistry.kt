@@ -78,8 +78,8 @@ data class InstalledPlugin(
     /**
      * Who signed it, as verified at install ([BundleVerifier]); every launch
      * verifies it again and refuses a record that disagrees. Null for a
-     * bundle installed before signers were recorded: its legacy key is in
-     * [signerFingerprints] and trust is decided from that, as it always was.
+     * bundle installed before signers were recorded, which predates format v1
+     * and does not start ([legacySigned]).
      */
     val signer: BundleSigner? = null,
 ) {
@@ -89,8 +89,8 @@ data class InstalledPlugin(
 
     /**
      * Installed with only the legacy signature: a v0 signer, or a record from
-     * before signers were recorded, which predates format v1. Such a core no
-     * longer starts once the root is pinned; it is removed and installed again
+     * before signers were recorded, which predates format v1. Such a core does
+     * not start; it is removed and installed again
      * ([BundleVerifier.LEGACY_INSTALLED]).
      */
     val legacySigned: Boolean get() = signer == null || signer.format == 0
@@ -250,6 +250,10 @@ object PluginResolver {
 object PluginRegistry {
     const val INSTALL_RECORD = ".enginehost-installed.json"
     const val SIGNED_MANIFEST = ".enginehost-bundle.json"
+    /**
+     * The legacy signature an older Enginehost kept beside a core it installed. Nothing writes or
+     * reads it now; it is named so a core installed with it is not refused for an unsigned file.
+     */
     const val SIGNED_SIGNATURE = ".enginehost-bundle.sig"
     const val SIGNED_JWS = ".enginehost-bundle.jws"
 
@@ -378,9 +382,8 @@ object PluginRegistry {
         pluginVersionAllowlist: VersionConstraint?,
     ): ResolvedPlugin? {
         val trustStore = PluginTrustStore(context)
-        val stale = staleTest(context)
         return PluginResolver.resolve(
-            discover(context).filterNot(stale), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
+            discover(context).filterNot(staleTest), engine, engineContext, engineVersion, runtimeRequirements, pluginVersionAllowlist,
             trustOf = trustStore::state,
         )
     }
@@ -388,7 +391,7 @@ object PluginRegistry {
     /**
      * The installed build that would run the game if it could start, when
      * [resolve] found none because every such build is stale: signed only
-     * the legacy way, which no launch accepts while the root is pinned
+     * the legacy way, which no launch accepts
      * ([BundleVerifier.LEGACY_INSTALLED]). The launch then says the engine
      * needs updating instead of the runtime failing on it (rig, 2026-10-22:
      * Ren'Py 7.5 and 8.4, Buriko and CatSystem2 stopped Enginehost with
@@ -404,16 +407,13 @@ object PluginRegistry {
     ): ResolvedPlugin? {
         val trustStore = PluginTrustStore(context)
         return PluginResolver.resolve(
-            discover(context).filter(staleTest(context)), engine, engineContext, engineVersion, runtimeRequirements,
+            discover(context).filter(staleTest), engine, engineContext, engineVersion, runtimeRequirements,
             pluginVersionAllowlist, trustOf = trustStore::state,
         )
     }
 
-    /** A build that cannot start: signed only the legacy way while the root is pinned. */
-    private fun staleTest(context: Context): (InstalledPlugin) -> Boolean {
-        val rootPinned = EnginehostRoot.get(context) != null
-        return { rootPinned && it.legacySigned }
-    }
+    /** A build that cannot start: signed only the legacy way. */
+    private val staleTest: (InstalledPlugin) -> Boolean = { it.legacySigned }
 }
 
 /** Shared with [EngineBundleInstaller], which is the sole creator of these directories. */

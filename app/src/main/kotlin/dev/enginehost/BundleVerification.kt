@@ -3,12 +3,12 @@ package dev.enginehost
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** What a bundle carries to prove who signed its manifest: a v1 JWS, the legacy raw signature, or both. */
-class BundleSignatures(val jws: String?, val legacy: ByteArray?) {
-    init {
-        require(jws != null || legacy != null) { "Bundle carries no signature" }
-    }
-}
+/**
+ * What a bundle carries to prove who signed its manifest: its v1 JWS, or null for a bundle that
+ * carries only the old raw-key signature (`enginehost-bundle.sig`), which no build verifies any
+ * more (docs/engine-bundle-format.md "Legacy signatures").
+ */
+class BundleSignatures(val jws: String?)
 
 /** Who a verified bundle's signer is, as far as Enginehost trusts it. */
 enum class SignerKind { OFFICIAL, DEVELOPER, CUSTOM }
@@ -19,13 +19,14 @@ enum class SignerKind { OFFICIAL, DEVELOPER, CUSTOM }
  * a later revocation list or pin change must be checked against.
  *
  * [format] is 1 for a certificate chain (docs/engine-bundle-format.md
- * "Signatures"), 0 for the legacy raw-key signature ([LegacyBundleSignatures]).
+ * "Signatures"). 0 is the legacy raw-key signature, still read from records of cores installed
+ * with it, so they can be told apart ([InstalledPlugin.legacySigned]); nothing is verified as format 0 now.
  */
 data class BundleSigner(
     val keySha256: String,
     val kind: SignerKind,
     val format: Int,
-    /** The Enginehost root's key, the person's pinned key, or for a legacy signer its own key. */
+    /** The Enginehost root's key, or the person's pinned key (a legacy record: its own key). */
     val anchorKeySha256: String,
     val chainCertSha256: List<String> = emptyList(),
     val chainKeySha256: List<String> = emptyList(),
@@ -82,13 +83,6 @@ interface BundleTrustSources {
 
     /** What the revocation list held for [catalog] ("enginehost", or an added repository's `owner/repo`) revokes. */
     fun revoked(catalog: String): RevokedSet
-
-    /**
-     * Verifies the legacy raw-key signature and answers its signer, or
-     * throws ([LegacyBundleSignatures]). Asked only where [BundleVerifier]
-     * allows the legacy format.
-     */
-    fun legacy(manifestBytes: ByteArray, origin: String, signature: ByteArray, moment: VerificationMoment): BundleSigner
 }
 
 /**
@@ -97,16 +91,13 @@ interface BundleTrustSources {
  *
  * A v1 signature is verified up to an anchor: the Enginehost signing root for
  * Enginehost's own plugins (and the developer's certificate), or the key a
- * person pinned for a repository they added. When such an anchor exists for the bundle's
- * origin, the JWS decides alone: there is no falling back to the legacy
- * signature beside it, so a bad v1 signature is never rescued by an old one.
+ * person pinned for a repository they added. The JWS decides alone.
  *
- * The legacy signature is deprecated (owner, 2026-10-16). It is accepted only
- * while this build pins no root key (without one, no v1 official bundle can
- * be verified, and refusing legacy would leave nothing installable). With
- * the root pinned it is refused at every moment: an install, an update, and
- * the launch of a core installed with it, which says to remove the core and
- * install it again ([LEGACY_INSTALLED]).
+ * The legacy raw-key signature is not verified at all (owner, 2026-10-16:
+ * "Deprecate legacy keys"; its verifier deleted 2026-10-29, Droidtop/tracker#768).
+ * A bundle that carries only it is refused at every moment: an install, an
+ * update, and the launch of a core installed with it, which says to remove
+ * the core and install it again ([LEGACY_INSTALLED]).
  */
 object BundleVerifier {
     const val ENGINEHOST_CATALOG = "enginehost"
@@ -124,26 +115,21 @@ object BundleVerifier {
         moment: VerificationMoment,
         sources: BundleTrustSources,
     ): BundleSigner {
-        val jws = signatures.jws
-        val root = sources.root
-        val customKey = sources.customKey(origin)
-        if (jws != null && (root != null || customKey != null)) {
-            return verifyCertified(jws, manifestBytes, origin, bundleId, moment, root, customKey, sources)
-        }
-        val legacy = requireNotNull(signatures.legacy) {
-            if (jws != null) "This build pins no certificate this bundle's signature can be verified to"
-            else "This bundle carries no v1 signature"
-        }
         // Legacy keys are deprecated (owner, 2026-10-16: "Detect legacy
         // plugins if someone DOES have one installed, and instruct the user
-        // to delete the old one and download the new one"): with the root
-        // pinned, a legacy-only signature is refused at every moment, a
-        // launch included, and the reason says what to do.
-        require(root == null) {
+        // to delete the old one and download the new one"): a legacy-only
+        // signature is refused at every moment, a launch included, and the
+        // reason says what to do.
+        val jws = requireNotNull(signatures.jws) {
             if (moment == VerificationMoment.LAUNCH) LEGACY_INSTALLED
             else "New installs and updates need a v1 signature; this bundle carries only the legacy one"
         }
-        return sources.legacy(manifestBytes, origin, legacy, moment)
+        val root = sources.root
+        val customKey = sources.customKey(origin)
+        require(root != null || customKey != null) {
+            "This build pins no certificate this bundle's signature can be verified to"
+        }
+        return verifyCertified(jws, manifestBytes, origin, bundleId, moment, root, customKey, sources)
     }
 
     private fun verifyCertified(

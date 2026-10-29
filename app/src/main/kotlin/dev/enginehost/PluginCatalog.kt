@@ -83,16 +83,16 @@ object PluginReleaseReader {
             val signatures = envelopeSignatures(envelope)
             val manifest = EngineBundleManifestReader.parse(manifestBytes)
             require(manifest.origin == normalizeGithubOrigin(expectedOrigin)) { "Release origin mismatch" }
-            // A release signed only the legacy way cannot be installed once the
-            // root is pinned (BundleVerifier). It is not offered, and it says
-            // nothing about the repository's key: it simply predates format v1.
-            if (signatures.jws == null && trust.root != null) return@mapNotNull null
+            // A release signed only the legacy way cannot be installed
+            // (BundleVerifier). It is not offered, and it says nothing about
+            // the repository's key: it simply predates format v1.
+            if (signatures.jws == null) return@mapNotNull null
             val signer = try {
                 trust.verify(manifest, signatures, VerificationMoment.CATALOG)
             } catch (refused: IllegalArgumentException) {
-                throw SignerChangedException(manifest.origin, claimedSigner(manifest, signatures), refused)
+                throw SignerChangedException(manifest.origin, claimedSigner(signatures), refused)
             } catch (refused: java.security.GeneralSecurityException) {
-                throw SignerChangedException(manifest.origin, claimedSigner(manifest, signatures), refused)
+                throw SignerChangedException(manifest.origin, claimedSigner(signatures), refused)
             }
             val asset = requireNotNull(releaseAssets[manifest.assetName]) {
                 "Release is missing ${manifest.assetName}"
@@ -249,7 +249,7 @@ class PluginCatalogCache(private val context: Context) {
             ?: runCatching {
                 val array = JSONObject(file.readText()).getJSONArray("plugins")
                 // Entry by entry: one a newer rule refuses (a legacy-only build
-                // cached before the root was pinned) leaves the others listed.
+                // cached by an older Enginehost) leaves the others listed.
                 (0 until array.length()).mapNotNull { runCatching { availablePluginFromJson(array.getJSONObject(it), trust) }.getOrNull() }
             }.getOrDefault(emptyList()).also { synchronized(decoded) { decoded[file.path] = version to it } }
         return plugins.takeIf { all ->
@@ -294,7 +294,6 @@ class PluginCatalogCache(private val context: Context) {
 
 private fun AvailablePlugin.toJson() = JSONObject()
     .put("manifestBase64", Base64.getEncoder().encodeToString(manifest.rawBytes))
-    .putOpt("signatureBase64", signatures.legacy?.let { Base64.getEncoder().encodeToString(it) })
     .putOpt("jws", signatures.jws)
     .put("releaseTag", releaseTag)
     .put("archiveUrl", archiveUrl)
@@ -303,18 +302,15 @@ private fun AvailablePlugin.toJson() = JSONObject()
     .put("archiveSize", archiveSize)
 
 /**
- * A release envelope entry's signatures: `jws` (format v1), `signatureBase64`
- * (legacy), or both, as the bundle itself carries them.
+ * A release envelope entry's signature: its `jws` (format v1). An entry's
+ * legacy `signatureBase64`, which older envelopes and cached catalogs carry
+ * beside it or alone, is not read: nothing verifies it any more.
  */
-internal fun envelopeSignatures(json: JSONObject) = BundleSignatures(
-    json.optString("jws").takeIf(String::isNotBlank),
-    json.optString("signatureBase64").takeIf(String::isNotBlank)?.let { Base64.getDecoder().decode(it) },
-)
+internal fun envelopeSignatures(json: JSONObject) = BundleSignatures(json.optString("jws").takeIf(String::isNotBlank))
 
-/** The key a refused entry claims to be signed by, for the key-changed prompt: its v1 leaf's, else its legacy key. */
-private fun claimedSigner(manifest: EngineBundleManifest, signatures: BundleSignatures): String =
+/** The key a refused entry claims to be signed by, for the key-changed prompt: its v1 leaf's. */
+private fun claimedSigner(signatures: BundleSignatures): String =
     signatures.jws?.let { runCatching { CertificateSignatures.claimedLeafKeySha256(it) }.getOrNull() }
-        ?: manifest.legacyKeySha256
         ?: "0".repeat(64)
 
 private fun availablePluginFromJson(json: JSONObject, trust: BundleTrust): AvailablePlugin {
@@ -376,11 +372,13 @@ class PluginOriginStore(private val context: Context) {
     private val keys get() = PluginOriginKeyStore(context)
 
     /** Compiled-in origins, official ones learned from the plugins index, and the person's own. */
-    fun all(): List<String> = (DEFAULT_ORIGINS + keys.certifiedOrigins() + rootCertified() + custom()).distinct().sorted()
+    fun all(): List<String> = (DEFAULT_ORIGINS + rootCertified() + custom()).distinct().sorted()
 
     fun add(origin: String, rawKeyDocument: String) {
         val normalized = normalizeGithubOrigin(origin)
         require(GITHUB_ORIGIN.matches(normalized)) { "Use a GitHub repository URL" }
+        // Enginehost's own repositories are verified to the signing root; a person's key never stands in for it.
+        require(!isOfficial(normalized)) { "Official repository keys cannot be replaced" }
         keys.importCustom(rawKeyDocument, normalized)
         preferences.edit().putStringSet(CUSTOM, custom() + normalized).apply()
     }
@@ -395,21 +393,19 @@ class PluginOriginStore(private val context: Context) {
     /** Part of Enginehost's own catalog (compiled in, or root-certified): not the person's to remove. */
     fun isOfficial(origin: String): Boolean {
         val normalized = normalizeGithubOrigin(origin)
-        return normalized in DEFAULT_ORIGINS || normalized in keys.certifiedOrigins() || normalized in rootCertified()
+        return normalized in DEFAULT_ORIGINS || normalized in rootCertified()
     }
 
     /**
      * Adds every origin the index proves official: a certificate chain that
      * ends at the Enginehost signing root key this APK pins and names the
-     * origin (format v1), or a key document carrying the legacy official
-     * root's certificate. Both are verified here; what the index says about
-     * trust is not consulted, so nothing but the signing root (or the legacy
-     * root) can make an origin official. A person's own entry for the same repository is folded
+     * origin (format v1). It is verified here; what the index says about
+     * trust is not consulted, so nothing but the signing root can make an
+     * origin official. A person's own entry for the same repository is folded
      * into the official one. Answers the origins that were not known before.
      */
     fun learnOfficial(index: PluginsIndex): List<String> {
         val before = all().toSet()
-        val store = keys
         val root = EnginehostRoot.get(context)
         val revoked = RevocationListStore(context).revoked(BundleVerifier.ENGINEHOST_CATALOG)
         index.origins.values.forEach { indexed ->
@@ -420,11 +416,12 @@ class PluginOriginStore(private val context: Context) {
                 )
                 VerifiedJws(chain, ByteArray(0)).namesOrigin(indexed.origin)
             }.getOrDefault(false)
-            // Legacy: a key document carrying the official root's certificate.
-            val legacy = !certified && indexed.keyDocument?.let { store.importCertified(it) } != null
-            if (!certified && !legacy) return@forEach
-            if (certified) preferences.edit().putStringSet(ROOT_CERTIFIED, rootCertified() + indexed.origin).apply()
-            if (indexed.origin in custom()) preferences.edit().putStringSet(CUSTOM, custom() - indexed.origin).apply()
+            if (!certified) return@forEach
+            preferences.edit().putStringSet(ROOT_CERTIFIED, rootCertified() + indexed.origin).apply()
+            if (indexed.origin in custom()) {
+                preferences.edit().putStringSet(CUSTOM, custom() - indexed.origin).apply()
+                keys.removeCustom(indexed.origin)
+            }
             thirdPartyPreferences.edit().remove(indexed.origin).apply()
         }
         return all() - before
@@ -436,12 +433,12 @@ class PluginOriginStore(private val context: Context) {
      * Plugins installed under the old key no longer verify and must be
      * installed again under the new one and approved. A third-party
      * repository moves only to a key the third-party list names ([listed]);
-     * an official origin never moves this way (its keys change only by the
-     * root's certificate, [PluginOriginKeyStore.importCertified]).
+     * an official origin never moves this way (its bundles are verified to the
+     * signing root, [learnOfficial]).
      */
     fun replaceKey(origin: String, publishedKeyDocument: String, listed: IndexedOrigin?) {
         val normalized = normalizeGithubOrigin(origin)
-        require(!isOfficial(normalized)) { "An official repository's key changes only by the root's certificate" }
+        require(!isOfficial(normalized)) { "An official repository's bundles are verified to the signing root" }
         val wasThirdParty = thirdParty(normalized) != null
         if (wasThirdParty) {
             // Checked before anything is removed, so a refusal changes nothing.

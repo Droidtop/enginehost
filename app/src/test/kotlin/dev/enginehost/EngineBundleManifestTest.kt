@@ -4,20 +4,16 @@ import dev.droidtop.shared.version.Version
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.security.KeyPairGenerator
-import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 import java.util.Base64
 
 class EngineBundleManifestTest {
     @Test
-    fun `signed P-256 manifest verifies and exposes compatibility`() {
+    fun `manifest exposes compatibility`() {
         val keys = keyPair("secp256r1")
-        val raw = manifest(keys.public.encoded)
-        val parsed = EngineBundleManifestReader.parse(raw)
-        LegacyBundleSignatures.verifyRaw(raw, parsed.legacyKeySpki!!, sign(keys.private, raw))
+        val parsed = EngineBundleManifestReader.parse(manifest(keys.public.encoded))
 
         assertEquals("dev.enginehost.renpy.8_3.v1", parsed.bundleId)
         assertEquals("renpy", parsed.info.engine)
@@ -55,35 +51,17 @@ class EngineBundleManifestTest {
     }
 
     @Test
-    fun `signature does not survive a manifest change`() {
-        val keys = keyPair("secp256r1")
-        val raw = manifest(keys.public.encoded)
-        val signature = sign(keys.private, raw)
-        val changed = raw.toString(Charsets.UTF_8).replace("8.3.2", "8.3.3").toByteArray()
-
-        assertThrows(IllegalArgumentException::class.java) {
-            LegacyBundleSignatures.verifyRaw(changed, EngineBundleManifestReader.parse(changed).legacyKeySpki!!, signature)
-        }
-    }
-
-    @Test
-    fun `a manifest signed only in format v1 names no legacy key`() {
-        // Its signer is the certificate in its JWS (docs/engine-bundle-format.md "Signatures").
-        val raw = JSONObject(manifest(keyPair("secp256r1").public.encoded).toString(Charsets.UTF_8))
+    fun `an older manifest's legacy signing block is ignored, whatever it holds`() {
+        // The signer is the certificate in the JWS (docs/engine-bundle-format.md "Signatures");
+        // the block named the legacy signature's key, which nothing verifies any more.
+        val withBlock = EngineBundleManifestReader.parse(manifest(keyPair("secp384r1").public.encoded))
+        val bogus = JSONObject(manifest(keyPair("secp256r1").public.encoded).toString(Charsets.UTF_8))
+            .put("signing", JSONObject().put("algorithm", "none")).toString().toByteArray()
+        val without = JSONObject(manifest(keyPair("secp256r1").public.encoded).toString(Charsets.UTF_8))
             .apply { remove("signing") }.toString().toByteArray()
-        val parsed = EngineBundleManifestReader.parse(raw)
-        assertEquals(null, parsed.legacyKeySpki)
-        assertEquals(null, parsed.legacyKeySha256)
-    }
-
-    @Test
-    fun `non P-256 signer is rejected`() {
-        val keys = keyPair("secp384r1")
-        val raw = manifest(keys.public.encoded)
-
-        assertThrows(IllegalArgumentException::class.java) {
-            LegacyBundleSignatures.verifyRaw(raw, EngineBundleManifestReader.parse(raw).legacyKeySpki!!, sign(keys.private, raw))
-        }
+        assertEquals("dev.enginehost.renpy.8_3.v1", withBlock.bundleId)
+        assertEquals("dev.enginehost.renpy.8_3.v1", EngineBundleManifestReader.parse(bogus).bundleId)
+        assertEquals("dev.enginehost.renpy.8_3.v1", EngineBundleManifestReader.parse(without).bundleId)
     }
 
     @Test
@@ -116,13 +94,6 @@ class EngineBundleManifestTest {
         initialize(ECGenParameterSpec(curve))
         generateKeyPair()
     }
-
-    private fun sign(privateKey: java.security.PrivateKey, bytes: ByteArray): ByteArray =
-        Signature.getInstance("SHA256withECDSA").run {
-            initSign(privateKey)
-            update(bytes)
-            sign()
-        }
 
     private fun manifest(publicKey: ByteArray): ByteArray = manifest(publicKey, listOf("classes.dex"))
 

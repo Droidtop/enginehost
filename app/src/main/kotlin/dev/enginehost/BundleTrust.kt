@@ -9,8 +9,7 @@ import java.io.FileNotFoundException
  * owner derives the root from the Droidtop CA, which Enginehost never pins
  * (Droidtop/tracker#550); its private key stays on the owner's machine. A
  * build without the file pins no root: no official v1 signature can be
- * verified, and [BundleVerifier] keeps accepting the legacy format for new
- * installs.
+ * verified, and only a repository the person pinned a key for installs.
  */
 object EnginehostRoot {
     const val ASSET = "trust/enginehost-root.pub"
@@ -114,9 +113,6 @@ class BundleTrust(private val context: Context) : BundleTrustSources {
 
     override fun revoked(catalog: String): RevokedSet = revocations.revoked(catalog)
 
-    override fun legacy(manifestBytes: ByteArray, origin: String, signature: ByteArray, moment: VerificationMoment) =
-        LegacyBundleSignatures.signer(context, manifestBytes, origin, signature, moment, ::revoked)
-
     fun verify(manifest: EngineBundleManifest, signatures: BundleSignatures, moment: VerificationMoment): BundleSigner =
         BundleVerifier.verify(manifest.rawBytes, manifest.origin, manifest.bundleId, signatures, moment, this)
 
@@ -124,14 +120,14 @@ class BundleTrust(private val context: Context) : BundleTrustSources {
      * Whether a signer verified earlier still holds without verifying again:
      * nothing it rests on is revoked, and its anchor is still the one pinned
      * (the Enginehost root for official and developer certificates, the person's key for
-     * their repository, the pinned key for a legacy signer). Cheap enough for
+     * their repository). A legacy signer never holds. Cheap enough for
      * every read of a cached catalog.
      */
     fun stillTrusted(origin: String, signer: BundleSigner): Boolean {
         val catalog = if (signer.kind == SignerKind.CUSTOM) VerifiedJws.originId(origin) else BundleVerifier.ENGINEHOST_CATALOG
         if (signer.isRevokedBy(revoked(catalog))) return false
         return when {
-            signer.format == 0 -> LegacyBundleSignatures.stillPinned(context, origin, signer)
+            signer.format == 0 -> false
             signer.kind == SignerKind.CUSTOM ->
                 PluginOriginKeyStore(context).custom(origin)?.fingerprint == signer.anchorKeySha256
             else -> root?.keySha256 == signer.anchorKeySha256

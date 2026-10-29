@@ -20,8 +20,6 @@ class StreamAvailabilityTest {
         apiVersion = dev.enginehost.api.EnginePluginContract.API_VERSION,
         entrypoint = "dev.enginehost.renpy.Plugin",
         origin = "https://github.com/droidtop/enginehost-renpy-plugin",
-        legacyKeySpki = null,
-        legacyKeySha256 = null,
         dexFiles = listOf("classes.dex"),
         resourceApks = emptyList(),
         runtimeTransport = RUNTIME_TRANSPORT_PLUGIN,
@@ -32,7 +30,7 @@ class StreamAvailabilityTest {
     private fun plugin(bundleId: String, stream: PluginStream): AvailablePlugin =
         AvailablePlugin(
             manifest(bundleId),
-            BundleSignatures(null, ByteArray(1)),
+            BundleSignatures(null),
             BundleSigner("AB".repeat(32), SignerKind.OFFICIAL, format = 0, anchorKeySha256 = "AB".repeat(32)),
             "v1", "https://example.invalid/$bundleId", null, stream)
 

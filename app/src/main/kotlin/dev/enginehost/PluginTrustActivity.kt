@@ -102,8 +102,8 @@ class PluginTrustActivity : EnginehostActivity() {
             thirdParty = if (ultimateBuild || official) null else trust.thirdParty(plugin),
             state = trust.state(plugin),
             change = trust.changeSinceApproval(plugin),
-            // A core signed only the legacy way never starts while the root is pinned.
-            legacyRefused = plugin.legacySigned && EnginehostRoot.get(this) != null,
+            // A core signed only the legacy way never starts.
+            legacyRefused = plugin.legacySigned,
             licenseText = plugin.license?.let { license ->
                 runCatching {
                     java.io.File(plugin.directory, license.file).also {
@@ -277,8 +277,8 @@ class PluginTrustActivity : EnginehostActivity() {
         TrustBadges.access(card.findViewById(R.id.sandboxBadge), plugin.sandboxed, plugin.component != null)
 
         val change = facts.change
-        // A core signed only the legacy way never starts while the root is
-        // pinned; its card offers Remove alone, not a decision that changes
+        // A core signed only the legacy way never starts; its card offers
+        // Remove alone, not a decision that changes
         // nothing (review, 2026-10-16).
         val legacyRefused = facts.legacyRefused
         // A state line only when it is not the normal one: an approved core says nothing about it (#620 E5).

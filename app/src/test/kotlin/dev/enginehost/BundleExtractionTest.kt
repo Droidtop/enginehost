@@ -128,18 +128,17 @@ class BundleExtractionTest {
         assertEquals(listOf(emptyList<String>()), atVerify)
         assertEquals(signer, extracted.signer)
         assertEquals("header.payload.signature", extracted.signatures.jws)
-        assertEquals(null, extracted.signatures.legacy)
         assertTrue(File(staging, "classes.dex").readBytes().contentEquals(dex.second))
         assertTrue(File(staging, "lib/arm64-v8a/libgame.so").readBytes().contentEquals(lib.second))
     }
 
     @Test
-    fun `a legacy signature may precede the v1 one, and either alone is enough`() {
+    fun `a legacy signature may precede the v1 one and is passed over; alone it leaves no JWS for the verifier`() {
         val files = listOf(dex)
         val legacy = Item(EnginePluginContract.ENGINE_BUNDLE_SIGNATURE, java.util.Base64.getEncoder().encode(byteArrayOf(5, 6, 7)))
         val both = extract(archive(manifestItem(files), legacy, jwsItem, *fileItems(files).toTypedArray()))
-        assertTrue(both.signatures.legacy!!.contentEquals(byteArrayOf(5, 6, 7)))
         assertEquals("header.payload.signature", both.signatures.jws)
+        // The verifier (BundleVerifier) is what refuses a bundle that carries only the legacy one.
         val only = extract(archive(manifestItem(files), legacy, *fileItems(files).toTypedArray()))
         assertEquals(null, only.signatures.jws)
         // The other order is not the format: the v1 signature then reads as an unsigned payload file.

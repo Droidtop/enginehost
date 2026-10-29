@@ -13,7 +13,6 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
-import java.util.Base64
 import java.util.UUID
 
 data class BundleFileRecord(val path: String, val size: Long, val sha256: String, val mode: Int)
@@ -26,13 +25,6 @@ data class EngineBundleManifest(
     val apiVersion: Int,
     val entrypoint: String,
     val origin: String,
-    /**
-     * The manifest's own `signing` key, which only the legacy signature uses
-     * ([LegacyBundleSignatures]); null for a bundle signed in format v1 alone,
-     * whose signer is the certificate in its JWS.
-     */
-    val legacyKeySpki: ByteArray?,
-    val legacyKeySha256: String?,
     val dexFiles: List<String>,
     val resourceApks: List<String>,
     val runtimeTransport: String,
@@ -111,17 +103,9 @@ object EngineBundleManifestReader {
         require(bundleId.matches(BUNDLE_ID)) { "Invalid bundle ID" }
         val origin = normalizeGithubOrigin(json.requiredString("origin"))
         require(GITHUB_ORIGIN.matches(origin)) { "Bundle origin must be a GitHub repository" }
-        // Only the legacy signature uses the manifest's own key; a v1 bundle's
-        // signer is the certificate in its JWS (docs/engine-bundle-format.md
-        // "Signatures").
-        val signing = json.optJSONObject("signing")
-        val legacyKey = signing?.let { Base64.getDecoder().decode(it.requiredString("publicKeySpki")) }
-        val legacyFingerprint = signing?.let {
-            require(it.requiredString("algorithm") == LegacyBundleSignatures.ALGORITHM) { "Unsupported signing algorithm" }
-            sha256(legacyKey!!).also { fingerprint ->
-                require(fingerprint == it.requiredSha256("keySha256")) { "Signing-key fingerprint mismatch" }
-            }
-        }
+        // A bundle's signer is the certificate in its JWS (docs/engine-bundle-format.md
+        // "Signatures"). The `signing` block an older manifest carries named the key of the
+        // legacy signature, which nothing verifies any more; it is ignored.
         // A component bundle carries no code of its own for the host to load
         // and serves no game directly: no dex, no entry point, no capabilities.
         // What it provides, and the licence a person accepts before approving
@@ -209,8 +193,6 @@ object EngineBundleManifestReader {
             json.getInt("apiVersion").also { require(it > 0) },
             if (component != null) json.optString("entrypoint") else json.requiredString("entrypoint"),
             origin,
-            legacyKey,
-            legacyFingerprint,
             dexFiles,
             resourceApks,
             runtimeTransport,
@@ -279,9 +261,6 @@ object EngineBundleInstaller {
             // else waits for the person before it ever executes.
             val replaced = existing.filter { PluginUpdates.isSameBuild(it, manifest) }
             File(staging, PluginRegistry.SIGNED_MANIFEST).writeBytes(manifest.rawBytes)
-            extracted.signatures.legacy?.let { legacy ->
-                File(staging, PluginRegistry.SIGNED_SIGNATURE).writeText(Base64.getEncoder().encodeToString(legacy), Charsets.US_ASCII)
-            }
             extracted.signatures.jws?.let { jws -> File(staging, PluginRegistry.SIGNED_JWS).writeText(jws, Charsets.US_ASCII) }
             File(staging, PluginRegistry.INSTALL_RECORD).writeText(manifest.installedRecord(archiveSha, extracted.signer).toString())
             // Owner-only, read-only, for every bundle. The isolated runtime
@@ -383,7 +362,8 @@ object EngineBundleInstaller {
      * before a single payload byte is written, then extracts the payload
      * against the signed manifest. The archive is the manifest, then
      * `enginehost-bundle.sig` (legacy), `enginehost-bundle.jws` (v1) or
-     * both in that order, then the payload.
+     * both in that order, then the payload. The legacy signature is passed
+     * over: a bundle that carries only it is refused by [verify].
      */
     internal fun extractVerified(
         archive: File,
@@ -391,7 +371,7 @@ object EngineBundleInstaller {
         verify: (EngineBundleManifest, BundleSignatures) -> BundleSigner,
     ): ExtractedBundle {
         var manifest: EngineBundleManifest? = null
-        var legacy: ByteArray? = null
+        var legacySeen = false
         var jws: String? = null
         var signatures: BundleSignatures? = null
         var signer: BundleSigner? = null
@@ -405,8 +385,8 @@ object EngineBundleInstaller {
         fun signaturesDone() {
             if (signer != null) return
             val declared = requireNotNull(manifest) { "Bundle is empty" }
-            require(legacy != null || jws != null) { "Bundle signature is missing" }
-            val read = BundleSignatures(jws, legacy)
+            require(legacySeen || jws != null) { "Bundle signature is missing" }
+            val read = BundleSignatures(jws)
             signatures = read
             signer = verify(declared, read)
             expected = declared.files.associateBy { it.path }
@@ -429,9 +409,10 @@ object EngineBundleInstaller {
                 return@read
             }
             if (signer == null) {
-                if (entry.path == EnginePluginContract.ENGINE_BUNDLE_SIGNATURE && legacy == null && jws == null) {
+                if (entry.path == EnginePluginContract.ENGINE_BUNDLE_SIGNATURE && !legacySeen && jws == null) {
                     requireHeader(entry, EnginePluginContract.ENGINE_BUNDLE_SIGNATURE, MAX_SIGNATURE_BYTES)
-                    legacy = Base64.getMimeDecoder().decode(entry.readBytes(MAX_SIGNATURE_BYTES).toString(Charsets.US_ASCII).trim())
+                    entry.readBytes(MAX_SIGNATURE_BYTES)
+                    legacySeen = true
                     return@read
                 }
                 if (entry.path == ENGINE_BUNDLE_JWS && jws == null) {
@@ -512,15 +493,11 @@ object InstalledBundleVerifier {
                 require(it.size <= MAX_MANIFEST_BYTES) { "Installed manifest is too large" }
             },
         )
-        val legacy = File(directory, PluginRegistry.SIGNED_SIGNATURE).takeIf(File::isFile)?.let {
-            Base64.getMimeDecoder().decode(it.readText(Charsets.US_ASCII).trim())
-        }
         val jws = File(directory, PluginRegistry.SIGNED_JWS).takeIf(File::isFile)?.readText(Charsets.US_ASCII)?.trim()
         // At launch: an installed plugin is stopped by revocation (never by
-        // expiry, at any moment), a key the root has since replaced still vouches
-        // for what was installed under it, and a legacy signature still
-        // serves until the bundle is updated (BundleVerifier).
-        val signer = BundleTrust(context).verify(manifest, BundleSignatures(jws, legacy), VerificationMoment.LAUNCH)
+        // expiry, at any moment). A core installed with only the legacy
+        // signature has no JWS and does not start (BundleVerifier.LEGACY_INSTALLED).
+        val signer = BundleTrust(context).verify(manifest, BundleSignatures(jws), VerificationMoment.LAUNCH)
         require(manifest.bundleId == installed.bundleId && manifest.entrypoint == installed.entrypointClass) {
             "Installed bundle record does not match its signed manifest"
         }
