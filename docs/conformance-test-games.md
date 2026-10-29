@@ -60,7 +60,7 @@ the Google APIs image), and runs
 Its report is the run's summary, and the screenshots, logcat and per-game results are the run's
 `conformance-emulator` artifact.
 
-It runs only the games written for it, in this repository: html, love2d, nscripter and renpy. Cores that have no sandbox yet (html, love2d) run anyway, with the harness's
+It runs only the games written for it, in this repository: html, love2d and nscripter. Cores that have no sandbox yet (html, love2d) run anyway, with the harness's
 `--run-unsandboxed`: the games are ours, and the report names each game that ran that way. The
 nscripter game is text only, so it has no `.nsa` archive, and the registry, which needs one beside
 `0.txt`, would not take it for NScripter. It carries its own `enginehost.json` instead, as a game
@@ -71,17 +71,21 @@ checked against its SHA-256 before it runs, and puts the pack in the run's artif
 not played on the emulator: the 4.4 core runs it there (locked down), but the emulator's GL allows
 261 fragment uniforms and Godot 4.4's canvas shader needs more (`CanvasShaderGLES3: Program
 linking failed: Fragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)`, the
-same with `-gpu guest`), so it draws only its clear colour. Ren'Py's plays on the 8.3 core. That core brings its own runtime
-and reads only the game's scripts, so the game folder needs no SDK beside `game/`: it carries its
-own `enginehost.json` (renpy, `standard`, 8.3.7), as the nscripter one does, because detection
-looks for the bundled `renpy/` runtime. Games
+same with `-gpu guest`), so it draws only its clear colour. Ren'Py's is played on the rig. It needs no SDK: the core brings its
+own runtime and reads only the game's scripts, and the game carries its own `enginehost.json`
+(renpy, `standard`, 8.3.7), as the nscripter one does, because detection looks for the bundled
+`renpy/` runtime. On the emulator the 8.3 core runs it locked down but shows only black: the
+emulator's GLES fails Ren'Py's buffer unmaps (`GL2Encoder.cpp:s_glUnmapBuffer ... GL error 0x502`,
+run 40891140086), and the screen stayed black through the harness's 60 s wait. Games
 from the owner's library are tested on the rig, never in the cloud (docs/core-harness.md). An
 emulator with software GL is not a device: a pass here means the core starts, draws, answers
 input and keeps running, not that it plays well on the rig. `conformance-games.json` names each
 game's save keys and the folder its save lands in, so the harness checks that the keys write a
 save: html and love2d under Enginehost's default save root (`/sdcard/Enginehost/saves`),
 nscripter beside the game, where ONScripter saves. love2d's Escape quits, so its exit is checked
-too. Load is not checked: these games read their save back only when they start again, which the
+too. A save check passes when any file under its folder is newer, so it is only as narrow as the
+folder: Ren'Py's persistent data and log under the save root made its check pass on the emulator
+while the game showed nothing, one reason it is not played there. Load is not checked: these games read their save back only when they start again, which the
 harness does not do, and html's and nscripter's have no quit of their own. NScripter's keys are a
 gamepad's (`gamepad:KEYCODE_BUTTON_A`): a keyboard's keys do not reach a libretro core.
 

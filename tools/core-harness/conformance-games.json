@@ -12,12 +12,6 @@
       "exit": { "keys": ["KEYCODE_ESCAPE"] }
     }
   },
-  "renpy": {
-    "games": ["/sdcard/EnginehostConformance/renpy"],
-    "steps": {
-      "save": { "keys": ["KEYCODE_ENTER"], "delay": 2, "folder": "/sdcard/Enginehost/saves" }
-    }
-  },
   "nscripter": {
     "games": ["/sdcard/EnginehostConformance/nscripter"],
     "steps": {

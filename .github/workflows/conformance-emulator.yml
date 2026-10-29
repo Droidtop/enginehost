@@ -49,9 +49,10 @@ jobs:
         run: ./gradlew :app:assembleDebug --stacktrace
 
       # Each family's rolling unstable core: the build its users get next. One core per family
-      # whose test game in this repository plays on the emulator (Godot's is exported below but
-      # cannot draw here, see the export step). Ren'Py's plays on the 8.3 line, which its
-      # enginehost.json names: the core brings its own runtime and reads only the game's scripts.
+      # whose test game in this repository plays on the emulator. Godot's is exported below but
+      # cannot draw here (see the export step). Ren'Py's runs on its 8.3 core here but shows only
+      # black: the emulator's GLES fails its buffer unmaps ("GL2Encoder ... s_glUnmapBuffer ... GL
+      # error 0x502", run 40891140086), so it is played on the rig.
       - name: Fetch the cores
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,7 +64,6 @@ jobs:
           enginehost-html-plugin html-v1-unstable
           enginehost-love2d-plugin love2d-11-v1-unstable
           enginehost-nscripter-plugin nscripter-onsyuri-v1-unstable
-          enginehost-renpy-plugin renpy-8_3-v1-unstable
           EOF
           ls -l cores
 
