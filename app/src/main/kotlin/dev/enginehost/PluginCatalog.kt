@@ -1,14 +1,12 @@
 package dev.enginehost
 
+import dev.droidtop.shared.net.ReleaseListing
 import dev.droidtop.shared.version.Version
 import dev.droidtop.shared.version.VersionConstraint
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -139,116 +137,37 @@ class GithubPluginCatalogClient(private val context: Context) {
     fun fetch(origin: String, knownEtag: String? = null): CatalogFetch {
         val normalized = normalizeGithubOrigin(origin)
         val match = GITHUB_ORIGIN.matchEntire(normalized) ?: error("Not a GitHub repository origin")
-        var next: String? = "https://api.github.com/repos/${match.groupValues[1]}/${match.groupValues[2]}/releases?per_page=100"
+        val client = GithubClients.withToken(context)
+        // Only the first page carries the condition: it is the one whose ETag we stored, and an unchanged
+        // first page means an unchanged list.
+        val listing = when (val found = client.listReleases("${match.groupValues[1]}/${match.groupValues[2]}", knownEtag)) {
+            ReleaseListing.Unchanged -> return CatalogFetch.Unchanged
+            is ReleaseListing.Fetched -> found
+        }
         val result = mutableListOf<AvailablePlugin>()
-        var etag: String? = null
-        var first = true
-        while (next != null) {
-            // Only the first page carries a condition: it is the one whose
-            // ETag we stored, and an unchanged first page means an unchanged
-            // list. Later pages are fetched normally.
-            val response = get(next, if (first) knownEtag else null) ?: return CatalogFetch.Unchanged
-            if (first) etag = response.etag
-            first = false
-            val releases = JSONArray(response.body)
-            for (index in 0 until releases.length()) {
-                val release = releases.getJSONObject(index)
-                if (release.optBoolean("draft")) continue
-                val prerelease = release.optBoolean("prerelease")
-                val assets = release.getJSONArray("assets")
-                val byName = linkedMapOf<String, ReleaseAsset>()
-                var catalogUrl: String? = null
-                for (assetIndex in 0 until assets.length()) {
-                    val asset = assets.getJSONObject(assetIndex)
-                    val name = asset.getString("name")
-                    val url = asset.getString("browser_download_url")
-                    byName[name] = ReleaseAsset(url, asset.optString("digest").takeIf(String::isNotBlank), asset.optLong("size", 0))
-                    if (name in CatalogRefresh.RELEASE_ENVELOPES) catalogUrl = url
-                }
-                if (catalogUrl == null) continue
-                result += PluginReleaseReader.parse(
-                    checkNotNull(get(catalogUrl)).body,
-                    normalized,
-                    release.getString("tag_name"),
-                    prerelease,
-                    byName,
-                    BundleTrust(context),
-                )
+        for (release in listing.releases) {
+            if (release.draft) continue
+            val byName = linkedMapOf<String, ReleaseAsset>()
+            var catalogUrl: String? = null
+            for (asset in release.assets) {
+                byName[asset.name] = ReleaseAsset(asset.downloadUrl, asset.digest, asset.size)
+                if (asset.name in CatalogRefresh.RELEASE_ENVELOPES) catalogUrl = asset.downloadUrl
             }
-            next = nextLink(response.link)
-        }
-        return CatalogFetch.Fetched(result, etag)
-    }
-
-    private data class Response(val body: String, val link: String?, val etag: String?)
-
-    /** Null means 304: the condition held and there is no body to read. */
-    private fun get(url: String, ifNoneMatch: String? = null): Response? {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 30_000
-        connection.instanceFollowRedirects = true
-        connection.setRequestProperty("Accept", "application/vnd.github+json")
-        connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-        connection.setRequestProperty("User-Agent", "enginehost/0.1")
-        ifNoneMatch?.let { connection.setRequestProperty("If-None-Match", it) }
-        // Attach the user's GitHub token to plugin-source API requests.
-        if (GithubTokenStore.scopedHost(url)) {
-            val token = GithubTokenStore(context).get()
-            if (token != null) {
-                connection.setRequestProperty("Authorization", "Bearer $token")
-            }
-        }
-        try {
-            val status = connection.responseCode
-            // One line per request (Droidtop/tracker#550): with the allowance left, so a refresh that
-            // runs dry says so in logcat as well as on the screen.
-            android.util.Log.i(
-                "EnginehostFetch",
-                "GET " + url.substringBefore('?') + " -> " + status + ", rate limit remaining " +
-                    connection.getHeaderField("X-RateLimit-Remaining"),
+            if (catalogUrl == null) continue
+            result += PluginReleaseReader.parse(
+                checkNotNull(client.get(catalogUrl, maxBytes = MAX_RESPONSE_BYTES)).text(),
+                normalized,
+                release.tag,
+                release.prerelease,
+                byName,
+                BundleTrust(context),
             )
-            if (status == HttpURLConnection.HTTP_NOT_MODIFIED) return null
-            if (status !in 200..299) {
-                // The headers are the difference between "you have asked too
-                // often" and "this repository will not answer you"; without
-                // them the screen can only say the request failed.
-                throw GithubHttpException(
-                    status,
-                    connection.getHeaderField("X-RateLimit-Remaining")?.toIntOrNull(),
-                    connection.getHeaderField("X-RateLimit-Reset")?.toLongOrNull(),
-                    "GitHub returned HTTP " + status,
-                )
-            }
-            val output = ByteArrayOutputStream()
-            connection.inputStream.buffered().use { input ->
-                val buffer = ByteArray(16 * 1024)
-                while (output.size() <= MAX_RESPONSE_BYTES) {
-                    val read = input.read(buffer)
-                    if (read < 0) break
-                    output.write(buffer, 0, read)
-                }
-            }
-            require(output.size() <= MAX_RESPONSE_BYTES) { "Catalog response is too large" }
-            return Response(
-                output.toString(Charsets.UTF_8.name()),
-                connection.getHeaderField("Link"),
-                connection.getHeaderField("ETag"),
-            )
-        } finally {
-            connection.disconnect()
         }
-    }
-
-    private fun nextLink(link: String?): String? = link?.split(',')?.firstNotNullOfOrNull { part ->
-        val segments = part.trim().split(';')
-        if (segments.drop(1).any { it.trim() == "rel=\"next\"" }) {
-            segments.first().trim().removePrefix("<").removeSuffix(">")
-        } else null
+        return CatalogFetch.Fetched(result, listing.etag)
     }
 
     companion object {
-        private const val MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+        private const val MAX_RESPONSE_BYTES = 4L * 1024 * 1024
     }
 }
 

@@ -2,6 +2,7 @@ package dev.enginehost
 
 import android.content.Context
 import android.util.Log
+import dev.droidtop.shared.net.GitHubHttpException
 import java.io.File
 import java.io.IOException
 import java.io.InterruptedIOException
@@ -12,20 +13,6 @@ import java.net.UnknownHostException
 import java.time.Instant
 import org.json.JSONArray
 import org.json.JSONObject
-
-/**
- * A GitHub API response that was not a success, carrying what its headers
- * said about the allowance that produced it. The status alone cannot tell a
- * spent rate limit (403 with `X-RateLimit-Remaining: 0`) from a repository
- * the person is not allowed to read (403 with allowance left), and the two
- * need entirely different words on screen.
- */
-class GithubHttpException(
-    val status: Int,
-    val rateLimitRemaining: Int?,
-    val rateLimitResetEpochSeconds: Long?,
-    message: String,
-) : IOException(message)
 
 /**
  * A repository's releases are signed by another key than the one pinned for
@@ -69,7 +56,7 @@ object CatalogFailures {
         val known = generateSequence(error) { it.cause }.take(MAX_CAUSE_DEPTH).firstOrNull(::speaks)
         return when (known) {
             is SignerChangedException -> CatalogFailure.KeyChanged(known.fingerprint.uppercase())
-            is GithubHttpException -> when {
+            is GitHubHttpException -> when {
                 known.status in RATE_LIMIT_STATUSES && (known.rateLimitRemaining ?: 0) <= 0 ->
                     CatalogFailure.RateLimited(known.rateLimitResetEpochSeconds)
                 else -> CatalogFailure.Http(known.status)
@@ -79,7 +66,7 @@ object CatalogFailures {
         }
     }
 
-    private fun speaks(error: Throwable): Boolean = error is GithubHttpException || error is SignerChangedException ||
+    private fun speaks(error: Throwable): Boolean = error is GitHubHttpException || error is SignerChangedException ||
         error is UnknownHostException || error is ConnectException ||
         error is NoRouteToHostException || error is InterruptedIOException || error is SocketException
 

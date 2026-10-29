@@ -649,17 +649,10 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     }
 
     private fun testToken() {
-        val token = tokenStore.get() ?: return
+        tokenStore.get() ?: return
         Thread {
-            val result = runCatching {
-                val connection = java.net.URL("https://api.github.com/user").openConnection() as java.net.HttpURLConnection
-                connection.connectTimeout = 15_000
-                connection.readTimeout = 30_000
-                connection.setRequestProperty("Accept", "application/vnd.github+json")
-                connection.setRequestProperty("User-Agent", "enginehost/0.1")
-                connection.setRequestProperty("Authorization", "Bearer $token")
-                connection.responseCode in 200..299
-            }.getOrDefault(false)
+            // A success is any 2xx; GitHub's 401 for a bad token is an exception, which is the failure.
+            val result = runCatching { GithubClients.withToken(this).get("https://api.github.com/user") != null }.getOrDefault(false)
             runOnUiThread {
                 Toast.makeText(
                     this,

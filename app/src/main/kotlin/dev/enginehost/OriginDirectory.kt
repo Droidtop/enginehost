@@ -2,8 +2,6 @@ package dev.enginehost
 
 import android.content.Context
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 data class OriginIdentity(
     val origin: String,
@@ -128,19 +126,9 @@ object GithubRepositoryFile {
     }
 
     private fun read(url: String): String? = runCatching {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 30_000
-        connection.setRequestProperty("Accept", "application/vnd.github+json")
-        connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-        connection.setRequestProperty("User-Agent", "enginehost/0.1")
-        try {
-            if (connection.responseCode !in 200..299) return null
-            val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            if (json.getString("encoding") != "base64") return null
-            java.util.Base64.getMimeDecoder().decode(json.getString("content")).toString(Charsets.UTF_8)
-        } finally {
-            connection.disconnect()
-        }
+        // Any refusal (a branch that is not there is a 404) is no file: the next branch is tried.
+        val json = JSONObject(checkNotNull(GithubClients.anonymous().get(url)).text())
+        if (json.getString("encoding") != "base64") return null
+        java.util.Base64.getMimeDecoder().decode(json.getString("content")).toString(Charsets.UTF_8)
     }.getOrNull()
 }

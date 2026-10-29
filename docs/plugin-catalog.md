@@ -124,20 +124,30 @@ be.
 
 ## User GitHub token (Enginehost settings)
 
-Enginehost can use a user-provided GitHub personal access token for plugin-source
-requests only (catalog fetches, release metadata, bundle downloads, and key
-document fetches). The token is never created or filled by the app; the user
-pastes it themselves in Enginehost's own Settings (a settings row: masked,
-removable, with a "Test" action that calls `api.github.com/user`). It is stored
-Keystore-backed, encrypted (`AES/GCM` via Android KeyStore), and never logged
-or placed in a URL. It is attached only to requests whose host is in the
-plugin-source scope (`api.github.com`, `github.com`, `raw.githubusercontent.com`,
-`objects.githubusercontent.com`); no other host ever receives it. Without a
-token the behavior is unchanged: unauthenticated requests with today's rate
-limits. Private repositories work when the token has read access to releases
-and the asset download uses the API asset URL (`Accept:
-application/octet-stream`) through the same attachment mechanism (`Transport`
-and `GithubPluginCatalogClient`).
+Enginehost can use a user-provided GitHub personal access token for reading plugin sources
+(the release lists, the catalog documents a release carries, the engine registry, and a repository's
+key documents). The token is never created or filled by the app; the user pastes it themselves in
+Enginehost's own Settings (a settings row: masked, removable, with a "Test" action that calls
+`api.github.com/user`). It is stored Keystore-backed, encrypted (`AES/GCM` via Android KeyStore), and
+never logged or placed in a URL. Without a token the behavior is unchanged: unauthenticated requests
+with today's rate limits.
+
+**One client sends it (2026-10-29, Droidtop/tracker#195).** Every GitHub request goes through
+droidtop-shared's `:net` (`GitHubClient`, via `GithubClients`), the same code droidtop uses, with one rule for
+the token: it is attached only to https requests for `api.github.com`, `github.com` and
+`raw.githubusercontent.com`, matched exactly. Redirects are followed one hop at a time (https only, at most
+five) and the header is decided again at each hop. This changes two things from the earlier rule, which listed
+`objects.githubusercontent.com` and every subdomain of the three hosts and let the system follow redirects with the
+header already set: the pre-signed `objects.githubusercontent.com` address a release asset redirects to now never
+gets the token (that host rejects a request carrying both a signature and a bearer token), and a subdomain of a
+GitHub host is not a GitHub host.
+
+**What does not carry the token.** Enginehost's own update (the rolling release's `release-info.json` and the
+APK) and plugin bundle downloads are anonymous requests. A bundle is fetched from the release's public
+`browser_download_url`, so a plugin in a private repository does not download, with or without a token; making it
+download needs the asset's API address and `Accept: application/octet-stream`, which `GitHubClient` already
+handles for an API asset URL but the catalog does not yet record. (An earlier version of this page said private
+repositories worked through the same attachment mechanism; the code never sent the token on a download.)
 
 ## Official repositories Enginehost was not built with
 

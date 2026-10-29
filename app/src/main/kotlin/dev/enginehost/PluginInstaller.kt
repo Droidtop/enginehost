@@ -5,8 +5,6 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Where an install is, for the card or screen that started it: a sentence, and how much of the
@@ -180,76 +178,39 @@ object PluginInstaller {
         }
     }
 
+    /**
+     * The transfer is the shared client's ([GithubClients], Droidtop/tracker#195), which asks for the identity encoding and
+     * no cache: a proxy on a rig's own network path that mishandles compression or serves a stale copy of a URL whose content
+     * changed would otherwise hand over the wrong bytes with no error before the digest check (dq-sandbox-10, one candidate
+     * for a digest mismatch reproducing on one rig only). It also refuses a download that ends short of the length the
+     * server announced, which used to be only logged.
+     */
     private fun downloadTo(
         context: Context,
         plugin: AvailablePlugin,
         temporary: File,
         onStatus: ((InstallStatus) -> Unit)?,
     ) {
-        val connection = URL(plugin.archiveUrl).openConnection() as HttpURLConnection
-        connection.connectTimeout = 20_000
-        connection.readTimeout = 120_000
-        connection.instanceFollowRedirects = true
-        connection.setRequestProperty("User-Agent", "enginehost/0.1")
-        // Defeats any cache along the way -- this device's own HTTP stack, or a
-        // proxy on its specific network path -- serving a stale response for a
-        // URL whose content changed since it was last fetched (dq-sandbox-10:
-        // one candidate for a digest mismatch reproducing on one rig only).
-        connection.setRequestProperty("Cache-Control", "no-cache")
-        connection.useCaches = false
-        // Disables OkHttp's own transparent gzip negotiation and decoding: if a
-        // proxy on this rig's specific network path mishandles a compressed
-        // response (strips or rewrites Content-Encoding while leaving the body
-        // compressed, a known misbehaving-proxy pattern), the saved bytes would
-        // silently be the wrong ones with no error at any layer before the
-        // digest check. Asking for identity encoding removes that whole class
-        // of failure at the cost of a slightly larger transfer, irrelevant for
-        // a plugin bundle.
-        connection.setRequestProperty("Accept-Encoding", "identity")
-        try {
-            require(connection.responseCode in 200..299) { "Download returned HTTP ${connection.responseCode}" }
-            require(connection.contentLengthLong <= MAX_ARCHIVE_BYTES || connection.contentLengthLong < 0) {
-                "Engine bundle exceeds the download size limit"
-            }
-            val totalBytes = connection.contentLengthLong
-            var copied = 0L
-            connection.inputStream.buffered().use { input ->
-                temporary.outputStream().buffered().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var reportedMegabytes = -1L
-                    while (true) {
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        output.write(buffer, 0, count)
-                        copied += count
-                        val megabytes = copied shr 20
-                        if (onStatus != null && megabytes != reportedMegabytes) {
-                            reportedMegabytes = megabytes
-                            onStatus(
-                                if (totalBytes > 0) {
-                                    InstallStatus(
-                                        context.getString(R.string.downloading_progress, megabytes, totalBytes shr 20),
-                                        copied.toFloat() / totalBytes,
-                                    )
-                                } else {
-                                    InstallStatus(context.getString(R.string.downloading_progress_unknown, megabytes), null)
-                                },
+        var reportedMegabytes = -1L
+        temporary.outputStream().buffered().use { output ->
+            GithubClients.anonymous().download(plugin.archiveUrl, output, MAX_ARCHIVE_BYTES) { copied, totalBytes ->
+                val megabytes = copied shr 20
+                if (onStatus != null && megabytes != reportedMegabytes) {
+                    reportedMegabytes = megabytes
+                    onStatus(
+                        if (totalBytes > 0) {
+                            InstallStatus(
+                                context.getString(R.string.downloading_progress, megabytes, totalBytes shr 20),
+                                copied.toFloat() / totalBytes,
                             )
-                        }
-                    }
+                        } else {
+                            InstallStatus(context.getString(R.string.downloading_progress_unknown, megabytes), null)
+                        },
+                    )
                 }
             }
-            onStatus?.invoke(InstallStatus(context.getString(R.string.installing), null))
-            require(temporary.length() <= MAX_ARCHIVE_BYTES) { "Engine bundle exceeds the download size limit" }
-            // A server that declared Content-Length and then sent a different
-            // number of bytes is itself evidence worth having on hand the next
-            // time a digest mismatch shows up with nothing else to explain it.
-            if (totalBytes >= 0 && copied != totalBytes) {
-                Log.w(TAG, "download for ${plugin.manifest.assetName}: Content-Length said $totalBytes bytes, got $copied")
-            }
-        } finally {
-            connection.disconnect()
         }
+        onStatus?.invoke(InstallStatus(context.getString(R.string.installing), null))
     }
 
     private const val TAG = "enginehost-plugin-install"

@@ -1,5 +1,6 @@
 package dev.enginehost
 
+import dev.droidtop.shared.net.GitHubHttpException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -17,7 +18,7 @@ class CatalogFailuresTest {
     @Test
     fun `a spent allowance is a rate limit with its reset time`() {
         val failure = CatalogFailures.of(
-            GithubHttpException(403, rateLimitRemaining = 0, rateLimitResetEpochSeconds = 1_757_500_000, message = "x"),
+            GitHubHttpException(403, rateLimitRemaining = 0, rateLimitResetEpochSeconds = 1_757_500_000, message = "x"),
         )
         assertEquals(CatalogFailure.RateLimited(1_757_500_000), failure)
     }
@@ -26,7 +27,7 @@ class CatalogFailuresTest {
     fun `429 is a rate limit too`() {
         assertEquals(
             CatalogFailure.RateLimited(null),
-            CatalogFailures.of(GithubHttpException(429, null, null, "x")),
+            CatalogFailures.of(GitHubHttpException(429, null, null, "x")),
         )
     }
 
@@ -34,13 +35,13 @@ class CatalogFailuresTest {
     fun `403 with allowance left is not a rate limit`() {
         assertEquals(
             CatalogFailure.Http(403),
-            CatalogFailures.of(GithubHttpException(403, rateLimitRemaining = 42, rateLimitResetEpochSeconds = 1, message = "x")),
+            CatalogFailures.of(GitHubHttpException(403, rateLimitRemaining = 42, rateLimitResetEpochSeconds = 1, message = "x")),
         )
     }
 
     @Test
     fun `any other status is reported as itself`() {
-        assertEquals(CatalogFailure.Http(500), CatalogFailures.of(GithubHttpException(500, null, null, "x")))
+        assertEquals(CatalogFailure.Http(500), CatalogFailures.of(GitHubHttpException(500, null, null, "x")))
     }
 
     @Test
@@ -54,7 +55,7 @@ class CatalogFailuresTest {
     fun `a wrapped failure keeps the reason of the one that knows`() {
         val wrapped = IllegalStateException(
             "refreshing origin",
-            IOException("reading", GithubHttpException(403, 0, 99, "limit")),
+            IOException("reading", GitHubHttpException(403, 0, 99, "limit")),
         )
         assertEquals(CatalogFailure.RateLimited(99), CatalogFailures.of(wrapped))
     }

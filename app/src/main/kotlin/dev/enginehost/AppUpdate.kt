@@ -9,8 +9,6 @@ import android.content.pm.PackageInstaller
 import android.os.Build
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Update story for the Enginehost APK itself.
@@ -49,25 +47,16 @@ object AppUpdate {
 
     /** Fetches what the rolling release currently is, for this install's build type. Throws on any failure. */
     fun fetch(context: Context): Info {
-        val connection = URL(RELEASE_INFO_URL).openConnection() as HttpURLConnection
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 30_000
-        connection.instanceFollowRedirects = true
-        connection.setRequestProperty("User-Agent", "enginehost/0.1")
-        try {
-            require(connection.responseCode in 200..299) { "Release info returned HTTP ${connection.responseCode}" }
-            val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            require(json.getInt("formatVersion") == 1) { "Unsupported release info" }
-            val debug = context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
-            return Info(
-                json.getLong("versionCode"),
-                json.requiredString("versionName"),
-                json.requiredString(if (debug) "debugApkName" else "apkName"),
-                json.requiredSha256(if (debug) "debugApkSha256" else "apkSha256"),
-            )
-        } finally {
-            connection.disconnect()
-        }
+        // A non-2xx answer throws GitHubHttpException with its status; the update never sends the person's token.
+        val json = JSONObject(checkNotNull(GithubClients.anonymous().get(RELEASE_INFO_URL)).text())
+        require(json.getInt("formatVersion") == 1) { "Unsupported release info" }
+        val debug = context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        return Info(
+            json.getLong("versionCode"),
+            json.requiredString("versionName"),
+            json.requiredString(if (debug) "debugApkName" else "apkName"),
+            json.requiredSha256(if (debug) "debugApkSha256" else "apkSha256"),
+        )
     }
 
     /**
@@ -139,16 +128,10 @@ object AppUpdate {
         val directory = File(context.cacheDir, "app-updates").apply { mkdirs() }
         val apk = File(directory, "enginehost-${info.versionCode}.apk")
         if (apk.isFile && sha256(apk) == info.apkSha256) return apk
-        val connection = URL(info.apkUrl).openConnection() as HttpURLConnection
-        connection.connectTimeout = 20_000
-        connection.readTimeout = 120_000
-        connection.instanceFollowRedirects = true
-        connection.setRequestProperty("User-Agent", "enginehost/0.1")
+        val temporary = File(directory, apk.name + ".partial")
         try {
-            require(connection.responseCode in 200..299) { "APK download returned HTTP ${connection.responseCode}" }
-            val temporary = File(directory, apk.name + ".partial")
-            connection.inputStream.buffered().use { input ->
-                temporary.outputStream().buffered().use { output -> input.copyTo(output) }
+            temporary.outputStream().buffered().use { output ->
+                GithubClients.anonymous().download(info.apkUrl, output, MAX_APK_BYTES)
             }
             // The digest published next to the APK is the gate: bytes that do
             // not match it are discarded, whatever served them.
@@ -157,9 +140,12 @@ object AppUpdate {
             require(temporary.renameTo(apk)) { "Could not retain downloaded APK" }
             return apk
         } finally {
-            connection.disconnect()
+            temporary.delete()
         }
     }
+
+    /** Far more than any build of Enginehost, small enough to refuse a runaway download. */
+    private const val MAX_APK_BYTES = 1024L * 1024 * 1024
 
     private fun commitSession(context: Context, apk: File) {
         val installer = context.packageManager.packageInstaller

@@ -35,6 +35,11 @@ section when a real version is cut.
 
 ### Changed
 
+- GitHub requests (the plugin catalog, the engine registry, a repository's key documents, the update check and
+  plugin bundle downloads) go through the shared `:net` client, the same as droidtop's. The GitHub token is no longer
+  sent to `objects.githubusercontent.com` or to a subdomain of a GitHub host; redirects are followed one hop at a
+  time. A bundle download that ends short of the length the server announced is now an error at once, not only a log
+  line (Droidtop/tracker#195).
 - The signature verifier, the bundle archive reader and the version ordering are now the library
   droidtop and Enginehost share (Droidtop/droidtop-shared, pinned as `vendor/droidtop-shared`) instead of
   Enginehost's own copies (Droidtop/tracker#193). Behaviour is the same except that the shared verifier

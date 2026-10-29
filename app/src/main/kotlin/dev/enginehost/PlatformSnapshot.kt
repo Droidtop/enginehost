@@ -2,9 +2,8 @@ package dev.enginehost
 
 import android.content.Context
 import android.util.Log
+import dev.droidtop.shared.net.GitHubHttpException
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
@@ -108,43 +107,32 @@ internal object Transport {
     fun get(url: String, context: Context? = null): String = getOrNull(url, context) ?: error("HTTP 404 from $url")
 
     fun getOrNull(url: String, context: Context? = null): String? {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 30_000
-        // Attach the user's GitHub token only to plugin-source hosts.
-        if (context != null && GithubTokenStore.scopedHost(url)) {
-            val tokenStore = GithubTokenStore(context)
-            val token = tokenStore.get()
-            if (token != null) {
-                connection.setRequestProperty("Authorization", "Bearer $token")
-            }
-        }
+        // The person's GitHub token goes on plugin-source requests only, and only to GitHub's own hosts (GithubClients).
+        val client = if (context != null) GithubClients.withToken(context) else GithubClients.anonymous()
         val started = System.nanoTime()
         return try {
-            val code = connection.responseCode
-            val body = when (code) {
-                200 -> connection.inputStream.bufferedReader().use { it.readText() }
-                404, 410 -> null
-                // The rate-limit headers decide what the screen says (CatalogFailures):
-                // "try again at 14:32", not "HTTP 403 from <url>".
-                else -> throw GithubHttpException(
-                    code,
-                    connection.getHeaderField("X-RateLimit-Remaining")?.toIntOrNull(),
-                    connection.getHeaderField("X-RateLimit-Reset")?.toLongOrNull(),
-                    "HTTP $code from $url",
-                )
+            val body = try {
+                client.get(url, maxBytes = MAX_BYTES)?.text()
+            } catch (refused: GitHubHttpException) {
+                if (refused.status == 404 || refused.status == 410) {
+                    null
+                } else {
+                    // The rate-limit headers decide what the screen says (CatalogFailures):
+                    // "try again at 14:32", not "HTTP 403 from <url>".
+                    throw GitHubHttpException(refused.status, refused.rateLimitRemaining, refused.rateLimitResetEpochSeconds, "HTTP ${refused.status} from $url")
+                }
             }
             // One line per fetch (Droidtop/tracker#550): a refresh that stalls says where.
-            Log.i(TAG, "GET " + url.substringBefore('?') + " -> " + code + ", " + (body?.length ?: 0) + " chars, " +
+            Log.i(TAG, "GET " + url.substringBefore('?') + " -> " + (if (body == null) "none" else "ok") + ", " + (body?.length ?: 0) + " chars, " +
                 (System.nanoTime() - started) / 1_000_000 + " ms")
             body
         } catch (failure: java.io.IOException) {
             Log.w(TAG, "GET " + url.substringBefore('?') + " failed after " + (System.nanoTime() - started) / 1_000_000 + " ms: " + failure.message)
             throw failure
-        } finally {
-            connection.disconnect()
         }
     }
+
+    private const val MAX_BYTES = 16L * 1024 * 1024
 
     fun write(dest: File, text: String) {
         dest.parentFile?.mkdirs()
