@@ -18,7 +18,7 @@ The evidence behind this scope: `docs/engine-bundle-format.md` and
 (the AGS effort's step 1) as the model for shape and depth; the core
 API in `plugin-api/src/main/java/dev/enginehost/api/`; the host's launch
 path (`GameRunner.kt`, `EnginehostComponentFactory.kt`,
-`RuntimeActivity.kt`, `PluginCapabilities.kt`, `ControllerBindings.kt`);
+`RuntimeActivity.kt`, `PluginCapabilities.kt`, `ControllerActions.kt`);
 and the upstream sources read over GitHub on 2026-09-29 at their
 default branches: `FNA-XNA/FNA` (master), `FNA-NET/FNA` (main, with its
 `FNA.NET.csproj` and submodule set), `FNA-NET/FNA3D` and `FNA-NET/FAudio`

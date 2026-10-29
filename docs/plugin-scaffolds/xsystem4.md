@@ -14,7 +14,7 @@ The evidence behind this plan: `docs/engine-bundle-format.md` and
 `docs/plugin-catalog.md` read in full; the core API in
 `plugin-api/src/main/java/dev/enginehost/api/`; the host's launch path and
 engine vocabulary (`GameRunner.kt`, `EngineRegistry.kt`,
-`EngineDetector.kt`, `EngineNames.kt`, `ControllerBindings.kt`); read-only
+`EngineDetector.kt`, `EngineNames.kt`, `ControllerActions.kt`); read-only
 clones of the upstream projects -- `nunuhara/xsystem4` at
 `04333ad689d7e517a93d58141bb214c19ba16129` (master, 2026-09-21, also its
 `nightly` tag) with the fork the task text names, `kichikuou/xsystem4`

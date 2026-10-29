@@ -19,7 +19,7 @@ detection (the `LoveGame` reader in `EngineFormats.kt`, which finds an
 unpacked `main.lua` folder, a `.love` zip, or a fused `love.exe` and
 reads the version the game's own `conf.lua` sets `t.version` to),
 `EngineNames.kt`'s "LÖVE" with context `standard`, and
-`ControllerBindings.kt`'s `love` action set.
+`ControllerActions.kt`'s `love` action set.
 
 The evidence behind this plan: `docs/engine-bundle-format.md` and
 `docs/plugin-catalog.md` read in full; the core API in
@@ -154,7 +154,7 @@ resource id"; then the transport migration):
   applied to the pinned revision by CI. Where a game saves inside that
   folder stays the game's own choice.
 - **Controller.** The host's resolved map is LÖVE's own
-  `GamepadButton`/`GamepadAxis` vocabulary (`ControllerBindings.kt:222-244`,
+  `GamepadButton`/`GamepadAxis` vocabulary (`ControllerActions.kt`, the `love` set,
   the documented `love_a`/`love_leftx` table in
   `docs/engine-bundle-format.md`'s controller section). Under this
   transport `RuntimeActivity` normalizes all input, so the wrapper

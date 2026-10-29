@@ -6,7 +6,7 @@ host change in this step. The sandbox (`docs/engine-sandbox.md`), CatSystem2,
 and the detection/version-reader code are deliberately untouched: the host
 already knows AGS -- `EngineDetector.kt`'s `ags` detection (the `.ags` data
 file, or the old-format `.exe` carrying it, names its editor version),
-`EngineNames.kt`'s "Adventure Game Studio", and `ControllerBindings.kt`'s
+`EngineNames.kt`'s "Adventure Game Studio", and `ControllerActions.kt`'s
 `ags` action set.
 
 The evidence behind this plan: `docs/engine-bundle-format.md` and
@@ -125,7 +125,7 @@ front end into a host-attachable fragment). The mapping, upstream to host:
 | `filename` extra | `dev.enginehost.runtime.PATH` (the game folder) + `dev.enginehost.runtime.EXEC_FILE` (the data file within it, the detector's `execFile`) |
 | `directory` extra | `dev.enginehost.runtime.PATH` |
 | its save location | `dev.enginehost.runtime.SAVE_PATH` (see save routing below) |
-| (nothing) | `dev.enginehost.runtime.CONTROLLER_BINDINGS` -- the host's resolved map over the `ags` action set (`ControllerBindings.kt:257-274`: `ags_mouse_left`, `ags_wheel_north`, `ags_key_escape`, the `ags_pointer_x`/`ags_pointer_y` axes, and the rest), which the engine front end translates into AGS input events |
+| (nothing) | `dev.enginehost.runtime.CONTROLLER_BINDINGS` -- the host's resolved map over the `ags` action set (`ControllerActions.kt`, the `ags` set: `ags_mouse_left`, `ags_wheel_north`, `ags_key_escape`, the `ags_pointer_x`/`ags_pointer_y` axes, and the rest), which the engine front end translates into AGS input events |
 | `loadLastSave` | a declared option, off by default |
 | native libraries from the app package | `dev.enginehost.runtime.BUNDLE_ROOT` (`EnginehostComponentFactory.kt:60,86`); the core dex loader already puts the bundle's `lib/<abi>` on its native path (lines 63-69), so `System.loadLibrary` for `SDL2`/`engine`/`ags` resolves from the signed payload |
 | the game's `android.cfg` | unchanged -- it is game content the engine reads from the game folder |
