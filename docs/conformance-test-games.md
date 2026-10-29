@@ -45,7 +45,9 @@ must drop before its next signed build.
 
 Layer 1b is `.github/workflows/conformance-emulator.yml`, nightly and on dispatch on any branch.
 It builds that commit's debug Enginehost and fetches each family's rolling unstable core from
-the core's own releases. It boots an x86_64 API 34 emulator with software GL, and runs
+the core's own releases. It boots an x86_64 API 34 emulator with software GL on the plain AOSP
+image (no Google Play services, whose dying processes took the HTML game's runtime with them on
+the Google APIs image), and runs
 `tools/core-harness/conformance-emulator.sh`:
 
 - install the APK, and grant the all-files access a person grants (`appops`);
@@ -69,7 +71,14 @@ It needs a `.pck` export step (a Godot 4.0 build with an export preset) in the w
 "godot" notes below, which say the tree runs unexported, are wrong on that point. Games
 from the owner's library are tested on the rig, never in the cloud (docs/core-harness.md). An
 emulator with software GL is not a device: a pass here means the core starts, draws, answers
-input and keeps running, not that it plays well on the rig.
+input and keeps running, not that it plays well on the rig. Save, load and exit are not yet
+checked here: the harness checks them only for a game whose entry names its save keys and save
+folder, and these entries name none.
+
+A game that fails a check leaves its own processes' log in the job log (Enginehost's, its
+isolated runtime's, WebView's renderers', and the system's lines about Enginehost), with an
+isolated engine's stdout and stderr among them as `engine-stdio`, and a text rendering of each
+screenshot: the artifact cannot be downloaded everywhere the log can be read.
 
 A conformance game must exercise three things, and the row says which of the
 three apply:
