@@ -68,6 +68,8 @@ for game in "$out"/*/; do
     [ -f "$game/screen-ui.xml" ] && { echo "--- on screen:"; grep -o 'text="[^"]\+"' "$game/screen-ui.xml" | head -n 25; } || true
     [ -f "$game/crash.txt" ] && head -n 40 "$game/crash.txt" || true
     [ -f "$game/logcat.txt" ] && { echo "--- Enginehost errors:"; grep -E " [EF] (Enginehost|enginehost|AndroidRuntime|DEBUG)" "$game/logcat.txt" | tail -n 25; } || true
+    # A game that never drew: the last warnings and errors from every tag, the engine's own among them.
+    [ -f "$game/screen-ui.xml" ] && [ -f "$game/logcat.txt" ] && { echo "--- warnings and errors:"; grep -E "^[0-9-]+ [0-9:.]+ +[0-9]+ +[0-9]+ [WEF] " "$game/logcat.txt" | tail -n 60; } || true
     for shot in first-frame input-before input-idle input-after; do
         [ -f "$game/$shot.png" ] && { echo "--- $shot:"; python3 "$here/screen_text.py" "$game/$shot.png" 32; } || true
     done
