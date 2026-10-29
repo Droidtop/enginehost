@@ -79,6 +79,16 @@ static volatile uint32_t g_joypad;          /* bit per RETRO_DEVICE_ID_JOYPAD_* 
 static volatile int g_pointer_x, g_pointer_y, g_pointer_down;  /* frame pixels */
 static volatile int g_mouse_x, g_mouse_y, g_mouse_buttons, g_mouse_wheel;
 static int g_mouse_last_x, g_mouse_last_y;
+/*
+ * A press is seen by the core even when it is released before the core next
+ * polls: a tap's press and release can both land between two frames (adb's
+ * `input tap` is a millisecond long, and the NScripter test game never saw
+ * one in the emulator conformance run), and a state the core never polled
+ * is a press it never had. A press sets its latch; each poll reports the
+ * buttons held now or latched since the last poll, then clears the latches.
+ */
+static volatile int g_pointer_latched, g_mouse_latched;
+static int g_pointer_seen, g_mouse_seen;
 
 static uint64_t now_us(void) {
     struct timespec t;
@@ -349,7 +359,10 @@ static void audio_sample(int16_t left, int16_t right) {
     audio_batch(frame, 1);
 }
 
-static void input_poll(void) {}
+static void input_poll(void) {
+    g_pointer_seen = g_pointer_down | __atomic_exchange_n(&g_pointer_latched, 0, __ATOMIC_RELAXED);
+    g_mouse_seen = g_mouse_buttons | __atomic_exchange_n(&g_mouse_latched, 0, __ATOMIC_RELAXED);
+}
 
 static int16_t input_state(unsigned port, unsigned device, unsigned index, unsigned id) {
     if (port != 0) return 0;
@@ -363,8 +376,8 @@ static int16_t input_state(unsigned port, unsigned device, unsigned index, unsig
             switch (id) {
                 case RETRO_DEVICE_ID_POINTER_X: return (int16_t) (g_pointer_x * 0xFFFF / width - 0x7FFF);
                 case RETRO_DEVICE_ID_POINTER_Y: return (int16_t) (g_pointer_y * 0xFFFF / height - 0x7FFF);
-                case RETRO_DEVICE_ID_POINTER_PRESSED: return (int16_t) g_pointer_down;
-                case RETRO_DEVICE_ID_POINTER_COUNT: return (int16_t) (g_pointer_down ? 1 : 0);
+                case RETRO_DEVICE_ID_POINTER_PRESSED: return (int16_t) g_pointer_seen;
+                case RETRO_DEVICE_ID_POINTER_COUNT: return (int16_t) (g_pointer_seen ? 1 : 0);
                 default: return 0;
             }
         }
@@ -380,8 +393,8 @@ static int16_t input_state(unsigned port, unsigned device, unsigned index, unsig
                     g_mouse_last_y = g_mouse_y;
                     return (int16_t) dy;
                 }
-                case RETRO_DEVICE_ID_MOUSE_LEFT: return (int16_t) (g_mouse_buttons & 1);
-                case RETRO_DEVICE_ID_MOUSE_RIGHT: return (int16_t) ((g_mouse_buttons >> 1) & 1);
+                case RETRO_DEVICE_ID_MOUSE_LEFT: return (int16_t) (g_mouse_seen & 1);
+                case RETRO_DEVICE_ID_MOUSE_RIGHT: return (int16_t) ((g_mouse_seen >> 1) & 1);
                 case RETRO_DEVICE_ID_MOUSE_WHEELUP: {
                     int up = g_mouse_wheel > 0;
                     if (up) g_mouse_wheel--;
@@ -571,13 +584,24 @@ static void JNICALL native_pointer(JNIEnv *env, jclass cls, jlong handle, jint x
     g_pointer_down = held ? 1 : 0;
     g_mouse_x = x;
     g_mouse_y = y;
-    if (held) g_mouse_buttons |= 1; else g_mouse_buttons &= ~1;
+    if (held) {
+        g_mouse_buttons |= 1;
+        __atomic_store_n(&g_pointer_latched, 1, __ATOMIC_RELAXED);
+        __atomic_or_fetch(&g_mouse_latched, 1, __ATOMIC_RELAXED);
+    } else {
+        g_mouse_buttons &= ~1;
+    }
 }
 
 static void JNICALL native_mouse(JNIEnv *env, jclass cls, jlong handle, jint button, jboolean down) {
     (void) env; (void) cls; (void) handle;
     if (button < 0 || button > 1) return;
-    if (down) g_mouse_buttons |= 1 << button; else g_mouse_buttons &= ~(1 << button);
+    if (down) {
+        g_mouse_buttons |= 1 << button;
+        __atomic_or_fetch(&g_mouse_latched, 1 << button, __ATOMIC_RELAXED);
+    } else {
+        g_mouse_buttons &= ~(1 << button);
+    }
 }
 
 static void JNICALL native_wheel(JNIEnv *env, jclass cls, jlong handle, jint steps) {
