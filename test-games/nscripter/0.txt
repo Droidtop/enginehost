@@ -2,8 +2,9 @@
 ;
 ; MIT licence -- test-games/LICENSE.  Plain ASCII, so the same script runs
 ; with the engine's sjis, gbk and utf8 script encodings alike.  It
-; exercises: text that redraws the window on every click (the frame that
-; changes), click waits and a select menu (the input response), and
+; exercises: the first click turning the black background blue (the frame
+; changing on input, large enough to see on any screen: a new line of text
+; alone changed 1% of an emulator's), click waits and a select menu, and
 ; savegame 1 (a save in the engine's own save directory, wherever
 ; Enginehost mapped it).  See docs/conformance-test-games.md.
 ;
@@ -18,7 +19,8 @@ game
 
 *start
 `This is the Enginehost conformance test game.
-`A click here redraws the window with new text, which is the frame changing.
+bg #3a5f9a,1
+`The click turned the background blue, which is the frame changing.
 click
 `The next step is a choice. Press to continue.
 click

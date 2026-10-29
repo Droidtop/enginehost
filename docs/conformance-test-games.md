@@ -115,7 +115,7 @@ The suite has two kinds of fixture:
 | godot | plugin/4.0 … plugin/4.7 | `test-games/godot` (ours) | this repo | MIT | 3.0 KB source | animate + key flip + `user://` save |
 | love2d | plugin/11.5 (series 11) | `test-games/love2d` (ours) | this repo | MIT | 2.4 KB source | animate + key/touch flip + `love.filesystem` save |
 | html (compiled-html) | plugin/2.0-2.12 | `test-games/html` (ours) | this repo | MIT | 4.4 KB source | CSS animation + link/Enter + local-storage save |
-| nscripter | single line | `test-games/nscripter` (ours) | this repo | MIT | 0.9 KB source | redraw per click + select + `savegame` |
+| nscripter | single line | `test-games/nscripter` (ours) | this repo | MIT | 1.2 KB source | first click turns the background blue + select + `savegame` |
 | rpgmaker (2000/2003) | EasyRPG line | EasyRPG **TestGame-2000** (and the 2003 suite) | https://github.com/EasyRPG/TestGame | GPL-3.0 (`COPYING`) | 30 MB git repo incl. history; the per-suite working trees are smaller | map render + movement + menu + save (per suite design; needs a rig check) |
 | ags | plugin/3.6.3.15 | the AGS community demo game project | https://github.com/adventuregamestudio/ags-demo-game | script 0BSD, art CC BY-NC-ND 4.0 (`LICENSE.md`) | 1.8 MB git repo | rooms + interaction + F5/F7 save/restore |
 | kirikiri2 | plugin/2.31 / stable | the KAG3 template package | https://github.com/krkrz/kag3 | KAG3 package licence (W.Dee: modification and redistribution free) | ~430 KB unpacked | title/config screen + scenario click-advance + KAG save bookmark |
@@ -181,7 +181,10 @@ exercises in its own header. Assembly notes:
   Every line of text starts with a backquote, NScripter's mark for a line
   of one-byte text: a line starting with an ASCII letter is read as a
   command, and before the marks the game drew nothing at all (emulator
-  run 40832924349: `command [this] is not supported yet!!`).
+  run 40832924349: `command [this] is not supported yet!!`). The first
+  click turns the black background blue: a new line of text alone changed
+  1% of the emulator's screen (run 40834033160), too little to tell from
+  the screen's own changes.
   Note for detection: a folder with only `0.txt` does not trip
   Enginehost's nscripter rule (it wants `0.txt` plus an `.nsa` archive,
   or `nscript.dat`), so the game carries its own `enginehost.json`.
