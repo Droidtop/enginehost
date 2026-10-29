@@ -2378,7 +2378,10 @@ happens.
 launches that core's games in learning mode, `setprop debug.enginehost.learn
 all` every core's (the harness's `--learn`), and `setprop
 debug.enginehost.learn 0` turns it off. Only adb or root can set it. It is
-never on by default and never in the app's own settings. It is per core;
+never on by default and never in the app's own settings, and it exists only in
+the debug build (`enginehost-latest-debug.apk`): the release build's
+`DebugProperty` reads nothing, so no `debug.enginehost.*` switch, this one
+included, can loosen a release build's sandbox (Droidtop/tracker#768). It is per core;
 which game it runs with is the operator's choice of what to launch. A
 learning run:
 

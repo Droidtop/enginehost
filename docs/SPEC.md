@@ -738,3 +738,14 @@ their order matters. These are:
 - the scan;
 - the library, art, voice, translation and host-event queues;
 - the bounded wait for droidtop's answer about saves (`DroidtopSaves.withDeadline`).
+
+## Rig switches exist only in the debug build (decided 2026-10-29, Droidtop/tracker#768)
+
+The `debug.enginehost.*` properties the rig sets with adb (`lockdown`, `learn`, `audit`,
+`npeprobe`, `stall`, `text`, `stats`) are read by `DebugProperty`, and only the debug build has
+one that reads them (`app/src/debug`). The release build's (`app/src/release`) answers every
+name as unset, so a release build carries no switch: none can force a learning run, which lets
+a core run with its filter only recording, or loosen the sandbox in any other way, whatever is
+set on the device. The code quality review found them shipping in release builds. A rig check
+that needs a switch runs on `enginehost-latest-debug.apk`, which every build publishes beside
+the release APK.
