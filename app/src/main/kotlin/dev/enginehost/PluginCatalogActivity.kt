@@ -633,6 +633,22 @@ class PluginCatalogActivity : EnginehostActivity() {
      */
     private fun addRelease(plugin: AvailablePlugin, older: List<AvailablePlugin> = emptyList(), parent: ViewGroup = releaseList) {
         val card = layoutInflater.inflate(R.layout.item_release, parent, false)
+        bindReleaseHeader(card, plugin)
+        val progress = card.findViewById<ProgressBar>(R.id.releaseProgress)
+        // Read once for this card: the older builds and the primary button both depend on it.
+        val installed = snapshot?.installed.orEmpty().filter { it.bundleId == plugin.bundleId }
+        bindOlderBuilds(card, older, installed)
+        val actions = card.findViewById<LinearLayout>(R.id.releaseActions)
+        if (intent.getBooleanExtra(EXTRA_SELECTION_ONLY, false)) {
+            addCapabilityPicks(actions, plugin)
+        } else {
+            addPrimaryButton(actions, progress, plugin, installed)
+        }
+        parent.addView(card)
+    }
+
+    /** What the card says about [plugin]: engines or component, versions, what it bundles, stream, access, source. */
+    private fun bindReleaseHeader(card: View, plugin: AvailablePlugin) {
         // A runtime component serves no game itself: its card says which
         // engine loads it and, before anything else, under which licence.
         val component = plugin.manifest.component
@@ -683,9 +699,10 @@ class PluginCatalogActivity : EnginehostActivity() {
                 thirdParty.maintainerName,
             )
         }
-        val progress = card.findViewById<ProgressBar>(R.id.releaseProgress)
-        // Read once for this card: the older builds and the primary button both depend on it.
-        val installed = snapshot?.installed.orEmpty().filter { it.bundleId == plugin.bundleId }
+    }
+
+    /** The fold of [older] builds, each installable beside the ones already [installed]. */
+    private fun bindOlderBuilds(card: View, older: List<AvailablePlugin>, installed: List<InstalledPlugin>) {
         val olderList = card.findViewById<LinearLayout>(R.id.releaseOlderList)
         card.findViewById<TextView>(R.id.releaseOlderToggle).apply {
             visibility = if (older.isEmpty()) View.GONE else View.VISIBLE
@@ -721,106 +738,109 @@ class PluginCatalogActivity : EnginehostActivity() {
                 olderList.addView(row)
             }
         }
-        val actions = card.findViewById<LinearLayout>(R.id.releaseActions)
-        if (intent.getBooleanExtra(EXTRA_SELECTION_ONLY, false)) {
-            plugin.info.capabilities.forEach { capability ->
-                val button = layoutInflater.inflate(R.layout.item_action_button, actions, false) as Button
-                button.text = getString(
-                    R.string.use_capability, capability.engineContext, capability.runtimeVersion.toString(),
-                )
-                button.setOnClickListener {
-                    setResult(
-                        RESULT_OK,
-                        Intent()
-                            .putExtra("engine", plugin.info.engine)
-                            .putExtra("engineContext", capability.engineContext)
-                            .putExtra("engineVersion", capability.runtimeVersion.toString()),
-                    )
-                    finish()
-                }
-                actions.addView(button)
-            }
-        } else {
-            val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
-            // A build newer than the newest installed one is an update, and
-            // updates are Cores' job: the button opens Cores (#620 E6).
-            val installedIdle = isInstalledBuild(installed, plugin)
-            val update = !installedIdle && installed.isNotEmpty() &&
-                PluginUpdates.isNewerBuildOf(installed.maxBy { it.info.pluginVersion }, plugin.manifest)
-            val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
-            // A launch that stopped here for a core too old to start (GameRunner's stale plan)
-            // updates it on this card: a launch shows only the game and what it needs, never the
-            // app's own places (Droidtop/tracker#644). Outside a launch, updates stay in Cores.
-            val updateHere = update && launchedFor() != null
-            val idleLabel = when {
-                installedIdle -> getString(R.string.installed)
-                !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
-                updateHere -> getString(R.string.update)
-                update -> getString(R.string.update_in_cores)
-                // Its size, when the release lists one, so the person knows what Install costs.
-                plugin.archiveSize > 0 -> getString(R.string.install_with_size, Formatter.formatShortFileSize(this, plugin.archiveSize))
-                else -> getString(R.string.install)
-            }
-            button.text = idleLabel
-            button.isEnabled = !installedIdle && supportedApi
-            if (installedIdle) {
-                // "Installed" is the card's status, not a disabled action,
-                // so it wears its own pairing instead of the disabled
-                // button's: full-strength text on the same neutral fill,
-                // readable on both themes (the 45%-alpha text it replaced
-                // measured about 1.1:1 on light).
-                button.backgroundTintList =
-                    ColorStateList.valueOf(ContextCompat.getColor(this, R.color.eh_installed_container))
-                button.setTextColor(ContextCompat.getColor(this, R.color.eh_on_installed_container))
-            }
-            // The registry is the truth: once the bundle is there, its
-            // install from this screen is over, whatever the button said.
-            if (installedIdle) installing.remove(plugin.bundleId)
-            if (plugin.bundleId in installing) {
-                button.isEnabled = false
-                button.setText(R.string.installing)
-                progress.visibility = View.VISIBLE
-            }
+    }
+
+    /** Picking an engine for one game: a button per capability, which answers the caller with it. */
+    private fun addCapabilityPicks(actions: LinearLayout, plugin: AvailablePlugin) {
+        plugin.info.capabilities.forEach { capability ->
+            val button = layoutInflater.inflate(R.layout.item_action_button, actions, false) as Button
+            button.text = getString(
+                R.string.use_capability, capability.engineContext, capability.runtimeVersion.toString(),
+            )
             button.setOnClickListener {
-                // Updates live in one place, Cores with its Update all (#620 E6), except in a launch.
-                if (update && !updateHere) {
-                    startActivity(Intent(this, PluginTrustActivity::class.java))
-                    return@setOnClickListener
-                }
-                // Progress belongs on the card being installed, not in a
-                // status line somewhere else on the screen. It starts once the
-                // unsandboxed warning, if any, is answered; until then the
-                // button only stops a second press.
-                button.isEnabled = false
-                PluginInstaller.install(
-                    this@PluginCatalogActivity,
-                    plugin,
-                    onError = { message ->
-                        Async.onMain(this@PluginCatalogActivity) {
-                            installing.remove(plugin.bundleId)
-                            progress.visibility = View.GONE
-                            button.isEnabled = true
-                            button.text = idleLabel
-                            toast(message)
-                        }
-                    },
-                    onStarted = {
-                        installing += plugin.bundleId
-                        button.setText(R.string.installing)
-                        progress.isIndeterminate = true
-                        progress.visibility = View.VISIBLE
-                    },
-                    onStatus = { status ->
-                        Async.onMain(this@PluginCatalogActivity) {
-                            button.text = status.text
-                            showProgress(progress, status.fraction)
-                        }
-                    },
+                setResult(
+                    RESULT_OK,
+                    Intent()
+                        .putExtra("engine", plugin.info.engine)
+                        .putExtra("engineContext", capability.engineContext)
+                        .putExtra("engineVersion", capability.runtimeVersion.toString()),
                 )
+                finish()
             }
             actions.addView(button)
         }
-        parent.addView(card)
+    }
+
+    /** Install, Installed, Update or Update in Cores, with the install's progress on the card's own bar. */
+    private fun addPrimaryButton(actions: LinearLayout, progress: ProgressBar, plugin: AvailablePlugin, installed: List<InstalledPlugin>) {
+        val button = layoutInflater.inflate(R.layout.item_primary_button, actions, false) as Button
+        // A build newer than the newest installed one is an update, and
+        // updates are Cores' job: the button opens Cores (#620 E6).
+        val installedIdle = isInstalledBuild(installed, plugin)
+        val update = !installedIdle && installed.isNotEmpty() &&
+            PluginUpdates.isNewerBuildOf(installed.maxBy { it.info.pluginVersion }, plugin.manifest)
+        val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
+        // A launch that stopped here for a core too old to start (GameRunner's stale plan)
+        // updates it on this card: a launch shows only the game and what it needs, never the
+        // app's own places (Droidtop/tracker#644). Outside a launch, updates stay in Cores.
+        val updateHere = update && launchedFor() != null
+        val idleLabel = when {
+            installedIdle -> getString(R.string.installed)
+            !supportedApi -> getString(R.string.requires_api, plugin.apiVersion)
+            updateHere -> getString(R.string.update)
+            update -> getString(R.string.update_in_cores)
+            // Its size, when the release lists one, so the person knows what Install costs.
+            plugin.archiveSize > 0 -> getString(R.string.install_with_size, Formatter.formatShortFileSize(this, plugin.archiveSize))
+            else -> getString(R.string.install)
+        }
+        button.text = idleLabel
+        button.isEnabled = !installedIdle && supportedApi
+        if (installedIdle) {
+            // "Installed" is the card's status, not a disabled action,
+            // so it wears its own pairing instead of the disabled
+            // button's: full-strength text on the same neutral fill,
+            // readable on both themes (the 45%-alpha text it replaced
+            // measured about 1.1:1 on light).
+            button.backgroundTintList =
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.eh_installed_container))
+            button.setTextColor(ContextCompat.getColor(this, R.color.eh_on_installed_container))
+        }
+        // The registry is the truth: once the bundle is there, its
+        // install from this screen is over, whatever the button said.
+        if (installedIdle) installing.remove(plugin.bundleId)
+        if (plugin.bundleId in installing) {
+            button.isEnabled = false
+            button.setText(R.string.installing)
+            progress.visibility = View.VISIBLE
+        }
+        button.setOnClickListener {
+            // Updates live in one place, Cores with its Update all (#620 E6), except in a launch.
+            if (update && !updateHere) {
+                startActivity(Intent(this, PluginTrustActivity::class.java))
+                return@setOnClickListener
+            }
+            // Progress belongs on the card being installed, not in a
+            // status line somewhere else on the screen. It starts once the
+            // unsandboxed warning, if any, is answered; until then the
+            // button only stops a second press.
+            button.isEnabled = false
+            PluginInstaller.install(
+                this@PluginCatalogActivity,
+                plugin,
+                onError = { message ->
+                    Async.onMain(this@PluginCatalogActivity) {
+                        installing.remove(plugin.bundleId)
+                        progress.visibility = View.GONE
+                        button.isEnabled = true
+                        button.text = idleLabel
+                        toast(message)
+                    }
+                },
+                onStarted = {
+                    installing += plugin.bundleId
+                    button.setText(R.string.installing)
+                    progress.isIndeterminate = true
+                    progress.visibility = View.VISIBLE
+                },
+                onStatus = { status ->
+                    Async.onMain(this@PluginCatalogActivity) {
+                        button.text = status.text
+                        showProgress(progress, status.fraction)
+                    }
+                },
+            )
+        }
+        actions.addView(button)
     }
 
     /** A download's share done fills the card's bar; while its size is unknown the bar keeps moving. */
