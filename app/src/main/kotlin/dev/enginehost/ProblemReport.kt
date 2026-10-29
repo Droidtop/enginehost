@@ -9,7 +9,6 @@ import android.opengl.EGLConfig
 import android.opengl.GLES20
 import android.os.Build
 import android.view.WindowManager
-import dev.droidtop.shared.report.Redactor
 import java.io.File
 
 /**
@@ -333,13 +332,21 @@ data class ProblemReport(
          * where 4.2.1.0 is not an IP.
          */
         fun scrub(text: String, gameFolder: File?, hide: List<String> = emptyList(), addresses: Boolean = true): String {
-            // The game's own folder and name first, as "<game>", so a reader still sees which lines
-            // are the game's; everything else is the shared Redactor's (droidtop-shared :report, the
-            // same rules droidtop's reports use; this was its copy, Droidtop/tracker#768).
             var result = text
             gameFolder?.let { result = result.replace(it.absolutePath, "<game>") }
-            hide.filter { it.isNotBlank() }.sortedByDescending { it.length }.forEach { result = result.replace(it, "<game>") }
-            return Redactor.redact(result, addresses = addresses)
+            hide.filter { it.isNotBlank() }.forEach { result = result.replace(it, "<game>") }
+            result = result.replace(Regex("""/(?:storage|sdcard|mnt)(?:/\S*)?"""), "<storage>")
+            result = result.replace(Regex("""/data/(?:user/\d+|data|media)(?:/\S*)?"""), "<app>")
+            result = result.replace(Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"), "<email>")
+            if (addresses) result = result.replace(Regex("\\b\\d{1,3}(\\.\\d{1,3}){3}\\b"), "<ip>")
+            result = result.replace(Regex("/home/[^/\\s]+"), "<home>")
+            result = result.replace(Regex("Bearer\\s+\\S+", RegexOption.IGNORE_CASE), "Bearer <redacted>")
+            result = result.replace(Regex("gh[pousr]_[A-Za-z0-9]{20,}"), "<redacted>")
+            result = result.replace(
+                Regex("""\b(token|password|passwd|secret|api[_-]?key|authorization)(\s*[=:]\s*)\S+""", RegexOption.IGNORE_CASE),
+                "$1$2<redacted>",
+            )
+            return result.trim()
         }
 
         /**
