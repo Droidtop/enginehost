@@ -62,6 +62,19 @@ Dispatched with `lockdown` set, it forces the process lockdown on for every core
 its declaring `"lockdown": true`, for the cores that still run unsandboxed. The plan line in each
 game's events says "locked down" when it took.
 
+Dispatched with `learn` set, it is a learning run (`debug.enginehost.learn all`, the harness's
+`--learn`). Every core runs locked down with nothing refused, and each call the lockdown would have
+refused is recorded. The proposed policy (`sandbox-proposal.md`) is printed in the job's log after
+the report. Each game's part of the log also prints the sandbox's own lines (`EnginehostSandbox`).
+
+The first forced-lockdown run (2026-10-29, run 40927896898) came out as follows:
+- LÖVE passed every check that ran.
+- HTML did not start. The system WebView's own library would not load in the locked-down process:
+  `dlopen failed: library "/product/app/webview/webview.apk!/lib/x86_64/libwebviewchromium.so" ...
+  is not accessible for the namespace "product-clns-7"`.
+- On that run the plan line still said "not sandboxed", because it read only the core's own flag.
+  It now reads what the runtime does (`RuntimeSandbox.locksDown`).
+
 Its report is the run's summary, and the screenshots, logcat and per-game results are the run's
 `conformance-emulator` artifact.
 

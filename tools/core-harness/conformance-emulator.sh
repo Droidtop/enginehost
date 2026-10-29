@@ -60,10 +60,15 @@ done
 status=0
 # Cores with no sandbox yet (html, love2d) still run: these are our own MIT games, and the report
 # names every game that ran unsandboxed.
-python3 "$here/core_harness.py" --games "$here/conformance-games.json" --out "$out" --first-frame-seconds 120 --play-seconds 15 --run-unsandboxed || status=$?
+# LEARN=1: a learning run (the harness sets and resets debug.enginehost.learn itself).
+learn=()
+[ "${LEARN:-}" = 1 ] && learn=(--learn)
+python3 "$here/core_harness.py" --games "$here/conformance-games.json" --out "$out" --first-frame-seconds 120 --play-seconds 15 --run-unsandboxed "${learn[@]}" || status=$?
 
 # The report and each game's evidence, in the job's log: some readers get the log but not the artifact.
 cat "$out/report.md" || true
+# A learning run's proposed policy: what each core would have been refused.
+[ -f "$out/sandbox-proposal.md" ] && { echo "=== sandbox proposal"; cat "$out/sandbox-proposal.md"; } || true
 for game in "$out"/*/; do
     echo "=== $(basename "$game")"
     # How much the screen changed idle and after input: the input check's two numbers.
@@ -73,9 +78,11 @@ for game in "$out"/*/; do
     [ -f "$game/screen-ui.xml" ] && { echo "--- on screen:"; grep -o 'text="[^"]\+"' "$game/screen-ui.xml" | head -n 25; } || true
     [ -f "$game/crash.txt" ] && head -n 40 "$game/crash.txt" || true
     [ -f "$game/logcat.txt" ] && { echo "--- Enginehost errors:"; grep -E " [EF] (Enginehost|enginehost|AndroidRuntime|DEBUG)" "$game/logcat.txt" | tail -n 25; } || true
+    # What the sandbox said for this game: lockdown on or not, learning, a trace of an ended runtime.
+    [ -f "$game/logcat.txt" ] && { echo "--- the sandbox:"; grep " EnginehostSandbox" "$game/logcat.txt" | tail -n 25; } || true
     # A game that failed a check: the last lines its own processes logged, the engine's among them.
     if [ -f "$game/app-log.txt" ] && ! grep -q '"passed": true' "$game/result.json" 2>/dev/null; then
-        echo "--- its processes' log:"; grep -v "app_time_stats" "$game/app-log.txt" | tail -n 80 || true
+        echo "--- its processes' log:"; grep -v -E "app_time_stats|AppsFilter" "$game/app-log.txt" | tail -n 80 || true
     fi
     for shot in no-first-frame first-frame input-before input-idle input-after; do
         [ -f "$game/$shot.png" ] && { echo "--- $shot:"; python3 "$here/screen_text.py" "$game/$shot.png" 32; } || true

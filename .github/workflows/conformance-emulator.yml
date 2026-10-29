@@ -17,6 +17,14 @@ on:
         description: Force the process lockdown on for every core
         type: boolean
         default: false
+      learn:
+        # A learning run (debug.enginehost.learn all): every core runs locked down with nothing
+        # refused, and each call the lockdown would have refused is recorded. The proposed policy
+        # is printed in the log. It is how a core that fails under the forced lockdown shows what
+        # it needs.
+        description: Learning run, nothing refused, every would-be refusal recorded
+        type: boolean
+        default: false
   # A change to the harness (its scripts and the debug build's adb hooks), the test games or this
   # workflow is run where it is pushed.
   push:
@@ -116,7 +124,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: LOCKDOWN=${{ inputs.lockdown && '1' || '' }} bash tools/core-harness/conformance-emulator.sh app/build/outputs/apk/debug/app-debug.apk cores results
+          script: LOCKDOWN=${{ inputs.lockdown && '1' || '' }} LEARN=${{ inputs.learn && '1' || '' }} bash tools/core-harness/conformance-emulator.sh app/build/outputs/apk/debug/app-debug.apk cores results
 
       # The report as the run's summary: read where the logs' download is refused.
       - name: Summarise

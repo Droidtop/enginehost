@@ -232,7 +232,8 @@ class LaunchActivity : EnginehostActivity() {
                         when {
                             plan.resolved.plugin.isolatable -> " isolated"
                             RuntimeSandbox.learning(plan.resolved.plugin) -> " LEARNING, nothing refused"
-                            plan.resolved.plugin.lockdown -> " locked down"
+                            // A core that declares lockdown, or any core under the debug build's forced lockdown.
+                            RuntimeSandbox.locksDown(plan.resolved.plugin) -> " locked down"
                             else -> " not sandboxed"
                         },
                 )
