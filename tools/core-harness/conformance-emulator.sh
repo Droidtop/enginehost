@@ -72,7 +72,7 @@ for game in "$out"/*/; do
     if [ -f "$game/app-log.txt" ] && ! grep -q '"passed": true' "$game/result.json" 2>/dev/null; then
         echo "--- its processes' log:"; grep -v "app_time_stats" "$game/app-log.txt" | tail -n 80 || true
     fi
-    for shot in first-frame input-before input-idle input-after; do
+    for shot in no-first-frame first-frame input-before input-idle input-after; do
         [ -f "$game/$shot.png" ] && { echo "--- $shot:"; python3 "$here/screen_text.py" "$game/$shot.png" 32; } || true
     done
 done

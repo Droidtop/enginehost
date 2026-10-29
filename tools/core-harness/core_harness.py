@@ -278,6 +278,7 @@ def run_game(device, engine, folder, steps, out_dir, args):
         result["notes"].append("no first frame within %ds: %s (focus: %s)" % (args.first_frame_seconds, reason, last_focus))
         with open(os.path.join(out_dir, "screen-ui.xml"), "w") as f:
             f.write(device.ui_text())
+        shot("no-first-frame")
 
     if first is not None:
         # Input: the screen moves with input more than it does by itself.
