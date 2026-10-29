@@ -133,7 +133,7 @@ class BundleExtractionTest {
     }
 
     @Test
-    fun `a legacy signature may precede the v1 one and is passed over; alone it leaves no JWS for the verifier`() {
+    fun `a legacy signature may precede the v1 one and is passed over, and alone it leaves no JWS for the verifier`() {
         val files = listOf(dex)
         val legacy = Item(EnginePluginContract.ENGINE_BUNDLE_SIGNATURE, java.util.Base64.getEncoder().encode(byteArrayOf(5, 6, 7)))
         val both = extract(archive(manifestItem(files), legacy, jwsItem, *fileItems(files).toTypedArray()))
