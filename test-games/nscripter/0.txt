@@ -6,26 +6,31 @@
 ; changes), click waits and a select menu (the input response), and
 ; savegame 1 (a save in the engine's own save directory, wherever
 ; Enginehost mapped it).  See docs/conformance-test-games.md.
+;
+; Each line of text starts with a backquote: NScripter reads a line that
+; starts with an ASCII letter as a command, and without the backquote the
+; first sentence was "command [this] is not supported yet!!" and nothing
+; was ever drawn.
 
 *define
 clickstr"?!."
 game
 
 *start
-This is the Enginehost conformance test game.
-A click here redraws the window with new text, which is the frame changing.
+`This is the Enginehost conformance test game.
+`A click here redraws the window with new text, which is the frame changing.
 click
-The next step is a choice. Press to continue.
+`The next step is a choice. Press to continue.
 click
 select "Save the game", *save, "Exit without saving", *end
 
 *save
 savegame 1
-The game saved into the engine's own save directory, wherever Enginehost mapped it.
+`The game saved into the engine's own save directory, wherever Enginehost mapped it.
 click
 end
 
 *end
-No save was written. Closing the window here is a clean end.
+`No save was written. Closing the window here is a clean end.
 click
 end

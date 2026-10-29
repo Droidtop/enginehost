@@ -178,11 +178,13 @@ exercises in its own header. Assembly notes:
   script in pure ASCII, so it runs under the engine's sjis, gbk and utf8
   script encodings alike. It follows the same pattern as the nscripter
   core's own headless test game (`tests/game/0.txt` in the core repo).
+  Every line of text starts with a backquote, NScripter's mark for a line
+  of one-byte text: a line starting with an ASCII letter is read as a
+  command, and before the marks the game drew nothing at all (emulator
+  run 40832924349: `command [this] is not supported yet!!`).
   Note for detection: a folder with only `0.txt` does not trip
   Enginehost's nscripter rule (it wants `0.txt` plus an `.nsa` archive,
-  or `nscript.dat`); the conformance launcher passes an inline config
-  anyway, so the suite is unaffected, but anyone adding this game to a
-  library should expect CONFIGURE rather than a direct classify.
+  or `nscript.dat`), so the game carries its own `enginehost.json`.
 
 **Needs a rig check** for all five: they were written without a device and
 have not been launched yet. The rig run should confirm each boots, answers
