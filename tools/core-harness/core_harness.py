@@ -111,11 +111,15 @@ def changed_fraction(a, b, threshold=12):
 
 
 def lines_of(logcat, pids):
-    """The lines of a `logcat -v threadtime` dump written by one of [pids]."""
+    """The lines of a `logcat -v threadtime` dump written by one of [pids], or naming Enginehost.
+
+    The second kind is the system's account of the game's processes (started, killed, died),
+    which no line of their own gives when they are killed from outside.
+    """
     kept = []
     for line in logcat.splitlines():
         fields = line.split(None, 3)
-        if len(fields) > 2 and fields[2] in pids:
+        if len(fields) > 2 and (fields[2] in pids or PACKAGE in line):
             kept.append(line)
     return "\n".join(kept) + ("\n" if kept else "")
 

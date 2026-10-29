@@ -54,6 +54,8 @@ class FrameTest(unittest.TestCase):
                 "--------- beginning of main\n")
         self.assertEqual("10-29 06:35:17.298  4625  4625 I enginehost-events: launch\n", h.lines_of(dump, {"4625"}))
         self.assertEqual("", h.lines_of(dump, set()))
+        killed = "10-29 06:45:40.900   519   939 I ActivityManager: Killing 4656:dev.enginehost:runtime/u0a192 (adj 0): lmk\n"
+        self.assertEqual(killed, h.lines_of(killed, set()))
 
     def test_a_change_of_colour_at_the_same_luma_is_a_change(self):
         # The test games' blue and red: luma 86 and 89.
