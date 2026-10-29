@@ -63,9 +63,13 @@ for game in "$out"/*/; do
     echo "=== $(basename "$game")"
     # How much the screen changed idle and after input: the input check's two numbers.
     [ -f "$game/result.json" ] && python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("input change:", r.get("input_change"))' "$game/result.json"
-    [ -f "$game/host-events.txt" ] && tail -n 25 "$game/host-events.txt"
-    [ -f "$game/screen-ui.xml" ] && { echo "--- on screen:"; grep -o 'text="[^"]\+"' "$game/screen-ui.xml" | head -n 25; }
-    [ -f "$game/crash.txt" ] && head -n 40 "$game/crash.txt"
-    [ -f "$game/logcat.txt" ] && { echo "--- Enginehost errors:"; grep -E " [EF] (Enginehost|enginehost|AndroidRuntime|DEBUG)" "$game/logcat.txt" | tail -n 25; }
+    # Each line may find nothing; under set -e that must not end the loop.
+    [ -f "$game/host-events.txt" ] && tail -n 25 "$game/host-events.txt" || true
+    [ -f "$game/screen-ui.xml" ] && { echo "--- on screen:"; grep -o 'text="[^"]\+"' "$game/screen-ui.xml" | head -n 25; } || true
+    [ -f "$game/crash.txt" ] && head -n 40 "$game/crash.txt" || true
+    [ -f "$game/logcat.txt" ] && { echo "--- Enginehost errors:"; grep -E " [EF] (Enginehost|enginehost|AndroidRuntime|DEBUG)" "$game/logcat.txt" | tail -n 25; } || true
+    for shot in first-frame input-before input-idle input-after; do
+        [ -f "$game/$shot.png" ] && { echo "--- $shot:"; python3 "$here/screen_text.py" "$game/$shot.png" 32; } || true
+    done
 done
 exit $status
