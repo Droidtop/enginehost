@@ -102,7 +102,11 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         findViewById<SwitchCompat>(R.id.readAloudSwitch).apply {
             val text = TextSettings(this@EnginehostSettingsActivity)
             isChecked = text.readAloud
-            setOnCheckedChangeListener { _, checked -> text.readAloud = checked }
+            setOnCheckedChangeListener { _, checked ->
+                text.readAloud = checked
+                // Voices set up for the first time: the one moment the ratings are asked about.
+                if (checked) stats.askOnce { refreshStats() }
+            }
         }
         findViewById<SwitchCompat>(R.id.translateSwitch).apply {
             val text = TextSettings(this@EnginehostSettingsActivity)
@@ -115,6 +119,13 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         }
         findViewById<View>(R.id.translatorRow).setOnClickListener { showTranslatorSheet() }
         showTranslatorValue()
+        findViewById<View>(R.id.rateModelsRow).setOnClickListener { stats.rate() }
+        findViewById<SwitchCompat>(R.id.shareRatingsSwitch).setOnCheckedChangeListener { _, checked ->
+            if (showingStats) return@setOnCheckedChangeListener
+            SharedStats.setConsent(this, if (checked) SharedStats.Consent.SHARED else SharedStats.Consent.DECLINED)
+            refreshStats()
+        }
+        findViewById<View>(R.id.sharedLogRow).setOnClickListener { stats.showLog() }
         findViewById<SwitchCompat>(R.id.autoInstallPluginsSwitch).apply {
             isChecked = updateCheck.installAutomatically
             setOnCheckedChangeListener { _, checked -> updateCheck.installAutomatically = checked }
@@ -405,6 +416,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
 
     private fun refresh() {
         showAccent()
+        refreshStats()
         val tokenValue = findViewById<TextView>(R.id.githubTokenValue)
         tokenValue.text = if (tokenStore.hasToken) getString(R.string.github_token_masked, tokenStore.masked()) else getString(R.string.github_token_hint)
         location.text = store.root().path
@@ -502,15 +514,63 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         }
     }
 
-    /** What the Translator row says: the service and language, or that none is chosen. */
+    /**
+     * What the Translator row says: the service and language, or that none is chosen; and, once the
+     * ratings are on and enough people rated the model, how they rated it (docs/stats-schema.md).
+     */
     private fun showTranslatorValue() {
         val text = TextSettings(this)
         val endpoint = text.translatorEndpoint
-        findViewById<TextView>(R.id.translatorValue).text = if (endpoint.isBlank()) {
+        val value = findViewById<TextView>(R.id.translatorValue)
+        val plain = if (endpoint.isBlank()) {
             getString(R.string.translator_none)
         } else {
             getString(R.string.translator_value, runCatching { java.net.URI(endpoint).host }.getOrNull() ?: endpoint, text.translateInto)
         }
+        value.text = plain
+        if (endpoint.isBlank() || text.translatorModel.isBlank() || !SharedStats.enabled()) return
+        val model = text.translatorModel
+        val backend = StatsReport.backendOf(endpoint)
+        Thread {
+            SharedStats.refreshAggregate(applicationContext)
+            val entry = SharedStats.aggregate(applicationContext).lookup(StatsReport.Kind.TRANSLATION, model, backend)
+            runOnUiThread {
+                if (isDestroyed || entry == null) return@runOnUiThread
+                var shown = getString(R.string.translator_rated, plain, String.format(java.util.Locale.getDefault(), "%.1f", entry.average), entry.count)
+                entry.popularFor?.let { shown = getString(R.string.translator_popular, shown, getString(purposeName(it))) }
+                value.text = shown
+            }
+        }.start()
+    }
+
+    private fun purposeName(purpose: StatsReport.Purpose): Int = when (purpose) {
+        StatsReport.Purpose.VISUAL_NOVELS -> R.string.purpose_visual_novels
+        StatsReport.Purpose.RPG_TEXT -> R.string.purpose_rpg_text
+        StatsReport.Purpose.ACCESSIBILITY -> R.string.purpose_accessibility
+        StatsReport.Purpose.LANGUAGE_LEARNING -> R.string.purpose_language_learning
+        StatsReport.Purpose.OTHER -> R.string.purpose_other
+    }
+
+    private val stats by lazy { StatsSheets(this) }
+
+    /** Set while [refreshStats] moves the switch, so the move is not taken for the person's. */
+    private var showingStats = false
+
+    /**
+     * The ratings' rows ([SharedStats]): hidden while the system is off, as it ships; Privacy shows the
+     * choice and what was shared, and rating is offered once the person chose to share.
+     */
+    private fun refreshStats() {
+        val enabled = SharedStats.enabled()
+        val consent = SharedStats.consent(this)
+        findViewById<View>(R.id.privacySection).visibility = if (enabled) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.rateModelsRow).visibility =
+            if (enabled && consent == SharedStats.Consent.SHARED) View.VISIBLE else View.GONE
+        showingStats = true
+        findViewById<SwitchCompat>(R.id.shareRatingsSwitch).isChecked = consent == SharedStats.Consent.SHARED
+        showingStats = false
+        // A report the network refused before gets its next try.
+        if (enabled && consent == SharedStats.Consent.SHARED) Thread { SharedStats.deliver(applicationContext) }.start()
     }
 
     /**
@@ -545,6 +605,8 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 text.translateInto = into.text.toString()
                 key.text.toString().trim().takeIf { it.isNotEmpty() }?.let(text.translatorKey::set)
                 showTranslatorValue()
+                // A translator set up: the one moment the ratings are asked about.
+                stats.askOnce { refreshStats() }
             }
             if (text.translatorKey.isSet) {
                 choice(getString(R.string.translator_key_remove)) {

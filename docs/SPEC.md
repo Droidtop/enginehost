@@ -653,3 +653,22 @@ replaces the process, so Settings coming back to the front, or a minute with Set
 front, means the install did not happen: the button returns, with a line saying so. Before,
 the "install unknown apps" round-trip came back with the button stuck on "Handing over to the
 Android installer" (rig, Enginehost dev-269 to 289, tracker#401).
+
+## Anonymous model ratings: built, switched off (decided 2026-10-28, Droidtop/tracker#491)
+
+The owner, 2026-10-28: "build the system, but don't enable it yet. That way there's less to build
+later". The whole opt-in system is built (`SharedStats`, `StatsReport`, `StatsAggregate`,
+`StatsSheets`), with an empty endpoint and aggregate URL: while the endpoint is empty, no row of it
+shows and nothing is sent. `debug.enginehost.stats 1` shows it for the rig, and then a report goes
+only to the local log, marked unsent. What a report holds is docs/stats-schema.md.
+
+- **Asked once, safe answer first.** The first time the person sets up a translator or turns on
+  read aloud: "Share how you rate models?", with Don't share leading. Settings > Privacy changes it.
+  Nothing is queued while it is off.
+- **One report per rating, never on a timer.** Rating is offered only to someone who chose to share.
+- **The service is a class, never an address.** Known services by name, otherwise
+  `local-network` or `other-service`: the address of someone's own server can identify them.
+  Purpose is a fixed list, so no free text names a game except the comment the person writes.
+- **What went is shown.** Settings > Privacy > What was shared lists every report as it went.
+- **Aggregates need 10 ratings.** Below that, the picker shows nothing for the model.
+- **Waiting on the server (#364):** where the endpoint runs and how long raw reports are kept.

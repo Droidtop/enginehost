@@ -3,6 +3,7 @@ package dev.enginehost
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.os.SystemClock
 import dev.enginehost.runtime.ITextServices
 import dev.enginehost.runtime.ITextTranslated
 import java.util.concurrent.Executors
@@ -32,10 +33,13 @@ class TextServicesService : Service() {
         val service = settings.translatorEndpoint.trim()
         if (!settings.translate || target.isBlank() || service.isEmpty()) return
         val text = cache.get(game, line.id, line.text, target, service) ?: run {
+            val started = SystemClock.elapsedRealtime()
             val asked = Translator(service, settings.translatorModel, settings.translatorKey.get())
                 .translate(TranslationRequest.Line(line.speaker?.name, line.text), target)
                 ?.let { TranslationRequest.withoutSpeaker(it, line.speaker?.name) }
                 ?: return
+            // Kept on the device as a typical answer time; a rating report carries only its bucket.
+            SharedStats.recordTranslationAnswer(this, SystemClock.elapsedRealtime() - started)
             cache.put(game, line.id, line.text, target, service, asked)
             asked
         }
