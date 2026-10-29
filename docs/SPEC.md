@@ -520,6 +520,13 @@ fold stays open when the version was not found, after a core is chosen by hand, 
 Test refuses the setup, so the field at fault is in view. Focus moves to the link when the fold closes
 and to the first field when it opens. Not done: Add option as short titles with the description on Y.
 
+A folder chosen in Game setup is read by its path, the way every launch reads a game (decided
+2026-10-29, Droidtop/tracker#768). The picker's choice is resolved to a path once. A folder on a
+provider with no path, such as a cloud drive, is refused, and all-files access is asked for when it is
+missing. Loading the setup, listing the folder for the entry file, and saving all run off the main
+thread. Before this, Game setup kept a second set of branches for the picker's tree, which queried
+the provider on the main thread.
+
 ## The game page's sections
 
 A game's page reads, top to bottom, in the owner's order (Droidtop/tracker#644,

@@ -4,10 +4,7 @@ import dev.droidtop.shared.launchcontract.EnginehostIntents
 import dev.droidtop.shared.version.Version
 import dev.droidtop.shared.version.VersionConstraint
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.provider.DocumentsContract
-import android.provider.OpenableColumns
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -42,8 +39,16 @@ class ConfigEditorActivity : EnginehostActivity() {
             ?: findViewById<View>(R.id.detectedToggle)?.takeIf { it.isShown }
             ?: findViewById(R.id.chooseConfigFolderButton)
 
-    private var folderUri: Uri? = null
+    /**
+     * The game folder, as a path however it was chosen (Droidtop/tracker#768). A folder picked
+     * through Android's picker is resolved to its path once, here, as a caller's path already is:
+     * the launch, the config store and the testing store all key by path, and a second set of
+     * branches kept the picker's tree URI beside it.
+     */
     private var folderPath: File? = null
+
+    /** A picked folder waiting for all-files access to be granted before it is opened. */
+    private var pendingFolder: File? = null
     private var loadedDocument = JSONObject()
 
     private var engine: String? = null
@@ -98,7 +103,7 @@ class ConfigEditorActivity : EnginehostActivity() {
         detectedFields = findViewById(R.id.detectedFields)
         detectedToggle = findViewById(R.id.detectedToggle)
         detectedToggle.setOnClickListener { showDetectedFields(true) }
-        // Before openCallerPath below, which shows where the setup comes from.
+        // Before openFolder below, which shows where the setup comes from.
         saveToFolderSwitch = findViewById(R.id.saveToFolderSwitch)
         configSourceNote = findViewById(R.id.configSourceNote)
 
@@ -109,7 +114,7 @@ class ConfigEditorActivity : EnginehostActivity() {
         execFileButton.setOnClickListener { pickExecFile() }
         findViewById<Button>(R.id.addOptionButton).setOnClickListener { addOption() }
 
-        intent.getStringExtra(EXTRA_PATH)?.let(::openCallerPath)
+        intent.getStringExtra(EXTRA_PATH)?.let { openFolder(File(it).absoluteFile) }
 
         findViewById<Button>(R.id.chooseConfigFolderButton).setOnClickListener {
             startActivityForResult(
@@ -180,18 +185,24 @@ class ConfigEditorActivity : EnginehostActivity() {
             refreshEditors()
             return
         }
+        if (requestCode == REQUEST_NATIVE_FILES) {
+            val folder = pendingFolder ?: return
+            pendingFolder = null
+            if (StorageFolder.hasNativePathAccess()) openFolder(folder) else toast(getString(R.string.grant_native_then_open))
+            return
+        }
         if (requestCode != REQUEST_FOLDER || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
-        val flags = data.flags and (
-            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            )
-        runCatching { contentResolver.takePersistableUriPermission(uri, flags) }
-        folderPath = null
-        folderUri = uri
-        folderLabel.text = StorageFolder.absolutePath(uri)?.absolutePath ?: uri.toString()
-        editorFields.visibility = View.VISIBLE
-        load(uri)
-        detect(uri)
+        // Read by path from here on, as every launch reads a game: a provider with no path
+        // (a cloud drive) cannot hold a game Enginehost runs.
+        val folder = StorageFolder.absolutePath(uri)
+            ?: return report(R.string.could_not_open_folder, getString(R.string.provider_needs_primary))
+        if (!StorageFolder.hasNativePathAccess()) {
+            pendingFolder = folder
+            StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
+            return toast(getString(R.string.grant_native_then_open))
+        }
+        openFolder(folder)
     }
 
     // --- Menu-driven choices ---------------------------------------------
@@ -325,8 +336,8 @@ class ConfigEditorActivity : EnginehostActivity() {
     }
 
     private fun pickExecFile() {
-        val root = folderPath ?: folderUri?.let { StorageFolder.absolutePath(it) }
-        if (root == null || !root.isDirectory) {
+        val root = folderPath
+        if (root == null) {
             toast(getString(R.string.exec_unavailable))
             promptText(R.string.pick_exec_title, execFile) {
                 execFile = it.ifBlank { null }
@@ -337,21 +348,31 @@ class ConfigEditorActivity : EnginehostActivity() {
         browseExecFile(root, root)
     }
 
+    /** One folder of the game at a time, listed off the main thread: a game on a card lists slowly. */
     private fun browseExecFile(root: File, current: File) {
-        val entries = runCatching { current.listFiles() }.getOrNull().orEmpty()
-            .sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
+        Async.load(this, work = {
+            val entries = runCatching { current.listFiles() }.getOrNull().orEmpty()
+                .map { BrowsedEntry(it, it.isDirectory) }
+                .sortedWith(compareBy({ !it.directory }, { it.file.name.lowercase() }))
+            val atRoot = runCatching { current.canonicalPath == root.canonicalPath }.getOrDefault(true)
+            entries to atRoot
+        }) { (entries, atRoot) -> showExecEntries(root, current, entries, atRoot) }
+    }
+
+    private data class BrowsedEntry(val file: File, val directory: Boolean)
+
+    private fun showExecEntries(root: File, current: File, entries: List<BrowsedEntry>, atRoot: Boolean) {
         val labels = mutableListOf(getString(R.string.exec_clear))
         val actions = mutableListOf<() -> Unit>({
             execFile = null
             refreshEditors()
         })
-        val atRoot = runCatching { current.canonicalPath == root.canonicalPath }.getOrDefault(true)
         if (!atRoot) {
             labels += getString(R.string.exec_up)
             actions += { browseExecFile(root, current.parentFile ?: root) }
         }
-        entries.forEach { entry ->
-            if (entry.isDirectory) {
+        entries.forEach { (entry, directory) ->
+            if (directory) {
                 labels += entry.name + "/"
                 actions += { browseExecFile(root, entry) }
             } else {
@@ -602,55 +623,47 @@ class ConfigEditorActivity : EnginehostActivity() {
 
     // --- Loading, detection, saving --------------------------------------
 
-    private fun load(treeUri: Uri) {
-        try {
-            val configUri = findChild(treeUri, CONFIG_FILE_NAME)
-            if (configUri == null) {
-                val stored = StorageFolder.absolutePath(treeUri)?.let { GameConfigStore.of(this).get(it) }
-                loadedDocument = stored ?: JSONObject()
-                populate(loadedDocument)
-                showConfigSource(folderHasConfig = false)
-                if (stored == null) toast(getString(R.string.new_configuration))
-                return
-            }
-            showConfigSource(folderHasConfig = true)
-            val raw = contentResolver.openInputStream(configUri)?.bufferedReader()?.use { it.readText() }
-                ?: throw IllegalStateException("Unable to read $CONFIG_FILE_NAME")
-            loadedDocument = JSONObject(raw)
-            populate(loadedDocument)
-            // Show malformed existing files for repair, but make the problem visible.
-            runCatching { EngineConfigReader.parseDocument(raw) }
-                .exceptionOrNull()?.let { toast(it.message ?: getString(R.string.config_needs_attention)) }
-        } catch (error: Exception) {
-            loadedDocument = JSONObject()
-            populate(loadedDocument)
-            toast(getString(R.string.could_not_open_config, CONFIG_FILE_NAME, error.message))
-        }
+    /** What opening a folder reads, read off the main thread: its config, and a pending test. */
+    private class Opened(val directory: Boolean, val current: Result<GameConfigs.Document?>, val testing: JSONObject?)
+
+    /**
+     * Shows [folder]'s setup: its folder's enginehost.json, else the setup kept in Enginehost, else
+     * an empty one, with a pending testing configuration over it. The reads happen off the main
+     * thread; a card or a large folder used to stall the screen here (Droidtop/tracker#768).
+     */
+    private fun openFolder(folder: File) {
+        Async.load(this, work = {
+            if (!folder.isDirectory) return@load Opened(false, Result.success(null), null)
+            Opened(
+                directory = true,
+                current = runCatching { GameConfigs.document(this, folder) },
+                testing = runCatching { TestingConfigStore.of(this).get(folder)?.config }.getOrNull(),
+            )
+        }) { opened -> showFolder(folder, opened) }
     }
 
-    private fun openCallerPath(rawPath: String) {
-        val folder = File(rawPath).absoluteFile
-        if (!folder.isDirectory) {
+    private fun showFolder(folder: File, opened: Opened) {
+        if (!opened.directory) {
             toast(getString(R.string.supplied_path_invalid))
             return
         }
         folderPath = folder
         folderLabel.text = folder.absolutePath
         editorFields.visibility = View.VISIBLE
-        // The game's own config: its folder's enginehost.json, else the setup kept in Enginehost.
-        val current = runCatching { GameConfigs.document(this, folder) }.getOrElse {
+        val current = opened.current.getOrElse {
             toast(getString(R.string.could_not_open_config, CONFIG_FILE_NAME, it.message))
             null
         }
         loadedDocument = current?.json?.let { JSONObject(it.toString()) } ?: JSONObject()
         showConfigSource(folderHasConfig = current?.source == GameConfigs.Source.GAME_FOLDER)
+        if (current == null && opened.current.isSuccess && opened.testing == null) toast(getString(R.string.new_configuration))
         intent.getStringExtra(EXTRA_CONFIG)?.takeIf(String::isNotBlank)?.let { callerConfig ->
             runCatching { mergeMissing(loadedDocument, JSONObject(callerConfig)) }
                 .onFailure { toast(getString(R.string.ignored_invalid_caller, it.message)) }
         }
         // A pending testing configuration is what the person last ran, so
         // the fields show it (the row above says so); Save keeps it.
-        TestingConfigStore.of(this).get(folder)?.let { loadedDocument = JSONObject(it.config.toString()) }
+        opened.testing?.let { loadedDocument = JSONObject(it.toString()) }
         populate(loadedDocument)
         detect(folder)
     }
@@ -676,20 +689,6 @@ class ConfigEditorActivity : EnginehostActivity() {
         execFile = json.optString("execFile").takeIf { it.isNotBlank() }
         options = json.optJSONObject("options")?.let { JSONObject(it.toString()) } ?: JSONObject()
         refreshEditors()
-    }
-
-    private fun detect(treeUri: Uri) {
-        detectionLabel.setText(R.string.scanning_selected)
-        Async.load(this, work = { runCatching { EngineDetector.detect(EngineRegistryStore.rows(this), contentResolver, treeUri) } }) { result ->
-            if (folderUri != treeUri) return@load
-            result.fold(
-                onSuccess = { detection -> applyDetection(detection) },
-                onFailure = {
-                    detectionLabel.text = getString(R.string.detection_failed_choose, it.message)
-                    findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
-                },
-            )
-        }
     }
 
     private fun detect(folder: File) {
@@ -762,11 +761,8 @@ class ConfigEditorActivity : EnginehostActivity() {
         moveTo?.requestFocus()
     }
 
-    /** The chosen folder's own name, whichever way it was chosen. */
-    private fun currentFolderName(): String =
-        folderPath?.name
-            ?: folderUri?.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
-            ?: ""
+    /** The chosen folder's own name. */
+    private fun currentFolderName(): String = folderPath?.name ?: ""
 
     private fun buildDocument(): JSONObject {
         val result = JSONObject(loadedDocument.toString())
@@ -801,50 +797,47 @@ class ConfigEditorActivity : EnginehostActivity() {
      * user explicitly flags to do so, and with a warning" ([GameConfigs]).
      */
     private fun save() {
-        if (folderPath == null && folderUri == null) return report(R.string.could_not_save, getString(R.string.choose_folder_first))
+        val folder = folderPath ?: return report(R.string.could_not_save, getString(R.string.choose_folder_first))
         val document = try {
             buildDocument().also { EngineConfigReader.parseDocument(it.toString()) }
         } catch (error: Exception) {
             showDetectedFields(true)
             return report(R.string.could_not_save, error.message ?: getString(R.string.config_needs_attention))
         }
-        val folder = currentFolder()
         val toFolder = saveToFolderSwitch.isChecked
-        if (folder == null && !toFolder) return report(R.string.could_not_save, getString(R.string.no_path_for_enginehost))
-        val folderHasConfig = folderPath?.let { File(it, CONFIG_FILE_NAME).isFile }
-            ?: folderUri?.let { findChild(it, CONFIG_FILE_NAME) != null } ?: false
-        if (toFolder && folderHasConfig) {
-            Sheet(this).warning()
-                .title(R.string.replace_folder_config_title)
-                .message(R.string.replace_folder_config_message)
-                .choice(R.string.replace_folder_config_confirm, Sheet.Tone.DANGER) { commitSave(document, folder, toFolder = true) }
-                .choice(R.string.cancel) {}
-                .show()
-            return
+        Async.load(this, work = { File(folder, CONFIG_FILE_NAME).isFile }) { folderHasConfig ->
+            if (toFolder && folderHasConfig) {
+                Sheet(this).warning()
+                    .title(R.string.replace_folder_config_title)
+                    .message(R.string.replace_folder_config_message)
+                    .choice(R.string.replace_folder_config_confirm, Sheet.Tone.DANGER) { commitSave(document, folder, toFolder = true) }
+                    .choice(R.string.cancel) {}
+                    .show()
+            } else {
+                commitSave(document, folder, toFolder)
+            }
         }
-        commitSave(document, folder, toFolder)
     }
 
-    private fun commitSave(document: JSONObject, folder: File?, toFolder: Boolean) {
-        try {
-            folder?.let { GameConfigStore.of(this).set(it, document) }
-            if (toFolder) {
-                val path = folderPath
-                if (path != null) FolderConfigFile.write(path, document) else folderUri?.let { writeDocument(it, document) }
-            }
-            loadedDocument = document
+    /** Writes the setup off the main thread, then says where it went. */
+    private fun commitSave(document: JSONObject, folder: File, toFolder: Boolean) {
+        Async.load(this, work = {
+            GameConfigStore.of(this).set(folder, document)
+            if (toFolder) FolderConfigFile.write(folder, document)
             // Saved is the working config now; a pending test is settled by it.
-            folder?.let { TestingConfigStore.of(this).discard(it) }
+            TestingConfigStore.of(this).discard(folder)
+            !toFolder && File(folder, CONFIG_FILE_NAME).isFile
+        }, failed = { error ->
+            report(R.string.could_not_save, error.message ?: getString(R.string.config_needs_attention))
+        }) { folderStillApplies ->
+            loadedDocument = document
             showTestingRow()
-            val folderStillApplies = !toFolder && folder != null && File(folder, CONFIG_FILE_NAME).isFile
             showConfigSource(folderHasConfig = toFolder || folderStillApplies)
             if (folderStillApplies) {
                 report(R.string.saved_in_enginehost, getString(R.string.folder_config_still_applies))
             } else {
                 toast(getString(if (toFolder) R.string.saved_in_enginehost_and_folder else R.string.saved_in_enginehost))
             }
-        } catch (error: Exception) {
-            report(R.string.could_not_save, error.message ?: getString(R.string.config_needs_attention))
         }
     }
 
@@ -866,15 +859,7 @@ class ConfigEditorActivity : EnginehostActivity() {
      * begin (a toast was missed entirely on the rig, dq-coordinator-23 F15).
      */
     private fun testRun() {
-        val folder = folderPath ?: run {
-            val uri = folderUri ?: return report(R.string.test_not_started, getString(R.string.choose_folder_first))
-            if (!StorageFolder.hasNativePathAccess()) {
-                StorageFolder.requestNativePathAccess(this, REQUEST_NATIVE_FILES)
-                return toast(getString(R.string.grant_native_then_test))
-            }
-            StorageFolder.absolutePath(uri)
-                ?: return report(R.string.test_not_started, getString(R.string.provider_needs_primary))
-        }
+        val folder = folderPath ?: return report(R.string.test_not_started, getString(R.string.choose_folder_first))
         try {
             TestingConfigStore.of(this).set(folder, buildDocument())
             GameRunner.run(this, folder, testing = true)
@@ -884,15 +869,12 @@ class ConfigEditorActivity : EnginehostActivity() {
         }
     }
 
-    /** The game folder as a path, however it was chosen, or null when the provider has none. */
-    private fun currentFolder(): File? = folderPath ?: folderUri?.let { StorageFolder.absolutePath(it) }
-
     /** Game setup's own answer to a pending testing configuration: the row, and the fields show it. */
     private fun showTestingRow() {
-        val folder = currentFolder() ?: return
+        val folder = folderPath ?: return
         TestingConfigRow.show(this, detectionLabel, folder) {
             // Kept or discarded: the folder's config is the working one again.
-            folderPath?.let { openCallerPath(it.absolutePath) } ?: folderUri?.let { load(it) }
+            openFolder(folder)
             showTestingRow()
         }
     }
@@ -906,49 +888,6 @@ class ConfigEditorActivity : EnginehostActivity() {
     private fun report(@StringRes title: Int, message: String) {
         Sheet(this).title(title).message(message).show()
     }
-
-    private fun writeDocument(treeUri: Uri, document: JSONObject) {
-        val configUri = findChild(treeUri, CONFIG_FILE_NAME)
-            ?: DocumentsContract.createDocument(
-                contentResolver,
-                treeDocumentUri(treeUri),
-                "application/json",
-                CONFIG_FILE_NAME,
-            )
-            ?: throw IllegalStateException("The selected folder would not create $CONFIG_FILE_NAME")
-        contentResolver.openOutputStream(configUri, "wt")?.bufferedWriter()?.use {
-            it.write(document.toString(2))
-            it.newLine()
-        } ?: throw IllegalStateException("The selected folder is not writable")
-    }
-
-    private fun findChild(treeUri: Uri, displayName: String): Uri? {
-        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
-            treeUri,
-            DocumentsContract.getTreeDocumentId(treeUri),
-        )
-        contentResolver.query(
-            childrenUri,
-            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, OpenableColumns.DISPLAY_NAME),
-            null,
-            null,
-            null,
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-            val nameColumn = cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)
-            while (cursor.moveToNext()) {
-                if (cursor.getString(nameColumn) == displayName) {
-                    return DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(idColumn))
-                }
-            }
-        }
-        return null
-    }
-
-    private fun treeDocumentUri(treeUri: Uri): Uri = DocumentsContract.buildDocumentUriUsingTree(
-        treeUri,
-        DocumentsContract.getTreeDocumentId(treeUri),
-    )
 
     private fun putOptional(target: JSONObject, name: String, value: String?) {
         if (value.isNullOrBlank()) target.remove(name) else target.put(name, value)
