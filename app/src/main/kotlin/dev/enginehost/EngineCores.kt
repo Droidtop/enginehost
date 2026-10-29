@@ -27,7 +27,7 @@ object EngineCores {
             .filter { it.manifest.component == null }
             .map { Build(it.bundleId, it.info) }
         return JSONObject()
-            .put("cores", entries(installed, available, EngineRegistry.rows(context)))
+            .put("cores", entries(installed, available, EngineRegistryStore.rows(context)))
             .put("catalogCheckedAtMs", maxOf(catalog.storedAtMs(), PluginCatalogIndex.fetchedAtMs(context)))
     }
 
