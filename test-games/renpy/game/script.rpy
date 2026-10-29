@@ -6,14 +6,16 @@
 # Ren'Py 7 and Ren'Py 8 plugin lines.
 #
 # It exercises the three things every conformance game must: a frame that
-# changes on its own (the pulsing circle), an input response (text advance
-# and the menu choice), and a save (renpy.save into this game's own save
-# directory, wherever Enginehost mapped the engine's save root).
+# changes on its own (the pulsing circle), an input response (Start on the
+# grey main menu turns the screen blue), and a save: every advance after the
+# first line writes renpy.save into this game's own save directory, wherever
+# Enginehost mapped the engine's save root, so a save is one advance however
+# many clicks came before it (it replaced a menu choice a harness had to
+# count its way to).
 
 define config.save_directory = "enginehost-conformance-renpy"
 
 image bg a = Solid("#3a5f9a")
-image bg b = Solid("#9a3a5f")
 image dot = Text("o")
 
 transform pulse:
@@ -26,19 +28,10 @@ transform pulse:
 
 label start:
     scene bg a
-    "This is the Enginehost conformance test game."
-    "The circle keeps pulsing, so the frame keeps changing on its own."
     show dot at pulse
-    "Advancing text already needed a click. The next step is a choice."
-    menu:
-        "Save the game now":
-            $ renpy.save("conformance")
-            scene bg b
-            show dot at pulse
-            "Saved. The save lives in this game's own save directory, wherever Enginehost mapped the engine's save root."
-        "Do not save":
-            scene bg b
-            show dot at pulse
-            "No save was written."
-    "The choice changed the frame. Closing the window on this line is a clean end."
-    return
+    "This is the Enginehost conformance test game. The circle keeps pulsing, so the frame keeps changing on its own."
+
+label save_loop:
+    $ renpy.save("conformance")
+    "Saved. Each advance from here saves the game again."
+    jump save_loop

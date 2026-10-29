@@ -60,7 +60,7 @@ the Google APIs image), and runs
 Its report is the run's summary, and the screenshots, logcat and per-game results are the run's
 `conformance-emulator` artifact.
 
-It runs only the games written for it, in this repository: html, love2d and nscripter. Cores that have no sandbox yet (html, love2d) run anyway, with the harness's
+It runs only the games written for it, in this repository: html, love2d, nscripter and renpy. Cores that have no sandbox yet (html, love2d) run anyway, with the harness's
 `--run-unsandboxed`: the games are ours, and the report names each game that ran that way. The
 nscripter game is text only, so it has no `.nsa` archive, and the registry, which needs one beside
 `0.txt`, would not take it for NScripter. It carries its own `enginehost.json` instead, as a game
@@ -71,8 +71,10 @@ checked against its SHA-256 before it runs, and puts the pack in the run's artif
 not played on the emulator: the 4.4 core runs it there (locked down), but the emulator's GL allows
 261 fragment uniforms and Godot 4.4's canvas shader needs more (`CanvasShaderGLES3: Program
 linking failed: Fragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)`, the
-same with `-gpu guest`), so it draws only its clear colour. Ren'Py's is not wired yet: it needs the
-SDK's runtime beside `game/`. Games
+same with `-gpu guest`), so it draws only its clear colour. Ren'Py's plays on the 8.3 core. That core brings its own runtime
+and reads only the game's scripts, so the game folder needs no SDK beside `game/`: it carries its
+own `enginehost.json` (renpy, `standard`, 8.3.7), as the nscripter one does, because detection
+looks for the bundled `renpy/` runtime. Games
 from the owner's library are tested on the rig, never in the cloud (docs/core-harness.md). An
 emulator with software GL is not a device: a pass here means the core starts, draws, answers
 input and keeps running, not that it plays well on the rig. `conformance-games.json` names each
@@ -149,16 +151,18 @@ All five are ours, MIT (`test-games/LICENSE`), and were written for the
 conformance harness, not to be good games. Each one states what it
 exercises in its own header. Assembly notes:
 
-- **renpy** — `test-games/renpy/game` is a Ren'Py `game/` directory. To
-  make it a launchable folder, copy it beside the Ren'Py SDK's runtime
-  pieces (`renpy/`, `lib/`, `renpy.py`, exactly what the SDK's own
-  "Build Distributions" produces for a game), because Enginehost's
-  detection expects the `renpy/` runtime dir next to `game/`. The script
-  is script-language only, so the same game runs on every core line
-  from 7.3 to 8.5. `config.save_directory` is fixed
+- **renpy** — `test-games/renpy` is a Ren'Py `game/` directory and an
+  `enginehost.json` (renpy, `standard`, 8.3.7). The Ren'Py core brings its
+  own runtime and reads only the game's scripts and assets, so no SDK goes
+  beside `game/`; the file stands in for the bundled `renpy/` directory
+  detection looks for, and names the version. Change `engineVersion` to
+  play it on another line: the script is script-language only, so the same
+  game runs on every core line from 7.3 to 8.5. Start on the dark grey main
+  menu turns the screen blue (the input check), and every advance after the
+  first line writes `renpy.save("conformance")`, so a save is one advance
+  however many clicks came before it. `config.save_directory` is fixed
   (`enginehost-conformance-renpy`) so the save root it lands in is
-  deterministic. A launcher can also build the folder once and share the
-  built copy between runs.
+  deterministic.
 - **godot** — `test-games/godot` is a project, deliberately free of any
   imported asset. The Godot core runs only an exported game, so the
   emulator workflow exports it with its one preset (`export_presets.cfg`,

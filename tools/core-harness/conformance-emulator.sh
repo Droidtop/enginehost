@@ -48,7 +48,7 @@ done
 
 # The test games, where the harness's games file says.
 adb shell mkdir -p "$games_root"
-for family in html love2d nscripter; do
+for family in html love2d nscripter renpy; do
     adb push "$repo/test-games/$family" "$games_root/" >/dev/null
 done
 
