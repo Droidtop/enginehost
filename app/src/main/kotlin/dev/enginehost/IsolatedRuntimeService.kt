@@ -127,17 +127,9 @@ class IsolatedRuntimeService : Service() {
                     restartArguments, gameBroker, saveBroker, gamePath, gameWritable, savePath,
                     audioBuffer, audioSampleRate, sandboxBroker, sandboxLearn, callback,
                 )
-            } catch (e: SecurityException) {
-                throw e
-            } catch (e: IllegalArgumentException) {
-                throw e
-            } catch (e: IllegalStateException) {
-                throw e
-            } catch (e: NullPointerException) {
-                throw e
             } catch (e: Throwable) {
-                Log.e(TAG, "isolated init failed", e)
-                throw IllegalStateException(e.message ?: e.javaClass.simpleName, e)
+                if (!crossesBinder(e)) Log.e(TAG, "isolated init failed", e)
+                throw forBinder(e)
             }
         }
 
@@ -494,13 +486,26 @@ private fun ownedCopy(pfd: ParcelFileDescriptor): ParcelFileDescriptor {
         } finally {
             Os.close(memFd)
         }
-    } catch (e: IllegalStateException) {
-        throw e
     } catch (e: Throwable) {
-        Log.e("enginehost-isolated-runtime", "ownedCopy failed for ${procFdPath(pfd)}", e)
-        throw IllegalStateException("could not prepare a sealed copy of the bundle's own code: " + (e.message ?: e.javaClass.simpleName), e)
+        if (!crossesBinder(e)) Log.e("enginehost-isolated-runtime", "ownedCopy failed for ${procFdPath(pfd)}", e)
+        throw forBinder(e) { "could not prepare a sealed copy of the bundle's own code: " + (e.message ?: e.javaClass.simpleName) }
     }
 }
+
+/**
+ * Whether Binder carries [e] to the host as itself: Parcel.writeException writes these types
+ * through, and any other arrives as a bare RuntimeException with its type lost.
+ */
+internal fun crossesBinder(e: Throwable): Boolean =
+    e is SecurityException || e is IllegalArgumentException || e is IllegalStateException || e is NullPointerException
+
+/**
+ * [e] as an exception the host receives intact: one that [crossesBinder] as it is, else wrapped in
+ * an IllegalStateException that says [message]. The one place both of this service's entry points
+ * decide it (Droidtop/tracker#768: the four-way rethrow was written out by hand).
+ */
+internal fun forBinder(e: Throwable, message: () -> String = { e.message ?: e.javaClass.simpleName }): RuntimeException =
+    if (crossesBinder(e)) e as RuntimeException else IllegalStateException(message(), e)
 
 // linux/fcntl.h and linux/memfd.h -- not exposed as named constants on
 // android.system.OsConstants (only MFD_CLOEXEC is; confirmed against

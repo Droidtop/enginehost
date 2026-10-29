@@ -494,7 +494,10 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
  * each a little-endian uint32) followed by [RING_CAPACITY] bytes of ring
  * data. The plugin only ever advances the write position; this class
  * only ever advances the read position. Both are byte offsets that only
- * increase, addressed into the ring by `% capacity`.
+ * increase, addressed into the ring by `% capacity`, which stays continuous
+ * across the 32-bit counters' wrap only for a power-of-two capacity: the
+ * native side refuses any other (plugin-native/enginehost_audio_ring.c), and
+ * [RING_CAPACITY] is checked to be one.
  */
 private class IsolatedAudioBridge private constructor(
     private val ownedFd: FileDescriptor,
@@ -635,6 +638,10 @@ private class IsolatedAudioBridge private constructor(
         private const val IDLE_MAX_MS = 16L
         private const val TOTAL_SIZE = HEADER_SIZE + RING_CAPACITY
         private const val TAG = "enginehost-isolated-audio"
+
+        init {
+            check(RING_CAPACITY and (RING_CAPACITY - 1) == 0) { "The audio ring's capacity must be a power of two" }
+        }
 
         /**
          * Null when this device cannot give the host a usable output

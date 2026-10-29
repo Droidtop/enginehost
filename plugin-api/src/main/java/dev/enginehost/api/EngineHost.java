@@ -151,7 +151,7 @@ public interface EngineHost {
      * {@code capacity} bytes of ring data. The plugin owns the write
      * position and only ever advances it; the host owns the read
      * position the same way. Positions are byte offsets that only ever
-     * increase, wrapped by {@code % capacity} to address the ring.
+     * increase, wrapped by {@code % capacity} to address the ring; the capacity is a power of two.
      */
     default ParcelFileDescriptor isolatedAudioBuffer() { return null; }
 
