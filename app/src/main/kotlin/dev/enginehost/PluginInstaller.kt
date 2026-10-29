@@ -46,9 +46,9 @@ object PluginInstaller {
             runCatching {
                 val installed = installQuietly(activity, plugin, onStatus)
                 val next = afterInstall(activity, installed)
-                activity.runOnUiThread { next() }
+                Async.onMain(activity) { next() }
             }.onFailure { error ->
-                activity.runOnUiThread { onError(ErrorText.of(activity, error, R.string.core_install_failed)) }
+                Async.onMain(activity) { onError(ErrorText.of(activity, error, R.string.core_install_failed)) }
             }
         }
     }
@@ -60,13 +60,13 @@ object PluginInstaller {
 
     private fun inFlight(activity: Activity, work: () -> Unit) {
         running.incrementAndGet()
-        Thread {
+        Async.run {
             try {
                 work()
             } finally {
                 running.decrementAndGet()
             }
-        }.start()
+        }
     }
 
     /**
@@ -105,9 +105,9 @@ object PluginInstaller {
                 val installed = EngineBundleInstaller.install(activity, archive)
                 archive.delete()
                 val next = afterInstall(activity, installed)
-                activity.runOnUiThread { UnsandboxedWarning.afterFileInstall(activity, installed) { next() } }
+                Async.onMain(activity) { UnsandboxedWarning.afterFileInstall(activity, installed) { next() } }
             }.onFailure { error ->
-                activity.runOnUiThread { onError(ErrorText.of(activity, error, R.string.core_install_failed)) }
+                Async.onMain(activity) { onError(ErrorText.of(activity, error, R.string.core_install_failed)) }
             }
         }
     }

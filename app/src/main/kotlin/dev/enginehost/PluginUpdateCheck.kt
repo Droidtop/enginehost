@@ -82,10 +82,10 @@ class PluginUpdateCheck(private val context: Context) {
         // instead of a whole interval later (rig, tracker#401).
         val scheduled = now - preferences.getLong(LAST_REACHED, 0L) >= frequency.intervalMs &&
             now - preferences.getLong(LAST_ATTEMPT, 0L) >= RETRY_AFTER_FAILURE_MS
-        Thread {
+        Async.run {
             val due = scheduled || catalogsStale()
             if (!due || (unmeteredOnly && isMetered())) onPending(pending()) else run(onPending = onPending)
-        }.start()
+        }
     }
 
     /** Whether any installed plugin's catalog is older than [CATALOG_MAX_AGE_MS]. */
@@ -103,7 +103,7 @@ class PluginUpdateCheck(private val context: Context) {
     fun run(onApp: ((Result<AppUpdate.Info>) -> Unit)? = null, onPending: (List<AvailablePlugin>) -> Unit) {
         val started = System.currentTimeMillis()
         preferences.edit().putLong(LAST_ATTEMPT, started).apply()
-        Thread {
+        Async.run {
             // The pass asks what the newest Enginehost build is -- one small
             // unauthenticated download, remembered so the home screen can say
             // an app update exists. Failure is as silent as a failed catalog
@@ -144,7 +144,7 @@ class PluginUpdateCheck(private val context: Context) {
                         runCatching { PluginInstaller.installQuietly(context, update) }.isSuccess
                 },
             )
-        }.start()
+        }
     }
 
     /** The newest Enginehost build the pass has seen, when newer than what is running. */

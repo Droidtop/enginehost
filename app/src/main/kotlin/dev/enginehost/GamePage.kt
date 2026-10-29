@@ -100,11 +100,11 @@ class GamePage(
         val current = ++generation
         showFolderLine()
         showTitle(game, null)
-        Thread {
+        Async.run {
             // The testing configuration is a file: read here, not on the main thread.
             val testing = runCatching { TestingConfigStore.of(activity).get(game) }.getOrNull()
-            activity.runOnUiThread {
-                if (!activity.isDestroyed && current == generation && folder == game) showTestingRow(game, testing)
+            Async.onMain(activity) {
+                if (current == generation && folder == game) showTestingRow(game, testing)
             }
             val isFavourite = runCatching { GameLibraryStore(activity.applicationContext).isFavourite(game) }.getOrDefault(false)
             val hasChosenPicture = GameArt.hasChosen(activity, game)
@@ -113,8 +113,8 @@ class GamePage(
             // config the status just resolved. The executable can sit on
             // removable storage, so this stays off the thread that is drawing.
             val art = status.config?.let { GameArt.load(activity, game, it) }
-            activity.runOnUiThread {
-                if (activity.isDestroyed || activity.isFinishing || folder != game || current != generation) return@runOnUiThread
+            Async.onMain(activity) {
+                if (folder != game || current != generation) return@onMain
                 showTitle(game, status.title)
                 showFavourite(isFavourite)
                 chosenPicture = hasChosenPicture
@@ -143,19 +143,17 @@ class GamePage(
                 showPlate(art, status)
                 loadSections(game, status, current)
             }
-        }.start()
+        }
     }
 
     /** The sections read the plugin catalogs and the save folder, so they come a moment after the page, off the main thread. */
     private fun loadSections(game: File, status: GameStatus, current: Int) {
-        Thread {
-            val sections = runCatching { GameSectionsLoader.load(activity.applicationContext, game, status) }.getOrNull()
-                ?: return@Thread
-            activity.runOnUiThread {
-                if (activity.isDestroyed || activity.isFinishing || folder != game || current != generation) return@runOnUiThread
-                GameSectionsView(activity, root.findViewById(R.id.gameSections), game) { refresh() }.show(sections)
-            }
-        }.apply { isDaemon = true }.start()
+        Async.load(activity, work = {
+            runCatching { GameSectionsLoader.load(activity.applicationContext, game, status) }.getOrNull()
+        }) { sections ->
+            if (sections == null || folder != game || current != generation) return@load
+            GameSectionsView(activity, root.findViewById(R.id.gameSections), game) { refresh() }.show(sections)
+        }
     }
 
     /** A pending testing configuration from Game setup, with Keep and Discard one press away. */
@@ -196,7 +194,7 @@ class GamePage(
         val mark = !favourite
         showFavourite(mark)
         val library = GameLibraryStore(activity.applicationContext)
-        Thread { library.setFavourite(game, mark) }.apply { isDaemon = true }.start()
+        Async.run { library.setFavourite(game, mark) }
     }
 
     private fun showFavourite(on: Boolean) {
@@ -231,24 +229,20 @@ class GamePage(
         ) { result ->
             launcher?.unregister()
             val uri = result.data?.data ?: return@register
-            Thread {
-                val failure = runCatching { GameArt.choose(activity.applicationContext, game, uri) }.exceptionOrNull()
-                activity.runOnUiThread {
-                    if (failure != null) {
-                        Toast.makeText(activity, ErrorText.of(activity, failure, R.string.picture_unusable), Toast.LENGTH_LONG).show()
-                    }
-                    refresh()
+            Async.load(activity, work = {
+                runCatching { GameArt.choose(activity.applicationContext, game, uri) }.exceptionOrNull()
+            }) { failure ->
+                if (failure != null) {
+                    Toast.makeText(activity, ErrorText.of(activity, failure, R.string.picture_unusable), Toast.LENGTH_LONG).show()
                 }
-            }.apply { isDaemon = true }.start()
+                refresh()
+            }
         }
         launcher.launch(StorageFolder.filePickerIntent(listOf("image/*")))
     }
 
     private fun ownPicture(game: File) {
-        Thread {
-            GameArt.clearChosen(activity.applicationContext, game)
-            activity.runOnUiThread { refresh() }
-        }.apply { isDaemon = true }.start()
+        Async.load(activity, work = { GameArt.clearChosen(activity.applicationContext, game) }) { refresh() }
     }
 
     private fun openSetup() {
@@ -275,10 +269,7 @@ class GamePage(
             .message(R.string.remove_game_message)
             .choice(R.string.remove, Sheet.Tone.DANGER) {
                 val library = GameLibraryStore(activity.applicationContext)
-                Thread {
-                    library.forget(game)
-                    activity.runOnUiThread { onRemoved() }
-                }.apply { isDaemon = true }.start()
+                Async.load(activity, work = { library.forget(game) }) { onRemoved() }
             }
             .show()
     }

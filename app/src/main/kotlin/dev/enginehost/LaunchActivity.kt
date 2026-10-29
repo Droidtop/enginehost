@@ -190,7 +190,7 @@ class LaunchActivity : EnginehostActivity() {
         val inlineJson = intent.getStringExtra(EXTRA_CONFIG)
         val autoInstall = intent.getBooleanExtra(EXTRA_AUTOINSTALL, false)
         val testing = intent.getBooleanExtra(EXTRA_TESTING, false)
-        Thread {
+        Async.load(this, work = {
             // Saves go where droidtop keeps them, whoever started the game (Droidtop/tracker#547):
             // asked before planning, and merged in as the caller's own saveRoot would be.
             val started = SystemClock.elapsedRealtime()
@@ -204,12 +204,11 @@ class LaunchActivity : EnginehostActivity() {
             // (23 s for a wrapped game on a card, Droidtop/tracker#636): droidtop's save folder, or
             // the plan itself (detection lists the folder four levels deep, plugins resolve).
             HostEvents.record(this, "planned in ${SystemClock.elapsedRealtime() - asked} ms after ${asked - started} ms asking droidtop for saves")
-            runOnUiThread {
-                planning = false
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                applyPlan(plan, waitedForRuntime)
-            }
-        }.start()
+            plan
+        }) { plan ->
+            planning = false
+            applyPlan(plan, waitedForRuntime)
+        }
     }
 
     private fun applyPlan(plan: GameRunner.Plan, waitedForRuntime: Boolean) {
@@ -387,7 +386,7 @@ class LaunchActivity : EnginehostActivity() {
         // home (README, "two front doors"). Only a run that really
         // started counts; a detour or a refusal adds nothing.
         val library = GameLibraryStore(applicationContext)
-        Thread { library.played(gameFolder) }.apply { isDaemon = true }.start()
+        Async.run { library.played(gameFolder) }
     }
 
     /**
@@ -410,21 +409,17 @@ class LaunchActivity : EnginehostActivity() {
                 ),
             )
             .choice(R.string.earlier_saves_copy) {
-                Thread {
-                    val result = saves.copy()
-                    runOnUiThread {
-                        if (isDestroyed || isFinishing) return@runOnUiThread
-                        val message = if (result.failed == 0) {
-                            resources.getQuantityString(R.plurals.earlier_saves_copied, result.copied, result.copied)
-                        } else {
-                            resources.getQuantityString(
-                                R.plurals.earlier_saves_failed, result.failed, result.failed, saves.from.absolutePath,
-                            )
-                        }
-                        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                        answered()
+                Async.load(this, work = { saves.copy() }) { result ->
+                    val message = if (result.failed == 0) {
+                        resources.getQuantityString(R.plurals.earlier_saves_copied, result.copied, result.copied)
+                    } else {
+                        resources.getQuantityString(
+                            R.plurals.earlier_saves_failed, result.failed, result.failed, saves.from.absolutePath,
+                        )
                     }
-                }.start()
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                    answered()
+                }
             }
             .choice(R.string.earlier_saves_not_now) { answered() }
             .choice(R.string.earlier_saves_leave) {
@@ -454,13 +449,9 @@ class LaunchActivity : EnginehostActivity() {
             icon.visibility = View.GONE
             return
         }
-        Thread {
-            val bitmap = GameArt.load(this, gameFolder, config)
-            runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                if (bitmap != null) icon.setImageBitmap(bitmap) else icon.visibility = View.GONE
-            }
-        }.start()
+        Async.load(this, work = { GameArt.load(this, gameFolder, config) }) { bitmap ->
+            if (bitmap != null) icon.setImageBitmap(bitmap) else icon.visibility = View.GONE
+        }
     }
 
     private fun showStarting() {
@@ -661,7 +652,7 @@ class LaunchActivity : EnginehostActivity() {
         if (started == 0L) return
         val playedMs = PlayHistory.countedMs(started, System.currentTimeMillis())
         val library = GameLibraryStore(applicationContext)
-        Thread { runCatching { library.sessionEnded(gameFolder, playedMs, exit) } }.apply { isDaemon = true }.start()
+        Async.run { runCatching { library.sessionEnded(gameFolder, playedMs, exit) } }
     }
 
     /** This screen classifies its own runtime's exit (see onActivityResult). */

@@ -73,9 +73,9 @@ object EngineCores {
      */
     fun reportChanged(context: Context) {
         if (!DroidtopLink.isConnected()) return
-        Thread {
+        Async.run {
             val reply = DroidtopLink.call("engines", "report_changed", JSONObject())
             if (reply?.optBoolean("ok") != true) Log.i(TAG, "droidtop did not take the core list change: $reply")
-        }.apply { isDaemon = true }.start()
+        }
     }
 }

@@ -152,8 +152,7 @@ class MainActivity : EnginehostActivity() {
         }
         val check = PluginUpdateCheck(this)
         check.maybeRun { pending ->
-            runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
+            Async.onMain(this) {
                 val appUpdate = check.newerAppVersionName()
                 // Core updates and Enginehost's own update are two short notices, each
                 // opening where it is dealt with (#620 E2: one long blue line read as an
@@ -290,35 +289,33 @@ class MainActivity : EnginehostActivity() {
             droidtopButton.visibility = View.GONE
             return
         }
-        Thread {
+        Async.load(this, work = {
             val cores = runCatching { PluginRegistry.discover(applicationContext).size }.getOrDefault(0)
-            val offer = DroidtopOffer.offer(applicationContext)
-            runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                coresLine.visibility = View.VISIBLE
-                coresLine.text = if (cores == 0) {
-                    getString(R.string.empty_no_cores)
-                } else {
-                    resources.getQuantityString(R.plurals.empty_cores_installed, cores, cores)
-                }
-                findViewById<View>(R.id.emptyInstallCoreButton).visibility = if (cores == 0) View.VISIBLE else View.GONE
-                val offered = offer != DroidtopOffer.Offer.NONE
-                droidtopLine.visibility = if (offered) View.VISIBLE else View.GONE
-                droidtopButton.visibility = if (offered) View.VISIBLE else View.GONE
-                droidtopButton.text = DroidtopOffer.label(this, offer)
-                droidtopButton.setOnClickListener { DroidtopOffer.act(this, offer) }
+            cores to DroidtopOffer.offer(applicationContext)
+        }) { (cores, offer) ->
+            coresLine.visibility = View.VISIBLE
+            coresLine.text = if (cores == 0) {
+                getString(R.string.empty_no_cores)
+            } else {
+                resources.getQuantityString(R.plurals.empty_cores_installed, cores, cores)
             }
-        }.apply { isDaemon = true }.start()
+            findViewById<View>(R.id.emptyInstallCoreButton).visibility = if (cores == 0) View.VISIBLE else View.GONE
+            val offered = offer != DroidtopOffer.Offer.NONE
+            droidtopLine.visibility = if (offered) View.VISIBLE else View.GONE
+            droidtopButton.visibility = if (offered) View.VISIBLE else View.GONE
+            droidtopButton.text = DroidtopOffer.label(this, offer)
+            droidtopButton.setOnClickListener { DroidtopOffer.act(this, offer) }
+        }
     }
 
     /** Games added by hand have no scan behind them; read each folder once, off the main thread, and redraw. */
     private fun classifyWaitingGames() {
-        Thread {
+        Async.load(this, work = {
             // droidtop's engine games first (Droidtop/tracker#547), so they are classified with the rest.
             val registered = runCatching { DroidtopLibrary.syncIfDue(applicationContext) }.getOrDefault(false)
             val classified = LibraryClassifier.classifyPending(applicationContext)
-            if (registered || classified) runOnUiThread { if (!isDestroyed) browser.reload() }
-        }.apply { isDaemon = true }.start()
+            registered || classified
+        }) { changed -> if (changed) browser.reload() }
     }
 
     @Deprecated("Uses the platform folder picker result API available at the app's minimum SDK")
@@ -343,14 +340,10 @@ class MainActivity : EnginehostActivity() {
             Toast.makeText(this, R.string.choose_shared_storage_folder, Toast.LENGTH_LONG).show()
             return
         }
-        Thread {
-            library.remember(folder)
-            runOnUiThread {
-                if (isDestroyed) return@runOnUiThread
-                browser.reload()
-                launchGame(folder)
-            }
-        }.apply { isDaemon = true }.start()
+        Async.load(this, work = { library.remember(folder) }) {
+            browser.reload()
+            launchGame(folder)
+        }
     }
 
     /**

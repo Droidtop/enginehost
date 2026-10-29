@@ -736,4 +736,5 @@ their order matters. These are:
 - the isolated runtime's audio pump and frame loop;
 - the watchdog;
 - the scan;
-- the library, art, voice, translation and host-event queues.
+- the library, art, voice, translation and host-event queues;
+- the bounded wait for droidtop's answer about saves (`DroidtopSaves.withDeadline`).

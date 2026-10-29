@@ -89,13 +89,7 @@ class ProblemReportActivity : EnginehostActivity() {
                 .onFailure { toast(R.string.report_save_failed) }
         }
 
-        Thread {
-            val report = ProblemReport.gather(this, gameFolder)
-            runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                fill(report)
-            }
-        }.start()
+        Async.load(this, work = { ProblemReport.gather(this, gameFolder) }) { report -> fill(report) }
     }
 
     private fun fill(report: ProblemReport) {

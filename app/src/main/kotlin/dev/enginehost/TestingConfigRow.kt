@@ -38,27 +38,21 @@ object TestingConfigRow {
                 .message(activity.getString(R.string.testing_pending_message, stamp))
                 .choice(R.string.testing_keep) {
                     // Keep stores the setup: not on the main thread.
-                    Thread {
-                        val message = runCatching { store.keep(folder, GameConfigStore.of(activity)) }.fold(
+                    Async.load(activity, work = {
+                        runCatching { store.keep(folder, GameConfigStore.of(activity)) }.fold(
                             onSuccess = { activity.getString(R.string.testing_kept) },
                             onFailure = { ErrorText.of(activity, it, R.string.could_not_save) },
                         )
-                        activity.runOnUiThread {
-                            if (activity.isDestroyed) return@runOnUiThread
-                            Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
-                            onChanged()
-                        }
-                    }.start()
+                    }) { message ->
+                        Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
+                        onChanged()
+                    }
                 }
                 .choice(R.string.testing_discard) {
-                    Thread {
-                        runCatching { store.discard(folder) }
-                        activity.runOnUiThread {
-                            if (activity.isDestroyed) return@runOnUiThread
-                            Toast.makeText(activity, R.string.testing_discarded, Toast.LENGTH_LONG).show()
-                            onChanged()
-                        }
-                    }.start()
+                    Async.load(activity, work = { runCatching { store.discard(folder) } }) {
+                        Toast.makeText(activity, R.string.testing_discarded, Toast.LENGTH_LONG).show()
+                        onChanged()
+                    }
                 }
                 .show()
         }

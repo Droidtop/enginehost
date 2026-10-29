@@ -65,32 +65,32 @@ object DroidtopSaves {
         return merged.toString()
     }
 
-    /** Tells droidtop that the game at [gameFolder] wrote saves in [saveFolder]. Runs on its own thread. */
+    /** Tells droidtop that the game at [gameFolder] wrote saves in [saveFolder]. Runs off the main thread ([Async]). */
     fun reportChanged(context: Context, gameFolder: File, saveFolder: String, reason: String, endedAtMs: Long) {
         val app = context.applicationContext
-        Thread {
-            if (!installed(app) || !ensureConnected(app)) return@Thread
+        Async.run {
+            if (!installed(app) || !ensureConnected(app)) return@run
             val reply = DroidtopLink.call(
                 "saves", "report_changed",
                 JSONObject().put("path", gameFolder.absolutePath).put("saveFolder", saveFolder)
                     .put("reason", reason).put("endedAtMs", endedAtMs),
             )
             Log.i(TAG, "told droidtop about saves in $saveFolder: ${reply?.optJSONObject("data")?.optString("message") ?: "no answer"}")
-        }.start()
+        }
     }
 
     /**
      * Announces Enginehost to droidtop once as the app starts: apps with an
      * application-interface layer register themselves (owner, Droidtop/tracker#547).
-     * One knock, on its own thread, only when droidtop is installed and has not
+     * One knock, off the main thread, only when droidtop is installed and has not
      * connected; the answer is not needed (true: droidtop connected; false: it is
      * not added yet, and droidtop tells the person).
      */
     fun announce(context: Context) {
         val app = context.applicationContext
-        Thread {
+        Async.run {
             runCatching { if (installed(app) && !DroidtopLink.isConnected()) knock(app) }
-        }.apply { isDaemon = true }.start()
+        }
     }
 
     /**

@@ -60,7 +60,7 @@ class DroidtopInterfaceService : Service() {
             if (!caller() || pluginId == null || broker == null) return false
             DroidtopLink.connected(pluginId, broker)
             // droidtop connected: list its engine games now (A7a: "The app asks again when droidtop connects").
-            Thread { runCatching { DroidtopLibrary.sync(context) } }.apply { isDaemon = true }.start()
+            Async.run { runCatching { DroidtopLibrary.sync(context) } }
             return true
         }
 

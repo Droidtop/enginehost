@@ -51,7 +51,7 @@ object SharedStats {
     fun setConsent(context: Context, consent: Consent) {
         prefs(context).edit().putString("consent", consent.name).apply()
         // Turned off: whatever waited to be sent goes, unsent.
-        if (consent != Consent.SHARED) Thread { pendingFile(context).delete() }.start()
+        if (consent != Consent.SHARED) Async.run { pendingFile(context).delete() }
     }
 
     /** Whether to ask now: the system is on and the person was never asked. */

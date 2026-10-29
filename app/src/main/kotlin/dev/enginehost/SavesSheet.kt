@@ -51,24 +51,20 @@ class SavesSheet(
 
     /** The backups, newest first, read off the main thread; picking one asks before anything changes. */
     private fun chooseBackup(backups: File) {
-        Thread {
-            val list = runCatching { SaveBackups.list(backups) }.getOrDefault(emptyList())
-            activity.runOnUiThread {
-                if (activity.isDestroyed) return@runOnUiThread
-                if (list.isEmpty()) {
-                    Sheet(activity).title(R.string.saves_restore).message(R.string.saves_no_backups).choice(R.string.ok) {}.show()
-                    return@runOnUiThread
-                }
-                Sheet(activity).title(R.string.saves_restore).apply {
-                    list.forEach { backup ->
-                        choice(
-                            DateUtils.formatDateTime(activity, backup.takenAt, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME),
-                            Formatter.formatShortFileSize(activity, backup.bytes),
-                        ) { confirmRestore(backup, backups) }
-                    }
-                }.show()
+        Async.load(activity, work = { runCatching { SaveBackups.list(backups) }.getOrDefault(emptyList()) }) { list ->
+            if (list.isEmpty()) {
+                Sheet(activity).title(R.string.saves_restore).message(R.string.saves_no_backups).choice(R.string.ok) {}.show()
+                return@load
             }
-        }.apply { isDaemon = true }.start()
+            Sheet(activity).title(R.string.saves_restore).apply {
+                list.forEach { backup ->
+                    choice(
+                        DateUtils.formatDateTime(activity, backup.takenAt, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME),
+                        Formatter.formatShortFileSize(activity, backup.bytes),
+                    ) { confirmRestore(backup, backups) }
+                }
+            }.show()
+        }
     }
 
     private fun confirmRestore(backup: SaveBackups.Backup, backups: File) {
@@ -78,7 +74,7 @@ class SavesSheet(
             .choice(R.string.saves_restore_confirm) {
                 run(R.string.saves_restoring) { count ->
                     val copied = SaveBackups.restore(backup.folder, saves.sources, backups, System.currentTimeMillis(), count)
-                    activity.runOnUiThread(onChanged)
+                    Async.onMain(activity, onChanged)
                     activity.resources.getQuantityString(R.plurals.saves_restored, copied.files, copied.files) + skippedNote(copied)
                 }
             }
@@ -111,17 +107,16 @@ class SavesSheet(
     private fun run(title: Int, work: ((Int) -> Unit) -> String) {
         val counter = TextView(activity).apply { setTextAppearance(R.style.TextAppearance_Enginehost_Body) }
         val progress = Sheet(activity).title(title).content(counter).show()
-        Thread {
-            val outcome = runCatching {
+        Async.load(activity, work = {
+            runCatching {
                 work { files ->
-                    activity.runOnUiThread { counter.text = activity.resources.getQuantityString(R.plurals.saves_files_done, files, files) }
+                    Async.onMain(activity) { counter.text = activity.resources.getQuantityString(R.plurals.saves_files_done, files, files) }
                 }
             }.getOrElse { ErrorText.of(activity, it, R.string.saves_failed) }
-            activity.runOnUiThread {
-                progress.dismiss()
-                if (!activity.isDestroyed) Sheet(activity).title(title).message(outcome).choice(R.string.ok) {}.show()
-            }
-        }.apply { isDaemon = true }.start()
+        }) { outcome ->
+            progress.dismiss()
+            Sheet(activity).title(title).message(outcome).choice(R.string.ok) {}.show()
+        }
     }
 
     private fun skippedNote(copied: SaveBackups.Copied): String =

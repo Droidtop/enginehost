@@ -98,13 +98,7 @@ class CallerAccessSettingsActivity : EnginehostActivity() {
      */
     private fun offerAddCaller() {
         val decided = store.all().keys
-        Thread {
-            val apps = runCatching { CallerPicker.load(this, decided) }.getOrDefault(emptyList())
-            runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                showAddCaller(apps)
-            }
-        }.start()
+        Async.load(this, work = { runCatching { CallerPicker.load(this, decided) }.getOrDefault(emptyList()) }, show = ::showAddCaller)
     }
 
     private fun showAddCaller(all: List<CallerCandidate>) {

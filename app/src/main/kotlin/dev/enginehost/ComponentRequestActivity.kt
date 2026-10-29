@@ -65,39 +65,37 @@ class ComponentRequestActivity : EnginehostActivity() {
     }
 
     private fun render() {
-        Thread {
+        Async.load(this, work = {
             val trust = PluginTrustStore(this)
             val components = PluginRegistry.components(this)
             val approved = ComponentRequests.pick(components, trust::isApproved, engine, name, version, runtimeVersion)
             val waiting = ComponentRequests.pick(components, { trust.state(it) == PluginTrustState.PENDING }, engine, name, version, runtimeVersion)
-            val offered = if (approved == null && waiting == null) offered() else null
-            runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                progress.visibility = View.GONE
-                when {
-                    approved != null -> answer(ComponentRequests.APPROVED)
-                    waiting != null -> {
-                        message.setText(R.string.component_request_accept_message)
-                        action.visibility = View.VISIBLE
-                        action.setText(R.string.component_request_accept)
-                        action.setOnClickListener {
-                            startActivity(Intent(this, PluginTrustActivity::class.java).putExtra(PluginTrustActivity.EXTRA_BUNDLE, waiting.bundleId))
-                        }
-                    }
-                    offered != null -> {
-                        message.text = getString(R.string.component_request_install_message, offered.manifest.license?.name ?: "")
-                        action.visibility = View.VISIBLE
-                        action.setText(R.string.component_request_install)
-                        action.setOnClickListener { install(offered) }
-                    }
-                    else -> {
-                        message.setText(R.string.component_request_unavailable)
-                        action.visibility = View.GONE
+            Triple(approved, waiting, if (approved == null && waiting == null) offered() else null)
+        }) { (approved, waiting, offered) ->
+            progress.visibility = View.GONE
+            when {
+                approved != null -> answer(ComponentRequests.APPROVED)
+                waiting != null -> {
+                    message.setText(R.string.component_request_accept_message)
+                    action.visibility = View.VISIBLE
+                    action.setText(R.string.component_request_accept)
+                    action.setOnClickListener {
+                        startActivity(Intent(this, PluginTrustActivity::class.java).putExtra(PluginTrustActivity.EXTRA_BUNDLE, waiting.bundleId))
                     }
                 }
-                selectPrimaryAction()
+                offered != null -> {
+                    message.text = getString(R.string.component_request_install_message, offered.manifest.license?.name ?: "")
+                    action.visibility = View.VISIBLE
+                    action.setText(R.string.component_request_install)
+                    action.setOnClickListener { install(offered) }
+                }
+                else -> {
+                    message.setText(R.string.component_request_unavailable)
+                    action.visibility = View.GONE
+                }
             }
-        }.apply { isDaemon = true }.start()
+            selectPrimaryAction()
+        }
     }
 
     /** The newest build any source publishes of what the game asked for, for this engine's series. */
@@ -125,7 +123,7 @@ class ComponentRequestActivity : EnginehostActivity() {
             },
             // The bar appears once the install starts, after any unsandboxed warning is answered.
             onStarted = { progress.visibility = View.VISIBLE },
-            onStatus = { status -> runOnUiThread { message.text = status.text } },
+            onStatus = { status -> Async.onMain(this) { message.text = status.text } },
         )
         // The installer opens the trust screen over this one; coming back reads the state again.
     }

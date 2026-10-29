@@ -680,33 +680,27 @@ class ConfigEditorActivity : EnginehostActivity() {
 
     private fun detect(treeUri: Uri) {
         detectionLabel.setText(R.string.scanning_selected)
-        Thread {
-            val result = runCatching { EngineDetector.detect(EngineRegistryStore.rows(this), contentResolver, treeUri) }
-            runOnUiThread {
-                if (folderUri != treeUri) return@runOnUiThread
-                result.fold(
-                    onSuccess = { detection -> applyDetection(detection) },
-                    onFailure = {
-                        detectionLabel.text = getString(R.string.detection_failed_choose, it.message)
-                        findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
-                    },
-                )
-            }
-        }.start()
+        Async.load(this, work = { runCatching { EngineDetector.detect(EngineRegistryStore.rows(this), contentResolver, treeUri) } }) { result ->
+            if (folderUri != treeUri) return@load
+            result.fold(
+                onSuccess = { detection -> applyDetection(detection) },
+                onFailure = {
+                    detectionLabel.text = getString(R.string.detection_failed_choose, it.message)
+                    findViewById<Button>(R.id.browseAllPluginsButton).visibility = View.VISIBLE
+                },
+            )
+        }
     }
 
     private fun detect(folder: File) {
         detectionLabel.setText(R.string.scanning_supplied)
-        Thread {
-            val result = runCatching { EngineDetector.detect(EngineRegistryStore.rows(this), folder) }
-            runOnUiThread {
-                if (folderPath != folder) return@runOnUiThread
-                result.fold(
-                    onSuccess = { detection -> applyDetection(detection) },
-                    onFailure = { detectionLabel.text = getString(R.string.detection_failed_manual, it.message) },
-                )
-            }
-        }.start()
+        Async.load(this, work = { runCatching { EngineDetector.detect(EngineRegistryStore.rows(this), folder) } }) { result ->
+            if (folderPath != folder) return@load
+            result.fold(
+                onSuccess = { detection -> applyDetection(detection) },
+                onFailure = { detectionLabel.text = getString(R.string.detection_failed_manual, it.message) },
+            )
+        }
     }
 
     private fun applyDetection(detection: EngineDetection?) {

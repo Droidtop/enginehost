@@ -128,16 +128,12 @@ class GameSectionsView(
 
     private fun installWarned(update: AvailablePlugin, core: InstalledPlugin?) {
         Toast.makeText(activity, R.string.updating, Toast.LENGTH_SHORT).show()
-        Thread {
-            val failure = runCatching { PluginInstaller.installQuietly(activity, update) }.exceptionOrNull()
-            activity.runOnUiThread {
-                if (activity.isDestroyed) return@runOnUiThread
-                if (failure != null) {
-                    Toast.makeText(activity, ErrorText.of(activity, failure, R.string.core_install_failed), Toast.LENGTH_LONG).show()
-                }
-                onChanged()
+        Async.load(activity, work = { runCatching { PluginInstaller.installQuietly(activity, update) }.exceptionOrNull() }) { failure ->
+            if (failure != null) {
+                Toast.makeText(activity, ErrorText.of(activity, failure, R.string.core_install_failed), Toast.LENGTH_LONG).show()
             }
-        }.start()
+            onChanged()
+        }
     }
 
     // ---- Options ----------------------------------------------------------------
@@ -267,9 +263,6 @@ class GameSectionsView(
     }
 
     private fun setOverride(key: String, value: Any?) {
-        Thread {
-            runCatching { library.setOverride(folder, key, value) }
-            activity.runOnUiThread { if (!activity.isDestroyed) onChanged() }
-        }.apply { isDaemon = true }.start()
+        Async.load(activity, work = { runCatching { library.setOverride(folder, key, value) } }) { onChanged() }
     }
 }

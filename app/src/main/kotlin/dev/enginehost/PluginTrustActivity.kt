@@ -123,8 +123,8 @@ class PluginTrustActivity : EnginehostActivity() {
     private fun render() {
         val generation = ++listGeneration
         val requestedPackage = intent.getStringExtra(EXTRA_BUNDLE)
-        Thread {
-            val cards = runCatching {
+        Async.load(this, work = {
+            runCatching {
                 // One card per installed build: several builds of a line can sit side
                 // by side, each approved, denied and removed on its own. A line's
                 // builds stay together, newest first.
@@ -137,11 +137,9 @@ class PluginTrustActivity : EnginehostActivity() {
                     )
                     .map(::factsOf)
             }.getOrDefault(emptyList())
-            runOnUiThread {
-                if (isDestroyed || generation != listGeneration) return@runOnUiThread
-                showPlugins(cards, requestedPackage)
-            }
-        }.start()
+        }) { cards ->
+            if (generation == listGeneration) showPlugins(cards, requestedPackage)
+        }
     }
 
     /**
@@ -172,13 +170,9 @@ class PluginTrustActivity : EnginehostActivity() {
      */
     private fun renderUpdates(installed: List<InstalledPlugin>) {
         val generation = ++updatesGeneration
-        Thread {
-            val pending = runCatching { PluginUpdateCheck(this).pending() }.getOrDefault(emptyList())
-            runOnUiThread {
-                if (isDestroyed || generation != updatesGeneration) return@runOnUiThread
-                showUpdates(pending, installed)
-            }
-        }.start()
+        Async.load(this, work = { runCatching { PluginUpdateCheck(this).pending() }.getOrDefault(emptyList()) }) { pending ->
+            if (generation == updatesGeneration) showUpdates(pending, installed)
+        }
     }
 
     private fun showUpdates(pending: List<AvailablePlugin>, installed: List<InstalledPlugin>) {
@@ -229,7 +223,7 @@ class PluginTrustActivity : EnginehostActivity() {
         updating = true
         buttons.forEach { it.isEnabled = false }
         pressed.setText(R.string.updating)
-        Thread {
+        Async.load(this, work = {
             var failed = 0
             var lastError = ""
             updates.forEach { update ->
@@ -238,17 +232,16 @@ class PluginTrustActivity : EnginehostActivity() {
                     lastError = ErrorText.of(this, it, R.string.core_install_failed)
                 }
             }
-            runOnUiThread {
-                updating = false
-                if (isDestroyed) return@runOnUiThread
-                if (failed > 0) {
-                    Toast.makeText(
-                        this, getString(R.string.updates_done, updates.size - failed, failed, lastError), Toast.LENGTH_LONG,
-                    ).show()
-                }
-                render()
+            failed to lastError
+        }) { (failed, lastError) ->
+            updating = false
+            if (failed > 0) {
+                Toast.makeText(
+                    this, getString(R.string.updates_done, updates.size - failed, failed, lastError), Toast.LENGTH_LONG,
+                ).show()
             }
-        }.start()
+            render()
+        }
     }
 
     /** One card per line (#620 E5): its newest build, with the older ones folded beneath. */
@@ -323,27 +316,20 @@ class PluginTrustActivity : EnginehostActivity() {
         trust.approve(plugin)
         // The launch that stopped here resumes only if the game now
         // resolves to this core; finding out reads bundles.
-        Thread {
-            val pending = runCatching { GameRunner.pendingLaunchFor(this@PluginTrustActivity, plugin) }.getOrNull()
-            runOnUiThread {
-                if (isDestroyed) return@runOnUiThread
-                if (pending != null) {
-                    GameRunner.resume(this@PluginTrustActivity, pending)
-                    finish()
-                } else {
-                    render()
-                }
+        Async.load(this, work = { runCatching { GameRunner.pendingLaunchFor(this@PluginTrustActivity, plugin) }.getOrNull() }) { pending ->
+            if (pending != null) {
+                GameRunner.resume(this@PluginTrustActivity, pending)
+                finish()
+            } else {
+                render()
             }
-        }.start()
+        }
     }
 
     private fun remove(plugin: InstalledPlugin, button: View) {
         // Removing deletes the bundle's whole tree: off the main thread.
         button.isEnabled = false
-        Thread {
-            runCatching { PluginRegistry.uninstall(this@PluginTrustActivity, plugin) }
-            runOnUiThread { if (!isDestroyed) render() }
-        }.start()
+        Async.load(this, work = { runCatching { PluginRegistry.uninstall(this@PluginTrustActivity, plugin) } }) { render() }
     }
 
     /** What a build is and who signed it, and Deny: one sheet instead of an inline block (#620 E5). */

@@ -33,7 +33,7 @@ class StatsSheets(private val activity: Activity) {
     /** Rating a model: which one, how good, what for, and an optional comment; then it is shared. */
     fun rate() {
         // The speech engine and its name come from other processes: read off the main thread.
-        Thread {
+        Async.load(activity, work = {
             val text = TextSettings(activity)
             val choices = mutableListOf<Pair<String, StatsReport.Kind>>()
             if (text.translatorEndpoint.isNotBlank() && text.translatorModel.isNotBlank()) {
@@ -45,17 +45,16 @@ class StatsSheets(private val activity: Activity) {
                 }.getOrDefault(engine)
                 choices += activity.getString(R.string.rate_voices, label) to StatsReport.Kind.VOICE
             }
-            activity.runOnUiThread {
-                if (activity.isDestroyed) return@runOnUiThread
-                if (choices.isEmpty()) {
-                    Toast.makeText(activity, R.string.rate_nothing, Toast.LENGTH_LONG).show()
-                    return@runOnUiThread
-                }
-                Sheet(activity).title(R.string.rate_which).apply {
-                    choices.forEach { (label, kind) -> choice(label) { stars(kind, label) } }
-                }.show()
+            choices
+        }) { choices ->
+            if (choices.isEmpty()) {
+                Toast.makeText(activity, R.string.rate_nothing, Toast.LENGTH_LONG).show()
+                return@load
             }
-        }.start()
+            Sheet(activity).title(R.string.rate_which).apply {
+                choices.forEach { (label, kind) -> choice(label) { stars(kind, label) } }
+            }.show()
+        }
     }
 
     private fun stars(kind: StatsReport.Kind, label: String) {
@@ -91,38 +90,33 @@ class StatsSheets(private val activity: Activity) {
 
     private fun send(kind: StatsReport.Kind, rating: Int, purpose: StatsReport.Purpose?, comment: String) {
         val context = activity.applicationContext
-        Thread {
+        Async.load(activity, work = {
             val report = when (kind) {
                 StatsReport.Kind.TRANSLATION -> SharedStats.translatorReport(context, purpose, rating, comment)
                 StatsReport.Kind.VOICE -> SharedStats.voiceReport(context, purpose, rating, comment)
             }
             report?.let { SharedStats.submit(context, it) }
-            activity.runOnUiThread {
-                if (!activity.isDestroyed) Toast.makeText(activity, R.string.rate_thanks, Toast.LENGTH_LONG).show()
-            }
-        }.start()
+        }) {
+            Toast.makeText(activity, R.string.rate_thanks, Toast.LENGTH_LONG).show()
+        }
     }
 
     /** Everything shared, newest first, each report exactly as it went or would have gone. */
     fun showLog() {
-        Thread {
-            val logged = SharedStats.logged(activity.applicationContext)
-            activity.runOnUiThread {
-                if (activity.isDestroyed) return@runOnUiThread
-                Sheet(activity).title(R.string.shared_log_row).apply {
-                    if (logged.isEmpty()) message(R.string.shared_log_empty)
-                    logged.forEach { entry ->
-                        val at = DateUtils.getRelativeTimeSpanString(entry.at)
-                        val outcome = when (entry.outcome) {
-                            SharedStats.Outcome.SENT -> activity.getString(R.string.shared_log_sent, at)
-                            SharedStats.Outcome.DROPPED -> activity.getString(R.string.shared_log_dropped, at)
-                            SharedStats.Outcome.NO_ENDPOINT -> activity.getString(R.string.shared_log_no_endpoint, at)
-                        }
-                        val shown = runCatching { JSONObject(entry.report).toString(2) }.getOrDefault(entry.report)
-                        choice(outcome, detail = shown) {}
+        Async.load(activity, work = { SharedStats.logged(activity.applicationContext) }) { logged ->
+            Sheet(activity).title(R.string.shared_log_row).apply {
+                if (logged.isEmpty()) message(R.string.shared_log_empty)
+                logged.forEach { entry ->
+                    val at = DateUtils.getRelativeTimeSpanString(entry.at)
+                    val outcome = when (entry.outcome) {
+                        SharedStats.Outcome.SENT -> activity.getString(R.string.shared_log_sent, at)
+                        SharedStats.Outcome.DROPPED -> activity.getString(R.string.shared_log_dropped, at)
+                        SharedStats.Outcome.NO_ENDPOINT -> activity.getString(R.string.shared_log_no_endpoint, at)
                     }
-                }.show()
-            }
-        }.start()
+                    val shown = runCatching { JSONObject(entry.report).toString(2) }.getOrDefault(entry.report)
+                    choice(outcome, detail = shown) {}
+                }
+            }.show()
+        }
     }
 }

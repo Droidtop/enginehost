@@ -36,7 +36,7 @@ class VoiceSheets(private val activity: Activity, private val changed: () -> Uni
     }
 
     /** Which voices read: the device's own, or an installed model; and getting or removing models. */
-    fun choose() = background({ VoiceModels.installed(activity) }) { installed ->
+    fun choose() = Async.load(activity, { VoiceModels.installed(activity) }) { installed ->
         Sheet(activity).title(R.string.voices_row).message(R.string.voices_message).apply {
             choice(activity.getString(R.string.voices_device), detail = activity.getString(R.string.voices_device_detail), current = text.voiceModel.isEmpty()) {
                 text.voiceModel = ""
@@ -68,13 +68,13 @@ class VoiceSheets(private val activity: Activity, private val changed: () -> Uni
         status.text = activity.getString(R.string.voices_downloading, Formatter.formatShortFileSize(activity, 0), Formatter.formatShortFileSize(activity, model.bytes))
         val sheet = Sheet(activity).title(model.label).content(status).show()
         var shown = 0L
-        background({
+        Async.load(activity, {
             runCatching {
                 VoiceModels.download(activity.applicationContext, model) { bytes ->
                     // A line a megabyte, not one a buffer.
                     if (bytes - shown >= 1_000_000) {
                         shown = bytes
-                        activity.runOnUiThread {
+                        Async.onMain(activity) {
                             status.text = activity.getString(
                                 R.string.voices_downloading,
                                 Formatter.formatShortFileSize(activity, bytes), Formatter.formatShortFileSize(activity, model.bytes),
@@ -98,7 +98,7 @@ class VoiceSheets(private val activity: Activity, private val changed: () -> Uni
         val status = activity.layoutInflater.inflate(R.layout.item_hint, null) as TextView
         status.setText(R.string.voices_unpacking)
         val sheet = Sheet(activity).title(R.string.voices_supply).content(status).show()
-        background({
+        Async.load(activity, {
             runCatching {
                 val name = runCatching {
                     activity.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
@@ -125,7 +125,7 @@ class VoiceSheets(private val activity: Activity, private val changed: () -> Uni
         Sheet(activity).title(R.string.voices_remove).apply {
             installed.forEach { model ->
                 choice(model.label, detail = describe(model)) {
-                    background({ VoiceModels.remove(activity.applicationContext, model.id) }) {
+                    Async.load(activity, { VoiceModels.remove(activity.applicationContext, model.id) }) {
                         if (text.voiceModel == model.id) text.voiceModel = ""
                         changed()
                     }
@@ -135,10 +135,10 @@ class VoiceSheets(private val activity: Activity, private val changed: () -> Uni
     }
 
     /** The games with characters heard, then a game's characters, then one character's voice. */
-    fun characters() = background({ VoiceModels.find(activity, text.voiceModel) to CharacterVoices(activity).games() }) { (model, games) ->
+    fun characters() = Async.load(activity, { VoiceModels.find(activity, text.voiceModel) to CharacterVoices(activity).games() }) { (model, games) ->
         if (model == null) {
             Toast.makeText(activity, R.string.character_voices_need_model, Toast.LENGTH_LONG).show()
-            return@background
+            return@load
         }
         Sheet(activity).title(R.string.character_voices_row).apply {
             if (games.isEmpty()) message(R.string.character_voices_none)
@@ -148,7 +148,7 @@ class VoiceSheets(private val activity: Activity, private val changed: () -> Uni
 
     private fun gameCharacters(model: VoiceModels.Installed, game: String) {
         val store = CharacterVoices(activity)
-        background({ store.characters(game) }) { characters ->
+        Async.load(activity, { store.characters(game) }) { characters ->
             Sheet(activity).title(File(game).name).apply {
                 characters.forEach { character ->
                     val label = character.ifEmpty { activity.getString(R.string.character_narration) }
@@ -163,7 +163,7 @@ class VoiceSheets(private val activity: Activity, private val changed: () -> Uni
     private fun characterVoice(model: VoiceModels.Installed, game: String, character: String, label: String) {
         val store = CharacterVoices(activity)
         val current = store.choice(game, character, model.id)
-        fun set(choice: CharacterVoicePick.Choice) = background({ store.choose(game, character, model.id, choice) }) {}
+        fun set(choice: CharacterVoicePick.Choice) = Async.load(activity, { store.choose(game, character, model.id, choice) }) {}
         Sheet(activity).title(label).apply {
             choice(activity.getString(R.string.character_voice_auto), current = current == CharacterVoicePick.Choice.Automatic) { set(CharacterVoicePick.Choice.Automatic) }
             if (model.layout.speakers.any { it.gender == VoiceModelLayout.Gender.FEMALE }) {
@@ -203,14 +203,6 @@ class VoiceSheets(private val activity: Activity, private val changed: () -> Uni
             null -> null
         }
         return listOfNotNull(name, gender, speaker.language).joinToString(" · ")
-    }
-
-    /** Runs [work] off the main thread, then [then] on it, unless the screen has gone. */
-    private fun <T> background(work: () -> T, then: (T) -> Unit) {
-        Thread {
-            val result = work()
-            activity.runOnUiThread { if (!activity.isDestroyed) then(result) }
-        }.start()
     }
 
     companion object {

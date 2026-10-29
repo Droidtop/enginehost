@@ -80,9 +80,8 @@ object AppUpdate {
         // runs on the main thread and only while the screen still exists: the
         // download can outlast the screen that started it (review, 2026-10-16).
         val context = activity.applicationContext
-        val main = android.os.Handler(android.os.Looper.getMainLooper())
-        fun post(block: () -> Unit) = main.post { if (!activity.isDestroyed) block() }
-        Thread {
+        fun post(block: () -> Unit) = Async.onMain(activity, block)
+        Async.run {
             runCatching {
                 val downloading = context.getString(R.string.app_update_downloading, info.versionName)
                 post { onStatus(downloading) }
@@ -96,7 +95,7 @@ object AppUpdate {
                 val message = context.getString(R.string.app_update_failed)
                 post { onError(message) }
             }
-        }.start()
+        }
     }
 
     private const val TAG = "enginehost-app-update"

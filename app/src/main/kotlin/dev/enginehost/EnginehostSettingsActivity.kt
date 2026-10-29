@@ -185,15 +185,11 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     /** About's droidtop row: Get or Open droidtop, or gone while "Suggest droidtop" is off. */
     private fun showDroidtop() {
         val row = findViewById<View>(R.id.droidtopRow)
-        Thread {
-            val offer = DroidtopOffer.offer(applicationContext)
-            runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                row.visibility = if (offer == DroidtopOffer.Offer.NONE) View.GONE else View.VISIBLE
-                findViewById<TextView>(R.id.droidtopAction).text = DroidtopOffer.label(this, offer)
-                row.setOnClickListener { DroidtopOffer.act(this, offer) }
-            }
-        }.apply { isDaemon = true }.start()
+        Async.load(this, work = { DroidtopOffer.offer(applicationContext) }) { offer ->
+            row.visibility = if (offer == DroidtopOffer.Offer.NONE) View.GONE else View.VISIBLE
+            findViewById<TextView>(R.id.droidtopAction).text = DroidtopOffer.label(this, offer)
+            row.setOnClickListener { DroidtopOffer.act(this, offer) }
+        }
     }
 
     /** What the Appearance row says the accent is. */
@@ -280,11 +276,10 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         // app -- so the home screen's notice is current afterwards too. The
         // pass reads the newest build first and says it here; this screen
         // used to fetch it a second time on its own.
-        updateCheck.run(onApp = { result -> runOnUiThread { showAppUpdate(result) } }) { }
+        updateCheck.run(onApp = { result -> Async.onMain(this) { showAppUpdate(result) } }) { }
     }
 
     private fun showAppUpdate(result: Result<AppUpdate.Info>) {
-        if (isDestroyed || isFinishing) return
         findViewById<View>(R.id.appVersionRow).isEnabled = true
         refreshLastChecked()
         val installButton = findViewById<Button>(R.id.installAppUpdateButton)
@@ -422,23 +417,21 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         val count = layoutInflater.inflate(R.layout.item_hint, null) as TextView
         count.text = getString(R.string.migration_progress, 0)
         val sheet = Sheet(this).title(R.string.move_saves_title).content(count).show()
-        Thread {
-            val result = runCatching {
+        Async.load(this, work = {
+            runCatching {
                 store.migrate(source) { done ->
-                    if (done % PROGRESS_EVERY == 0) runOnUiThread { count.text = getString(R.string.migration_progress, done) }
+                    if (done % PROGRESS_EVERY == 0) Async.onMain(this) { count.text = getString(R.string.migration_progress, done) }
                 }
             }
-            runOnUiThread {
-                migrating = false
-                if (isDestroyed) return@runOnUiThread
-                if (sheet.isShowing) sheet.dismiss()
-                val message = result.fold(
-                    { getString(R.string.migration_result, it.copied, it.conflicts, it.failures) },
-                    { getString(R.string.migration_failed, ErrorText.of(this, it, R.string.folder_unusable_choice)) },
-                )
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-            }
-        }.start()
+        }) { result ->
+            migrating = false
+            if (sheet.isShowing) sheet.dismiss()
+            val message = result.fold(
+                { getString(R.string.migration_result, it.copied, it.conflicts, it.failures) },
+                { getString(R.string.migration_failed, ErrorText.of(this, it, R.string.folder_unusable_choice)) },
+            )
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun refresh() {
@@ -478,13 +471,11 @@ class EnginehostSettingsActivity : EnginehostActivity() {
      */
     private fun refreshEngineRows() {
         val generation = ++engineRowsGeneration
-        Thread {
-            val installed = runCatching { PluginRegistry.discover(this).map { it.info.engine } }.getOrDefault(emptyList())
-            runOnUiThread {
-                if (isDestroyed || generation != engineRowsGeneration) return@runOnUiThread
-                showEngineRows(installed)
-            }
-        }.start()
+        Async.load(this, work = {
+            runCatching { PluginRegistry.discover(this).map { it.info.engine } }.getOrDefault(emptyList())
+        }) { installed ->
+            if (generation == engineRowsGeneration) showEngineRows(installed)
+        }
     }
 
     /**
@@ -558,16 +549,15 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         if (endpoint.isBlank() || text.translatorModel.isBlank() || !SharedStats.enabled()) return
         val model = text.translatorModel
         val backend = StatsReport.backendOf(endpoint)
-        Thread {
+        Async.load(this, work = {
             SharedStats.refreshAggregate(applicationContext)
-            val entry = SharedStats.aggregate(applicationContext).lookup(StatsReport.Kind.TRANSLATION, model, backend)
-            runOnUiThread {
-                if (isDestroyed || entry == null) return@runOnUiThread
-                var shown = getString(R.string.translator_rated, plain, String.format(java.util.Locale.getDefault(), "%.1f", entry.average), entry.count)
-                entry.popularFor?.let { shown = getString(R.string.translator_popular, shown, getString(purposeName(it))) }
-                value.text = shown
-            }
-        }.start()
+            SharedStats.aggregate(applicationContext).lookup(StatsReport.Kind.TRANSLATION, model, backend)
+        }) { entry ->
+            if (entry == null) return@load
+            var shown = getString(R.string.translator_rated, plain, String.format(java.util.Locale.getDefault(), "%.1f", entry.average), entry.count)
+            entry.popularFor?.let { shown = getString(R.string.translator_popular, shown, getString(purposeName(it))) }
+            value.text = shown
+        }
     }
 
     private fun purposeName(purpose: StatsReport.Purpose): Int = when (purpose) {
@@ -586,10 +576,9 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     private fun showVoicesValue() {
         val model = TextSettings(this).voiceModel
         findViewById<View>(R.id.characterVoicesRow).visibility = if (model.isEmpty()) View.GONE else View.VISIBLE
-        Thread {
-            val described = voices.describe()
-            runOnUiThread { if (!isDestroyed) findViewById<TextView>(R.id.voicesValue).text = described }
-        }.start()
+        Async.load(this, work = { voices.describe() }) { described ->
+            findViewById<TextView>(R.id.voicesValue).text = described
+        }
     }
 
     /** Set while [refreshStats] moves the switch, so the move is not taken for the person's. */
@@ -609,7 +598,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         findViewById<SwitchCompat>(R.id.shareRatingsSwitch).isChecked = consent == SharedStats.Consent.SHARED
         showingStats = false
         // A report the network refused before gets its next try.
-        if (enabled && consent == SharedStats.Consent.SHARED) Thread { SharedStats.deliver(applicationContext) }.start()
+        if (enabled && consent == SharedStats.Consent.SHARED) Async.run { SharedStats.deliver(applicationContext) }
     }
 
     /**
@@ -689,17 +678,16 @@ class EnginehostSettingsActivity : EnginehostActivity() {
 
     private fun testToken() {
         tokenStore.get() ?: return
-        Thread {
+        Async.load(this, work = {
             // A success is any 2xx; GitHub's 401 for a bad token is an exception, which is the failure.
-            val result = runCatching { GithubClients.withToken(this).get("https://api.github.com/user") != null }.getOrDefault(false)
-            runOnUiThread {
-                Toast.makeText(
-                    this,
-                    if (result) getString(R.string.github_token_test_ok, "user") else getString(R.string.github_token_test_fail),
-                    Toast.LENGTH_LONG,
-                ).show()
-            }
-        }.start()
+            runCatching { GithubClients.withToken(this).get("https://api.github.com/user") != null }.getOrDefault(false)
+        }) { result ->
+            Toast.makeText(
+                this,
+                if (result) getString(R.string.github_token_test_ok, "user") else getString(R.string.github_token_test_fail),
+                Toast.LENGTH_LONG,
+            ).show()
+        }
     }
 
     companion object {

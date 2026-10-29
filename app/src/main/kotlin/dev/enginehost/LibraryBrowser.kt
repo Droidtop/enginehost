@@ -60,6 +60,7 @@ class LibraryBrowser(
         private set
 
     private val main = Handler(Looper.getMainLooper())
+    /** One worker of its own rather than [Async]'s pool, so reloads run in order and a stale one sees it is stale. */
     private val worker = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "enginehost-library").apply { isDaemon = true }
     }
@@ -167,9 +168,8 @@ class LibraryBrowser(
                 }
             }.getOrNull() ?: return@background
             if (gen != generation.get()) return@background
-            activity.runOnUiThread {
-                if (gen != generation.get() || activity.isDestroyed) return@runOnUiThread
-                render(result)
+            Async.onMain(activity) {
+                if (gen == generation.get()) render(result)
             }
         }
     }
@@ -186,7 +186,7 @@ class LibraryBrowser(
                     favourites = library.query(LibraryFilter(favourites = true, sort = SortOrder.RECENTLY_PLAYED), SHELF_SIZE),
                 )
             }.getOrNull() ?: return@background
-            activity.runOnUiThread { if (!activity.isDestroyed) onResult(shelves) }
+            Async.onMain(activity) { onResult(shelves) }
         }
     }
 
@@ -329,8 +329,7 @@ class LibraryBrowser(
         val root = filter.root
         background {
             val counts = runCatching { library.engineCounts(scope, root) }.getOrDefault(emptyList())
-            activity.runOnUiThread {
-                if (activity.isDestroyed) return@runOnUiThread
+            Async.onMain(activity) {
                 val sheet = Sheet(activity).title(R.string.filter_engine)
                 sheet.choice(activity.getString(R.string.filter_all), current = filter.engine == null) { setEngine(null) }
                 counts.forEach { (engine, count) ->
@@ -382,8 +381,7 @@ class LibraryBrowser(
         val root = filter.root
         background {
             val folders = runCatching { library.folderCounts(scope, root) }.getOrDefault(emptyList())
-            activity.runOnUiThread {
-                if (activity.isDestroyed) return@runOnUiThread
+            Async.onMain(activity) {
                 val sheet = Sheet(activity).title(R.string.filter_folder)
                 sheet.choice(activity.getString(R.string.filter_all), current = filter.folder == null) { setFolder(null) }
                 folders.forEach { (path, count) ->

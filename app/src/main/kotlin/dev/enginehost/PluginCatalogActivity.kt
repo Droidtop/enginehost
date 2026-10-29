@@ -160,23 +160,21 @@ class PluginCatalogActivity : EnginehostActivity() {
     private fun addCustomOrigin() {
         val requested = originInput.text.toString()
         addOriginButton.isEnabled = false
-        Thread {
-            runCatching {
+        Async.load(
+            this,
+            work = {
                 val key = PluginOriginKeyClient.fetch(requested)
                 origins.add(requested, key)
-            }.onSuccess {
-                runOnUiThread {
-                    addOriginButton.isEnabled = true
-                    originInput.text.clear()
-                    render(getString(R.string.origin_added))
-                }
-            }.onFailure { error ->
-                runOnUiThread {
-                    addOriginButton.isEnabled = true
-                    toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
-                }
-            }
-        }.start()
+            },
+            failed = { error ->
+                addOriginButton.isEnabled = true
+                toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
+            },
+        ) {
+            addOriginButton.isEnabled = true
+            originInput.text.clear()
+            render(getString(R.string.origin_added))
+        }
     }
 
     /**
@@ -195,20 +193,19 @@ class PluginCatalogActivity : EnginehostActivity() {
         refreshButton.isEnabled = !refreshing
         catalogStreamValue.text = streamName(updateCheck.stream)
         val generation = ++renderGeneration
-        Thread {
+        Async.load(this, work = {
             readRequested()
-            val read = runCatching { readSnapshot() }.getOrNull() ?: return@Thread
-            runOnUiThread {
-                if (isDestroyed || isFinishing || generation != renderGeneration) return@runOnUiThread
-                snapshot = read
-                // The game's own title is known once its config is read, here.
-                if (message == null) statusText.text = intro()
-                renderOrigins()
-                renderQuickAdd()
-                renderSourcesToggle()
-                renderReleases()
-            }
-        }.apply { isDaemon = true }.start()
+            runCatching { readSnapshot() }.getOrNull()
+        }) { read ->
+            if (read == null || generation != renderGeneration) return@load
+            snapshot = read
+            // The game's own title is known once its config is read, here.
+            if (message == null) statusText.text = intro()
+            renderOrigins()
+            renderQuickAdd()
+            renderSourcesToggle()
+            renderReleases()
+        }
     }
 
     private fun readSnapshot(): Snapshot {
@@ -321,25 +318,21 @@ class PluginCatalogActivity : EnginehostActivity() {
             .message(getString(R.string.quick_add_prompt_message, maintainer, groupedFingerprint(fingerprint)))
             .choice(R.string.quick_add_trust) {
                 statusText.text = getString(R.string.quick_add_adding)
-                Thread {
-                    runCatching {
-                        origins.addThirdParty(listing, PluginOriginKeyClient.fetch(listing.origin))
-                    }.onSuccess {
-                        runOnUiThread {
-                            whenDone()
-                            render(getString(R.string.quick_add_done, listing.repo))
-                            // Its releases are in the same index; fetching
-                            // them now costs no API allowance.
-                            refresh()
-                        }
-                    }.onFailure { error ->
-                        runOnUiThread {
-                            whenDone()
-                            render()
-                            toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
-                        }
-                    }
-                }.start()
+                Async.load(
+                    this,
+                    work = { origins.addThirdParty(listing, PluginOriginKeyClient.fetch(listing.origin)) },
+                    failed = { error ->
+                        whenDone()
+                        render()
+                        toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
+                    },
+                ) {
+                    whenDone()
+                    render(getString(R.string.quick_add_done, listing.repo))
+                    // Its releases are in the same index; fetching
+                    // them now costs no API allowance.
+                    refresh()
+                }
             }
             .onCancel(whenDone)
             .show()
@@ -354,8 +347,9 @@ class PluginCatalogActivity : EnginehostActivity() {
      * move only to a key the third-party list names.
      */
     private fun reviewChangedKey(origin: String, whenDone: () -> Unit) {
-        Thread {
-            runCatching {
+        Async.load(
+            this,
+            work = {
                 val published = PluginOriginKeyClient.fetch(origin)
                 val newKey = OriginKeyDocuments.parse(published)
                 val listed = PluginCatalogIndex.cached(this)?.origins?.get(normalizeGithubOrigin(origin))
@@ -363,40 +357,37 @@ class PluginCatalogActivity : EnginehostActivity() {
                     getString(R.string.origin_key_changed_unlisted)
                 }, published)
                 Triple(published, newKey, listed)
-            }.onSuccess { (published, newKey, listed) ->
-                runOnUiThread {
-                    val pinned = PluginOriginKeyStore(this).custom(origin)?.fingerprint.orEmpty()
-                    Sheet(this)
-                        .title(getString(R.string.origin_key_changed_title, origin.removePrefix("https://github.com/")))
-                        .message(
-                            getString(
-                                R.string.origin_key_changed_message,
-                                groupedFingerprint(pinned),
-                                groupedFingerprint(newKey.fingerprint),
-                            ),
-                        )
-                        .choice(R.string.origin_key_changed_accept) {
-                            runCatching { origins.replaceKey(origin, published, listed) }
-                                .onSuccess {
-                                    whenDone()
-                                    render(getString(R.string.origin_key_replaced))
-                                    refresh()
-                                }
-                                .onFailure { error ->
-                                    whenDone()
-                                    toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
-                                }
+            },
+            failed = { error ->
+                whenDone()
+                toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
+            },
+        ) { (published, newKey, listed) ->
+            val pinned = PluginOriginKeyStore(this).custom(origin)?.fingerprint.orEmpty()
+            Sheet(this)
+                .title(getString(R.string.origin_key_changed_title, origin.removePrefix("https://github.com/")))
+                .message(
+                    getString(
+                        R.string.origin_key_changed_message,
+                        groupedFingerprint(pinned),
+                        groupedFingerprint(newKey.fingerprint),
+                    ),
+                )
+                .choice(R.string.origin_key_changed_accept) {
+                    runCatching { origins.replaceKey(origin, published, listed) }
+                        .onSuccess {
+                            whenDone()
+                            render(getString(R.string.origin_key_replaced))
+                            refresh()
                         }
-                        .onCancel(whenDone)
-                        .show()
+                        .onFailure { error ->
+                            whenDone()
+                            toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
+                        }
                 }
-            }.onFailure { error ->
-                runOnUiThread {
-                    whenDone()
-                    toast(ErrorText.of(this, error, R.string.origin_key_import_failed))
-                }
-            }
-        }.start()
+                .onCancel(whenDone)
+                .show()
+        }
     }
 
     private fun removeThirdParty(origin: String) {
@@ -568,7 +559,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         ) {
             autoAttempted = true
             PluginInstaller.install(this, nextToInstall, ::toast) { status ->
-                runOnUiThread { statusText.text = status.text }
+                Async.onMain(this) { statusText.text = status.text }
             }
         } else if (
             intent.getBooleanExtra(EXTRA_AUTOINSTALL, false) && matches.isEmpty() &&
@@ -724,7 +715,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                         this@PluginCatalogActivity,
                         build,
                         onError = { message -> view.isEnabled = true; toast(message) },
-                        onStatus = { status -> runOnUiThread { statusText.text = status.text } },
+                        onStatus = { status -> Async.onMain(this@PluginCatalogActivity) { statusText.text = status.text } },
                     )
                 }
                 olderList.addView(row)
@@ -805,7 +796,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                     this@PluginCatalogActivity,
                     plugin,
                     onError = { message ->
-                        runOnUiThread {
+                        Async.onMain(this@PluginCatalogActivity) {
                             installing.remove(plugin.bundleId)
                             progress.visibility = View.GONE
                             button.isEnabled = true
@@ -820,7 +811,7 @@ class PluginCatalogActivity : EnginehostActivity() {
                         progress.visibility = View.VISIBLE
                     },
                     onStatus = { status ->
-                        runOnUiThread {
+                        Async.onMain(this@PluginCatalogActivity) {
                             button.text = status.text
                             showProgress(progress, status.fraction)
                         }
@@ -892,34 +883,32 @@ class PluginCatalogActivity : EnginehostActivity() {
     private fun installAll(plugins: List<AvailablePlugin>) {
         installing += plugins.map { it.bundleId }
         renderReleases()
-        Thread {
-            val failures = plugins.mapNotNull { plugin ->
+        Async.load(this, work = {
+            plugins.mapNotNull { plugin ->
                 runCatching { PluginInstaller.installQuietly(this, plugin) }.exceptionOrNull()
             }
-            runOnUiThread {
-                installing -= plugins.map { it.bundleId }.toSet()
-                if (isDestroyed) return@runOnUiThread
-                if (failures.isNotEmpty()) {
-                    toast(
-                        getString(
-                            R.string.install_all_done,
-                            plugins.size - failures.size,
-                            failures.size,
-                            ErrorText.of(this, failures.last(), R.string.core_install_failed),
-                        ),
-                    )
-                }
-                render()
-                if (failures.size < plugins.size) startActivity(Intent(this, PluginTrustActivity::class.java))
+        }) { failures ->
+            installing -= plugins.map { it.bundleId }.toSet()
+            if (failures.isNotEmpty()) {
+                toast(
+                    getString(
+                        R.string.install_all_done,
+                        plugins.size - failures.size,
+                        failures.size,
+                        ErrorText.of(this, failures.last(), R.string.core_install_failed),
+                    ),
+                )
             }
-        }.start()
+            render()
+            if (failures.size < plugins.size) startActivity(Intent(this, PluginTrustActivity::class.java))
+        }
     }
 
     private fun refresh() {
         if (refreshing) return
         refreshing = true
         render(getString(R.string.refreshing_message))
-        Thread {
+        Async.load(this, work = {
             // runAll, not run(origins.all()): an official repository the index
             // has just introduced is part of this refresh, and the third-party
             // list Quick add shows comes from the same fetch.
@@ -933,13 +922,12 @@ class PluginCatalogActivity : EnginehostActivity() {
             }
             // Counted the way Home counts them (PluginUpdateCheck.pending), so
             // the two screens cannot disagree about whether updates exist.
-            val pending = runCatching { updateCheck.pending().size }.getOrDefault(0)
-            runOnUiThread {
-                refreshing = false
-                lastOutcomes = outcomes
-                render(refreshSummary(outcomes, pending))
-            }
-        }.start()
+            outcomes to runCatching { updateCheck.pending().size }.getOrDefault(0)
+        }) { (outcomes, pending) ->
+            refreshing = false
+            lastOutcomes = outcomes
+            render(refreshSummary(outcomes, pending))
+        }
     }
 
     /**

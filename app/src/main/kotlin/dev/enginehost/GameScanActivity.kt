@@ -86,10 +86,9 @@ class GameScanActivity : EnginehostActivity() {
         when {
             requested != null && savedInstanceState == null -> scanRequested(requested)
             ScanController.state.root != null -> showRoot(ScanController.state.root!!)
-            else -> Thread {
-                val last = library.lastScanRoot()
-                runOnUiThread { if (!isDestroyed && last != null && root == null) showRoot(last) }
-            }.apply { isDaemon = true }.start()
+            else -> Async.load(this, work = { library.lastScanRoot() }) { last ->
+                if (last != null && root == null) showRoot(last)
+            }
         }
     }
 
@@ -245,14 +244,10 @@ class GameScanActivity : EnginehostActivity() {
     private fun addShown() {
         val paths = addableRows().map { it.path }
         if (paths.isEmpty()) return
-        Thread {
-            library.addPaths(paths)
-            runOnUiThread {
-                if (isDestroyed) return@runOnUiThread
-                Toast.makeText(this, resources.getQuantityString(R.plurals.scan_added_count, paths.size, paths.size), Toast.LENGTH_SHORT).show()
-                browser.reload()
-            }
-        }.apply { isDaemon = true }.start()
+        Async.load(this, work = { library.addPaths(paths) }) {
+            Toast.makeText(this, resources.getQuantityString(R.plurals.scan_added_count, paths.size, paths.size), Toast.LENGTH_SHORT).show()
+            browser.reload()
+        }
     }
 
     /** A row adds its game; one already added opens its own screen. An archive has nothing to add yet. */
@@ -260,10 +255,7 @@ class GameScanActivity : EnginehostActivity() {
         when {
             row.kind == FindingKind.ARCHIVE -> Toast.makeText(this, R.string.archive_needs_unpack, Toast.LENGTH_LONG).show()
             row.added -> startActivity(GameActivity.intent(this, File(row.path)))
-            else -> Thread {
-                library.addPaths(listOf(row.path))
-                runOnUiThread { if (!isDestroyed) browser.reload() }
-            }.apply { isDaemon = true }.start()
+            else -> Async.load(this, work = { library.addPaths(listOf(row.path)) }) { browser.reload() }
         }
     }
 
