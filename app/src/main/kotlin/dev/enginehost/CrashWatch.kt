@@ -42,8 +42,34 @@ object CrashWatch {
     /** The reason a game that closed before showing anything is reported with. */
     const val CLOSED_UNSEEN = "Closed before it showed anything"
 
-    /** A runtime that died, with what is known about why. */
-    data class Crash(val gameFolder: File, val plugin: String, val reason: String, val trace: String)
+    /**
+     * A runtime that died, with what is known about why. [byAndroid]: Android ended it from
+     * outside (low memory, a system service it used stopping), and [reason] says which.
+     */
+    data class Crash(
+        val gameFolder: File,
+        val plugin: String,
+        val reason: String,
+        val trace: String,
+        val byAndroid: Boolean = false,
+    )
+
+    /** What the person is told about [crash]: Android stopped the game, or it stopped unexpectedly. */
+    fun sentence(context: Context, crash: Crash): String =
+        context.getString(if (crash.byAndroid) R.string.launch_stopped_by_android else R.string.launch_crashed, crash.reason)
+
+    /**
+     * Why Android ended a game's process from outside, for an exit reason that means it did, or
+     * null for any other. Such an end is shown as "Android stopped the game", with Retry, and
+     * callers are told it crashed: the person did not end it, and saying nothing left them on
+     * their library with no idea why the game went (owner, 2026-10-29, Droidtop/tracker#27).
+     */
+    internal fun stoppedByAndroid(reason: Int): String? = when (reason) {
+        ApplicationExitInfo.REASON_LOW_MEMORY -> "it needed the memory"
+        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "a system service it was using stopped"
+        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "it was using too much of the device"
+        else -> null
+    }
 
     /**
      * Called in the runtime process as a game starts. Records the session and
@@ -203,7 +229,7 @@ object CrashWatch {
         }
         sandbox?.let { Log.w(TAG, it) }
         val details = listOfNotNull(trace.ifBlank { exitTrace(exit) }.ifBlank { null }, sandbox).joinToString("\n\n")
-        return Crash(gameFolder, plugin, reason, details)
+        return Crash(gameFolder, plugin, reason, details, byAndroid = stoppedByAndroid(exit.reason) != null)
     }
 
     /** A sentence for an exit that was a failure, or null for one that was not. */
@@ -214,8 +240,8 @@ object CrashWatch {
         ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "Failed to initialise"
         ApplicationExitInfo.REASON_SIGNALED ->
             if (exit.status == SIGKILL || exit.status == SIGTERM) null else "Killed by signal" + signalName(exit.status)
-        // Low memory, the person swiping it away, our own clean exit: not a crash.
-        else -> null
+        // The person swiping it away, our own clean exit: not a failure. Android ending it is.
+        else -> stoppedByAndroid(exit.reason)
     }
 
     private fun signalName(status: Int): String = when (status) {

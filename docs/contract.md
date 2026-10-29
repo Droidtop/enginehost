@@ -281,7 +281,8 @@ key:
   `EngineHost.reportSaveDirectory` (`EngineSaveFolders`); a core that does not
   report it leaves the save folder itself) and how it ended (`reason`: `exited` when the
   game closed, by its own Quit, the in-game menu or `END_GAME`; `crashed` when it
-  crashed or failed). On a launch flagged `savesSynced` whose `saveRoot` was not
+  crashed or failed, or Android stopped it: low memory, a system service it used
+  stopping, too much use of the device). On a launch flagged `savesSynced` whose `saveRoot` was not
   taken, it also carries `saveRootRefused`, one of `missing`,
   `outside-shared-storage`, `android-data`, `volume-root` or `not-writable`, and
   `saveFolder` is then the `synced-saves` folder above; `saveRootRefused` is

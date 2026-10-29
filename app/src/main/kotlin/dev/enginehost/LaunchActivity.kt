@@ -614,9 +614,9 @@ class LaunchActivity : EnginehostActivity() {
         )
         when {
             crash != null -> {
-                HostEvents.record(this, "runtime ended: crashed: ${crash.reason}")
+                HostEvents.record(this, (if (crash.byAndroid) "runtime ended: stopped by Android: " else "runtime ended: crashed: ") + crash.reason)
                 lastCrash = crash
-                showFailure(getString(R.string.launch_crashed, crash.reason), retry = true)
+                showFailure(CrashWatch.sentence(this, crash), retry = true)
             }
             runtimeCovered -> {
                 HostEvents.record(this, "runtime ended: the game closed")
