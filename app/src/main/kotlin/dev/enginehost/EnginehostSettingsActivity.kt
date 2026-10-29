@@ -139,6 +139,13 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             AppUpdate.installedVersionCode(this),
         )
         findViewById<View>(R.id.appVersionRow).setOnClickListener { checkAppUpdate() }
+        findViewById<SwitchCompat>(R.id.droidtopSuggestSwitch).apply {
+            isChecked = DroidtopOffer.enabled(this@EnginehostSettingsActivity)
+            setOnCheckedChangeListener { _, checked ->
+                DroidtopOffer.setEnabled(this@EnginehostSettingsActivity, checked)
+                showDroidtop()
+            }
+        }
         // Which droidtop-platforms commit the bundled engine registry is, so a
         // classification argument between the two apps can be settled by reading
         // the two snapshots rather than guessing. Only for whoever asks: holding
@@ -171,7 +178,22 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     override fun onResume() {
         super.onResume()
         refresh()
+        showDroidtop()
         endHandOver?.invoke()
+    }
+
+    /** About's droidtop row: Get or Open droidtop, or gone while "Suggest droidtop" is off. */
+    private fun showDroidtop() {
+        val row = findViewById<View>(R.id.droidtopRow)
+        Thread {
+            val offer = DroidtopOffer.offer(applicationContext)
+            runOnUiThread {
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                row.visibility = if (offer == DroidtopOffer.Offer.NONE) View.GONE else View.VISIBLE
+                findViewById<TextView>(R.id.droidtopAction).text = DroidtopOffer.label(this, offer)
+                row.setOnClickListener { DroidtopOffer.act(this, offer) }
+            }
+        }.apply { isDaemon = true }.start()
     }
 
     /** What the Appearance row says the accent is. */

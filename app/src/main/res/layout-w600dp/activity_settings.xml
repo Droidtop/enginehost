@@ -761,6 +761,8 @@
                         android:text="@string/app_update_install"
                         android:visibility="gone" />
 
+                    <include layout="@layout/settings_droidtop" />
+
                 </LinearLayout>
 
             </LinearLayout>

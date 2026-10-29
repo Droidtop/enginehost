@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings > About's droidtop rows, in both Settings layouts (DroidtopOffer, Droidtop/tracker#755). -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <LinearLayout
+        android:id="@+id/droidtopRow"
+        style="@style/Widget.Enginehost.Row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/droidtopAction"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/droidtop_line"
+                android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="@dimen/eh_icon"
+            android:layout_height="@dimen/eh_icon"
+            android:layout_marginStart="@dimen/eh_space_s"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_chevron"
+            android:tint="@color/eh_text_secondary" />
+
+    </LinearLayout>
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/droidtopSuggestSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/eh_row_height"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:text="@string/droidtop_suggest" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="@dimen/eh_space_s"
+        android:text="@string/droidtop_suggest_summary"
+        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+</merge>

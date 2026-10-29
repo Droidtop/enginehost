@@ -698,3 +698,25 @@ only to the local log, marked unsent. What a report holds is docs/stats-schema.m
 - **What went is shown.** Settings > Privacy > What was shared lists every report as it went.
 - **Aggregates need 10 ratings.** Below that, the picker shows nothing for the model.
 - **Waiting on the server (#364):** where the endpoint runs and how long raw reports are kept.
+
+## droidtop, suggested once (decided 2026-10-29, Droidtop/tracker#755)
+
+The owner, 2026-10-29: "Can also cross-advertise droidtop in enginehost". droidtop offers
+Enginehost from its side (#754); Enginehost offers droidtop where it helps, without nagging
+(`DroidtopOffer`).
+
+- **Where:** one line, in two places only. The empty library's first-run steps show it under
+  "Add a folder of games" and "Install a core", and Settings > About has a row for it. The line
+  says what droidtop does for the person ("droidtop keeps every game on this device in one
+  library, these engine games among them, and starts each in the right app"). Its action names
+  the source: "Get droidtop from GitHub" opens droidtop's releases page in the browser.
+  Sources droidtop-platforms lists for droidtop under #754 join it there.
+- **Installed:** when droidtop is installed and signed with its pinned certificate
+  (`DroidtopLink.isInstalled`, the check droidtop's calls already pass), the action is "Open
+  droidtop" and opens it. An app that only took droidtop's package name gets "Get" instead.
+  Both screens check again whenever they come to the front.
+- **Never** a pop-up, never at launch, never during a game.
+- **For good:** Settings > About's "Suggest droidtop" switch, on until turned off, removes the
+  line from both places. While it is off nothing runs for it, not even the check for droidtop
+  (DESIGN-LANGUAGE.md: a disabled feature runs no code), and turning it back on is the only way
+  it returns.

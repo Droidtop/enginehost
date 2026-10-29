@@ -383,6 +383,11 @@
     <string name="stats_dont_share">Don\'t share</string>
     <string name="stats_share">Share</string>
     <string name="settings_about">About</string>
+    <string name="droidtop_line">droidtop keeps every game on this device in one library, these engine games among them, and starts each in the right app.</string>
+    <string name="droidtop_get">Get droidtop from GitHub</string>
+    <string name="droidtop_open">Open droidtop</string>
+    <string name="droidtop_suggest">Suggest droidtop</string>
+    <string name="droidtop_suggest_summary">A line here and on the empty library. Off: it is not shown again.</string>
     <string name="stream_stable_desc">Stable · played on real games</string>
     <string name="stream_testing_desc">Testing · runs games, still being lived with</string>
     <string name="stream_unstable_desc">Unstable · every green build</string>

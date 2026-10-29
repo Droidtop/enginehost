@@ -181,6 +181,24 @@
                         android:text="@string/install_a_core"
                         android:visibility="gone" />
 
+                    <!-- droidtop, suggested once (DroidtopOffer, Droidtop/tracker#755). -->
+                    <TextView
+                        android:id="@+id/emptyDroidtopLine"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/eh_space_l"
+                        android:text="@string/droidtop_line"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Caption"
+                        android:visibility="gone" />
+
+                    <Button
+                        android:id="@+id/emptyDroidtopButton"
+                        style="@style/Widget.Enginehost.Button.Nav"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/eh_space_s"
+                        android:visibility="gone" />
+
                 </LinearLayout>
 
             </LinearLayout>

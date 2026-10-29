@@ -225,10 +225,13 @@ object DroidtopLink {
 
     /** Whether [uid] is droidtop: its package, signed with a pinned certificate. */
     fun isDroidtop(context: Context, uid: Int): Boolean {
-        val pm = context.packageManager
-        val packages = pm.getPackagesForUid(uid) ?: return false
-        if (DROIDTOP_PACKAGE !in packages) return false
-        val signers = signerDigests(pm, DROIDTOP_PACKAGE)
+        val packages = context.packageManager.getPackagesForUid(uid) ?: return false
+        return DROIDTOP_PACKAGE in packages && isInstalled(context)
+    }
+
+    /** Whether droidtop's package is installed and signed with a pinned certificate: an app that only took its name is not. */
+    fun isInstalled(context: Context): Boolean {
+        val signers = signerDigests(context.packageManager, DROIDTOP_PACKAGE)
         return signers.isNotEmpty() && signers.all { it in DROIDTOP_CERTS }
     }
 

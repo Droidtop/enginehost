@@ -281,13 +281,18 @@ class MainActivity : EnginehostActivity() {
         val firstRun = browser.total == 0
         findViewById<View>(R.id.emptyActions).visibility = if (firstRun) View.VISIBLE else View.GONE
         val coresLine = findViewById<TextView>(R.id.emptyCoresLine)
+        val droidtopLine = findViewById<View>(R.id.emptyDroidtopLine)
+        val droidtopButton = findViewById<Button>(R.id.emptyDroidtopButton)
         if (!firstRun) {
             coresLine.visibility = View.GONE
             findViewById<View>(R.id.emptyInstallCoreButton).visibility = View.GONE
+            droidtopLine.visibility = View.GONE
+            droidtopButton.visibility = View.GONE
             return
         }
         Thread {
             val cores = runCatching { PluginRegistry.discover(applicationContext).size }.getOrDefault(0)
+            val offer = DroidtopOffer.offer(applicationContext)
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 coresLine.visibility = View.VISIBLE
@@ -297,6 +302,11 @@ class MainActivity : EnginehostActivity() {
                     resources.getQuantityString(R.plurals.empty_cores_installed, cores, cores)
                 }
                 findViewById<View>(R.id.emptyInstallCoreButton).visibility = if (cores == 0) View.VISIBLE else View.GONE
+                val offered = offer != DroidtopOffer.Offer.NONE
+                droidtopLine.visibility = if (offered) View.VISIBLE else View.GONE
+                droidtopButton.visibility = if (offered) View.VISIBLE else View.GONE
+                droidtopButton.text = DroidtopOffer.label(this, offer)
+                droidtopButton.setOnClickListener { DroidtopOffer.act(this, offer) }
             }
         }.apply { isDaemon = true }.start()
     }
