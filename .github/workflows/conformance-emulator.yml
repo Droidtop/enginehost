@@ -49,8 +49,8 @@ jobs:
         run: ./gradlew :app:assembleDebug --stacktrace
 
       # Each family's rolling unstable core: the build its users get next. One core per family
-      # that has a test game in this repository (Ren'Py's needs the SDK's runtime beside it, and
-      # waits for that).
+      # whose test game in this repository runs as it is (Ren'Py's needs the SDK's runtime beside
+      # it, Godot's needs exporting to a .pck; both wait for that).
       - name: Fetch the cores
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,7 +59,6 @@ jobs:
           while read -r repo tag; do
             gh release download "$tag" -R "Droidtop/$repo" -p '*.enginehost.tar.xz' -D cores
           done <<'EOF'
-          enginehost-godot-plugin godot-v40-v1-unstable
           enginehost-html-plugin html-v1-unstable
           enginehost-love2d-plugin love2d-11-v1-unstable
           enginehost-nscripter-plugin nscripter-onsyuri-v1-unstable

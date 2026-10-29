@@ -48,7 +48,7 @@ done
 
 # The test games, where the harness's games file says.
 adb shell mkdir -p "$games_root"
-for family in godot html love2d nscripter; do
+for family in html love2d nscripter; do
     adb push "$repo/test-games/$family" "$games_root/" >/dev/null
 done
 
@@ -61,6 +61,8 @@ python3 "$here/core_harness.py" --games "$here/conformance-games.json" --out "$o
 cat "$out/report.md" || true
 for game in "$out"/*/; do
     echo "=== $(basename "$game")"
+    # How much the screen changed idle and after input: the input check's two numbers.
+    [ -f "$game/result.json" ] && python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("input change:", r.get("input_change"))' "$game/result.json"
     [ -f "$game/host-events.txt" ] && tail -n 25 "$game/host-events.txt"
     [ -f "$game/screen-ui.xml" ] && { echo "--- on screen:"; grep -o 'text="[^"]\+"' "$game/screen-ui.xml" | head -n 25; }
     [ -f "$game/crash.txt" ] && head -n 40 "$game/crash.txt"

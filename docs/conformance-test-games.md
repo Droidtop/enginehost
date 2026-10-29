@@ -58,12 +58,15 @@ the core's own releases. It boots an x86_64 API 34 emulator with software GL, an
 Its report is the run's summary, and the screenshots, logcat and per-game results are the run's
 `conformance-emulator` artifact.
 
-It runs only the games written for it, in this repository: godot (the 4.0 line), html, love2d
-and nscripter. Cores that have no sandbox yet (godot, html) run anyway, with the harness's
+It runs only the games written for it, in this repository: html, love2d and nscripter. Cores that have no sandbox yet (html, love2d) run anyway, with the harness's
 `--run-unsandboxed`: the games are ours, and the report names each game that ran that way. The
 nscripter game is text only, so it has no `.nsa` archive, and the registry, which needs one beside
 `0.txt`, would not take it for NScripter. It carries its own `enginehost.json` instead, as a game
-folder may. Ren'Py's needs the SDK's runtime beside `game/`, and is not wired yet. Games
+folder may. Two are not wired yet. Ren'Py's needs the SDK's runtime beside `game/`. Godot's is an unexported
+project, and the Godot core runs only an exported game: the first run refused it with
+`"project.godot" is not a Godot game: it is neither a .pck nor an export with a pack inside it`.
+It needs a `.pck` export step (a Godot 4.0 build with an export preset) in the workflow; the
+"godot" notes below, which say the tree runs unexported, are wrong on that point. Games
 from the owner's library are tested on the rig, never in the cloud (docs/core-harness.md). An
 emulator with software GL is not a device: a pass here means the core starts, draws, answers
 input and keeps running, not that it plays well on the rig.
