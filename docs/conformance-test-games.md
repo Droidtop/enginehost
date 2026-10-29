@@ -60,7 +60,7 @@ the Google APIs image), and runs
 Its report is the run's summary, and the screenshots, logcat and per-game results are the run's
 `conformance-emulator` artifact.
 
-It runs only the games written for it, in this repository: html, love2d, nscripter and godot. Cores that have no sandbox yet (html, love2d, godot) run anyway, with the harness's
+It runs only the games written for it, in this repository: html, love2d, nscripter and godot. Cores that have no sandbox yet (html, love2d) run anyway, with the harness's
 `--run-unsandboxed`: the games are ours, and the report names each game that ran that way. The
 nscripter game is text only, so it has no `.nsa` archive, and the registry, which needs one beside
 `0.txt`, would not take it for NScripter. It carries its own `enginehost.json` instead, as a game
@@ -157,7 +157,10 @@ exercises in its own header. Assembly notes:
   `--export-pack pack`) using a pinned Godot 4.4.1 editor and plays the
   `.pck` on the 4.4 line; the pack plays on any 4.x line from 4.4 on.
   A key press or a touch flips the phase and grows a white bar that never
-  shrinks: the harness's four keys alone would flip it back. Script and scene
+  shrinks: the harness's four keys alone would flip it back.
+  `project.godot` names the compatibility renderer for Android too
+  (`rendering_method.mobile`): Android reads that override, which
+  otherwise picks Vulkan. Script and scene
   syntax stick to 4.0 APIs so nothing here rules out the older lines.
   The save is a `user://` JSON file, read back in `_ready`, so the
   relaunch step proves the save survived. Uses the compatibility

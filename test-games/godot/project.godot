@@ -17,5 +17,9 @@ config/features=PackedStringArray("4.0")
 [rendering]
 
 ; The compatibility renderer (GLES3) keeps the fixture off Vulkan, which
-; some emulators and older GPUs do not provide.
+; some emulators and older GPUs do not provide. Android reads the .mobile
+; override, which defaults to the Vulkan "mobile" renderer: without it the
+; emulator run of 2026-10-29 rendered with Vulkan and every frame failed to
+; present ("QueuePresentKHR failed with error: 5").
 renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
