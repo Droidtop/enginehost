@@ -14,6 +14,9 @@ section when a real version is cut.
 
 ### Added
 
+- The launch contract with droidtop (the actions, extras and `enginehost.json` keys) is held once, in the shared
+  library's `:launch-contract`, and the manifest and docs/contract.md are checked against it; every string is
+  unchanged, so released builds of both apps interoperate (Droidtop/tracker#204).
 - Read text aloud (Settings, Reading and translation): a game's lines in the device's own voices,
   one per character, stopping when you move on. It works with cores that report their text, which
   is CatSystem2 so far; Enginehost now takes the lines, speakers and menus a core reports in one

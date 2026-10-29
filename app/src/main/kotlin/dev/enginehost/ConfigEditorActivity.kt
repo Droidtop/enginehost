@@ -1,5 +1,6 @@
 package dev.enginehost
 
+import dev.droidtop.shared.launchcontract.EnginehostIntents
 import dev.droidtop.shared.version.Version
 import dev.droidtop.shared.version.VersionConstraint
 import android.content.Intent
@@ -962,9 +963,9 @@ class ConfigEditorActivity : EnginehostActivity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
-        const val ACTION_CONFIGURE = "dev.enginehost.CONFIGURE"
-        const val EXTRA_PATH = "path"
-        const val EXTRA_CONFIG = "config"
+        const val ACTION_CONFIGURE = EnginehostIntents.ACTION_CONFIGURE
+        const val EXTRA_PATH = EnginehostIntents.EXTRA_PATH
+        const val EXTRA_CONFIG = EnginehostIntents.EXTRA_CONFIG
         private const val REQUEST_FOLDER = 20
         private const val REQUEST_NATIVE_FILES = 21
         private const val REQUEST_PLUGIN_SELECTION = 22

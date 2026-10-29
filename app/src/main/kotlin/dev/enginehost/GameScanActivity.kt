@@ -8,6 +8,7 @@ import android.widget.EditText
 import android.widget.GridView
 import android.widget.TextView
 import android.widget.Toast
+import dev.droidtop.shared.launchcontract.EnginehostIntents
 import java.io.File
 
 /**
@@ -267,8 +268,8 @@ class GameScanActivity : EnginehostActivity() {
     }
 
     companion object {
-        const val ACTION_SCAN = "dev.enginehost.SCAN"
-        const val EXTRA_PATH = "path"
+        const val ACTION_SCAN = EnginehostIntents.ACTION_SCAN
+        const val EXTRA_PATH = EnginehostIntents.EXTRA_PATH
         private const val REQUEST_SCAN_FOLDER = 40
         private const val REQUEST_NATIVE_FILES = 41
     }

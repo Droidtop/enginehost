@@ -1,5 +1,6 @@
 package dev.enginehost
 
+import dev.droidtop.shared.launchcontract.EnginehostIntents
 import dev.droidtop.shared.version.Version
 import dev.droidtop.shared.version.VersionSeries
 import android.content.ContentProvider
@@ -89,8 +90,8 @@ class CapabilityProvider : ContentProvider() {
     private fun <T> readOnly(): T = throw UnsupportedOperationException("Enginehost capabilities are read-only")
 
     companion object {
-        const val AUTHORITY = "dev.enginehost.capabilities"
-        const val PATH = "installed"
+        const val AUTHORITY = EnginehostIntents.CAPABILITIES_AUTHORITY
+        const val PATH = EnginehostIntents.CAPABILITIES_INSTALLED_PATH
         const val METHOD_STATE = "state"
         const val STATE_TASKS = "tasks"
         const val STATE_RUNTIME = "runtime"

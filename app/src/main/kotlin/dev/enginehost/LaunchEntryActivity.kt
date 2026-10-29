@@ -3,6 +3,7 @@ package dev.enginehost
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import dev.droidtop.shared.launchcontract.EnginehostIntents
 import java.io.File
 
 /**
@@ -74,21 +75,21 @@ class LaunchEntryActivity : Activity() {
     private fun caller(): LaunchCaller = LaunchCaller.of(this)
 
     companion object {
-        const val ACTION_END_GAME = "dev.enginehost.END_GAME"
-        const val EXTRA_ENDED = "ended"
+        const val ACTION_END_GAME = EnginehostIntents.ACTION_END_GAME
+        const val EXTRA_ENDED = EnginehostIntents.EXTRA_ENDED
 
         /** Sent to the launching app's package when its game ends (docs/contract.md, Droidtop/tracker#580). */
-        const val ACTION_GAME_ENDED = "dev.enginehost.GAME_ENDED"
-        const val EXTRA_GAME_PATH = "path"
-        const val EXTRA_SAVE_FOLDER = "saveFolder"
-        const val EXTRA_REASON = "reason"
+        const val ACTION_GAME_ENDED = EnginehostIntents.ACTION_GAME_ENDED
+        const val EXTRA_GAME_PATH = EnginehostIntents.EXTRA_PATH
+        const val EXTRA_SAVE_FOLDER = EnginehostIntents.EXTRA_SAVE_FOLDER
+        const val EXTRA_REASON = EnginehostIntents.EXTRA_REASON
 
         /** On a launch flagged savesSynced whose saveRoot was not taken: why (SaveRoot's reasons). */
-        const val EXTRA_SAVE_ROOT_REFUSED = "saveRootRefused"
-        const val EXTRA_ERROR = "error"
+        const val EXTRA_SAVE_ROOT_REFUSED = EnginehostIntents.EXTRA_SAVE_ROOT_REFUSED
+        const val EXTRA_ERROR = EnginehostIntents.EXTRA_ERROR
 
         /** On dev.enginehost.LAUNCH: the caller's accent, "#RRGGBB", for the screens of the session it starts. */
-        const val EXTRA_ACCENT = "accent"
-        const val ERROR_UNTRUSTED_CALLER = "untrusted_caller"
+        const val EXTRA_ACCENT = EnginehostIntents.EXTRA_ACCENT
+        const val ERROR_UNTRUSTED_CALLER = EnginehostIntents.ERROR_UNTRUSTED_CALLER
     }
 }

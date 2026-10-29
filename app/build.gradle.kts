@@ -81,6 +81,8 @@ android {
     // (docs/engine-bundle-format.md "Shared trust code").
     sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/version/src/main/kotlin")
     sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/trust/src/main/kotlin")
+    // The names droidtop and Enginehost agree on to start each other (docs/contract.md, Droidtop/tracker#204).
+    sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/launch-contract/src/main/kotlin")
 }
 
 // --- The bundled engine registry is a SNAPSHOT of droidtop-platforms -----

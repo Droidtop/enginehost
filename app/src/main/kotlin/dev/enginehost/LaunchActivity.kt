@@ -13,6 +13,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import dev.droidtop.shared.launchcontract.EnginehostIntents
 import java.io.File
 
 /**
@@ -684,11 +685,11 @@ class LaunchActivity : EnginehostActivity() {
         private const val STATE_STARTED = "started"
         private const val STATE_SAVES_IN = "savesIn"
         private const val STATE_SAVE_ROOT_REFUSED = "saveRootRefused"
-        private const val GAME_ENDED_EXITED = "exited"
-        private const val GAME_ENDED_CRASHED = "crashed"
-        const val EXTRA_PATH = "path"
-        const val EXTRA_CONFIG = "config"
-        const val EXTRA_AUTOINSTALL = "autoinstallPlugin"
+        private const val GAME_ENDED_EXITED = EnginehostIntents.REASON_EXITED
+        private const val GAME_ENDED_CRASHED = EnginehostIntents.REASON_CRASHED
+        const val EXTRA_PATH = EnginehostIntents.EXTRA_PATH
+        const val EXTRA_CONFIG = EnginehostIntents.EXTRA_CONFIG
+        const val EXTRA_AUTOINSTALL = EnginehostIntents.EXTRA_AUTOINSTALL_PLUGIN
         /** Game setup's Test: run the pending testing configuration. Not part of the LAUNCH contract. */
         const val EXTRA_TESTING = "dev.enginehost.launch.TESTING"
         /** Set only by this app's own code (LaunchEntryActivity, GameRunner.run) for a non-droidtop caller; never part of the LAUNCH contract a caller can set. */

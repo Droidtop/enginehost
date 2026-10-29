@@ -35,6 +35,10 @@ Enginehost's responsibility.
 
 ## The contract
 
+The names below (the actions, the extras, the `enginehost.json` keys) are held once, in `Droidtop/droidtop-shared`'s
+`:launch-contract` (pinned as `vendor/droidtop-shared`, compiled in as source), and used by droidtop and by this app's code;
+`LaunchContractTest` checks the manifest and this page against them, so a rename fails a test instead of a launch.
+
 Fire an Intent:
 
 ```
