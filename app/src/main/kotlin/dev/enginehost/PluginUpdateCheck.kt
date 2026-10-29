@@ -59,6 +59,15 @@ class PluginUpdateCheck(private val context: Context) {
         return PluginUpdates.updatesFor(installed, available).values.toList()
     }
 
+    /** What reinstalls each core signed only the old way, from the cached catalogs ([PluginUpdates.replacementsFor]). */
+    fun replacements(installed: List<InstalledPlugin>): Map<String, AvailablePlugin> {
+        val legacy = installed.filter { it.legacySigned }
+        if (legacy.isEmpty()) return emptyMap()
+        val origins = legacy.map { it.origin }.filter(String::isNotBlank).distinct()
+        val available = PluginCatalogCache(context).loadAll(origins).filter { it.stream.offeredTo(stream) }
+        return PluginUpdates.replacementsFor(legacy, available)
+    }
+
     /**
      * Runs the pass if it is enabled, due, and allowed on the current
      * network, then reports the updates still pending (after any automatic

@@ -88,11 +88,13 @@ class PluginTrustActivity : EnginehostActivity() {
         val state: PluginTrustState,
         val change: TrustChange?,
         val legacyRefused: Boolean,
+        /** For a [legacyRefused] build, the catalog build that replaces it, or null when the catalog has none. */
+        val reinstall: AvailablePlugin?,
         /** The licence text a bundle carries, or null when it has none or it cannot be read. */
         val licenseText: String?,
     )
 
-    private fun factsOf(plugin: InstalledPlugin): CardFacts {
+    private fun factsOf(plugin: InstalledPlugin, replacements: Map<String, AvailablePlugin>): CardFacts {
         val ultimateBuild = trust.isDeveloperDebug(plugin)
         val official = !ultimateBuild && trust.isOfficial(plugin)
         return CardFacts(
@@ -104,6 +106,7 @@ class PluginTrustActivity : EnginehostActivity() {
             change = trust.changeSinceApproval(plugin),
             // A core signed only the legacy way never starts.
             legacyRefused = plugin.legacySigned,
+            reinstall = replacements[plugin.directory.path],
             licenseText = plugin.license?.let { license ->
                 runCatching {
                     java.io.File(plugin.directory, license.file).also {
@@ -128,14 +131,16 @@ class PluginTrustActivity : EnginehostActivity() {
                 // One card per installed build: several builds of a line can sit side
                 // by side, each approved, denied and removed on its own. A line's
                 // builds stay together, newest first.
-                PluginRegistry.discoverAll(this)
+                val installed = PluginRegistry.discoverAll(this)
                     .filter { requestedPackage == null || it.bundleId == requestedPackage }
                     .sortedWith(
                         compareBy<InstalledPlugin>({ it.info.engine }, { it.bundleId })
                             .thenByDescending { it.info.pluginVersion }
                             .thenBy { it.archiveSha256 },
                     )
-                    .map(::factsOf)
+                // A core with an old signature gets one press that fixes it (Droidtop/tracker#774).
+                val replacements = runCatching { PluginUpdateCheck(this).replacements(installed) }.getOrDefault(emptyMap())
+                installed.map { factsOf(it, replacements) }
             }.getOrDefault(emptyList())
         }) { cards ->
             if (generation == listGeneration) showPlugins(cards, requestedPackage)
@@ -284,6 +289,7 @@ class PluginTrustActivity : EnginehostActivity() {
         // A state line only when it is not the normal one: an approved core says nothing about it (#620 E5).
         card.findViewById<TextView>(R.id.trustState).apply {
             val line = when {
+                legacyRefused && facts.reinstall != null -> getString(R.string.trust_state_legacy_reinstall)
                 legacyRefused -> getString(R.string.trust_state_legacy)
                 state == PluginTrustState.APPROVED -> null
                 else -> getString(stateLabel(state, change))
@@ -301,6 +307,14 @@ class PluginTrustActivity : EnginehostActivity() {
 
         // Only the buttons that apply: Approve while the build waits; Deny is in Details; Remove always.
         card.findViewById<Button>(R.id.approveButton).apply {
+            val replacement = facts.reinstall
+            if (legacyRefused && replacement != null) {
+                // The one press for a core that will not start: the catalog's build in its place.
+                setText(R.string.reinstall)
+                visibility = View.VISIBLE
+                setOnClickListener { reinstall(plugin, replacement, this) }
+                return@apply
+            }
             // Approving a bundle that carries its own licence is accepting it.
             if (plugin.license != null) setText(R.string.approve_accept_license)
             visibility = if (!legacyRefused && state != PluginTrustState.APPROVED && plugin.signerIdentity.isNotBlank()) View.VISIBLE else View.GONE
@@ -324,6 +338,33 @@ class PluginTrustActivity : EnginehostActivity() {
                 render()
             }
         }
+    }
+
+    /**
+     * Puts the catalog's build in place of [plugin], one signed the old way: installed first, and
+     * the old build removed after, so a failed download leaves what was there. The same build
+     * re-signed replaces the old copy as part of the install; a newer one sits beside it until the
+     * old one is removed here.
+     */
+    private fun reinstall(plugin: InstalledPlugin, replacement: AvailablePlugin, button: Button) {
+        if (updating) return
+        UnsandboxedWarning.beforeInstall(this, listOf(replacement), proceed = {
+            updating = true
+            button.isEnabled = false
+            button.setText(R.string.reinstalling)
+            Async.load(this, work = {
+                runCatching {
+                    PluginInstaller.installQuietly(this, replacement)
+                    PluginRegistry.uninstall(this, plugin)
+                }
+            }) { result ->
+                updating = false
+                result.exceptionOrNull()?.let {
+                    Toast.makeText(this, ErrorText.of(this, it, R.string.core_install_failed), Toast.LENGTH_LONG).show()
+                }
+                render()
+            }
+        }, cancel = {})
     }
 
     private fun remove(plugin: InstalledPlugin, button: View) {

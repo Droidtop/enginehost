@@ -57,4 +57,20 @@ object PluginUpdates {
             .maxByOrNull { it.info.pluginVersion }
             ?.let { plugin.bundleId to it }
     }.toMap()
+
+    /**
+     * The catalog build that replaces each installed build signed only the old way, keyed by that
+     * build's directory: its line's newest build this API runs, whatever its version. It may be
+     * the same build re-signed, which is no update but is what lets the core start again
+     * (Droidtop/tracker#774).
+     */
+    fun replacementsFor(
+        installed: List<InstalledPlugin>,
+        available: List<AvailablePlugin>,
+    ): Map<String, AvailablePlugin> = installed.filter { it.legacySigned }.mapNotNull { plugin ->
+        available
+            .filter { it.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION && it.bundleId == plugin.bundleId }
+            .maxByOrNull { it.info.pluginVersion }
+            ?.let { plugin.directory.path to it }
+    }.toMap()
 }

@@ -189,6 +189,9 @@
     <string name="close">Close</string>
     <string name="older_builds_show">Older builds (%1$d)</string>
     <string name="older_builds_hide">Hide older builds (%1$d)</string>
+    <string name="trust_state_legacy_reinstall">Installed with an old signature that Enginehost no longer accepts, so it will not start. Reinstall puts the current build in its place.</string>
+    <string name="reinstall">Reinstall</string>
+    <string name="reinstalling">Reinstalling…</string>
     <string name="trust_state_legacy_short">Old signature, will not start</string>
     <string name="uninstall">Uninstall</string>
 

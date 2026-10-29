@@ -777,8 +777,12 @@ signing root, so the legacy path was already unreachable there. `LegacyBundleSig
 root-certified repository key documents and the developer's key went with it (code quality
 review, #768).
 - A bundle or catalog entry that carries only the legacy signature is refused, and is not offered.
-- A core installed with it does not start: its card offers Remove alone, and the launch says to
-  remove it and install it again.
+- A core installed with it does not start, and the launch says to remove it and install it again.
+  Its card on Cores offers **Reinstall** when the cached catalogs hold a build of its line (its
+  newest, the same version re-signed included). Reinstall installs that build first and then
+  removes the old one, so a failed download leaves what was there. With no such build the card
+  offers Remove alone (Droidtop/tracker#774: every core on the AVD said "old signature" with no
+  way forward).
 - A `.sig` beside a JWS, and a manifest's `signing` block, are passed over.
 
 What a repository a person added is verified to is unchanged: the key they pinned for it.

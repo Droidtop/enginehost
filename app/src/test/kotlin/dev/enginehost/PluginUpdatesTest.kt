@@ -147,4 +147,26 @@ class PluginUpdatesTest {
             ).isEmpty(),
         )
     }
+
+    @Test
+    fun `a core with only the old signature is replaced by its line's newest build, the same version included`() {
+        // Droidtop/tracker#774: the AVD's cores, installed with the old signature, need one press that fixes them.
+        val legacy = installed(pluginVersion = "2").copy(directory = java.io.File("/bundles/renpy-legacy"))
+        val replacements = PluginUpdates.replacementsFor(
+            listOf(legacy),
+            listOf(available(manifest(pluginVersion = "2")), available(manifest(pluginVersion = "1"))),
+        )
+        assertEquals("2", replacements.getValue("/bundles/renpy-legacy").info.pluginVersion.toString())
+    }
+
+    @Test
+    fun `a v1-signed core needs no replacement, and another line is never one`() {
+        val signed = installed().copy(
+            signer = BundleSigner("AB".repeat(32), SignerKind.OFFICIAL, format = 1, anchorKeySha256 = "AB".repeat(32)),
+        )
+        assertTrue(PluginUpdates.replacementsFor(listOf(signed), listOf(available(manifest(pluginVersion = "3")))).isEmpty())
+        assertTrue(
+            PluginUpdates.replacementsFor(listOf(installed()), listOf(available(manifest(bundleId = "dev.enginehost.renpy.8_5.v1")))).isEmpty(),
+        )
+    }
 }
