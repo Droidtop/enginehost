@@ -157,7 +157,9 @@ exercises in its own header. Assembly notes:
   series. `t.identity` fixes the save directory name under the save root.
   Any key, mouse button or touch flips the phase **and writes the save**,
   so the harness's single `KEYCODE_ENTER`/`BUTTON_A` event both changes
-  the frame and creates the save; the relaunch then reads it back.
+  the frame and creates the save; the relaunch then reads it back. Each
+  input also grows a white bar that never shrinks: flips can cancel out
+  (one touch is a mouse press and a touch press), the bar cannot.
 - **html** — `test-games/html/index.html` is shaped like a compiled Twine
   2 story (`tw-storydata` with `tw-passagedata` passages), which is what
   the core's `compiled-html` context runs, but its runtime is a minimal
