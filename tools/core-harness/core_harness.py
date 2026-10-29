@@ -115,6 +115,17 @@ def changed_fraction(a, b, threshold=12):
     return sum(1 for x, y in zip(a, b) if distance(x, y) > threshold) / len(a)
 
 
+# How long the input check waits for the screen to settle before it measures anyway.
+SETTLE_SECONDS = 60
+
+
+def settled(before, after):
+    """Whether a game's screen is ready for input: more than one colour, and less than 2% of it
+    changed over the 3 s between [before] and [after] (an animated game's own motion is less:
+    0.009 for the LÖVE test game's moving square)."""
+    return not is_flat(after) and changed_fraction(before, after) < 0.02
+
+
 def first_frame_shown(events, picture):
     """Whether the game has drawn: Enginehost's [FIRST_FRAME] event once it is watching the
     game's screen ([SCREEN_WATCHED]), else [picture], a screenshot of more than one colour.
@@ -312,10 +323,18 @@ def run_game(device, engine, folder, steps, out_dir, args):
         shot("no-first-frame")
 
     if first is not None:
-        # Input: the screen moves with input more than it does by itself.
-        quiet_a = shot("input-before")
-        time.sleep(3)
-        quiet_b = shot("input-idle")
+        # Input: the screen moves with input more than it does by itself, measured once the
+        # screen has settled: a picture that holds still for 3 s. An engine's own start-up
+        # (Ren'Py's presplash, then black while it loads) is neither, and input sent into it
+        # is lost (emulator run 40889525212: Ren'Py changed 1.0 of the screen "idle").
+        deadline = time.time() + SETTLE_SECONDS
+        while True:
+            quiet_a = shot("input-before")
+            time.sleep(3)
+            quiet_b = shot("input-idle")
+            if time.time() > deadline or (quiet_a and quiet_b and settled(sample(*quiet_a), sample(*quiet_b))):
+                break
+        result["settled_seconds"] = round(time.time() - started, 1)
         for key in steps.get("input_keys", ["KEYCODE_BUTTON_A", "KEYCODE_ENTER", "KEYCODE_DPAD_DOWN", "KEYCODE_BUTTON_A"]):
             device.key(key)
             time.sleep(0.5)

@@ -48,6 +48,14 @@ class FrameTest(unittest.TestCase):
         self.assertEqual(0.0, h.changed_fraction([grey, white], [grey, white]))
         self.assertEqual(0.5, h.changed_fraction([grey, grey], [grey, white]))
 
+    def test_a_screen_has_settled_when_it_holds_still_and_is_not_one_colour(self):
+        black = [(0, 0, 0)] * 100
+        menu = [(32, 32, 32)] * 90 + [(255, 255, 255)] * 10
+        splash = [(200, 200, 200)] * 100
+        self.assertFalse(h.settled(black, black))
+        self.assertTrue(h.settled(menu, menu))
+        self.assertFalse(h.settled(splash, menu))
+
     def test_a_watched_game_has_drawn_only_when_enginehost_says_so(self):
         watched = "I enginehost-events: watching the game's screen\n"
         drew = watched + "I enginehost-events: the game drew its first frame\n"
