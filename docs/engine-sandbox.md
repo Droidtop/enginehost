@@ -234,8 +234,9 @@ of `java.io.File`.
 
 **WebView inside an isolated service (HTML, MV/MZ).** Both web-hosted
 cores already read the game folder through one seam rather than scattered
-`fopen`s: the HTML core's `GameServer.shouldInterceptRequest`
-(`enginehost-html-plugin/app/src/main/java/dev/enginehost/plugin/html/GameServer.java`)
+`fopen`s: `GameServer.respond`, called from `shouldInterceptRequest`
+(this repository's `plugin-web/src/main/java/dev/enginehost/web/GameServer.java`, which
+both cores compile in)
 answers every resource request itself from `File`/`FileInputStream`
 against the game folder, serving the game as `https://game.enginehost.local`
 so `fetch`, Range requests and module scripts behave like a real origin;
@@ -2726,7 +2727,7 @@ gate CatSystem2's own `isolatable: true` waited on.
    audit item above being resolved on-device (does a `WebView` construct
    and render inside `isolated_app`/`isolated_app_locked` at all, and does
    `setDataDirectorySuffix` plus a broker-backed scratch directory make it
-   work). Their file-access seam (`GameServer.shouldInterceptRequest`,
+   work). Their file-access seam (`plugin-web`'s `GameServer.respond`,
    `LocalStorageBridge`) is already broker-ready; only the WebView-in-isolation
    question is open.
 5. **Flash/AIR (`enginehost-flash-air-plugin`)** -- same web-hosted shape

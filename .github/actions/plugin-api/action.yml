@@ -1,12 +1,12 @@
 name: Enginehost plugin API
 description: >-
-  Checks out Enginehost's plugin API (plugin-api/) at the commit this action is pinned to, for a
-  plugin to compile against. The one copy of the API every plugin builds with (Droidtop/tracker#768):
-  a plugin repository pins this action by commit, as it pins the signing workflow, and commits no
-  copy of the API of its own.
+  Checks out Enginehost's plugin API (plugin-api/) and its web game host (plugin-web/) at the commit
+  this action is pinned to, for a plugin to compile against. The one copy of each every plugin builds
+  with (Droidtop/tracker#768): a plugin repository pins this action by commit, as it pins the signing
+  workflow, and commits no copy of its own. A web core compiles plugin-web/ into its own dex.
 inputs:
   path:
-    description: Where the plugin-api folder goes, relative to the workspace.
+    description: Where the plugin-api and plugin-web folders go, relative to the workspace.
     default: build/enginehost
 runs:
   using: composite
@@ -24,8 +24,14 @@ runs:
         # The API and the action always match.
         ref: ${{ steps.pin.outputs.ref }}
         path: ${{ inputs.path }}
-        sparse-checkout: plugin-api
+        sparse-checkout: |
+          plugin-api
+          plugin-web
         sparse-checkout-cone-mode: true
         persist-credentials: false
     - shell: bash
-      run: test -f "${{ inputs.path }}/plugin-api/src/main/java/dev/enginehost/api/EnginePlugin.java"
+      env:
+        CHECKOUT: ${{ inputs.path }}
+      run: |
+        test -f "$CHECKOUT/plugin-api/src/main/java/dev/enginehost/api/EnginePlugin.java"
+        test -f "$CHECKOUT/plugin-web/src/main/java/dev/enginehost/web/GameServer.java"

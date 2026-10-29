@@ -490,7 +490,12 @@ The entrypoint implements the Java interface in the publishable `plugin-api`
 module (cores depend on it as `compileOnly`). A core compiles against this repository's
 `plugin-api/` itself, checked out by the `.github/actions/plugin-api` action pinned by commit, as
 the signing workflow is; it commits no copy of the API of its own (Droidtop/tracker#768: ten cores
-carried hand copies, all out of date). It receives a host-owned render
+carried hand copies, all out of date). A web core (HTML, RPG Maker MV/MZ) also compiles in
+`plugin-web/`, checked out by the same action: `GameWebView` sets up the confined WebView,
+`GameServer` serves the game folder as a private https origin, and `LocalStorageBridge` keeps
+`localStorage` in the save folder. The core supplies only its engine check, its input and a
+`GameServer.Site` (entry pages, a stand-in for a missing file, any extra page script); the two cores
+had each carried their own copy, and the copies had drifted apart. It receives a host-owned render
 container, lifecycle callbacks, the game path, engine/context/requested and
 selected runtime versions, capability ID, runtime requirements, executable,
 raw options JSON, save/cache directories, logging/finish services, and an

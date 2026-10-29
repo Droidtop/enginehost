@@ -74,7 +74,7 @@ jobs:
           VERSION_REVISION: ${{ github.run_number }}
         run: |
           set -o pipefail
-          ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:assembleDebug --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+          ./gradlew :app:testDebugUnitTest :plugin-web:testDebugUnitTest :app:assembleRelease :app:assembleDebug --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle.log"
 
       # The compiler and test errors as one annotation, which the checks API
       # serves to anyone who can read the run, where the full log needs a
