@@ -61,9 +61,11 @@ is a starting point.
 
 ## Running it
 
-One-time device setup: in Enginehost, Settings > App launch access, allow
-"An unrecognized caller (e.g. adb)". adb has no package name for Enginehost to
-show, so its launches fall in that one bucket.
+One-time device setup: in Enginehost, Settings > App launch access, allow adb.
+Where Android names the caller, adb's launches come from `com.android.shell`
+(the API 34 emulator does: "launch requested by com.android.shell"); where it
+does not, they fall in "An unrecognized caller (e.g. adb)". Allow whichever the
+first launch asks about.
 
 ```sh
 # BlueStacks, from the droidtop-dev distro
