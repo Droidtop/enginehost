@@ -59,7 +59,11 @@ Its report is the run's summary, and the screenshots, logcat and per-game result
 `conformance-emulator` artifact.
 
 It runs only the games written for it, in this repository: godot (the 4.0 line), html, love2d
-and nscripter. Ren'Py's needs the SDK's runtime beside `game/`, and is not wired yet. Games
+and nscripter. Cores that have no sandbox yet (godot, html) run anyway, with the harness's
+`--run-unsandboxed`: the games are ours, and the report names each game that ran that way. The
+nscripter game is text only, so it has no `.nsa` archive, and the registry, which needs one beside
+`0.txt`, would not take it for NScripter. It carries its own `enginehost.json` instead, as a game
+folder may. Ren'Py's needs the SDK's runtime beside `game/`, and is not wired yet. Games
 from the owner's library are tested on the rig, never in the cloud (docs/core-harness.md). An
 emulator with software GL is not a device: a pass here means the core starts, draws, answers
 input and keeps running, not that it plays well on the rig.

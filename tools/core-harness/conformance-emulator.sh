@@ -53,7 +53,9 @@ for family in godot html love2d nscripter; do
 done
 
 status=0
-python3 "$here/core_harness.py" --games "$here/conformance-games.json" --out "$out" --first-frame-seconds 120 --play-seconds 15 || status=$?
+# Cores with no sandbox yet (godot, html) still run: these are our own MIT games, and the report
+# names every game that ran unsandboxed.
+python3 "$here/core_harness.py" --games "$here/conformance-games.json" --out "$out" --first-frame-seconds 120 --play-seconds 15 --run-unsandboxed || status=$?
 
 # The report and each game's evidence, in the job's log: some readers get the log but not the artifact.
 cat "$out/report.md" || true

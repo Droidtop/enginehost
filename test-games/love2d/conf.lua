@@ -10,4 +10,7 @@
 function love.conf(t)
     t.window.title = "Enginehost conformance test"
     t.identity = "enginehost-conformance-love2d"
+    -- The LÖVE version it was made for, as games for LÖVE 11 state it; without it Enginehost
+    -- cannot tell which core line runs it and asks in Game setup.
+    t.version = "11.5"
 end
