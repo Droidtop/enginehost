@@ -3,9 +3,9 @@
 -- MIT licence -- test-games/LICENSE.  LÖVE 11 API.  It exercises the three
 -- things every conformance game must: a frame that changes on its own (the
 -- moving square), an input response (any key, mouse button or touch flips
--- the phase and grows the white bar), and a save (the phase is written to
--- the identity save directory and read back on the next launch, so the
--- relaunch check verifies the save survived).
+-- the phase and grows the white bar), a save (the phase is written to the
+-- identity save directory and read back on the next launch, so the relaunch
+-- check verifies the save survived), and a clean exit (Escape quits).
 
 local phase = 1
 local note = "no save yet"
@@ -62,11 +62,14 @@ function love.draw()
     love.graphics.rectangle("fill", 0, 100, math.min(inputs, 10) * 80, 100)
     love.graphics.print("phase " .. phase, 16, 16)
     love.graphics.print(note, 16, 40)
-    love.graphics.print("press any key or touch: flips the phase and saves", 16, 62)
+    love.graphics.print("press any key or touch: flips the phase and saves; Escape quits", 16, 62)
 end
 
-function love.keypressed()
+function love.keypressed(key)
     flip()
+    if key == "escape" then
+        love.event.quit()
+    end
 end
 
 function love.mousepressed()

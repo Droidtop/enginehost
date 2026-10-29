@@ -110,6 +110,19 @@ def changed_fraction(a, b, threshold=12):
     return sum(1 for x, y in zip(a, b) if distance(x, y) > threshold) / len(a)
 
 
+GAMEPAD = "gamepad:"
+
+
+def key_command(code):
+    """The `input` command for a games-file key: an Android key code, sent as a keyboard's, or
+    `gamepad:` and a key code, sent as a gamepad's. A gamepad's buttons are controller input,
+    which Enginehost maps to the engine's actions; a keyboard's keys reach only a core that
+    reads the keyboard, and a libretro core does not."""
+    if code.startswith(GAMEPAD):
+        return "input gamepad keyevent %s" % shlex.quote(code[len(GAMEPAD):])
+    return "input keyevent %s" % shlex.quote(code)
+
+
 def lines_of(logcat, pids):
     """The lines of a `logcat -v threadtime` dump written by one of [pids], or naming Enginehost.
 
@@ -186,7 +199,7 @@ class Device:
         return parse_raw_frame(self.run("exec-out", "screencap", binary=True, timeout=30))
 
     def key(self, code):
-        self.shell("input keyevent %s" % code)
+        self.shell(key_command(code))
 
     def tap_centre(self, width, height):
         self.shell("input tap %d %d" % (width // 2, height // 2))

@@ -1,5 +1,21 @@
 {
-  "html": ["/sdcard/EnginehostConformance/html"],
-  "love2d": ["/sdcard/EnginehostConformance/love2d"],
-  "nscripter": ["/sdcard/EnginehostConformance/nscripter"]
+  "html": {
+    "games": ["/sdcard/EnginehostConformance/html"],
+    "steps": {
+      "save": { "keys": ["KEYCODE_ENTER", "KEYCODE_ENTER"], "delay": 1.5, "folder": "/sdcard/Enginehost/saves" }
+    }
+  },
+  "love2d": {
+    "games": ["/sdcard/EnginehostConformance/love2d"],
+    "steps": {
+      "save": { "keys": ["KEYCODE_ENTER"], "folder": "/sdcard/Enginehost/saves" },
+      "exit": { "keys": ["KEYCODE_ESCAPE"] }
+    }
+  },
+  "nscripter": {
+    "games": ["/sdcard/EnginehostConformance/nscripter"],
+    "steps": {
+      "save": { "keys": ["gamepad:KEYCODE_BUTTON_A"], "delay": 2, "folder": "/sdcard/EnginehostConformance/nscripter" }
+    }
+  }
 }

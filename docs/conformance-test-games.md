@@ -75,9 +75,13 @@ same with `-gpu guest`), so it draws only its clear colour. Ren'Py's is not wire
 SDK's runtime beside `game/`. Games
 from the owner's library are tested on the rig, never in the cloud (docs/core-harness.md). An
 emulator with software GL is not a device: a pass here means the core starts, draws, answers
-input and keeps running, not that it plays well on the rig. Save, load and exit are not yet
-checked here: the harness checks them only for a game whose entry names its save keys and save
-folder, and these entries name none.
+input and keeps running, not that it plays well on the rig. `conformance-games.json` names each
+game's save keys and the folder its save lands in, so the harness checks that the keys write a
+save: html and love2d under Enginehost's default save root (`/sdcard/Enginehost/saves`),
+nscripter beside the game, where ONScripter saves. love2d's Escape quits, so its exit is checked
+too. Load is not checked: these games read their save back only when they start again, which the
+harness does not do, and html's and nscripter's have no quit of their own. NScripter's keys are a
+gamepad's (`gamepad:KEYCODE_BUTTON_A`): a keyboard's keys do not reach a libretro core.
 
 A game that fails a check leaves its own processes' log in the job log (Enginehost's, its
 isolated runtime's, WebView's renderers', and the system's lines about Enginehost), with an
@@ -126,9 +130,9 @@ The suite has two kinds of fixture:
 | --- | --- | --- | --- | --- | --- | --- |
 | renpy | line-7.3 … line-8.5 | `test-games/renpy` (ours) | this repo | MIT | 1.9 KB source | animate + click-advance + menu choice + `renpy.save` |
 | godot | plugin/4.0 … plugin/4.7 | `test-games/godot` (ours) | this repo | MIT | 3.0 KB source | animate + key flip + `user://` save |
-| love2d | plugin/11.5 (series 11) | `test-games/love2d` (ours) | this repo | MIT | 2.4 KB source | animate + key/touch flip + `love.filesystem` save |
+| love2d | plugin/11.5 (series 11) | `test-games/love2d` (ours) | this repo | MIT | 2.4 KB source | animate + key/touch flip + `love.filesystem` save + Escape quits |
 | html (compiled-html) | plugin/2.0-2.12 | `test-games/html` (ours) | this repo | MIT | 4.4 KB source | CSS animation + link/Enter + local-storage save |
-| nscripter | single line | `test-games/nscripter` (ours) | this repo | MIT | 1.2 KB source | first click turns the background blue + select + `savegame` |
+| nscripter | single line | `test-games/nscripter` (ours) | this repo | MIT | 1.2 KB source | first click turns the background blue + every further click `savegame 1` |
 | rpgmaker (2000/2003) | EasyRPG line | EasyRPG **TestGame-2000** (and the 2003 suite) | https://github.com/EasyRPG/TestGame | GPL-3.0 (`COPYING`) | 30 MB git repo incl. history; the per-suite working trees are smaller | map render + movement + menu + save (per suite design; needs a rig check) |
 | ags | plugin/3.6.3.15 | the AGS community demo game project | https://github.com/adventuregamestudio/ags-demo-game | script 0BSD, art CC BY-NC-ND 4.0 (`LICENSE.md`) | 1.8 MB git repo | rooms + interaction + F5/F7 save/restore |
 | kirikiri2 | plugin/2.31 / stable | the KAG3 template package | https://github.com/krkrz/kag3 | KAG3 package licence (W.Dee: modification and redistribution free) | ~430 KB unpacked | title/config screen + scenario click-advance + KAG save bookmark |
@@ -204,7 +208,9 @@ exercises in its own header. Assembly notes:
   run 40832924349: `command [this] is not supported yet!!`). The first
   click turns the black background blue: a new line of text alone changed
   1% of the emulator's screen (run 40834033160), too little to tell from
-  the screen's own changes.
+  the screen's own changes. Every click after that writes `savegame 1`, so
+  a save is one click however many the input check made (it replaced a
+  select menu, whose clicks a harness has to count).
   Note for detection: a folder with only `0.txt` does not trip
   Enginehost's nscripter rule (it wants `0.txt` plus an `.nsa` archive,
   or `nscript.dat`), so the game carries its own `enginehost.json`.

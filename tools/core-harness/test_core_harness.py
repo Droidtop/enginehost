@@ -48,6 +48,10 @@ class FrameTest(unittest.TestCase):
         self.assertEqual(0.0, h.changed_fraction([grey, white], [grey, white]))
         self.assertEqual(0.5, h.changed_fraction([grey, grey], [grey, white]))
 
+    def test_a_gamepad_key_is_sent_as_a_gamepads(self):
+        self.assertEqual("input keyevent KEYCODE_ENTER", h.key_command("KEYCODE_ENTER"))
+        self.assertEqual("input gamepad keyevent KEYCODE_BUTTON_A", h.key_command("gamepad:KEYCODE_BUTTON_A"))
+
     def test_lines_of_keeps_only_the_given_pids(self):
         dump = ("10-29 06:35:17.298  4625  4625 I enginehost-events: launch\n"
                 "10-29 06:35:17.300  1615  2232 W A       : noise\n"

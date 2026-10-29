@@ -55,7 +55,10 @@ only: conformance layer 1b (docs/conformance-test-games.md, "Layer 1b").
 ```
 
 An engine maps to a list of game folders, or to `games` plus optional `steps`.
-Keys are Android key codes as `adb shell input keyevent` takes them. Each
+Keys are Android key codes as `adb shell input keyevent` takes them, sent as a keyboard's; a key
+written `gamepad:KEYCODE_BUTTON_A` is sent as a gamepad's (`adb shell input gamepad keyevent`), which
+Enginehost takes as controller input and maps to the engine's actions. A libretro core
+(NScripter, EasyRPG) reads no keyboard, so its keys need the `gamepad:` form. Each
 step's `delay` (seconds between keys) defaults to 1. `tools/core-harness/games.example.json`
 is a starting point.
 
