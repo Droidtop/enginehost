@@ -827,7 +827,7 @@ acquire/release ordering across the shared page. The producer only ever
 advances the write position and only ever reads the read position; a
 full ring backs the thread off with a short sleep rather than blocking,
 so a host that stops reading (a paused launch) cannot wedge this thread
-either. On the host side, `IsolatedAudioBridge` (`IsolatedRuntimeHost.kt`)
+either. On the host side, `IsolatedAudioBridge` (`IsolatedAudioBridge.kt`)
 is the consumer: a plain Kotlin thread reading from the mapped
 `ByteBuffer` (no atomics needed there -- plain `getInt`/`putInt` is an
 accepted, pragmatic simplification for soft-real-time audio, not a
