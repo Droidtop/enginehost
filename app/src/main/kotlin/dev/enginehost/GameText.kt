@@ -33,7 +33,7 @@ object GameText {
         services(activity)
         speech?.take(event, json)
         translation?.take(event, json)
-        if (showEvents) activity.runOnUiThread { EventsOverlay.show(activity, event) }
+        if (showEvents) Async.onMain(activity) { EventsOverlay.show(activity, event) }
     }
 
     /**

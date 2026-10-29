@@ -32,11 +32,10 @@ object GameLinkOffer {
 
     /** From any thread; returns at once. */
     fun offer(activity: Activity, raw: String) {
-        activity.runOnUiThread {
-            if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+        Async.onMain(activity) {
             if (showing) {
                 Log.i(TAG, "A link was asked for while another is offered; dropped")
-                return@runOnUiThread
+                return@onMain
             }
             val link = GameLinks.parse(raw, kinds(activity))
             showing = true

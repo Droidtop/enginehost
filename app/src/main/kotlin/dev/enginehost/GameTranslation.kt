@@ -37,7 +37,7 @@ class GameTranslation(private val activity: Activity, private val game: String, 
     private val answer = object : ITextTranslated.Stub() {
         override fun translated(lineId: String, text: String) {
             translated[lineId] = text
-            if (lineId !in printed) activity.runOnUiThread { if (current?.id == lineId) showBand(text) }
+            if (lineId !in printed) Async.onMain(activity) { if (current?.id == lineId) showBand(text) }
         }
     }
 
@@ -46,17 +46,17 @@ class GameTranslation(private val activity: Activity, private val game: String, 
         when (event) {
             is TextEvent.Line -> {
                 current = event
-                activity.runOnUiThread { hideBand() }
+                Async.onMain(activity) { hideBand() }
                 if (event.kind == "ui" || event.kind == "system") return
                 translated[event.id]?.let { known ->
-                    if (event.id !in printed) activity.runOnUiThread { if (current?.id == event.id) showBand(known) }
+                    if (event.id !in printed) Async.onMain(activity) { if (current?.id == event.id) showBand(known) }
                     return
                 }
                 services.call { it.translate(game, json, answer) }
             }
             is TextEvent.Advance, is TextEvent.Clear, is TextEvent.Chosen -> {
                 current = null
-                activity.runOnUiThread { hideBand() }
+                Async.onMain(activity) { hideBand() }
             }
             else -> Unit
         }

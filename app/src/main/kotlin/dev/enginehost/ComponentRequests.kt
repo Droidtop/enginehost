@@ -54,7 +54,7 @@ object ComponentRequests {
         Log.i(TAG, "The game asks for $name${version?.let { " $it" }.orEmpty()} ($engine $runtimeVersion)")
         available(activity, engine, name, version, runtimeVersion)?.let { return it }
         val id = UUID.randomUUID().toString()
-        activity.runOnUiThread {
+        Async.onMain(activity) {
             activity.startActivity(
                 Intent(activity, ComponentRequestActivity::class.java)
                     .putExtra(ComponentRequestActivity.EXTRA_REQUEST, id)

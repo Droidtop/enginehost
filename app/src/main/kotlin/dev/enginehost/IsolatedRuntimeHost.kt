@@ -207,7 +207,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                         }
                         framePfd?.let { runCatching { svc.setFrameBuffer(it) } }
                         settle {
-                            activity.runOnUiThread {
+                            Async.onMain(activity) {
                                 if (width <= 0 || height <= 0 || framePfd == null) {
                                     bridge?.close()
                                     framePfd?.let { runCatching { it.close() } }
@@ -216,7 +216,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                                         if (width <= 0 || height <= 0) "The isolated runtime reported no picture size"
                                         else "Could not set up the isolated runtime's frame buffer",
                                     )
-                                    return@runOnUiThread
+                                    return@onMain
                                 }
                                 audioBridge = bridge
                                 bridge?.startPlayback()
@@ -236,10 +236,10 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                         }
                     } catch (e: Throwable) {
                         Log.e(TAG, "isolated runtime init failed", e)
-                        settle { activity.runOnUiThread { onFailure(e.message ?: e.javaClass.simpleName) } }
+                        settle { Async.onMain(activity) { onFailure(e.message ?: e.javaClass.simpleName) } }
                     }
                 }
-                Thread(initRunnable, "enginehost-isolated-init").start()
+                Async.run(initRunnable::run)
             }
 
             override fun onServiceDisconnected(name: ComponentName) {
@@ -363,7 +363,7 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                 // a launch-time error already uses.
                 stepping = false
                 logIsolatedDeath(error)
-                activity.runOnUiThread {
+                Async.onMain(activity) {
                     val onFailure = onLaunchFailure
                     if (onFailure != null) {
                         onFailure("the isolated runtime stopped: " + (error.message ?: error.javaClass.simpleName))
@@ -380,14 +380,14 @@ internal class IsolatedRuntimeHost(private val activity: RuntimeActivity) {
                 // same way); the launch screen beneath this one is what the
                 // person sees next.
                 stepping = false
-                activity.runOnUiThread { activity.finish() }
+                Async.onMain(activity) { activity.finish() }
                 return
             }
             if (band > 0) {
                 readChangedRows(band)
                 showedGame = true
                 val snapshot = pixels.copyOf()
-                activity.runOnUiThread { view?.applyFrame(snapshot, band) }
+                Async.onMain(activity) { view?.applyFrame(snapshot, band) }
             }
             loopHandler?.postDelayed(this, FRAME_INTERVAL_MS)
         }
@@ -752,11 +752,11 @@ private class HostRuntimeCallback(
     }
 
     override fun finish() {
-        activity.runOnUiThread { activity.finish() }
+        Async.onMain(activity) { activity.finish() }
     }
 
     override fun restart(arguments: Array<String>) {
-        activity.runOnUiThread {
+        Async.onMain(activity) {
             activity.setResult(
                 Activity.RESULT_FIRST_USER,
                 Intent()
@@ -777,7 +777,7 @@ private class HostRuntimeCallback(
 
     override fun fail(message: String) {
         val prefix = if (showedGame()) RuntimeActivity.GAME_STOPPED else RuntimeActivity.STARTUP_FAILED
-        activity.runOnUiThread { activity.failAndFinish(prefix + message) }
+        Async.onMain(activity) { activity.failAndFinish(prefix + message) }
     }
 }
 

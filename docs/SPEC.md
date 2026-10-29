@@ -720,3 +720,20 @@ Enginehost from its side (#754); Enginehost offers droidtop where it helps, with
   line from both places. While it is off nothing runs for it, not even the check for droidtop
   (DESIGN-LANGUAGE.md: a disabled feature runs no code), and turning it back on is the only way
   it returns.
+
+## Work off the main thread goes through `Async` (decided 2026-10-29, Droidtop/tracker#768)
+
+File, database, network and SAF work a screen needs runs through `Async`, the one mechanism for it.
+`Async.run` is for work with nothing to show. `Async.load(owner, work, failed) { show }` is for work
+whose result a screen draws. `Async.onMain(owner)` is for a callback on another thread that has to
+touch views. All three share one pool. The part that touches views runs only while the owner's
+screen is alive (not destroyed or finishing), so a result that arrives after the person has left is
+dropped. Before this, about a hundred hand-rolled `Thread { ... runOnUiThread { ... } }` blocks each
+made their own check, and many made none (code quality review, #768).
+
+Workers that block for a whole run keep their own named threads or single-thread executors, where
+their order matters. These are:
+- the isolated runtime's audio pump and frame loop;
+- the watchdog;
+- the scan;
+- the library, art, voice, translation and host-event queues.
