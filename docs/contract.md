@@ -117,7 +117,8 @@ specific file to run within the folder, for engines that need one.
 game folder that wraps it beside other folders (MGQ Paradox's "MGQ Paradox" holds
 "MGQ Paradox 3.06" and "Pictures"; Droidtop/tracker#636). Detection looks in the
 folder itself and then one level down, and writes `root` when it found the game
-there. The engine starts in that folder, for every core: the runtime's path extra
+there. Only one game may be found one level down: two make the folder a collection,
+which is no game. The engine starts in that folder, for every core: the runtime's path extra
 (`dev.enginehost.runtime.PATH`, which cores read) names it, and `execFile` is
 handed to the core relative to it. The game folder stays the game's identity:
 its library entry, Game setup, overrides, controller settings, crash watch and

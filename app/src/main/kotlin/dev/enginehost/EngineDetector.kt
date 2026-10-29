@@ -74,12 +74,19 @@ object EngineDetector {
      * the engine runs there, not in the wrapper (MGQ Paradox's wrapper holds
      * the game beside a Pictures folder, and mkxp-z started in the wrapper
      * found no Game.ini and fell back to RGSS1; Droidtop/tracker#636).
+     *
+     * A wrapper holds one game. A folder in which two subfolders are games is a collection, and is
+     * no game itself: the scan then walks into it and finds each one. Taking the first match made a
+     * folder of test games (html, love2d, renpy) one HTML game, and the scan does not look inside a
+     * game, so the other two were never found (Droidtop/tracker#774).
      */
     internal fun detect(rows: List<EngineRow>, tree: GameTree): EngineDetection? {
         classify(rows, tree)?.let { return it }
-        return tree.dirPaths.filter { '/' !in it }.sorted().firstNotNullOfOrNull { dir ->
-            classify(rows, tree.subtree(dir))?.copy(root = dir)
-        }
+        val found = tree.dirPaths.filter { '/' !in it }.sorted().asSequence()
+            .mapNotNull { dir -> classify(rows, tree.subtree(dir))?.copy(root = dir) }
+            .take(2)
+            .toList()
+        return found.singleOrNull()
     }
 
     private fun classify(rows: List<EngineRow>, tree: GameTree): EngineDetection? {

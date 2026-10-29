@@ -110,7 +110,37 @@ class FolderAnalyzer(private val rows: List<EngineRow>) {
      */
     fun analyze(dir: File, entries: List<DirEntry>, signature: Long, screened: Boolean = true): GameFinding? {
         val registry = if (!screened || screen.matches(entries)) runCatching { EngineDetector.detect(rows, dir) }.getOrNull() else null
-        return if (registry != null) fromRegistry(dir, entries, registry, signature) else fromNative(dir, entries, signature)
+        if (registry != null) return fromRegistry(dir, entries, registry, signature)
+        return fromOwnConfig(dir, entries, signature) ?: fromNative(dir, entries, signature)
+    }
+
+    /**
+     * A folder whose own enginehost.json names an engine is that game, whatever the registry can
+     * tell from its files. The folder's config takes precedence at launch (docs/contract.md, "Where
+     * a game's config lives"), so the scan lists what Play would run. A game from sources with its
+     * config beside them, as the conformance Ren'Py game is, has nothing else to detect it by
+     * (Droidtop/tracker#774).
+     */
+    private fun fromOwnConfig(dir: File, entries: List<DirEntry>, signature: Long): GameFinding? {
+        if (entries.none { !it.isDirectory && it.name == CONFIG_FILE_NAME }) return null
+        val config = runCatching { EngineConfigReader.parseDocument(File(dir, CONFIG_FILE_NAME).readText()) }.getOrNull()
+            ?: return null
+        return GameFinding(
+            path = dir.path,
+            name = config.title ?: dir.name.ifBlank { dir.path },
+            kind = FindingKind.FOLDER,
+            engine = config.engine,
+            engineContext = config.engineContext,
+            engineVersion = config.engineVersion.toString(),
+            requirements = config.runtimeRequirements.mapValues { it.value.toString() },
+            hosted = true,
+            platforms = BuildPlatform.PORTABLE.bit,
+            confidence = Confidence.HIGH,
+            launch = config.execFile,
+            architecture = null,
+            dotNet = false,
+            signature = signature,
+        )
     }
 
     private fun fromRegistry(dir: File, entries: List<DirEntry>, det: EngineDetection, signature: Long): GameFinding {
@@ -211,7 +241,7 @@ class FolderAnalyzer(private val rows: List<EngineRow>) {
 
     companion object {
         /** Bumped when the analysis itself changes, so cached findings from the older logic are looked at again. */
-        const val SCAN_VERSION = 1L
+        const val SCAN_VERSION = 2L
         private const val MAX_WRAPPER_PEEKS = 4
         private const val MAX_EXECUTABLES = 8
         private const val MIN_GAME_EXECUTABLE = 200L * 1024

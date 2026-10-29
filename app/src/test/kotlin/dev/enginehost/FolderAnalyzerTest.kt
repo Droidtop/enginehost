@@ -31,6 +31,30 @@ class FolderAnalyzerTest {
         SyntheticBinaries.file(File(folder, "Game.exe"), SyntheticBinaries.pe(machine), 700_000)
     }
 
+    // ---- A folder's own config ---------------------------------------------------------
+
+    @Test
+    fun `a folder whose own enginehost json names an engine is that game`() {
+        // The conformance Ren'Py game: sources and a config, nothing the registry knows (Droidtop/tracker#774).
+        val folder = File(tempRoot(), "renpy").apply { mkdirs() }
+        File(folder, "game").mkdirs()
+        File(folder, "game/script.rpy").writeText("label start:\n    return\n")
+        File(folder, CONFIG_FILE_NAME).writeText("""{"engine": "renpy", "engineContext": "standard", "engineVersion": "8.3.7"}""")
+
+        val finding = analyze(folder)!!
+        assertEquals("renpy", finding.engine)
+        assertEquals("8.3.7", finding.engineVersion)
+        assertTrue(finding.hosted)
+    }
+
+    @Test
+    fun `an unreadable enginehost json makes nothing of the folder`() {
+        val folder = File(tempRoot(), "broken").apply { mkdirs() }
+        File(folder, CONFIG_FILE_NAME).writeText("{not json")
+
+        assertNull(analyze(folder))
+    }
+
     // ---- Engine markers, with the platform layer around them ------------------------
 
     @Test

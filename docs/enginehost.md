@@ -73,7 +73,11 @@ low; the library says "unconfirmed" for anything below high.
 Game root: the scan walks breadth first and stops at the first folder that is a game, so a game is
 never searched for games inside itself, and a wrapper folder (`Game-1.0/Game-1.0-pc/`) is walked
 through rather than counted. When the registry sees a game one folder down from a folder that also has
-files of its own, that folder is the game and its launch file is found in the subfolder. An archive
+files of its own, that folder is the game and its launch file is found in the subfolder. A folder in which two
+subfolders are games is a collection, not a wrapper: it is no game itself, and the walk goes into it
+and finds each (Droidtop/tracker#774; first-match made a folder of the test games one HTML game). A
+folder whose own `enginehost.json` names an engine is that game, as Play would run it, even when the
+registry can tell nothing from its files (a game from sources, as the conformance Ren'Py game is). An archive
 beside a folder that unpacks from it (same release name, platform tags ignored) is dropped. Results
 are also deduplicated in the database: saving a game root deletes any only-found rows inside it.
 

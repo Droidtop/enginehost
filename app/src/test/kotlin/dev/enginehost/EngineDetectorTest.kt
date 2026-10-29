@@ -180,6 +180,20 @@ class EngineDetectorTest {
     }
 
     @Test
+    fun `a folder holding two games is a collection, not a wrapper`() {
+        // The conformance test games side by side (Droidtop/tracker#774): html sorted first and made
+        // the whole folder one HTML game.
+        val root = tempRoot()
+        File(root, "html").mkdirs()
+        File(root, "html/index.html").writeText("<html></html>")
+        File(root, "love2d").mkdirs()
+        File(root, "love2d/main.lua").writeText("function love.draw() end")
+        File(root, "love2d/conf.lua").writeText("function love.conf(t) end")
+
+        assertNull(detect(root))
+    }
+
+    @Test
     fun `a game found in the folder itself has no root`() {
         val root = tempRoot()
         File(root, "Pictures").mkdirs()
