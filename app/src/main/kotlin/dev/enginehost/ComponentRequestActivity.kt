@@ -3,10 +3,12 @@ package dev.enginehost
 import dev.droidtop.shared.version.Version
 import android.content.Intent
 import android.os.Bundle
+import android.os.ResultReceiver
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.core.content.IntentCompat
 
 /**
  * Over a running game that asked for a component it does not have ([ComponentRequests]): what it
@@ -26,7 +28,8 @@ class ComponentRequestActivity : EnginehostActivity() {
     private lateinit var notNow: Button
     private var answered = false
 
-    private val request get() = intent.getStringExtra(EXTRA_REQUEST).orEmpty()
+    /** Where the answer goes: the waiting game's [ResultReceiver], across processes. */
+    private val reply get() = IntentCompat.getParcelableExtra(intent, EXTRA_REPLY, ResultReceiver::class.java)
     private val engine get() = intent.getStringExtra(EXTRA_ENGINE).orEmpty()
     private val name get() = intent.getStringExtra(EXTRA_NAME).orEmpty()
     private val version get() = intent.getStringExtra(EXTRA_VERSION)?.let { runCatching { Version.parse(it) }.getOrNull() }
@@ -60,7 +63,7 @@ class ComponentRequestActivity : EnginehostActivity() {
 
     override fun onDestroy() {
         // Gone without an answer (the person left, or the process went): the game must not wait on.
-        if (!answered && isFinishing) runCatching { ComponentRequests.outcome(this, request).writeText(ComponentRequests.DECLINED) }
+        if (!answered && isFinishing) runCatching { reply?.send(ComponentRequests.DECLINED, null) }
         super.onDestroy()
     }
 
@@ -128,15 +131,15 @@ class ComponentRequestActivity : EnginehostActivity() {
         // The installer opens the trust screen over this one; coming back reads the state again.
     }
 
-    private fun answer(outcome: String) {
+    private fun answer(outcome: Int) {
         if (answered) return
         answered = true
-        runCatching { ComponentRequests.outcome(this, request).writeText(outcome) }
+        runCatching { reply?.send(outcome, null) }
         finish()
     }
 
     companion object {
-        const val EXTRA_REQUEST = "dev.enginehost.component.REQUEST"
+        const val EXTRA_REPLY = "dev.enginehost.component.REPLY"
         const val EXTRA_ENGINE = "dev.enginehost.component.ENGINE"
         const val EXTRA_NAME = "dev.enginehost.component.NAME"
         const val EXTRA_VERSION = "dev.enginehost.component.VERSION"

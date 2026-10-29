@@ -199,9 +199,26 @@ object DroidtopLink {
     @Volatile private var broker: IPluginHostBroker? = null
     @Volatile private var pluginId: String? = null
 
+    /** Signalled when a broker arrives, so [awaitConnected] wakes at once rather than polling. */
+    private val arrived = Object()
+
     internal fun connected(id: String, given: IPluginHostBroker) {
         pluginId = id
         broker = given
+        synchronized(arrived) { arrived.notifyAll() }
+    }
+
+    /** Waits up to [timeoutMs] for a broker; true when one is here. Blocks: not the main thread. */
+    fun awaitConnected(timeoutMs: Long): Boolean {
+        val until = android.os.SystemClock.uptimeMillis() + timeoutMs
+        synchronized(arrived) {
+            while (broker == null) {
+                val left = until - android.os.SystemClock.uptimeMillis()
+                if (left <= 0) break
+                arrived.wait(left)
+            }
+        }
+        return broker != null
     }
 
     internal fun disconnected(id: String) {

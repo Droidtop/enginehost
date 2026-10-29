@@ -4,10 +4,13 @@ import dev.droidtop.shared.version.Version
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.os.SystemClock
+import android.os.Bundle
+import android.os.ResultReceiver
 import android.util.Log
 import java.io.File
-import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A component (a subplugin) a running game asks for (docs/engine-bundle-format.md, "A game asks,
@@ -17,11 +20,14 @@ import java.util.UUID
  * Which version is the game's to say, read from its own files when it asks ([wantedVersion]); which
  * build is the newest installed and approved one of that version for this engine's series. When
  * there is none, [ComponentRequestActivity] opens over the game: install it, accept its licence, or
- * not now; its answer comes back through a file both processes see, and the waiting call returns.
+ * not now. Its answer comes back over binder, through the [ResultReceiver] the request carries, and
+ * wakes the waiting call at once. It used to come back as a file polled every 250 ms, which a
+ * locked-down game process could not even read (Droidtop/tracker#768).
  */
 object ComponentRequests {
     private const val TAG = "EnginehostComponents"
-    private const val POLL_MS = 250L
+    /** How often the waiting call looks whether its game has gone; the answer itself wakes it at once. */
+    private const val GONE_CHECK_SECONDS = 1L
 
     /** The installed, approved component of [name] for [engine] at [runtimeVersion]: [version] when known, else the newest. */
     internal fun pick(
@@ -53,26 +59,29 @@ object ComponentRequests {
         val version = wantedVersion(gameFolder, name)
         Log.i(TAG, "The game asks for $name${version?.let { " $it" }.orEmpty()} ($engine $runtimeVersion)")
         available(activity, engine, name, version, runtimeVersion)?.let { return it }
-        val id = UUID.randomUUID().toString()
+        val answered = CountDownLatch(1)
+        val approved = AtomicBoolean(false)
+        val reply = object : ResultReceiver(null) {
+            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+                approved.set(resultCode == APPROVED)
+                answered.countDown()
+            }
+        }
         Async.onMain(activity) {
             activity.startActivity(
                 Intent(activity, ComponentRequestActivity::class.java)
-                    .putExtra(ComponentRequestActivity.EXTRA_REQUEST, id)
+                    .putExtra(ComponentRequestActivity.EXTRA_REPLY, reply)
                     .putExtra(ComponentRequestActivity.EXTRA_ENGINE, engine)
                     .putExtra(ComponentRequestActivity.EXTRA_NAME, name)
                     .putExtra(ComponentRequestActivity.EXTRA_VERSION, version?.toString())
                     .putExtra(ComponentRequestActivity.EXTRA_RUNTIME_VERSION, runtimeVersion.toString()),
             )
         }
-        val answer = outcome(activity, id)
-        while (!answer.exists()) {
+        while (!answered.await(GONE_CHECK_SECONDS, TimeUnit.SECONDS)) {
             if (activity.isFinishing || activity.isDestroyed) return null
-            SystemClock.sleep(POLL_MS)
         }
-        val approved = answer.readText().trim() == APPROVED
-        answer.delete()
-        Log.i(TAG, "$name: ${if (approved) "received" else "not now"}")
-        return if (approved) available(activity, engine, name, version, runtimeVersion) else null
+        Log.i(TAG, "$name: ${if (approved.get()) "received" else "not now"}")
+        return if (approved.get()) available(activity, engine, name, version, runtimeVersion) else null
     }
 
     private fun available(context: Context, engine: String, name: String, version: Version?, runtimeVersion: Version): File? {
@@ -84,10 +93,7 @@ object ComponentRequests {
             .getOrNull()
     }
 
-    /** Where [ComponentRequestActivity] writes its answer to request [id]. */
-    internal fun outcome(context: Context, id: String): File =
-        File(File(context.filesDir, "component-requests").apply { mkdirs() }, id)
-
-    internal const val APPROVED = "approved"
-    internal const val DECLINED = "declined"
+    /** The result codes [ComponentRequestActivity] answers with. */
+    internal const val APPROVED = 1
+    internal const val DECLINED = 0
 }

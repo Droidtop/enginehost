@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
-import android.os.SystemClock
 import android.util.Log
 import dev.droidtop.pluginhost.IAppInterfaceDoor
 import org.json.JSONObject
@@ -100,9 +99,8 @@ object DroidtopSaves {
     fun ensureConnected(context: Context): Boolean {
         if (DroidtopLink.isConnected()) return true
         if (!knock(context)) return false
-        val until = SystemClock.uptimeMillis() + CONNECT_MS
-        while (!DroidtopLink.isConnected() && SystemClock.uptimeMillis() < until) SystemClock.sleep(100)
-        return DroidtopLink.isConnected()
+        // droidtop binds back and hands a broker over; its arrival wakes this (Droidtop/tracker#768: a 100 ms poll before).
+        return DroidtopLink.awaitConnected(CONNECT_MS)
     }
 
     /** droidtop's door (`IAppInterfaceDoor.knock`): it carries no data; droidtop decides whether to bind back. */

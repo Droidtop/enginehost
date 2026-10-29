@@ -579,14 +579,20 @@ private class IsolatedAudioBridge private constructor(
         playing = true
         val thread = Thread({
             val chunk = ByteArray(4096)
+            // An empty ring backs off, 1 ms doubling to IDLE_MAX_MS, and the first sound after silence
+            // starts it over. A fixed 5 ms sleep spun the reader 200 times a second through every
+            // silence, a whole menu's worth (Droidtop/tracker#768).
+            var idleMs = 1L
             while (playing) {
                 val writePos = readHeaderInt(OFFSET_WRITE_POS)
                 val readPos = readHeaderInt(OFFSET_READ_POS)
                 val available = writePos - readPos
                 if (available <= 0) {
-                    Thread.sleep(5)
+                    Thread.sleep(idleMs)
+                    idleMs = minOf(idleMs * 2, IDLE_MAX_MS)
                     continue
                 }
+                idleMs = 1L
                 val toRead = minOf(available, chunk.size)
                 val start = readPos.toRingOffset()
                 if (start + toRead <= RING_CAPACITY) {
@@ -624,6 +630,9 @@ private class IsolatedAudioBridge private constructor(
         private const val OFFSET_READ_POS = 4
         private const val OFFSET_CAPACITY = 8
         private const val RING_CAPACITY = 32 * 1024
+
+        /** The longest an empty audio ring waits before looking again; about one AudioTrack period. */
+        private const val IDLE_MAX_MS = 16L
         private const val TOTAL_SIZE = HEADER_SIZE + RING_CAPACITY
         private const val TAG = "enginehost-isolated-audio"
 

@@ -542,7 +542,8 @@ UI thread (plugin API; the default on an older host answers null). Enginehost
 3. otherwise opens `ComponentRequestActivity` over the game: "This game needs the Spine 4.2
    runtime", with Install it (from a source that publishes it, after which the trust screen shows
    its licence to accept), Read and accept its licence (installed, waiting), or Not now. Its answer
-   reaches the waiting call through a file in `files/component-requests/`, and the call returns
+   reaches the waiting call over binder, through the `ResultReceiver` the request carries, and wakes it
+   at once (Droidtop/tracker#768; a file polled every 250 ms before), and the call returns
    the component's root, or null for not now, nothing published, or the game ending.
 
 A locked-down core cannot be handed a component it did not have when it locked down (its broker's
