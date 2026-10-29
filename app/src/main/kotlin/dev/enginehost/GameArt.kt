@@ -68,6 +68,9 @@ object GameArt {
         if (row.kind != FindingKind.FOLDER || none.get(key) == true) return
         val context = view.context.applicationContext
         worker.execute {
+            // A fast scroll queues a job per row passed; a view that shows another game by the time
+            // its job runs needs nothing read for this one (Droidtop/tracker#768).
+            if (view.tag != key) return@execute
             val thumb = runCatching { thumbnail(context, row) }.getOrNull()
             if (thumb == null) {
                 none.put(key, true)
@@ -109,13 +112,24 @@ object GameArt {
         val folder = File(row.path)
         val chosen = chosenFile(context, folder)
         val stamp = "${folder.lastModified()}-${if (chosen.isFile) chosen.lastModified() else 0}"
-        val cached = File(File(context.cacheDir, "game-art"), "${key(folder)}-$stamp.png")
+        val directory = File(context.cacheDir, "game-art")
+        val cached = File(directory, "${key(folder)}-$stamp.png")
         if (cached.isFile) BitmapFactory.decodeFile(cached.path)?.let { return it }
         val full = load(context, folder, row.engine, row.engineContext, row.launch) ?: return null
         val thumb = scale(full, THUMB_PX)
-        cached.parentFile?.mkdirs()
+        directory.mkdirs()
         runCatching { cached.outputStream().use { thumb.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+        // The name carries the folder's and the chosen picture's times, so each change wrote a new
+        // file beside the old ones and nothing removed them (Droidtop/tracker#768). The game's
+        // older thumbnails go once its new one is written.
+        forgetThumbnails(directory, folder, keep = cached)
         return thumb
+    }
+
+    /** Deletes [folder]'s cached thumbnails in [directory], all but [keep]. */
+    private fun forgetThumbnails(directory: File, folder: File, keep: File? = null) {
+        val prefix = "${key(folder)}-"
+        directory.listFiles { file -> file.name.startsWith(prefix) && file != keep }?.forEach { it.delete() }
     }
 
     /** Plates by engine and initial: a long list has few distinct ones. */
