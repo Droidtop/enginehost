@@ -48,6 +48,13 @@ class FrameTest(unittest.TestCase):
         self.assertEqual(0.0, h.changed_fraction([grey, white], [grey, white]))
         self.assertEqual(0.5, h.changed_fraction([grey, grey], [grey, white]))
 
+    def test_lines_of_keeps_only_the_given_pids(self):
+        dump = ("10-29 06:35:17.298  4625  4625 I enginehost-events: launch\n"
+                "10-29 06:35:17.300  1615  2232 W A       : noise\n"
+                "--------- beginning of main\n")
+        self.assertEqual("10-29 06:35:17.298  4625  4625 I enginehost-events: launch\n", h.lines_of(dump, {"4625"}))
+        self.assertEqual("", h.lines_of(dump, set()))
+
     def test_a_change_of_colour_at_the_same_luma_is_a_change(self):
         # The test games' blue and red: luma 86 and 89.
         blue, red = (56, 89, 153), (153, 56, 89)

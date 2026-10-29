@@ -110,6 +110,16 @@ def changed_fraction(a, b, threshold=12):
     return sum(1 for x, y in zip(a, b) if distance(x, y) > threshold) / len(a)
 
 
+def lines_of(logcat, pids):
+    """The lines of a `logcat -v threadtime` dump written by one of [pids]."""
+    kept = []
+    for line in logcat.splitlines():
+        fields = line.split(None, 3)
+        if len(fields) > 2 and fields[2] in pids:
+            kept.append(line)
+    return "\n".join(kept) + ("\n" if kept else "")
+
+
 def write_png(path, width, height, rgba):
     """A plain RGBA PNG, for the person reading the report."""
     def chunk(kind, body):
@@ -154,6 +164,15 @@ class Device:
     def pid(self, process):
         out = self.shell("pidof %s" % shlex.quote(process)).strip()
         return out.split()[0] if out else None
+
+    def app_pids(self):
+        """Pids of Enginehost's processes (its isolated runtime among them) and of WebView's renderers."""
+        pids = set()
+        for line in self.shell("ps -A -o PID,NAME").splitlines()[1:]:
+            fields = line.split()
+            if len(fields) == 2 and (fields[1].startswith(PACKAGE) or "sandboxed_process" in fields[1]):
+                pids.add(fields[0])
+        return pids
 
     def focused(self):
         out = self.shell("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | head -2")
@@ -219,8 +238,12 @@ def run_game(device, engine, folder, steps, out_dir, args):
     first = None
     last_focus = ""
     result["unsandboxed"] = False
+    # Every pid the game's processes had, so their log can be told from the rest of the device's
+    # once they are gone (a game that closed itself leaves no process to ask).
+    pids = set()
     while time.time() - started < args.first_frame_seconds:
         time.sleep(2)
+        pids |= device.app_pids()
         last_focus = device.focused()
         if not result["unsandboxed"] and "LaunchActivity" in last_focus:
             choice = device.find_text(UNSANDBOXED_CHOICE)
@@ -275,6 +298,7 @@ def run_game(device, engine, folder, steps, out_dir, args):
             checks["input"] = NOT_TESTED
 
         # Survival: still running, nothing in the crash buffer.
+        pids |= device.app_pids()
         time.sleep(args.play_seconds)
         alive = device.pid(RUNTIME_PROCESS) is not None
         crash = device.run("logcat", "-b", "crash", "-d")
@@ -324,8 +348,11 @@ def run_game(device, engine, folder, steps, out_dir, args):
             checks[name] = NOT_TESTED
 
     # Logs, whatever happened.
+    logcat = device.run("logcat", "-d", "-v", "threadtime", timeout=120)
     with open(os.path.join(out_dir, "logcat.txt"), "w") as f:
-        f.write(device.run("logcat", "-d", "-v", "threadtime", timeout=120))
+        f.write(logcat)
+    with open(os.path.join(out_dir, "app-log.txt"), "w") as f:
+        f.write(lines_of(logcat, pids))
     with open(os.path.join(out_dir, "crash.txt"), "w") as f:
         f.write(device.run("logcat", "-b", "crash", "-d", "-v", "threadtime"))
     events = device.run("logcat", "-d", "-s", EVENTS_TAG + ":I")
