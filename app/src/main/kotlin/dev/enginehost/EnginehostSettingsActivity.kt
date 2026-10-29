@@ -57,6 +57,20 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         engineSaveRows = findViewById(R.id.engineSaveRows)
         browserStartLocation = findViewById(R.id.browserStartValue)
 
+        wireStorageRows()
+        wireUpdateRows()
+        wireTextRows()
+        wireRatingRows()
+        wireAppRows()
+        // Home's notice of a newer Enginehost opens this screen to install it:
+        // check at once, so the Install button is there (review, 2026-10-16).
+        if (savedInstanceState == null && intent.getBooleanExtra(EXTRA_APP_UPDATE, false)) checkAppUpdate()
+        // onResume, which always follows, draws the rows: drawing them here
+        // too read the installed cores twice on every opening.
+    }
+
+    /** Where saves go, and where the game browser starts. */
+    private fun wireStorageRows() {
         findViewById<View>(R.id.saveRootRow).setOnClickListener {
             choose(
                 R.string.settings_save_folder,
@@ -81,6 +95,10 @@ class EnginehostSettingsActivity : EnginehostActivity() {
                 ),
             )
         }
+    }
+
+    /** How often cores are checked for updates, on which stream and network, and whether they install themselves. */
+    private fun wireUpdateRows() {
         findViewById<View>(R.id.updateFrequencyRow).setOnClickListener {
             val labels = resources.getStringArray(R.array.update_frequency_entries)
             Sheet(this).title(R.string.updates_frequency_label).apply {
@@ -99,6 +117,14 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             isChecked = updateCheck.unmeteredOnly
             setOnCheckedChangeListener { _, checked -> updateCheck.unmeteredOnly = checked }
         }
+        findViewById<SwitchCompat>(R.id.autoInstallPluginsSwitch).apply {
+            isChecked = updateCheck.installAutomatically
+            setOnCheckedChangeListener { _, checked -> updateCheck.installAutomatically = checked }
+        }
+    }
+
+    /** Reading lines aloud, translating them, and the voices and translator that do it. */
+    private fun wireTextRows() {
         findViewById<SwitchCompat>(R.id.readAloudSwitch).apply {
             val text = TextSettings(this@EnginehostSettingsActivity)
             isChecked = text.readAloud
@@ -122,6 +148,10 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         findViewById<View>(R.id.voicesRow).setOnClickListener { voices.choose() }
         findViewById<View>(R.id.characterVoicesRow).setOnClickListener { voices.characters() }
         showVoicesValue()
+    }
+
+    /** Rating the voice and translation models, and whether the ratings are shared. */
+    private fun wireRatingRows() {
         findViewById<View>(R.id.rateModelsRow).setOnClickListener { stats.rate() }
         findViewById<SwitchCompat>(R.id.shareRatingsSwitch).setOnCheckedChangeListener { _, checked ->
             if (showingStats) return@setOnCheckedChangeListener
@@ -129,10 +159,10 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             refreshStats()
         }
         findViewById<View>(R.id.sharedLogRow).setOnClickListener { stats.showLog() }
-        findViewById<SwitchCompat>(R.id.autoInstallPluginsSwitch).apply {
-            isChecked = updateCheck.installAutomatically
-            setOnCheckedChangeListener { _, checked -> updateCheck.installAutomatically = checked }
-        }
+    }
+
+    /** The app itself: its version and update, droidtop, appearance, launch access and the GitHub token. */
+    private fun wireAppRows() {
         findViewById<TextView>(R.id.appVersionValue).text = getString(
             R.string.app_version_line,
             packageManager.getPackageInfo(packageName, 0).versionName,
@@ -168,11 +198,6 @@ class EnginehostSettingsActivity : EnginehostActivity() {
             startActivity(Intent(this, CallerAccessSettingsActivity::class.java))
         }
         findViewById<View>(R.id.githubTokenRow).setOnClickListener { showTokenSheet() }
-        // Home's notice of a newer Enginehost opens this screen to install it:
-        // check at once, so the Install button is there (review, 2026-10-16).
-        if (savedInstanceState == null && intent.getBooleanExtra(EXTRA_APP_UPDATE, false)) checkAppUpdate()
-        // onResume, which always follows, draws the rows: drawing them here
-        // too read the installed cores twice on every opening.
     }
 
     override fun onResume() {
