@@ -75,7 +75,12 @@ jobs:
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 34
-          target: google_apis
+          # The plain AOSP image: Google Play services' processes come and go on an emulator, and
+          # Android kills every app process using one of their providers when they do. WebView in
+          # the HTML game's runtime used Play services' font provider, and the run of 2026-10-29
+          # (40834905579) lost the game mid-play to "depends on provider ... FontsProvider in
+          # dying proc com.google.android.gms.persistent". AOSP has WebView and no Play services.
+          target: default
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
