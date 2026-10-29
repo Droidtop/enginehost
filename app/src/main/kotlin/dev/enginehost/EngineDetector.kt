@@ -121,6 +121,10 @@ object EngineDetector {
             // BGI games state no runtime version and the runtime accepts any; "1.0"
             // is the line's single version, so the config can be written unasked.
             family == "buriko" -> EngineDetection(family, row.context, "1.0", evidence = "Found Buriko engine evidence")
+            // NScripter games state no engine version and both ONScripter-Yuri capabilities accept
+            // any; "1.0" names the line so a game with no config launches unasked rather than
+            // opening Game setup for a version nothing reads.
+            family == "nscripter" -> EngineDetection(family, row.context, "1.0", evidence = "Found an NScripter script and archives")
             else -> EngineDetection(family, row.context, evidence = "Matched the ${row.id} registry row", runtimeRequirements = row.extras)
         }
     }

@@ -468,4 +468,18 @@ class EngineDetectorTest {
 
         assertNull(detect(root))
     }
+
+    @Test
+    fun `an nscripter game names its line so it launches without Game setup`() {
+        val loose = tempRoot()
+        File(loose, "0.txt").writeText("*define\ngame\n*start\nend\n")
+        File(loose, "arc.nsa").writeBytes(byteArrayOf(0, 0, 0, 0, 0, 6))
+        val compiled = tempRoot()
+        File(compiled, "nscript.dat").writeBytes(byteArrayOf(1, 2, 3))
+        listOf(loose, compiled).forEach { root ->
+            val detection = detect(root)!!
+            assertEquals("nscripter", detection.engine)
+            assertEquals("1.0", detection.engineVersion)
+        }
+    }
 }
