@@ -419,8 +419,22 @@ its engine shows (docs/text-services.md).
 - **Read aloud, with the device's voices, when the person turns it on** (2026-10-28). Settings,
   "Read text aloud", off by default: a voice per character, picked from a hash of the speaker so it
   stays the same; the game's own voiced lines are not read; moving on stops the line. The planner hands
-  the choice to the runtime with the launch. Multi-speaker on-device voices and translation follow in
-  #490's slices; the first emitter is CatSystem2, an isolated core, so it proves the binder path.
+  the choice to the runtime with the launch. The first emitter is CatSystem2, an isolated core, so it
+  proves the binder path.
+- **Voices on the device, a voice of their own per character, female and male** (2026-10-29). The
+  owner: "Remember we also want per-character voices (at least male and female)", and "I think the
+  engine should still be in the build, that way they can supply their own voices". So:
+  - sherpa-onnx is in the APK (v1.13.8, pinned by SHA-256, 64-bit only).
+  - Voice models are downloads on request, pinned by SHA-256 (Kokoro English, Kokoro in many
+    languages), or archives the person picks through the system picker. Both are installed the same way.
+  - A model's voices and their genders are read from its own ONNX metadata, never from a list kept in
+    Enginehost, so a person's own model works the same as a download.
+  - Each character gets a stable voice for the language being read, by default. Settings, "Character
+    voices", sets any character to a female voice, a male voice, or one voice by name.
+  - Synthesis runs in the main process (`TextServicesService`), not the game's: the runtime's sandbox
+    cannot open the model, and the model's memory stays out of the game's.
+  - "This device's voices" stays as the choice that needs no download (docs/text-services.md, "Voices
+    on the device").
 - **Translated, with the person's own service, when they turn it on** (2026-10-28). Settings,
   "Translate games" and "Translator": an OpenAI-compatible endpoint, model, language and key (Keystore).
   The runtime has no network, so lines go to `TextServicesService` in the main process; answers are kept

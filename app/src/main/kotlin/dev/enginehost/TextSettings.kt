@@ -34,6 +34,14 @@ class TextSettings(context: Context) {
         get() = prefs.getString(TRANSLATOR_MODEL, "").orEmpty()
         set(value) = prefs.edit().putString(TRANSLATOR_MODEL, value.trim()).apply()
 
+    /**
+     * The voice model that reads aloud ([VoiceModels]), by id; empty for the device's own voices
+     * ([GameSpeech]), which need no download.
+     */
+    var voiceModel: String
+        get() = prefs.getString(VOICE_MODEL, "").orEmpty()
+        set(value) = prefs.edit().putString(VOICE_MODEL, value).apply()
+
     /** The service's key, if it needs one; a server on the person's own network may not. */
     val translatorKey = KeystoreSecret(context, "enginehost_translator_key", "translator-key-v1", "key")
 
@@ -43,5 +51,6 @@ class TextSettings(context: Context) {
         const val TRANSLATE_INTO = "translate_into"
         const val TRANSLATOR_ENDPOINT = "translator_endpoint"
         const val TRANSLATOR_MODEL = "translator_model"
+        const val VOICE_MODEL = "voice_model"
     }
 }

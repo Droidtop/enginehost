@@ -31,7 +31,7 @@ object GameText {
         if (!rate.take(SystemClock.elapsedRealtime())) return
         val event = TextEvents.parse(json) ?: return
         services(activity)
-        speech?.take(event)
+        speech?.take(event, json)
         translation?.take(event, json)
         if (showEvents) activity.runOnUiThread { EventsOverlay.show(activity, event) }
     }
@@ -43,7 +43,7 @@ object GameText {
     fun replace(json: String): String? = translation?.replace(json)
 
     private var servicesChecked = false
-    @Volatile private var speech: GameSpeech? = null
+    @Volatile private var speech: LineReader? = null
     @Volatile private var translation: GameTranslation? = null
 
     /** This launch's reader and translator, as the person chose them (the launch says which). */
@@ -52,9 +52,18 @@ object GameText {
         if (servicesChecked) return
         servicesChecked = true
         val intent = activity.intent ?: return
-        if (intent.getBooleanExtra(RuntimeActivity.EXTRA_READ_ALOUD, false)) speech = GameSpeech(activity)
-        if (intent.getBooleanExtra(RuntimeActivity.EXTRA_TRANSLATE, false)) {
-            intent.getStringExtra(RuntimeActivity.EXTRA_GAME)?.let { translation = GameTranslation(activity, it) }
+        val game = intent.getStringExtra(RuntimeActivity.EXTRA_GAME)
+        val services by lazy { TextServicesClient(activity) }
+        if (intent.getBooleanExtra(RuntimeActivity.EXTRA_READ_ALOUD, false)) {
+            // A voice model is read in the main process; the device's own voices, here.
+            speech = if (intent.getBooleanExtra(RuntimeActivity.EXTRA_MODEL_VOICES, false) && game != null) {
+                RemoteSpeech(services, game)
+            } else {
+                GameSpeech(activity)
+            }
+        }
+        if (intent.getBooleanExtra(RuntimeActivity.EXTRA_TRANSLATE, false) && game != null) {
+            translation = GameTranslation(activity, game, services)
         }
     }
 

@@ -119,6 +119,9 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         }
         findViewById<View>(R.id.translatorRow).setOnClickListener { showTranslatorSheet() }
         showTranslatorValue()
+        findViewById<View>(R.id.voicesRow).setOnClickListener { voices.choose() }
+        findViewById<View>(R.id.characterVoicesRow).setOnClickListener { voices.characters() }
+        showVoicesValue()
         findViewById<View>(R.id.rateModelsRow).setOnClickListener { stats.rate() }
         findViewById<SwitchCompat>(R.id.shareRatingsSwitch).setOnCheckedChangeListener { _, checked ->
             if (showingStats) return@setOnCheckedChangeListener
@@ -330,6 +333,8 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != RESULT_OK) return
         val uri = data?.data ?: return
+        // A voice archive is read once, now: it keeps no grant on the person's file.
+        if (requestCode == VoiceSheets.REQUEST_VOICE_FILE) return voices.supplied(uri)
         val flags = data.flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         runCatching { contentResolver.takePersistableUriPermission(uri, flags) }
         when {
@@ -552,6 +557,18 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     }
 
     private val stats by lazy { StatsSheets(this) }
+
+    private val voices by lazy { VoiceSheets(this) { showVoicesValue() } }
+
+    /** What the Voices row says, read off the main thread; Character voices shows once a model reads. */
+    private fun showVoicesValue() {
+        val model = TextSettings(this).voiceModel
+        findViewById<View>(R.id.characterVoicesRow).visibility = if (model.isEmpty()) View.GONE else View.VISIBLE
+        Thread {
+            val described = voices.describe()
+            runOnUiThread { if (!isDestroyed) findViewById<TextView>(R.id.voicesValue).text = described }
+        }.start()
+    }
 
     /** Set while [refreshStats] moves the switch, so the move is not taken for the person's. */
     private var showingStats = false

@@ -1,19 +1,13 @@
 package dev.enginehost
 
 import android.app.Activity
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
 import android.graphics.Color
-import android.os.IBinder
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
-import dev.enginehost.runtime.ITextServices
 import dev.enginehost.runtime.ITextTranslated
 import org.json.JSONObject
 import java.util.Collections
@@ -29,7 +23,7 @@ import java.util.Collections
  * drawn in a band at the bottom of the screen instead, the fallback, and goes when the reader
  * moves on.
  */
-class GameTranslation(private val activity: Activity, private val game: String) {
+class GameTranslation(private val activity: Activity, private val game: String, private val services: TextServicesClient) {
     private val translated = Collections.synchronizedMap(object : LinkedHashMap<String, String>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>) = size > KEPT
     })
@@ -38,32 +32,12 @@ class GameTranslation(private val activity: Activity, private val game: String) 
     private val printed = Collections.synchronizedSet(HashSet<String>())
 
     @Volatile private var current: TextEvent.Line? = null
-    @Volatile private var services: ITextServices? = null
-    private val pending = ArrayList<String>()
     private var band: TextView? = null
 
     private val answer = object : ITextTranslated.Stub() {
         override fun translated(lineId: String, text: String) {
             translated[lineId] = text
             if (lineId !in printed) activity.runOnUiThread { if (current?.id == lineId) showBand(text) }
-        }
-    }
-
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-            val bound = ITextServices.Stub.asInterface(binder)
-            val waiting = synchronized(pending) { services = bound; pending.toList().also { pending.clear() } }
-            waiting.forEach { runCatching { bound.translate(game, it, answer) } }
-        }
-
-        override fun onServiceDisconnected(name: ComponentName) {
-            services = null
-        }
-    }
-
-    init {
-        runCatching {
-            activity.applicationContext.bindService(Intent(activity, TextServicesService::class.java), connection, Context.BIND_AUTO_CREATE)
         }
     }
 
@@ -78,11 +52,7 @@ class GameTranslation(private val activity: Activity, private val game: String) 
                     if (event.id !in printed) activity.runOnUiThread { if (current?.id == event.id) showBand(known) }
                     return
                 }
-                // Before the service is bound, the newest lines wait for it.
-                val bound = synchronized(pending) {
-                    services.also { if (it == null && pending.size < MAX_PENDING) pending += json }
-                } ?: return
-                runCatching { bound.translate(game, json, answer) }
+                services.call { it.translate(game, json, answer) }
             }
             is TextEvent.Advance, is TextEvent.Clear, is TextEvent.Chosen -> {
                 current = null
@@ -129,8 +99,5 @@ class GameTranslation(private val activity: Activity, private val game: String) 
     private companion object {
         /** Translations kept in memory for lines the engine may ask about again; the cache keeps the rest. */
         const val KEPT = 500
-
-        /** Lines kept for a service not bound yet. */
-        const val MAX_PENDING = 50
     }
 }

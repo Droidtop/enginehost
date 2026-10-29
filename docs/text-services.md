@@ -22,7 +22,7 @@ decisions on it are on #490 (design comment 6176583781, decisions 6176693957 and
 
 Built (2026-10-28): the format, the host calls, the host's intake with its caps, reading aloud
 with the device's own voices, and translating with an OpenAI-compatible service on the person's own
-account (both below). More translators, on-device translation, the multi-speaker on-device voices and
+account (both below). More translators, on-device translation and
 each remaining core's emitter come in the slices listed on #490. CatSystem2 sends text, and so does
 Ren'Py, through `ActivityText`.
 
@@ -127,8 +127,8 @@ reads it in the main process and hands it to the runtime with the launch
 (`RuntimeActivity.EXTRA_READ_ALOUD`), so the runtime reads no preferences after its sandbox closes.
 
 - **Voices.** The device's own text-to-speech (`android.speech.tts`), its voices for the device's
-  language that need no network. This is one backend of the several the owner asked for; the owner's
-  default for many distinct voices on the device is a multi-speaker engine (sherpa-onnx), a later slice.
+  language that need no network, unless the person chose a voice model (next section). This is the
+  choice that needs no download.
 - **One voice per character** (owner, 2026-10-14). `VoicePick` hashes the speaker's id (else its name)
   over the voices there are, so a character keeps its voice every launch with nothing stored. With fewer
   than eight voices each character also gets a pitch of its own, so two that share a voice still differ.
@@ -138,6 +138,37 @@ reads it in the main process and hands it to the runtime with the launch
 - **When it stops.** The reader moving on (`advance`, `clear`, `chosen`) stops the line being read. Skip
   mode stops reading until the game is back to normal. A line that arrives before the device's engine is
   ready is dropped rather than read late.
+
+## Voices on the device (`ModelSpeech`, `VoiceModels`, `CharacterVoices`, `CharacterVoicePick`)
+
+The owner, 2026-10-29: "Remember we also want per-character voices (at least male and female)", and "I
+think the engine should still be in the build, that way they can supply their own voices".
+
+- **The engine is in the APK.** sherpa-onnx v1.13.8 (Apache-2.0), only its JNI library and ONNX
+  Runtime, arm64-v8a and x86_64 (third_party/sherpa-onnx).
+- **Voice models are not.** Settings, "Voices": the device's own voices, or a model on the device.
+  "Download voices" offers Kokoro English (11 voices, 103 MB) and Kokoro in many languages (54 voices,
+  132 MB), from sherpa-onnx's own releases, each checked against its pinned SHA-256 (`VoiceModels.OFFERED`)
+  before it is unpacked. "Add your own voice files" takes an archive (tar.bz2, tar.gz, tar.xz, tar or zip)
+  from the system picker, with no storage permission, and installs it the same way. Kokoro and VITS (Piper)
+  models are read. Models live in the app's own files, `voices/<id>/`.
+- **Voices and their genders come from the model.** A sherpa-onnx model records `model_type`,
+  `sample_rate` and `speaker_names` in its ONNX metadata, read without loading the model (`OnnxMetadata`).
+  Kokoro's names carry a language letter and a gender letter ("af_bella", "jm_kumo"), so a model's female
+  and male voices are known, for a download and for a person's own model alike. A model without names has
+  numbered voices with no gender.
+- **A voice of their own per character** (`CharacterVoicePick`). On Automatic, a hash of the character's
+  name over the model's voices for the language being read (the line's `lang`, else the device's), so a
+  character keeps one voice and a Japanese voice never reads English. Settings, "Character voices", lists
+  the characters heard in each game (`CharacterVoices`, kept on the device): each can be Automatic, a female
+  voice, a male voice (stable among that gender's voices), or one voice by name. Narration is its own entry,
+  read by the language's first voice on Automatic.
+- **Where it runs.** In Enginehost's main process, in `TextServicesService`: a locked-down runtime cannot
+  open the model's files, and a model of a hundred megabytes should not share the game's memory. The
+  runtime's `RemoteSpeech` sends each line it would read (same rules as above) over the oneway
+  `ITextServices.speak`, and `stopSpeaking` when the reader moves on; `prepareVoices` loads the model as the
+  game starts. `ModelSpeech` streams the audio as sherpa-onnx makes it, and a new line or a stop ends the
+  one being read mid-sentence.
 
 ## Translating (`GameTranslation`, `TextServicesService`, `Translator`, `TranslationCache`)
 

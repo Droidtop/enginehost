@@ -191,6 +191,7 @@ object GameRunner {
             config.options?.let { putExtra(RuntimeActivity.EXTRA_OPTIONS, it.toString()) }
             TextSettings(context).let {
                 putExtra(RuntimeActivity.EXTRA_READ_ALOUD, it.readAloud)
+                putExtra(RuntimeActivity.EXTRA_MODEL_VOICES, it.readAloud && it.voiceModel.isNotEmpty())
                 putExtra(RuntimeActivity.EXTRA_TRANSLATE, it.translate && it.translatorEndpoint.isNotBlank())
             }
             launchJson?.let { putExtra(RuntimeActivity.EXTRA_CALLER_CONFIG, it) }

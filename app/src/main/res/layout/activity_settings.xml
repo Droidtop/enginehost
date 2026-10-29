@@ -446,6 +446,81 @@
                 android:text="@string/read_aloud_detail"
                 android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
 
+            <LinearLayout
+                android:id="@+id/voicesRow"
+                style="@style/Widget.Enginehost.Row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/voices_row"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                    <TextView
+                        android:id="@+id/voicesValue"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="@dimen/eh_icon"
+                    android:layout_height="@dimen/eh_icon"
+                    android:layout_marginStart="@dimen/eh_space_s"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron"
+                    android:tint="@color/eh_text_secondary" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/characterVoicesRow"
+                style="@style/Widget.Enginehost.Row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/character_voices_row"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Body" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/character_voices_detail"
+                        android:textAppearance="@style/TextAppearance.Enginehost.Caption" />
+
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="@dimen/eh_icon"
+                    android:layout_height="@dimen/eh_icon"
+                    android:layout_marginStart="@dimen/eh_space_s"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron"
+                    android:tint="@color/eh_text_secondary" />
+
+            </LinearLayout>
+
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/translateSwitch"
                 android:layout_width="match_parent"

@@ -31,7 +31,7 @@ object VoicePick {
     }
 
     /** FNV-1a: the same on every device and every run, unlike String.hashCode's contract. */
-    private fun stableHash(text: String): Int {
+    internal fun stableHash(text: String): Int {
         var hash = 0x811C9DC5.toInt()
         for (c in text) {
             hash = hash xor c.code

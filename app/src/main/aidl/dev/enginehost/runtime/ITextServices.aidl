@@ -10,4 +10,13 @@ import dev.enginehost.runtime.ITextTranslated;
 interface ITextServices {
     /** Translates one line (an ehtext/1 line event) of the game [game] (its folder); the answer comes to [answer]. */
     oneway void translate(String game, String line, ITextTranslated answer);
+
+    /** Loads the chosen voice model ahead of the first line (ModelSpeech). */
+    oneway void prepareVoices();
+
+    /** Reads one line (an ehtext/1 line event) of the game [game] with the voice model on the device. */
+    oneway void speak(String game, String line);
+
+    /** Ends the line being read: the reader moved on. */
+    oneway void stopSpeaking();
 }

@@ -392,6 +392,8 @@ class RuntimeActivity : FragmentActivity() {
         const val EXTRA_READ_ALOUD = "dev.enginehost.runtime.READ_ALOUD"
         /** The person chose to have the game's text translated ([TextSettings], [GameTranslation]). */
         const val EXTRA_TRANSLATE = "dev.enginehost.runtime.TRANSLATE"
+        /** Read aloud with the voice model the person chose (ModelSpeech, in the main process), not the device's voices. */
+        const val EXTRA_MODEL_VOICES = "dev.enginehost.runtime.MODEL_VOICES"
         const val EXTRA_OPTIONS = "dev.enginehost.runtime.OPTIONS"
         /**
          * The person's controller map for this engine; see

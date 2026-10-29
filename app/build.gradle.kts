@@ -134,7 +134,58 @@ tasks.named("preBuild") { dependsOn(platformDatabaseSeed) }
 // The detector/scanner tests parse the SHIPPED seed, which is now generated.
 tasks.withType<Test>().configureEach { dependsOn(platformDatabaseSeed) }
 
+// --- On-device voices: sherpa-onnx, in the APK (owner, 2026-10-29) -------
+// "I think the engine should still be in the build, that way they can supply
+// their own voices" (Droidtop/tracker#490): the engine ships, the voice models
+// are downloads or the person's own files. The AAR is k2-fsa's own release,
+// pinned by SHA-256 (the same pin as droidtop's keyboard, #343), fetched once
+// into Gradle's cache and refused if it differs. Nothing large is committed.
+val sherpaOnnxVersion = "1.13.8"
+val sherpaOnnxSha256 = "633c24321e06b1fe79feafa03ea16cbc0f8a286641e2da3559bac91bdb13bd96"
+val sherpaOnnxAar = File(gradle.gradleUserHomeDir, "caches/enginehost/sherpa-onnx-$sherpaOnnxVersion.aar")
+
+val sherpaOnnxFetch = tasks.register("sherpaOnnxFetch") {
+    description = "Fetches the pinned sherpa-onnx AAR and checks its SHA-256."
+    outputs.file(sherpaOnnxAar)
+    inputs.property("sha256", sherpaOnnxSha256)
+    doLast {
+        fun sha256(file: File): String = java.security.MessageDigest.getInstance("SHA-256").let { digest ->
+            file.inputStream().use { input ->
+                val buffer = ByteArray(1 shl 16)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    digest.update(buffer, 0, read)
+                }
+            }
+            digest.digest().joinToString("") { "%02x".format(it) }
+        }
+        if (sherpaOnnxAar.isFile && sha256(sherpaOnnxAar) == sherpaOnnxSha256) return@doLast
+        sherpaOnnxAar.parentFile.mkdirs()
+        val partial = File(sherpaOnnxAar.path + ".part")
+        val url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v$sherpaOnnxVersion/sherpa-onnx-$sherpaOnnxVersion.aar"
+        java.net.URI(url).toURL().openStream().use { input -> partial.outputStream().use { input.copyTo(it) } }
+        val got = sha256(partial)
+        check(got == sherpaOnnxSha256) {
+            partial.delete()
+            "sherpa-onnx-$sherpaOnnxVersion.aar has SHA-256 $got, not the pinned $sherpaOnnxSha256"
+        }
+        check(partial.renameTo(sherpaOnnxAar)) { "Could not move the sherpa-onnx AAR into place" }
+    }
+}
+tasks.named("preBuild") { dependsOn(sherpaOnnxFetch) }
+
+android {
+    packaging {
+        jniLibs {
+            // The JNI library needs only libonnxruntime.so; the C and C++ API libraries are unused.
+            excludes += listOf("**/libsherpa-onnx-c-api.so", "**/libsherpa-onnx-cxx-api.so")
+        }
+    }
+}
+
 dependencies {
+    implementation(files(sherpaOnnxAar).builtBy(sherpaOnnxFetch))
     implementation(project(":plugin-api"))
     implementation(libs.androidx.core)
     implementation(libs.androidx.appcompat)

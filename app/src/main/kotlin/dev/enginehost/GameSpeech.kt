@@ -20,7 +20,7 @@ import java.util.Locale
  * dropped rather than read late over the next one. The runtime process ends with the game, and
  * the binding with it.
  */
-class GameSpeech(context: Context) {
+class GameSpeech(context: Context) : LineReader {
     @Volatile private var ready = false
     @Volatile private var muted = false
     private var voices: List<Voice> = emptyList()
@@ -36,8 +36,7 @@ class GameSpeech(context: Context) {
         ready = true
     }
 
-    /** Takes one event of the game's text. Any thread. */
-    fun take(event: TextEvent) {
+    override fun take(event: TextEvent, json: String) {
         when (event) {
             is TextEvent.Line -> speak(event)
             is TextEvent.Advance, is TextEvent.Clear, is TextEvent.Chosen -> stop()

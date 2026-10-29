@@ -14,16 +14,30 @@ import java.util.concurrent.Executors
  * runtime ([GameTranslation]); not exported, so no other app reaches it.
  *
  * A translation is answered from [TranslationCache] when the line was seen before, else asked of
- * the person's chosen [Translator] on one worker thread, in the order lines came, and kept.
+ * the person's chosen [Translator] on one worker thread, in the order lines came, and kept. Lines
+ * to read aloud with a voice model on the device go to [ModelSpeech], which has its own thread.
  */
 class TextServicesService : Service() {
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "enginehost-translate").apply { isDaemon = true } }
     private val cache by lazy { TranslationCache(this) }
+    private val speechStarted = lazy { ModelSpeech(this) }
+    private val speech by speechStarted
 
     private val binder = object : ITextServices.Stub() {
         override fun translate(game: String, line: String, answer: ITextTranslated) {
             val event = TextEvents.parse(line) as? TextEvent.Line ?: return
             worker.execute { translate(game, event, answer) }
+        }
+
+        override fun prepareVoices() = speech.prepare()
+
+        override fun speak(game: String, line: String) {
+            val event = TextEvents.parse(line) as? TextEvent.Line ?: return
+            speech.speak(game, event)
+        }
+
+        override fun stopSpeaking() {
+            speech.stop()
         }
     }
 
@@ -50,6 +64,7 @@ class TextServicesService : Service() {
 
     override fun onDestroy() {
         worker.shutdownNow()
+        if (speechStarted.isInitialized()) speech.release()
         super.onDestroy()
     }
 }
