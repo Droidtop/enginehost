@@ -2,7 +2,6 @@ package dev.enginehost
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
 import java.net.URI
 
 /**
@@ -18,23 +17,27 @@ class Translator(private val endpoint: String, private val model: String, privat
     /** [line] in [target] (a language name or tag), or null when the service did not answer. Network: not the main thread. */
     fun translate(line: TranslationRequest.Line, target: String): String? {
         val url = TranslationRequest.chatUrl(endpoint) ?: return null
-        val connection = URI(url).toURL().openConnection() as HttpURLConnection
-        return try {
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 60_000
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("User-Agent", "enginehost/0.1")
-            key?.takeIf { it.isNotBlank() }?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
-            connection.outputStream.use { it.write(TranslationRequest.body(model, line, target).toByteArray(Charsets.UTF_8)) }
-            if (connection.responseCode !in 200..299) return null
-            TranslationRequest.answer(connection.inputStream.use { it.readBytes().toString(Charsets.UTF_8) })
-        } catch (_: Exception) {
-            null
-        } finally {
-            connection.disconnect()
+        val headers = buildMap {
+            put("Content-Type", "application/json")
+            key?.takeIf { it.isNotBlank() }?.let { put("Authorization", "Bearer $it") }
         }
+        // Plain http stays for a server on the person's own network, which needs no key; a key is
+        // never sent over it (Http refuses the request instead).
+        val request = Http.Request(
+            url,
+            method = "POST",
+            headers = headers,
+            body = TranslationRequest.body(model, line, target).toByteArray(Charsets.UTF_8),
+            allowPlainHttp = true,
+        )
+        return runCatching {
+            TranslationRequest.answer(Http.read(request, MAX_RESPONSE_BYTES).toString(Charsets.UTF_8))
+        }.getOrNull()
+    }
+
+    private companion object {
+        /** A chat answer is a few kilobytes; one far past [TranslationRequest.MAX_ANSWER] is not read. */
+        const val MAX_RESPONSE_BYTES = 256L * 1024
     }
 }
 

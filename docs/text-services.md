@@ -179,6 +179,8 @@ on and chooses a service.
   own Ollama, llama.cpp or LM Studio server, which may need no key), with its model and the language to
   translate into. The key is a `KeystoreSecret`, the same store as the GitHub token: masked, removable,
   never in reports. The owner asked for "various translators as an option"; this is the first.
+  The key goes only over https. A plain-http address is for a server on the person's own network that
+  needs no key: with a key set, the request is not sent at all (`Http`, Droidtop/tracker#768).
 - **Where it runs.** The runtime has no network, so each line goes over a oneway binder call
   (`ITextServices`) to `TextServicesService` in Enginehost's main process, which asks the service on one
   worker thread, in order, and sends the answer back (`ITextTranslated`).

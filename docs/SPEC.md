@@ -756,3 +756,16 @@ a core run with its filter only recording, or loosen the sandbox in any other wa
 set on the device. The code quality review found them shipping in release builds. A rig check
 that needs a switch runs on `enginehost-latest-debug.apk`, which every build publishes beside
 the release APK.
+
+## One HTTP helper for servers that are not GitHub (decided 2026-10-29, Droidtop/tracker#768)
+
+Voice model downloads, the translator and the stats endpoint go through `Http`, and GitHub traffic stays
+on the shared client (`GithubClients`). Before this, each built its own connection, with its own
+timeouts and User-Agent and a catch that made every failure null. `Http` works as follows:
+- It follows redirects by hand, at most five, and only to https. Voice downloads used to follow any
+  redirect, and the pinned digest does not stop a request from going to a plain-http host.
+- It refuses plain http unless the caller allows it. Only the translator does, for a server on the
+  person's own network.
+- It never sends an Authorization header over plain http.
+- Every read has a bound.
+- A failure is an `Http.Failure` that says what went wrong.

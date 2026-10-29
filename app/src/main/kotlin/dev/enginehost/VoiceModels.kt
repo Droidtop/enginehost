@@ -15,8 +15,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URI
 import java.security.MessageDigest
 import java.util.zip.GZIPInputStream
 
@@ -89,30 +87,23 @@ object VoiceModels {
         val root = root(context).apply { mkdirs() }
         val partial = File(root, ".${offered.id}.download")
         try {
-            val connection = URI(offered.url).toURL().openConnection() as HttpURLConnection
             val digest = MessageDigest.getInstance("SHA-256")
-            try {
-                connection.connectTimeout = 20_000
-                connection.readTimeout = 60_000
-                connection.instanceFollowRedirects = true
-                if (connection.responseCode !in 200..299) throw IOException("The download answered ${connection.responseCode}")
-                connection.inputStream.use { input ->
-                    FileOutputStream(partial).use { output ->
-                        val buffer = ByteArray(1 shl 16)
-                        var total = 0L
-                        while (true) {
-                            val read = input.read(buffer)
-                            if (read < 0) break
-                            total += read
-                            if (total > offered.bytes) throw IOException("The download is larger than the file pinned")
-                            output.write(buffer, 0, read)
-                            digest.update(buffer, 0, read)
-                            progress(total)
-                        }
+            // Https only, redirects included (Http): the digest pins the file, and the request still
+            // goes to no plain-http host on the way.
+            Http.open(Http.Request(offered.url, connectTimeoutMs = 20_000)) { input ->
+                FileOutputStream(partial).use { output ->
+                    val buffer = ByteArray(1 shl 16)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > offered.bytes) throw IOException("The download is larger than the file pinned")
+                        output.write(buffer, 0, read)
+                        digest.update(buffer, 0, read)
+                        progress(total)
                     }
                 }
-            } finally {
-                connection.disconnect()
             }
             val got = digest.digest().joinToString("") { "%02x".format(it) }
             if (got != offered.sha256) throw IOException("The download is not the file pinned")

@@ -8,8 +8,6 @@ import android.provider.Settings
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URI
 
 /**
  * Anonymous ratings of voice and translation models, opt-in (docs/stats-schema.md;
@@ -148,25 +146,20 @@ object SharedStats {
         if (kept.length() == 0) file.delete() else writeArray(file, kept)
     }
 
-    private fun post(report: String): Boolean {
-        val connection = runCatching { URI(ENDPOINT).toURL().openConnection() as HttpURLConnection }.getOrNull() ?: return false
-        return try {
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 15_000
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-            connection.useCaches = false
-            connection.setRequestProperty("Content-Type", "application/json")
-            // No app version: it would narrow who sent a report.
-            connection.setRequestProperty("User-Agent", "enginehost-stats/${StatsReport.SCHEMA}")
-            connection.outputStream.use { it.write(report.toByteArray(Charsets.UTF_8)) }
-            connection.responseCode in 200..299
-        } catch (_: Exception) {
-            false
-        } finally {
-            connection.disconnect()
-        }
-    }
+    private fun post(report: String): Boolean = runCatching {
+        Http.read(
+            Http.Request(
+                ENDPOINT,
+                method = "POST",
+                headers = mapOf("Content-Type" to "application/json"),
+                body = report.toByteArray(Charsets.UTF_8),
+                // No app version: it would narrow who sent a report.
+                userAgent = "enginehost-stats/${StatsReport.SCHEMA}",
+                readTimeoutMs = 15_000,
+            ),
+            maxBytes = 64L * 1024,
+        )
+    }.isSuccess
 
     enum class Outcome { SENT, DROPPED, NO_ENDPOINT }
 
@@ -205,23 +198,15 @@ object SharedStats {
         if (AGGREGATE_URL.isEmpty()) return
         val file = aggregateFile(context)
         if (file.isFile && System.currentTimeMillis() - file.lastModified() < AGGREGATE_AGE_MS) return
-        val connection = runCatching { URI(AGGREGATE_URL).toURL().openConnection() as HttpURLConnection }.getOrNull() ?: return
-        try {
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 15_000
-            if (connection.responseCode !in 200..299) return
-            val body = connection.inputStream.use { it.readBytes() }
-            if (body.size > 4 * 1024 * 1024) return
-            val text = body.toString(Charsets.UTF_8)
-            // Kept only when this build can read it; a bad fetch leaves the last good one.
-            if (StatsAggregate.parse(text) === StatsAggregate.EMPTY) return
-            val partial = File(file.parentFile, file.name + ".part")
-            partial.writeText(text)
-            partial.renameTo(file)
-        } catch (_: Exception) {
-        } finally {
-            connection.disconnect()
-        }
+        val body = runCatching {
+            Http.read(Http.Request(AGGREGATE_URL, readTimeoutMs = 15_000), maxBytes = 4L * 1024 * 1024)
+        }.getOrNull() ?: return
+        val text = body.toString(Charsets.UTF_8)
+        // Kept only when this build can read it; a bad fetch leaves the last good one.
+        if (StatsAggregate.parse(text) === StatsAggregate.EMPTY) return
+        val partial = File(file.parentFile, file.name + ".part")
+        partial.writeText(text)
+        partial.renameTo(file)
     }
 
     private fun logFile(context: Context) = File(context.filesDir, "shared-stats-log.json")
