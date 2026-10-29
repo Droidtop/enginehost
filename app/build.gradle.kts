@@ -1,3 +1,6 @@
+import java.net.URI
+import java.security.MessageDigest
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -149,7 +152,7 @@ val sherpaOnnxFetch = tasks.register("sherpaOnnxFetch") {
     outputs.file(sherpaOnnxAar)
     inputs.property("sha256", sherpaOnnxSha256)
     doLast {
-        fun sha256(file: File): String = java.security.MessageDigest.getInstance("SHA-256").let { digest ->
+        fun sha256(file: File): String = MessageDigest.getInstance("SHA-256").let { digest ->
             file.inputStream().use { input ->
                 val buffer = ByteArray(1 shl 16)
                 while (true) {
@@ -164,7 +167,7 @@ val sherpaOnnxFetch = tasks.register("sherpaOnnxFetch") {
         sherpaOnnxAar.parentFile.mkdirs()
         val partial = File(sherpaOnnxAar.path + ".part")
         val url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v$sherpaOnnxVersion/sherpa-onnx-$sherpaOnnxVersion.aar"
-        java.net.URI(url).toURL().openStream().use { input -> partial.outputStream().use { input.copyTo(it) } }
+        URI(url).toURL().openStream().use { input -> partial.outputStream().use { input.copyTo(it) } }
         val got = sha256(partial)
         check(got == sherpaOnnxSha256) {
             partial.delete()
