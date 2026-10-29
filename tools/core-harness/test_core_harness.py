@@ -224,3 +224,14 @@ class LearnTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WaitUntilTest(unittest.TestCase):
+    def test_answers_as_soon_as_the_condition_holds(self):
+        calls = []
+        self.assertTrue(h.wait_until(lambda: calls.append(1) or len(calls) >= 3, 5, every=0.01))
+        self.assertEqual(3, len(calls))
+
+    def test_gives_up_at_the_deadline(self):
+        self.assertFalse(h.wait_until(lambda: False, 0.05, every=0.01))
+

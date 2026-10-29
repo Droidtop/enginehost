@@ -59,7 +59,7 @@ Keys are Android key codes as `adb shell input keyevent` takes them, sent as a k
 written `gamepad:KEYCODE_BUTTON_A` is sent as a gamepad's (`adb shell input gamepad keyevent`), which
 Enginehost takes as controller input and maps to the engine's actions. A libretro core
 (NScripter, EasyRPG) reads no keyboard, so its keys need the `gamepad:` form. Each
-step's `delay` (seconds between keys) defaults to 1. `tools/core-harness/games.example.json`
+step's `delay` (seconds between keys) defaults to 1. A step's `delay` only paces the presses. What a check decides on is observed, with a deadline, not timed: save waits up to 10 s for a newer file in the save folder, input up to 6 s for the screen to move, exit up to 15 s for the runtime to end, and a load fails if the runtime ends within 3 s (Droidtop/tracker#768: fixed sleeps made a slow emulator read as a failed game). `tools/core-harness/games.example.json`
 is a starting point.
 
 ## Running it

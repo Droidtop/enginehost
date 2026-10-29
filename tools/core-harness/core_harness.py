@@ -118,6 +118,12 @@ def changed_fraction(a, b, threshold=12):
 # How long the input check waits for the screen to settle before it measures anyway.
 SETTLE_SECONDS = 60
 
+# How long each check waits for what it observes before it counts as not happening.
+INPUT_ANSWER_SECONDS = 6   # the screen changing after input
+SAVE_SECONDS = 10          # a newer file in the save folder
+LOAD_SECONDS = 3           # a load that crashes ends the runtime within this
+EXIT_SECONDS = 15          # the runtime ending after the exit keys
+
 
 def settled(before, after):
     """Whether a game's screen is ready for input: more than one colour, and less than 2% of it
@@ -255,170 +261,220 @@ class Device:
 
 # ---- one game --------------------------------------------------------------
 
+def wait_until(condition, seconds, every=0.5):
+    """Polls [condition] until it holds or [seconds] pass; answers whether it held.
+
+    The checks wait on what they can observe (a newer save file, a changed screen, the
+    process gone) with a deadline, not for a fixed time: a slow emulator used to read as a
+    failed game (code quality review, Droidtop/tracker#768)."""
+    deadline = time.time() + seconds
+    while True:
+        if condition():
+            return True
+        if time.time() >= deadline:
+            return False
+        time.sleep(every)
+
+
+class GameRun:
+    """One game's run through the checks, each a method: first frame, input, survival, save
+    and load, exit, then the logs. The result dict is what the report reads."""
+
+    def __init__(self, device, engine, folder, steps, out_dir, args):
+        self.device, self.folder, self.steps, self.out_dir, self.args = device, folder, steps, out_dir, args
+        self.result = {"engine": engine, "folder": folder, "checks": {}, "notes": []}
+        self.checks = self.result["checks"]
+        # Every pid the game's processes had, so their log can be told from the rest of the device's
+        # once they are gone (a game that closed itself leaves no process to ask).
+        self.pids = set()
+
+    def shot(self, name):
+        try:
+            w, h, rgba = self.device.frame()
+            write_png(os.path.join(self.out_dir, name + ".png"), w, h, rgba)
+            return w, h, rgba
+        except Exception as error:  # a failed screenshot is a note, not a failed game
+            self.result["notes"].append("screenshot %s failed: %s" % (name, error))
+            return None
+
+    def runtime_alive(self):
+        return self.device.pid(RUNTIME_PROCESS) is not None
+
+    def launch_to_first_frame(self):
+        """Starts the game clean and waits for its first frame: the runtime in front, showing more
+        than one flat colour, with Enginehost's own first-frame event. Answers whether it came."""
+        device, args, result = self.device, self.args, self.result
+        device.shell("am force-stop %s" % PACKAGE)
+        device.run("logcat", "-c")
+        device.run("logcat", "-b", "crash", "-c")
+        self.started = time.time()
+        device.shell("am start -a %s --es path %s" % (LAUNCH_ACTION, shlex.quote(self.folder)))
+        # An unsandboxed core first asks the person on the launch screen; the
+        # harness answers for them only when its operator said so.
+        first = None
+        last_focus = ""
+        result["unsandboxed"] = False
+        while time.time() - self.started < args.first_frame_seconds:
+            time.sleep(2)
+            self.pids |= device.app_pids()
+            last_focus = device.focused()
+            if not result["unsandboxed"] and "LaunchActivity" in last_focus:
+                choice = device.find_text(UNSANDBOXED_CHOICE)
+                if choice:
+                    result["unsandboxed"] = True
+                    if not args.run_unsandboxed:
+                        result["skipped"] = "its core runs unsandboxed; rerun with --run-unsandboxed to run it anyway"
+                        break
+                    result["notes"].append("ran its core UNSANDBOXED (--run-unsandboxed): no sandbox protected this run")
+                    device.tap(*choice)
+                    continue
+            if device.pid(RUNTIME_PROCESS) and PACKAGE in last_focus and "LaunchActivity" not in last_focus:
+                frame = self.shot("first-frame-candidate")
+                events = device.run("logcat", "-d", "-s", EVENTS_TAG + ":I")
+                if first_frame_shown(events, bool(frame) and not is_flat(sample(*frame))):
+                    first = time.time() - self.started
+                    break
+        if result.get("skipped"):
+            self.checks["first frame"] = NOT_TESTED
+        elif first is not None:
+            self.checks["first frame"] = PASS
+            result["first_frame_seconds"] = round(first, 1)
+            self.shot("first-frame")
+        else:
+            self.checks["first frame"] = FAIL
+            reason = "the launch screen never gave way" if "LaunchActivity" in last_focus else \
+                "the runtime showed one flat colour (black screen)" if device.pid(RUNTIME_PROCESS) else \
+                "no runtime process"
+            result["notes"].append("no first frame within %ds: %s (focus: %s)" % (args.first_frame_seconds, reason, last_focus))
+            with open(os.path.join(self.out_dir, "screen-ui.xml"), "w") as f:
+                f.write(device.ui_text())
+            self.shot("no-first-frame")
+        return first is not None
+
+    def check_input(self):
+        """The screen moves with input more than it does by itself, measured once the screen has
+        settled: a picture that holds still for 3 s. An engine's own start-up (Ren'Py's presplash,
+        then black while it loads) is neither, and input sent into it is lost (emulator run
+        40889525212: Ren'Py changed 1.0 of the screen "idle")."""
+        device = self.device
+        deadline = time.time() + SETTLE_SECONDS
+        while True:
+            quiet_a = self.shot("input-before")
+            time.sleep(3)
+            quiet_b = self.shot("input-idle")
+            if time.time() > deadline or (quiet_a and quiet_b and settled(sample(*quiet_a), sample(*quiet_b))):
+                break
+        self.result["settled_seconds"] = round(time.time() - self.started, 1)
+        for key in self.steps.get("input_keys", ["KEYCODE_BUTTON_A", "KEYCODE_ENTER", "KEYCODE_DPAD_DOWN", "KEYCODE_BUTTON_A"]):
+            device.key(key)
+            time.sleep(0.5)  # pacing between presses, as a person presses
+        if quiet_b:
+            device.tap_centre(quiet_b[0], quiet_b[1])
+        if not (quiet_a and quiet_b):
+            self.checks["input"] = NOT_TESTED
+            return
+        idle = changed_fraction(sample(*quiet_a), sample(*quiet_b))
+        threshold = max(0.02, idle * 1.5)
+        moved = None
+
+        def answered():
+            nonlocal moved
+            moved = self.shot("input-after")
+            return bool(moved) and changed_fraction(sample(*quiet_b), sample(*moved)) > threshold
+        wait_until(answered, INPUT_ANSWER_SECONDS, every=1.0)
+        if not moved:
+            self.checks["input"] = NOT_TESTED
+            return
+        active = changed_fraction(sample(*quiet_b), sample(*moved))
+        self.result["input_change"] = {"idle": round(idle, 3), "after_input": round(active, 3)}
+        self.checks["input"] = PASS if active > threshold else FAIL
+        if self.checks["input"] == FAIL:
+            self.result["notes"].append("the screen did not respond to input more than it changes by itself")
+
+    def check_alive(self):
+        """Still running after a while of play, with nothing in the crash buffer."""
+        self.pids |= self.device.app_pids()
+        time.sleep(self.args.play_seconds)  # the check is that it lasts this long
+        alive = self.runtime_alive()
+        crash = self.device.run("logcat", "-b", "crash", "-d")
+        self.checks["stays alive"] = PASS if alive and RUNTIME_PROCESS not in crash else FAIL
+        if not alive:
+            self.result["notes"].append("the runtime process ended within %ds of the first frame" % self.args.play_seconds)
+        self.shot("after-play")
+
+    def check_save_and_load(self):
+        """Save with this engine's keys: a file in its save folder is newer than before. Load with
+        its keys: the runtime is still there afterwards."""
+        device = self.device
+        save = self.steps.get("save")
+        if not (save and save.get("keys") and save.get("folder")):
+            self.checks["save"] = self.checks["load"] = NOT_TESTED
+            return
+        before = device.newest_mtime(save["folder"])
+        for key in save["keys"]:
+            device.key(key)
+            time.sleep(save.get("delay", 1.0))  # pacing between presses
+        saved = wait_until(lambda: device.newest_mtime(save["folder"]) > before, SAVE_SECONDS, every=1.0)
+        self.checks["save"] = PASS if saved else FAIL
+        load = self.steps.get("load")
+        if not (load and load.get("keys")):
+            self.checks["load"] = NOT_TESTED
+            return
+        for key in load["keys"]:
+            device.key(key)
+            time.sleep(load.get("delay", 1.0))
+        # A load that crashes ends the runtime within a few seconds; none ending is the pass.
+        ended = wait_until(lambda: not self.runtime_alive(), LOAD_SECONDS, every=1.0)
+        self.checks["load"] = FAIL if ended else PASS
+        self.shot("after-load")
+
+    def check_exit(self):
+        """Exit with this engine's keys: the runtime ends, with no crash."""
+        exit_steps = self.steps.get("exit")
+        if not (exit_steps and exit_steps.get("keys")):
+            self.checks["exit"] = NOT_TESTED
+            return
+        for key in exit_steps["keys"]:
+            self.device.key(key)
+            time.sleep(exit_steps.get("delay", 1.0))
+        ended = wait_until(lambda: not self.runtime_alive(), EXIT_SECONDS, every=1.0)
+        crash = self.device.run("logcat", "-b", "crash", "-d")
+        self.checks["exit"] = PASS if ended and RUNTIME_PROCESS not in crash else FAIL
+
+    def collect_logs(self):
+        """The logs, whatever happened, and the result written beside them."""
+        device, out_dir, result = self.device, self.out_dir, self.result
+        logcat = device.run("logcat", "-d", "-v", "threadtime", timeout=120)
+        with open(os.path.join(out_dir, "logcat.txt"), "w") as f:
+            f.write(logcat)
+        with open(os.path.join(out_dir, "app-log.txt"), "w") as f:
+            f.write(lines_of(logcat, self.pids))
+        with open(os.path.join(out_dir, "crash.txt"), "w") as f:
+            f.write(device.run("logcat", "-b", "crash", "-d", "-v", "threadtime"))
+        events = device.run("logcat", "-d", "-s", EVENTS_TAG + ":I")
+        with open(os.path.join(out_dir, "host-events.txt"), "w") as f:
+            f.write(events)
+        result["host_events"] = [line.split(": ", 1)[-1] for line in events.splitlines() if EVENTS_TAG in line][-12:]
+        device.shell("am force-stop %s" % PACKAGE)
+        result["passed"] = not result.get("skipped") and all(v != FAIL for v in self.checks.values())
+        with open(os.path.join(out_dir, "result.json"), "w") as f:
+            json.dump(result, f, indent=2)
+
+
 def run_game(device, engine, folder, steps, out_dir, args):
     """Run every check on one game; answers the result dict."""
     os.makedirs(out_dir, exist_ok=True)
-    result = {"engine": engine, "folder": folder, "checks": {}, "notes": []}
-    checks = result["checks"]
-
-    def shot(name):
-        try:
-            w, h, rgba = device.frame()
-            write_png(os.path.join(out_dir, name + ".png"), w, h, rgba)
-            return w, h, rgba
-        except Exception as error:  # a failed screenshot is a note, not a failed game
-            result["notes"].append("screenshot %s failed: %s" % (name, error))
-            return None
-
-    # A clean start: no game left running, an empty log.
-    device.shell("am force-stop %s" % PACKAGE)
-    device.run("logcat", "-c")
-    device.run("logcat", "-b", "crash", "-c")
-    started = time.time()
-    device.shell("am start -a %s --es path %s" % (LAUNCH_ACTION, shlex.quote(folder)))
-
-    # First frame: the runtime in front, showing more than one flat colour.
-    # An unsandboxed core first asks the person on the launch screen; the
-    # harness answers for them only when its operator said so.
-    first = None
-    last_focus = ""
-    result["unsandboxed"] = False
-    # Every pid the game's processes had, so their log can be told from the rest of the device's
-    # once they are gone (a game that closed itself leaves no process to ask).
-    pids = set()
-    while time.time() - started < args.first_frame_seconds:
-        time.sleep(2)
-        pids |= device.app_pids()
-        last_focus = device.focused()
-        if not result["unsandboxed"] and "LaunchActivity" in last_focus:
-            choice = device.find_text(UNSANDBOXED_CHOICE)
-            if choice:
-                result["unsandboxed"] = True
-                if not args.run_unsandboxed:
-                    result["skipped"] = "its core runs unsandboxed; rerun with --run-unsandboxed to run it anyway"
-                    break
-                result["notes"].append("ran its core UNSANDBOXED (--run-unsandboxed): no sandbox protected this run")
-                device.tap(*choice)
-                continue
-        if device.pid(RUNTIME_PROCESS) and PACKAGE in last_focus and "LaunchActivity" not in last_focus:
-            frame = shot("first-frame-candidate")
-            events = device.run("logcat", "-d", "-s", EVENTS_TAG + ":I")
-            if first_frame_shown(events, bool(frame) and not is_flat(sample(*frame))):
-                first = time.time() - started
-                break
-    if result.get("skipped"):
-        checks["first frame"] = NOT_TESTED
-    elif first is not None:
-        checks["first frame"] = PASS
-        result["first_frame_seconds"] = round(first, 1)
-        shot("first-frame")
-    else:
-        checks["first frame"] = FAIL
-        reason = "the launch screen never gave way" if "LaunchActivity" in last_focus else \
-            "the runtime showed one flat colour (black screen)" if device.pid(RUNTIME_PROCESS) else \
-            "no runtime process"
-        result["notes"].append("no first frame within %ds: %s (focus: %s)" % (args.first_frame_seconds, reason, last_focus))
-        with open(os.path.join(out_dir, "screen-ui.xml"), "w") as f:
-            f.write(device.ui_text())
-        shot("no-first-frame")
-
-    if first is not None:
-        # Input: the screen moves with input more than it does by itself, measured once the
-        # screen has settled: a picture that holds still for 3 s. An engine's own start-up
-        # (Ren'Py's presplash, then black while it loads) is neither, and input sent into it
-        # is lost (emulator run 40889525212: Ren'Py changed 1.0 of the screen "idle").
-        deadline = time.time() + SETTLE_SECONDS
-        while True:
-            quiet_a = shot("input-before")
-            time.sleep(3)
-            quiet_b = shot("input-idle")
-            if time.time() > deadline or (quiet_a and quiet_b and settled(sample(*quiet_a), sample(*quiet_b))):
-                break
-        result["settled_seconds"] = round(time.time() - started, 1)
-        for key in steps.get("input_keys", ["KEYCODE_BUTTON_A", "KEYCODE_ENTER", "KEYCODE_DPAD_DOWN", "KEYCODE_BUTTON_A"]):
-            device.key(key)
-            time.sleep(0.5)
-        if quiet_b:
-            device.tap_centre(quiet_b[0], quiet_b[1])
-        time.sleep(3)
-        moved = shot("input-after")
-        if quiet_a and quiet_b and moved:
-            idle = changed_fraction(sample(*quiet_a), sample(*quiet_b))
-            active = changed_fraction(sample(*quiet_b), sample(*moved))
-            result["input_change"] = {"idle": round(idle, 3), "after_input": round(active, 3)}
-            checks["input"] = PASS if active > max(0.02, idle * 1.5) else FAIL
-            if checks["input"] == FAIL:
-                result["notes"].append("the screen did not respond to input more than it changes by itself")
-        else:
-            checks["input"] = NOT_TESTED
-
-        # Survival: still running, nothing in the crash buffer.
-        pids |= device.app_pids()
-        time.sleep(args.play_seconds)
-        alive = device.pid(RUNTIME_PROCESS) is not None
-        crash = device.run("logcat", "-b", "crash", "-d")
-        checks["stays alive"] = PASS if alive and RUNTIME_PROCESS not in crash else FAIL
-        if not alive:
-            result["notes"].append("the runtime process ended within %ds of the first frame" % args.play_seconds)
-        shot("after-play")
-
-        # Save and load, only with this engine's keys and its save folder.
-        save = steps.get("save")
-        if save and save.get("keys") and save.get("folder"):
-            before = device.newest_mtime(save["folder"])
-            for key in save["keys"]:
-                device.key(key)
-                time.sleep(save.get("delay", 1.0))
-            time.sleep(2)
-            after = device.newest_mtime(save["folder"])
-            checks["save"] = PASS if after > before else FAIL
-            load = steps.get("load")
-            if load and load.get("keys"):
-                for key in load["keys"]:
-                    device.key(key)
-                    time.sleep(load.get("delay", 1.0))
-                time.sleep(3)
-                checks["load"] = PASS if device.pid(RUNTIME_PROCESS) else FAIL
-                shot("after-load")
-            else:
-                checks["load"] = NOT_TESTED
-        else:
-            checks["save"] = checks["load"] = NOT_TESTED
-
-        # Exit, only with this engine's keys: the runtime ends with no crash.
-        exit_steps = steps.get("exit")
-        if exit_steps and exit_steps.get("keys"):
-            for key in exit_steps["keys"]:
-                device.key(key)
-                time.sleep(exit_steps.get("delay", 1.0))
-            deadline = time.time() + 15
-            while time.time() < deadline and device.pid(RUNTIME_PROCESS):
-                time.sleep(1)
-            crash = device.run("logcat", "-b", "crash", "-d")
-            checks["exit"] = PASS if not device.pid(RUNTIME_PROCESS) and RUNTIME_PROCESS not in crash else FAIL
-        else:
-            checks["exit"] = NOT_TESTED
+    run = GameRun(device, engine, folder, steps, out_dir, args)
+    if run.launch_to_first_frame():
+        run.check_input()
+        run.check_alive()
+        run.check_save_and_load()
+        run.check_exit()
     else:
         for name in ("input", "stays alive", "save", "load", "exit"):
-            checks[name] = NOT_TESTED
-
-    # Logs, whatever happened.
-    logcat = device.run("logcat", "-d", "-v", "threadtime", timeout=120)
-    with open(os.path.join(out_dir, "logcat.txt"), "w") as f:
-        f.write(logcat)
-    with open(os.path.join(out_dir, "app-log.txt"), "w") as f:
-        f.write(lines_of(logcat, pids))
-    with open(os.path.join(out_dir, "crash.txt"), "w") as f:
-        f.write(device.run("logcat", "-b", "crash", "-d", "-v", "threadtime"))
-    events = device.run("logcat", "-d", "-s", EVENTS_TAG + ":I")
-    with open(os.path.join(out_dir, "host-events.txt"), "w") as f:
-        f.write(events)
-    result["host_events"] = [line.split(": ", 1)[-1] for line in events.splitlines() if EVENTS_TAG in line][-12:]
-    device.shell("am force-stop %s" % PACKAGE)
-    result["passed"] = not result.get("skipped") and all(v != FAIL for v in checks.values())
-    with open(os.path.join(out_dir, "result.json"), "w") as f:
-        json.dump(result, f, indent=2)
-    return result
+            run.checks[name] = NOT_TESTED
+    run.collect_logs()
+    return run.result
 
 
 # ---- the report ------------------------------------------------------------
