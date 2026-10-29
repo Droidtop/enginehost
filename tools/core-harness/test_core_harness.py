@@ -44,8 +44,14 @@ class FrameTest(unittest.TestCase):
         self.assertTrue(h.is_flat(h.sample(*frame, step=1)))
 
     def test_changed_fraction(self):
-        self.assertEqual(0.0, h.changed_fraction([10, 20], [10, 20]))
-        self.assertEqual(0.5, h.changed_fraction([10, 20], [10, 200]))
+        grey, white = (10, 10, 10), (200, 200, 200)
+        self.assertEqual(0.0, h.changed_fraction([grey, white], [grey, white]))
+        self.assertEqual(0.5, h.changed_fraction([grey, grey], [grey, white]))
+
+    def test_a_change_of_colour_at_the_same_luma_is_a_change(self):
+        # The test games' blue and red: luma 86 and 89.
+        blue, red = (56, 89, 153), (153, 56, 89)
+        self.assertEqual(1.0, h.changed_fraction([blue], [red]))
 
     def test_png_is_written(self):
         with tempfile.TemporaryDirectory() as d:

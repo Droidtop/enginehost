@@ -75,30 +75,39 @@ SYSTEM_BARS = 0.08
 
 
 def sample(width, height, rgba, step=8):
-    """Luma values of a grid of pixels, every [step]th pixel each way, between the system bars."""
+    """(r, g, b) of a grid of pixels, every [step]th pixel each way, between the system bars.
+
+    Colour, not luma: the test games show input by changing colour, and their two colours can
+    share a luma (the LÖVE and HTML games' blue and red differ by 3 of 255 in luma, so the emulator
+    run of 2026-10-29 read their response to input as no change at all).
+    """
     values = []
     for y in range(int(height * SYSTEM_BARS), height - int(height * SYSTEM_BARS), step):
         row = y * width * 4
         for x in range(0, width, step):
             i = row + x * 4
-            r, g, b = rgba[i], rgba[i + 1], rgba[i + 2]
-            values.append((r * 299 + g * 587 + b * 114) // 1000)
+            values.append((rgba[i], rgba[i + 1], rgba[i + 2]))
     return values
 
 
+def distance(a, b):
+    """How far apart two (r, g, b) colours are: the largest difference of one channel."""
+    return max(abs(a[0] - b[0]), abs(a[1] - b[1]), abs(a[2] - b[2]))
+
+
 def is_flat(values, tolerance=6):
-    """True when every sampled pixel is within [tolerance] of the mean: one flat colour (a black screen)."""
+    """True when every sampled pixel is within [tolerance] of the mean colour: one flat colour (a black screen)."""
     if not values:
         return True
-    mean = sum(values) / len(values)
-    return all(abs(v - mean) <= tolerance for v in values)
+    mean = tuple(sum(v[c] for v in values) / len(values) for c in range(3))
+    return all(distance(v, mean) <= tolerance for v in values)
 
 
 def changed_fraction(a, b, threshold=12):
-    """The share of sampled pixels whose luma moved by more than [threshold] between two samples."""
+    """The share of sampled pixels whose colour moved by more than [threshold] between two samples."""
     if not a or len(a) != len(b):
         return 1.0
-    return sum(1 for x, y in zip(a, b) if abs(x - y) > threshold) / len(a)
+    return sum(1 for x, y in zip(a, b) if distance(x, y) > threshold) / len(a)
 
 
 def write_png(path, width, height, rgba):
