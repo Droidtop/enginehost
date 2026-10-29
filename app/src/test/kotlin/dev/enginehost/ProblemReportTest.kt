@@ -78,8 +78,13 @@ class ProblemReportTest {
 
     @Test
     fun theEventRingKeepsTheNewestLinesAndOneLineEach() {
-        val ring = HostEvents.trimmed(listOf("a", "b", "c"), "d", 3)
-        assertEquals(listOf("b", "c", "d"), ring)
+        // Appended a line at a time, and cut back to the newest MAX_LINES once it holds twice that.
+        val file = java.io.File.createTempFile("host-events", ".log").also { it.deleteOnExit(); it.delete() }
+        val written = 2 * HostEvents.MAX_LINES + 5
+        (1..written).forEach { HostEvents.append(file, "event $it") }
+        val kept = file.readLines().filter { it.isNotBlank() }
+        assertTrue(kept.size in HostEvents.MAX_LINES until 2 * HostEvents.MAX_LINES)
+        assertEquals("event $written", kept.last())
         val line = HostEvents.format(Date(0), "plan:\nfailure   here")
         assertTrue(line, line.endsWith(" plan: failure here"))
         assertFalse(line.contains("\n"))

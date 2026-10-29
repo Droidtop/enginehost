@@ -17,6 +17,11 @@ import java.util.concurrent.Executors
  * slips through anyway ([ProblemReport.scrub]). Writes go through one
  * background thread, so recording an event never touches the disk on the
  * caller's thread.
+ *
+ * An event is appended as one line; the file is cut back to the newest
+ * [MAX_LINES] only once it holds twice that. Rewriting the whole ring for
+ * every event, as this did, meant a read and a write of the file per line a
+ * chatty engine logged (code quality review, Droidtop/tracker#768).
  */
 object HostEvents {
     private const val FILE = "host-events.log"
@@ -29,7 +34,7 @@ object HostEvents {
      * runtime process is its only writer, so two processes never share a file.
      */
     const val ENGINE_FILE = "engine-events.log"
-    private const val MAX_LINES = 60
+    internal const val MAX_LINES = 60
     private const val MAX_LINE_CHARACTERS = 200
 
     private val lock = Any()
@@ -50,20 +55,34 @@ object HostEvents {
         // the same milestones. Host events name no game ([FILE]'s rule).
         if (name == FILE) android.util.Log.i(LOG_TAG, event)
         worker.execute {
-            runCatching {
-                synchronized(lock) { file.writeText(trimmed(read(file), line, MAX_LINES).joinToString("\n") + "\n") }
-            }
+            runCatching { synchronized(lock) { append(file, line) } }
+        }
+    }
+
+    /** Lines appended to each ring since this process last cut it back, by file. */
+    private val appended = HashMap<String, Int>()
+
+    /** Appends [line] to [file], and cuts it back to the newest [MAX_LINES] once it holds twice that. Under [lock]. */
+    internal fun append(file: File, line: String) {
+        file.appendText(line + "\n")
+        // The count starts from what the file holds, so a ring another process wrote is cut back too.
+        val count = (appended[file.path] ?: read(file).size) + 1
+        if (count >= 2 * MAX_LINES) {
+            file.writeText(read(file).takeLast(MAX_LINES).joinToString("\n") + "\n")
+            appended[file.path] = MAX_LINES
+        } else {
+            appended[file.path] = count
         }
     }
 
     /** The recorded events, oldest first. Reads the file: not for the main thread. */
     fun recent(context: Context, name: String = FILE): List<String> =
-        synchronized(lock) { read(File(context.applicationContext.filesDir, name)) }
+        synchronized(lock) { read(File(context.applicationContext.filesDir, name)).takeLast(MAX_LINES) }
 
     /** Forget the ring [name]: a new game session starts a new story. */
     fun clear(context: Context, name: String) {
         val file = File(context.applicationContext.filesDir, name)
-        worker.execute { runCatching { synchronized(lock) { file.delete() } } }
+        worker.execute { runCatching { synchronized(lock) { file.delete().also { appended.remove(file.path) } } } }
     }
 
     /**
@@ -93,13 +112,12 @@ object HostEvents {
         record(context, line, ENGINE_FILE)
     }
 
-    /** The ring after adding [line]: the newest [max] lines. */
-    internal fun trimmed(existing: List<String>, line: String, max: Int): List<String> = (existing + line).takeLast(max)
-
     /** One event as a single line with its time. */
     internal fun format(at: Date, event: String): String =
         SimpleDateFormat("MM-dd HH:mm:ss", Locale.US).format(at) + " " +
-            event.replace(Regex("\\s+"), " ").trim().take(MAX_LINE_CHARACTERS)
+            event.replace(WHITESPACE, " ").trim().take(MAX_LINE_CHARACTERS)
+
+    private val WHITESPACE = Regex("\\s+")
 
     private fun read(file: File): List<String> = runCatching { file.readLines().filter { it.isNotBlank() } }.getOrDefault(emptyList())
 }
