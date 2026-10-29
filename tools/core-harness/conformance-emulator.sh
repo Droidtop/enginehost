@@ -19,6 +19,11 @@ adb wait-for-device
 adb install -r -g "$apk"
 # Game folders are read by path, as on a device where the person granted all-files access.
 adb shell appops set dev.enginehost MANAGE_EXTERNAL_STORAGE allow
+# LOCKDOWN=1: every core runs under the process lockdown, as one that declares it does (#550).
+if [ "${LOCKDOWN:-}" = 1 ]; then
+    adb shell setprop debug.enginehost.lockdown 1
+    echo "The process lockdown is forced on for every core"
+fi
 # adb is the unrecognized caller; a person allows it once in Settings, here the debug switch does.
 adb shell am start -W -n dev.enginehost/.DebugCallerAccessActivity
 

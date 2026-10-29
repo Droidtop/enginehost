@@ -9,6 +9,14 @@ on:
   schedule:
     - cron: "41 3 * * *"
   workflow_dispatch:
+    inputs:
+      lockdown:
+        # The #550 rollout's middle step for a core that runs unsandboxed: play its test game
+        # with the lockdown forced on (debug.enginehost.lockdown 1), before it declares
+        # "lockdown": true. Off for the nightly and push runs.
+        description: Force the process lockdown on for every core
+        type: boolean
+        default: false
   # A change to the harness (its scripts and the debug build's adb hooks), the test games or this
   # workflow is run where it is pushed.
   push:
@@ -108,7 +116,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash tools/core-harness/conformance-emulator.sh app/build/outputs/apk/debug/app-debug.apk cores results
+          script: LOCKDOWN=${{ inputs.lockdown && '1' || '' }} bash tools/core-harness/conformance-emulator.sh app/build/outputs/apk/debug/app-debug.apk cores results
 
       # The report as the run's summary: read where the logs' download is refused.
       - name: Summarise

@@ -57,6 +57,11 @@ the Google APIs image), and runs
   only an official signer;
 - push the in-repository test games and run the core harness (docs/core-harness.md) on them.
 
+Dispatched with `lockdown` set, it forces the process lockdown on for every core
+(`debug.enginehost.lockdown 1`): the step of the #550 rollout between a core's learning run and
+its declaring `"lockdown": true`, for the cores that still run unsandboxed. The plan line in each
+game's events says "locked down" when it took.
+
 Its report is the run's summary, and the screenshots, logcat and per-game results are the run's
 `conformance-emulator` artifact.
 
