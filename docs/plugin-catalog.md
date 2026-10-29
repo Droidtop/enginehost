@@ -184,50 +184,17 @@ workflow then signs v1 and checks the bundle against the pinned root before
 publishing. The key is deterministic: running the same command again derives
 the same key, so a lost secret needs no new certificate.
 
-**Legacy format.** Enginehost no longer verifies these keys (2026-10-29,
-Droidtop/tracker#768); this and the rotation paragraph below record how the
-signing side made them, until it stops producing them. Every official repository's raw key is
-derived from the offline master seed for its origin and certified by the old
-root (`scripts/derive-official-key.py`,
-`scripts/certify-repository-key.py`; both run only where the seed is, on
-droidtop-dev under `/root/.gnupg/enginehost-signing`). A new repository gets
-its legacy key like this:
-
-```sh
-seed=/root/.gnupg/enginehost-signing/master-seed.bin
-origin=https://github.com/droidtop/enginehost-example-plugin
-python3 scripts/derive-official-key.py --master-seed "$seed" \
-  --repository-origin "$origin" --output /root/.gnupg/enginehost-signing/example/private.pem
-python3 scripts/certify-repository-key.py \
-  --official-private-key /root/.gnupg/enginehost-signing/root-private.pem \
-  --repository-private-key /root/.gnupg/enginehost-signing/example/private.pem \
-  --origin "$origin" --repository-key-document enginehost-public-key.json
-gh secret set ENGINEHOST_SIGNING_KEY_PEM -R Droidtop/enginehost-example-plugin \
-  < /root/.gnupg/enginehost-signing/example/private.pem
-```
-
-Commit that `enginehost-public-key.json` to the repository's `plugin-core`
-and building branches (the signing workflow attaches it to every release)
-and publish. The `plugin-published` dispatch then registers the repository
-in the plugins index, and devices add it as official at their next refresh
-(above). Nothing needs a new Enginehost build.
-
-**Rotation.** A key is replaced by deriving the same origin's next
-*generation* and certifying it with that generation as its serial
-(`--generation N` and `--serial N`, N one higher than the last), then
-replacing the secret and the committed key document and publishing. The
-serial is part of what the root signs. The index accepts the new key only
-with a higher serial than the one it pinned and records every accepted key
-in droidtop-platforms `plugins/key-history.json`; Enginehost does the same
-check itself and never goes back to a lower serial. The key it replaces
-stays with the origin as superseded: cores installed and approved under
-it keep running, keep their Official badge and their approval, and are not
-prompted for again, while updates signed by the new key are offered as
-ordinary updates (each approved as always) and anything new must carry the
-new key. A lost repository secret needs no rotation: the same generation
-derives the same key again. Enginehost builds from before serials existed
-cannot read a serial certificate, so they keep the old key and stop seeing
-new releases of that origin until they are updated.
+**Legacy format.** The raw repository keys the old official root certified
+are gone from both sides: Enginehost no longer verifies them, and the
+signing workflow no longer makes the legacy signature or takes
+`ENGINEHOST_SIGNING_KEY_PEM` (2026-10-29, Droidtop/tracker#768).
+`scripts/certify-repository-key.py` and `scripts/provision-official-keys.sh`,
+which made and certified them, are deleted. A new official repository needs
+only its v1 certificate (above); an official key changes by a new certificate
+from the signing root, and the old one is withdrawn by the revocation list.
+A repository's committed `enginehost-public-key.json` still travels with each
+release as committed, for a person who adds the repository by hand and pins
+that key.
 
 **Keys that are not official.** A repository the person added (Community or
 Third party) that starts signing with another key shows "This repository now

@@ -1,13 +1,14 @@
 name: Re-sign a stable engine release
 
-# Adds a format-v1 signature to the bundle of an already published stable
-# release and publishes the result as a new stable release beside it
+# Signs the bundle of an already published stable release in format v1 and
+# publishes the result as a new stable release beside it
 # (owner, 2026-10-16, Droidtop/tracker#550). The September stable releases carry
 # only the legacy signature, which Enginehost no longer accepts for an install;
 # their code was verified on hardware when they were promoted, so they are
 # re-signed rather than rebuilt: the manifest bytes, and with them every payload
 # file's digest and the build number, stay exactly as published, and the
-# published release is left as it is. scripts/resign-engine-bundle.py does it.
+# published release is left as it is. scripts/resign-engine-bundle.py does it,
+# and leaves the legacy enginehost-bundle.sig out (Droidtop/tracker#768).
 #
 # A core repository calls it from a dispatch-only workflow, pinned by commit:
 #
@@ -140,12 +141,7 @@ jobs:
             envelope="output/$(basename "$envelope")"
           done
           for bundle in output/*.enginehost.tar.xz; do
-            python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --root-key "$ROOT_KEY" --require-v1
-            # The legacy signature is still the published one.
-            if [ -f source/enginehost-public-key.json ]; then
-              python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" \
-                --repository-key source/enginehost-public-key.json
-            fi
+            python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --root-key "$ROOT_KEY"
           done
           [ ! -f source/enginehost-public-key.json ] || cp source/enginehost-public-key.json output/
           cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
@@ -195,7 +191,7 @@ jobs:
           data["channel"] = "stable"
           json.dump(data, open(path, "w"), sort_keys=True, separators=(",", ":"))
           PY
-          notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, re-signed in signature format v1 (Droidtop/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now also carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, beside the legacy signature. Install it through Enginehost."
+          notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, re-signed in signature format v1 (Droidtop/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, in place of the legacy signature. Install it through Enginehost."
           gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "$title (v1-signed)" --notes "$notes" --draft
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false

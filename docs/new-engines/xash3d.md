@@ -261,9 +261,7 @@ repo finalises the ids):
 - The signing job, unstable/publish channels and the repository key steps
   are `docs/plugin-scaffolds/ags.md` (d) verbatim -- the same
   `sign-engine-bundle.yml` pin, the same `ENGINEHOST_CERTIFICATE_KEY_PEM`
-  and `ENGINEHOST_SIGNING_KEY_PEM` secrets, the same
-  `enginehost-signing-certificate.pem` and `enginehost-public-key.json` at
-  the root -- with one
+  secret, the same `enginehost-signing-certificate.pem` at the root -- with one
   engine-job delta: the build *is* upstream's own Gradle/Ninja
   configuration run per ABI, and upstream's mappings archive is kept
   beside the payload for crash symbolizing.

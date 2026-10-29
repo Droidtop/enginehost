@@ -145,7 +145,10 @@ their subdomains only.
 
 Checked against the code: `PluginOriginKeyStore.importCustom` refuses a
 changed key and nothing defines a rotation; `official_plugin_root_key.json`
-holds one root; built-in keys cannot be replaced (audit S-3). This is a
+holds one root; built-in keys cannot be replaced (audit S-3). (Since
+2026-10-29, Droidtop/tracker#768, those built-in keys and that root are gone:
+official keys are v1 certificates from the signing root, replaced by a new
+certificate and withdrawn by the revocation list.) This is a
 recovery problem more than an exposure: a compromised repository key
 cannot be replaced without an APK release that changes
 `default_plugin_keys.json`. Needs a rotation record and room for more than

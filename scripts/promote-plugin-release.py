@@ -18,12 +18,13 @@ What the script does, in order:
    concluded successfully, and reads its branch and commit.
 2. Downloads the run's artifacts and locates the bundle set: one or more
    `*.enginehost.tar.xz`, the `enginehost-release.json` browsing envelope,
-   and the `enginehost-public-key.json` key document.
-3. Requires the artifact's key document to be byte-identical to the one
-   committed in the repository at that run's own commit -- the same pinned
-   key Enginehost verifies against.
-4. Verifies every bundle offline with scripts/verify-engine-bundle.py
-   against that key document.
+   the `enginehost-signing-certificate.pem` the bundles are signed under, and
+   the repository's `enginehost-public-key.json` key document when it has one
+   (the key a person pins when adding the repository by hand).
+3. Requires the artifact's certificate and key document to be byte-identical
+   to the ones committed in the repository at that run's own commit.
+4. Verifies every bundle offline with scripts/verify-engine-bundle.py: its v1
+   signature, against the Enginehost signing root this checkout pins.
 5. Assembles the release as a draft with all assets and publishes it only
    once they are all up (the retention policy in docs/plugin-catalog.md:
    drafts are invisible to Enginehost, so a half-uploaded release is never
@@ -112,12 +113,12 @@ def main() -> None:
         run("gh", "run", "download", args.run, "-R", args.repo, "-D", str(workdir))
         bundles = sorted(workdir.rglob("*.enginehost.tar.xz"))
         envelopes = sorted(workdir.rglob("enginehost-release.json")) + sorted(workdir.rglob("enginehost-component.json"))
-        # A legacy key document, a v1 signing certificate, or both: what the
-        # signing job produced (docs/engine-bundle-format.md "Signatures").
+        # The v1 signing certificate, and the committed key document when the
+        # repository has one: what the signing job produced (docs/engine-bundle-format.md
+        # "Signatures"). The legacy signature is no longer made (Droidtop/tracker#768).
         key_documents = sorted(workdir.rglob("enginehost-public-key.json"))
         certificates = sorted(workdir.rglob("enginehost-signing-certificate.pem"))
-        if (not bundles or len(envelopes) != 1 or len(key_documents) > 1 or len(certificates) > 1
-                or not (key_documents or certificates)):
+        if not bundles or len(envelopes) != 1 or len(key_documents) > 1 or len(certificates) != 1:
             raise SystemExit(
                 f"run {args.run} artifacts do not form one bundle set "
                 f"(bundles={len(bundles)}, envelopes={len(envelopes)}, keys={len(key_documents)}, "
@@ -125,8 +126,8 @@ def main() -> None:
             )
 
         # What the release carries must be what the repository committed at
-        # this very commit: the key document Enginehost pins (legacy), the
-        # certificate the Enginehost signing root issued (v1).
+        # this very commit: the certificate the Enginehost signing root issued,
+        # and the key document a person pins when adding the repository.
         for published, name in ((key_documents, "enginehost-public-key.json"),
                                 (certificates, "enginehost-signing-certificate.pem")):
             if not published:
@@ -144,10 +145,8 @@ def main() -> None:
         root = scripts.parent / "app/src/main/assets/trust/enginehost-root.pub"
         for bundle in bundles:
             command = [sys.executable, str(scripts / "verify-engine-bundle.py"), str(bundle)]
-            if key_documents:
-                command += ["--repository-key", str(key_documents[0])]
-            if certificates and root.is_file():
-                command += ["--root-key", str(root), "--require-v1"]
+            if root.is_file():
+                command += ["--root-key", str(root)]
             run(*command)
             print(f"verified: {bundle.name}")
 
@@ -155,8 +154,8 @@ def main() -> None:
             part
             for part in (
                 f"{args.title} for Enginehost.",
-                "Signed with this repository's official signing key and verifiable "
-                "against the key document published in this repository. Install it "
+                "Signed under the certificate published with this release "
+                "(enginehost-signing-certificate.pem). Install it "
                 "through Enginehost rather than unpacking it by hand: the bundle is "
                 "verified file by file at install time, and approval is bound to the "
                 "exact archive digest and signer.",

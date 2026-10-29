@@ -52,7 +52,10 @@ repository and the token it needs did not exist.
   certificates.
 - **Each repository's signing key.** Official ones live in the repository's
   `ENGINEHOST_SIGNING_KEY_PEM` secret and are used only by the pinned
-  reusable signing workflow. A third party's key is theirs.
+  reusable signing workflow. A third party's key is theirs. (Since
+  2026-10-29, Droidtop/tracker#768, official repositories sign only with
+  their v1 certificate's key, `ENGINEHOST_CERTIFICATE_KEY_PEM`, and the
+  official root's repository-key certificates are no longer read or made.)
 - **droidtop-platforms `main`**: the index, the registration list, the
   third-party list, the root key copy.
 - **`PLATFORMS_DISPATCH_TOKEN`**: fine-grained, `contents: write` on

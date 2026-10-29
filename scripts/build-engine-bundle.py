@@ -3,10 +3,11 @@
 
 Signature format v1 (Droidtop/tracker#550): `--certificate-key` and
 `--certificate-chain` add `enginehost-bundle.jws`, a detached JWS over the
-manifest whose x5c chain ends at the Enginehost signing root. The legacy raw-key signature
-(`--private-key`, `enginehost-bundle.sig`) is still made when that key is
-given, so builds that cannot verify v1 yet still install it; at least one of
-the two is required. See docs/engine-bundle-format.md "Signatures".
+manifest whose x5c chain ends at the Enginehost signing root, or at the key a
+person pinned for a repository they added. It is the only signature: the
+legacy raw-key one (`enginehost-bundle.sig` and the manifest's `signing`
+block) is no longer made, and no Enginehost verifies it (Droidtop/tracker#768).
+See docs/engine-bundle-format.md "Signatures".
 """
 
 import argparse
@@ -16,10 +17,8 @@ import io
 import json
 from pathlib import Path, PurePosixPath
 import stat
-import subprocess
 import sys
 import tarfile
-import tempfile
 
 import bundle_jws
 from release_history import COMPONENT_ENVELOPE, next_build, published_versions, version_key
@@ -27,15 +26,6 @@ from release_history import COMPONENT_ENVELOPE, next_build, published_versions, 
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest().upper()
-
-
-def run_openssl(*arguments: str) -> bytes:
-    process = subprocess.run(
-        ["openssl", *arguments], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    if process.returncode:
-        raise SystemExit(process.stderr.decode(errors="replace").strip())
-    return process.stdout
 
 
 def payload_files(root: Path):
@@ -58,16 +48,6 @@ def payload_files(root: Path):
     return result
 
 
-def public_key(private_key: Path) -> bytes:
-    der = run_openssl("pkey", "-in", str(private_key), "-pubout", "-outform", "DER")
-    # OpenSSL's explicit curve check works with the private key and avoids
-    # accidentally publishing a validly signed bundle with a different curve.
-    details = run_openssl("pkey", "-in", str(private_key), "-text", "-noout").decode(errors="replace")
-    if "prime256v1" not in details and "P-256" not in details:
-        raise SystemExit("the signing key must use ECDSA P-256 (prime256v1)")
-    return der
-
-
 def tar_member(name: str, data: bytes, mode: int = 0o444) -> tuple[tarfile.TarInfo, io.BytesIO]:
     info = tarfile.TarInfo(name)
     info.size = len(data)
@@ -82,32 +62,21 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--metadata", required=True, type=Path)
     parser.add_argument("--payload", required=True, type=Path)
-    parser.add_argument("--private-key", type=Path,
-                        help="Legacy raw P-256 signing key: adds enginehost-bundle.sig and the manifest's signing block")
-    parser.add_argument("--certificate-key", type=Path,
-                        help="Format v1: the private key of the signing certificate")
-    parser.add_argument("--certificate-chain", type=Path,
-                        help="Format v1: PEM certificates, the signing certificate first, the root excluded")
+    parser.add_argument("--certificate-key", required=True, type=Path,
+                        help="The private key of the signing certificate")
+    parser.add_argument("--certificate-chain", required=True, type=Path,
+                        help="PEM certificates, the signing certificate first, the root excluded")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--release-envelope", type=Path)
-    parser.add_argument("--public-key-document", type=Path)
     parser.add_argument("--release-history-repo", metavar="OWNER/REPO",
                         help="Repository whose published releases decide the build counter. "
                              "pluginVersion becomes <declared>-<N>: N is the highest build "
                              "already published for that declared version on this bundle id, "
                              "plus one (1 for a version not yet published). Needs the gh CLI "
                              "and GH_TOKEN. Without it pluginVersion is left as declared.")
-    parser.add_argument("--repository-key-document", type=Path,
-                        help="Existing certified repository key document to validate and copy")
     args = parser.parse_args()
     if not args.output.name.endswith(".enginehost.tar.xz"):
         raise SystemExit("output name must end in .enginehost.tar.xz")
-    if (args.certificate_key is None) != (args.certificate_chain is None):
-        raise SystemExit("--certificate-key and --certificate-chain go together")
-    if args.private_key is None and args.certificate_key is None:
-        raise SystemExit("sign with --private-key (legacy), --certificate-key/--certificate-chain (v1), or both")
-    if args.public_key_document and args.private_key is None:
-        raise SystemExit("--public-key-document describes the legacy key; it needs --private-key")
 
     metadata = json.loads(args.metadata.read_text(encoding="utf-8"))
     # A runtime-component bundle (docs/engine-bundle-format.md, "Runtime
@@ -173,16 +142,14 @@ def main() -> None:
         records.append({"path": relative, "size": len(data), "sha256": sha256(data), "mode": mode})
 
     origin = metadata["origin"].rstrip("/").removesuffix(".git")
-    chain = None
-    if args.certificate_chain:
-        chain = bundle_jws.pem_certificates(args.certificate_chain.read_text(encoding="utf-8"))
-        # The certificate must name this origin and be for plugin bundles,
-        # or the app refuses every bundle signed with it; fail here instead.
-        names = bundle_jws.uris(chain[0])
-        if bundle_jws.ORIGIN_URN + bundle_jws.origin_id(origin) not in (name.lower() for name in names):
-            raise SystemExit(f"the signing certificate does not name {origin} (urn:droidtop:origin:{bundle_jws.origin_id(origin)})")
-        if bundle_jws.PURPOSES["plugin"][0] not in bundle_jws.certificate_text(chain[0], "extendedKeyUsage"):
-            raise SystemExit("the signing certificate is not for plugin bundles")
+    chain = bundle_jws.pem_certificates(args.certificate_chain.read_text(encoding="utf-8"))
+    # The certificate must name this origin and be for plugin bundles,
+    # or the app refuses every bundle signed with it; fail here instead.
+    names = bundle_jws.uris(chain[0])
+    if bundle_jws.ORIGIN_URN + bundle_jws.origin_id(origin) not in (name.lower() for name in names):
+        raise SystemExit(f"the signing certificate does not name {origin} (urn:droidtop:origin:{bundle_jws.origin_id(origin)})")
+    if bundle_jws.PURPOSES["plugin"][0] not in bundle_jws.certificate_text(chain[0], "extendedKeyUsage"):
+        raise SystemExit("the signing certificate is not for plugin bundles")
     manifest = dict(metadata)
     manifest.pop("signing", None)
     manifest.update({
@@ -192,39 +159,13 @@ def main() -> None:
         "payloadSha256": aggregate.hexdigest().upper(),
         "files": records,
     })
-    public_der = None
-    if args.private_key:
-        public_der = public_key(args.private_key)
-        manifest["signing"] = {
-            "algorithm": "SHA256withECDSA",
-            "publicKeySpki": base64.b64encode(public_der).decode("ascii"),
-            "keySha256": sha256(public_der),
-        }
     manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
-    signature = None
-    if args.private_key:
-        with tempfile.TemporaryDirectory() as temporary:
-            manifest_path = Path(temporary) / "enginehost-bundle.json"
-            signature_path = Path(temporary) / "enginehost-bundle.sig.der"
-            manifest_path.write_bytes(manifest_bytes)
-            subprocess.run(
-                ["openssl", "dgst", "-sha256", "-sign", str(args.private_key),
-                 "-out", str(signature_path), str(manifest_path)],
-                check=True,
-            )
-            signature = signature_path.read_bytes()
-    jws = None
-    if chain:
-        jws = bundle_jws.sign(manifest_bytes, args.certificate_key, chain, "plugin", detached=True)
+    jws = bundle_jws.sign(manifest_bytes, args.certificate_key, chain, "plugin", detached=True)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(args.output, "w:xz", format=tarfile.USTAR_FORMAT) as archive:
         archive.addfile(*tar_member("enginehost-bundle.json", manifest_bytes))
-        # The legacy signature first, then the v1 one: the order the app reads them in.
-        if signature is not None:
-            archive.addfile(*tar_member("enginehost-bundle.sig", base64.b64encode(signature) + b"\n"))
-        if jws is not None:
-            archive.addfile(*tar_member("enginehost-bundle.jws", jws.encode("ascii") + b"\n"))
+        archive.addfile(*tar_member("enginehost-bundle.jws", jws.encode("ascii") + b"\n"))
         for relative, _path, data, mode in files:
             archive.addfile(*tar_member(relative, data, mode))
 
@@ -235,32 +176,10 @@ def main() -> None:
         # the engine name; the component one sits beside it.
         if kind == "component":
             args.release_envelope = args.release_envelope.with_name(COMPONENT_ENVELOPE)
-        entry = {"manifestBase64": base64.b64encode(manifest_bytes).decode("ascii")}
-        if signature is not None:
-            entry["signatureBase64"] = base64.b64encode(signature).decode("ascii")
-        if jws is not None:
-            entry["jws"] = jws
+        entry = {"manifestBase64": base64.b64encode(manifest_bytes).decode("ascii"), "jws": jws}
         envelope = {"formatVersion": 1, "bundles": [entry]}
         args.release_envelope.write_text(
             json.dumps(envelope, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8"
-        )
-
-    if args.public_key_document:
-        key_document = {
-            "formatVersion": 1,
-            "origin": origin,
-            "algorithm": "SHA256withECDSA",
-            "publicKeySpki": base64.b64encode(public_der).decode("ascii"),
-            "keySha256": sha256(public_der),
-        }
-        if args.repository_key_document:
-            certified = json.loads(args.repository_key_document.read_text(encoding="utf-8"))
-            for name, value in key_document.items():
-                if certified.get(name) != value:
-                    raise SystemExit(f"Certified repository key mismatch: {name}")
-            key_document = certified
-        args.public_key_document.write_text(
-            json.dumps(key_document, sort_keys=True, indent=2) + "\n", encoding="utf-8"
         )
 
 

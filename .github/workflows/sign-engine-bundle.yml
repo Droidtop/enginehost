@@ -15,16 +15,19 @@ name: Sign engine bundle
 #       bundle: dev.enginehost.<id>.enginehost.tar.xz
 #       artifact-name: ...
 #     secrets:
-#       ENGINEHOST_SIGNING_KEY_PEM: ${{ secrets.ENGINEHOST_SIGNING_KEY_PEM }}
 #       ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
 #
-# Two signatures, either or both (docs/engine-bundle-format.md "Signatures"):
-# format v1 when ENGINEHOST_CERTIFICATE_KEY_PEM is set -- the key of the
-# certificate the Enginehost signing root issued for this repository, which the repository
+# One signature, format v1 (docs/engine-bundle-format.md "Signatures"): made
+# with ENGINEHOST_CERTIFICATE_KEY_PEM, the key of the certificate the
+# Enginehost signing root issued for this repository, which the repository
 # commits as enginehost-signing-certificate.pem (scripts/provision-signing-
-# certificates.py) -- and the legacy raw-key signature when
-# ENGINEHOST_SIGNING_KEY_PEM is set. A repository signs both until every
-# Enginehost a person may run verifies v1, then drops the legacy secret.
+# certificates.py). The legacy raw-key signature and its secret,
+# ENGINEHOST_SIGNING_KEY_PEM, are gone (Droidtop/tracker#768). A caller that
+# moves its pin to this commit or later must stop passing
+# ENGINEHOST_SIGNING_KEY_PEM: a reusable workflow refuses a secret it does not
+# declare. The repository's committed enginehost-public-key.json, the key a
+# person pins when adding the repository by hand, travels with the release as
+# committed.
 #
 # Why a separate job: a build job runs code nobody here reviewed line by line
 # (engine SDK downloads, Gradle plugins, third-party actions). All steps of a
@@ -59,14 +62,17 @@ on:
         type: string
         required: true
       repository-key-document:
-        description: The repository's committed legacy key document, relative to its root.
+        description: >-
+          The repository's committed key document (the key a person pins when
+          adding the repository by hand), relative to its root. Published with
+          the release as committed when the repository has one.
         type: string
         default: enginehost-public-key.json
       repository-certificate:
         description: >-
           The repository's committed signing certificate (PEM, the certificate
           the Enginehost signing root issued for it first, then any intermediates), relative
-          to its root. Used when ENGINEHOST_CERTIFICATE_KEY_PEM is set.
+          to its root.
         type: string
         default: enginehost-signing-certificate.pem
       channel:
@@ -80,12 +86,9 @@ on:
         type: string
         default: ""
     secrets:
-      ENGINEHOST_SIGNING_KEY_PEM:
-        description: The legacy raw signing key; optional once format v1 signs.
-        required: false
       ENGINEHOST_CERTIFICATE_KEY_PEM:
-        description: Format v1, the private key of enginehost-signing-certificate.pem.
-        required: false
+        description: The private key of enginehost-signing-certificate.pem.
+        required: true
 
 permissions:
   contents: read
@@ -219,7 +222,6 @@ jobs:
           path: unsigned-download
       - name: Sign
         env:
-          ENGINEHOST_SIGNING_KEY_PEM: ${{ secrets.ENGINEHOST_SIGNING_KEY_PEM }}
           ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: repository/${{ inputs.repository-key-document }}
@@ -230,10 +232,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ -z "$ENGINEHOST_SIGNING_KEY_PEM" ] && [ -z "$ENGINEHOST_CERTIFICATE_KEY_PEM" ]; then
-            echo "::error::no signing key: set ENGINEHOST_CERTIFICATE_KEY_PEM (format v1), ENGINEHOST_SIGNING_KEY_PEM (legacy), or both" >&2
+          if [ -z "$ENGINEHOST_CERTIFICATE_KEY_PEM" ]; then
+            echo "::error::no signing key: set ENGINEHOST_CERTIFICATE_KEY_PEM" >&2
             exit 1
           fi
+          test -f "$CERTIFICATE" || { echo "::error::$CERTIFICATE is not committed" >&2; exit 1; }
           mkdir -p unsigned output
           # -p keeps the modes the build gave the payload; the manifest signs them.
           tar -xpf unsigned-download/unsigned.tar -C unsigned --no-same-owner
@@ -256,43 +259,25 @@ jobs:
               exit 1
             fi
           fi
-          key="$RUNNER_TEMP/signing-key.pem"
           certificate_key="$RUNNER_TEMP/certificate-key.pem"
-          trap 'rm -f "$key" "$certificate_key"' EXIT
-          signing=()
-          if [ -n "$ENGINEHOST_SIGNING_KEY_PEM" ]; then
-            test -f "$KEY_DOCUMENT"
-            (umask 077; printf '%s' "$ENGINEHOST_SIGNING_KEY_PEM" > "$key")
-            signing+=(--private-key "$key" --repository-key-document "$KEY_DOCUMENT"
-                      --public-key-document output/enginehost-public-key.json)
-          fi
-          if [ -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" ]; then
-            test -f "$CERTIFICATE" || { echo "::error::ENGINEHOST_CERTIFICATE_KEY_PEM is set but $CERTIFICATE is not committed" >&2; exit 1; }
-            (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$certificate_key")
-            signing+=(--certificate-key "$certificate_key" --certificate-chain "$CERTIFICATE")
-          fi
+          trap 'rm -f "$certificate_key"' EXIT
+          (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$certificate_key")
           python3 enginehost-tooling/scripts/build-engine-bundle.py \
             --metadata unsigned/bundle-metadata.json --payload unsigned/payload \
-            "${signing[@]}" \
+            --certificate-key "$certificate_key" --certificate-chain "$CERTIFICATE" \
             --release-history-repo "$GITHUB_REPOSITORY" \
             --output "output/$BUNDLE" \
             --release-envelope output/enginehost-release.json
-          if [ -n "$ENGINEHOST_SIGNING_KEY_PEM" ]; then
-            # The key that signed must be the one the repository committed and
-            # the official root certified; anything else is the wrong secret.
-            cmp "$KEY_DOCUMENT" output/enginehost-public-key.json
+          # The certificate the repository committed travels with the release,
+          # and the bundle must verify to the signing root this tooling pins.
+          cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
+          if [ -f "$ROOT_KEY" ]; then
+            python3 enginehost-tooling/scripts/verify-engine-bundle.py "output/$BUNDLE" --root-key "$ROOT_KEY"
+          else
+            echo "::warning::this Enginehost commit pins no signing root key; the v1 chain was not checked here"
           fi
-          if [ -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" ]; then
-            # The certificate the repository committed travels with the release,
-            # and the bundle must verify to the signing root this tooling pins.
-            cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
-            if [ -f "$ROOT_KEY" ]; then
-              python3 enginehost-tooling/scripts/verify-engine-bundle.py "output/$BUNDLE" \
-                --root-key "$ROOT_KEY" --require-v1
-            else
-              echo "::warning::this Enginehost commit pins no signing root key; the v1 chain was not checked here"
-            fi
-          fi
+          # The key a person pins when adding the repository by hand, as committed.
+          [ ! -f "$KEY_DOCUMENT" ] || cp "$KEY_DOCUMENT" output/enginehost-public-key.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ inputs.artifact-name }}

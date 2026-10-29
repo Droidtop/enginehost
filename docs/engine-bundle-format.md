@@ -339,8 +339,11 @@ legacy signature is refused at every moment, whether or not the build pins a roo
   v1-signed release to install instead.
 
 A bundle may still carry the `.sig` beside its JWS, and a manifest its
-`signing` block: both are passed over. Producing them (`build-engine-bundle.py`
-and the signing workflow's `ENGINEHOST_SIGNING_KEY_PEM`) is removed separately.
+`signing` block: both are passed over. Nothing produces them any more: on
+the same date `build-engine-bundle.py` lost `--private-key`, the signing
+workflow lost `ENGINEHOST_SIGNING_KEY_PEM`, `resign-engine-bundle.py` leaves an
+old `.sig` out of what it writes, and `verify-engine-bundle.py` requires the
+JWS and never trusts a `.sig` (Droidtop/tracker#768).
 
 ### Revocation
 
@@ -368,11 +371,12 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
 
 ### Signing, provisioning and the owner's steps
 
-- CI signs in `.github/workflows/sign-engine-bundle.yml`: v1 when the core
+- CI signs in `.github/workflows/sign-engine-bundle.yml`, in v1 only: the core
   repository sets `ENGINEHOST_CERTIFICATE_KEY_PEM` and commits
-  `enginehost-signing-certificate.pem`, legacy when it sets
-  `ENGINEHOST_SIGNING_KEY_PEM`, both during the transition. The signed bundle
-  is verified to the pinned root before it leaves the job.
+  `enginehost-signing-certificate.pem`. The signed bundle is verified to the
+  pinned root before it leaves the job. A core repository that moves its pin
+  of the workflow past 2026-10-29 stops passing `ENGINEHOST_SIGNING_KEY_PEM`,
+  which the workflow no longer declares.
 - The owner derives the Enginehost signing root from the Droidtop CA, outside
   this repository. `scripts/provision-signing-certificates.py`, run by the
   owner where the root's key is (`--root-key`, `--root-certificate`), derives
@@ -406,8 +410,10 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   each repository commits to plugin-core as `enginehost-signing-certificate.pem`.
   Left to the owner: sign and publish the first `plugins/revocations.jws` when
   something is revoked, and hand the developer certificate and its key to the
-  developer. The legacy verifier was deleted on 2026-10-29 (Droidtop/tracker#768);
-  dropping `ENGINEHOST_SIGNING_KEY_PEM` from the signing side is its own change.
+  developer. The legacy verifier and the legacy signing were deleted on
+  2026-10-29 (Droidtop/tracker#768); each core repository's
+  `ENGINEHOST_SIGNING_KEY_PEM` secret can be deleted once it signs with this
+  workflow.
 
 ## Declared options
 
