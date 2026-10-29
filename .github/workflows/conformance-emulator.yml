@@ -49,8 +49,8 @@ jobs:
         run: ./gradlew :app:assembleDebug --stacktrace
 
       # Each family's rolling unstable core: the build its users get next. One core per family
-      # whose test game in this repository runs (Ren'Py's needs the SDK's runtime beside it and
-      # waits for that); Godot's plays on its 4.4 line, the one its game is exported with below.
+      # whose test game in this repository plays on the emulator (Ren'Py's needs the SDK's runtime
+      # beside it; Godot's is exported below but cannot draw here, see the export step).
       - name: Fetch the cores
         env:
           GH_TOKEN: ${{ github.token }}
@@ -62,27 +62,30 @@ jobs:
           enginehost-html-plugin html-v1-unstable
           enginehost-love2d-plugin love2d-11-v1-unstable
           enginehost-nscripter-plugin nscripter-onsyuri-v1-unstable
-          enginehost-godot-plugin godot-v44-v1-unstable
           EOF
           ls -l cores
 
       # The Godot core runs only an exported game, a .pck: the test game's project is exported
-      # with Godot's own editor, a pinned release whose archive is checked before it runs.
+      # with Godot's own editor, a pinned release whose archive is checked before it runs. The pack
+      # is not played here: the emulator's GL allows 261 fragment uniforms and Godot 4.4's canvas
+      # shader needs more ("Program linking failed", run 40859254846; the guest GPU is the same,
+      # run 40860194007), so only the clear colour is ever drawn. It goes into the run's artifact for
+      # the rig, and this step proves the test game still exports.
       - name: Export the Godot test game
         env:
           GODOT_ZIP: Godot_v4.4.1-stable_linux.x86_64.zip
           GODOT_SHA256: d6e382fb531019f85630c1f485a561a0d20c4a2344b6c3847735cfee7da812aa
         run: |
-          mkdir -p godot-editor exported/godot
+          mkdir -p godot-editor godot-export
           curl -fsSL -o "godot-editor/$GODOT_ZIP" "https://github.com/godotengine/godot/releases/download/4.4.1-stable/$GODOT_ZIP"
           echo "$GODOT_SHA256  godot-editor/$GODOT_ZIP" | sha256sum -c -
           unzip -q "godot-editor/$GODOT_ZIP" -d godot-editor
           editor=godot-editor/Godot_v4.4.1-stable_linux.x86_64
           "$editor" --headless --path test-games/godot --import
-          "$editor" --headless --path test-games/godot --export-pack pack "$PWD/exported/godot/game.pck"
+          "$editor" --headless --path test-games/godot --export-pack pack "$PWD/godot-export/game.pck"
           # A Godot pack starts with GDPC.
-          test "$(head -c 4 exported/godot/game.pck)" = GDPC
-          ls -l exported/godot
+          test "$(head -c 4 godot-export/game.pck)" = GDPC
+          ls -l godot-export
 
       - name: Let the emulator use KVM
         run: |
@@ -103,7 +106,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash tools/core-harness/conformance-emulator.sh app/build/outputs/apk/debug/app-debug.apk cores results exported
+          script: bash tools/core-harness/conformance-emulator.sh app/build/outputs/apk/debug/app-debug.apk cores results
 
       # The report as the run's summary: read where the logs' download is refused.
       - name: Summarise
@@ -116,5 +119,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: conformance-emulator
-          path: results
+          path: |
+            results
+            godot-export
           if-no-files-found: warn

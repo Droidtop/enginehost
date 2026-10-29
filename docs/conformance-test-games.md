@@ -60,15 +60,19 @@ the Google APIs image), and runs
 Its report is the run's summary, and the screenshots, logcat and per-game results are the run's
 `conformance-emulator` artifact.
 
-It runs only the games written for it, in this repository: html, love2d, nscripter and godot. Cores that have no sandbox yet (html, love2d) run anyway, with the harness's
+It runs only the games written for it, in this repository: html, love2d and nscripter. Cores that have no sandbox yet (html, love2d) run anyway, with the harness's
 `--run-unsandboxed`: the games are ours, and the report names each game that ran that way. The
 nscripter game is text only, so it has no `.nsa` archive, and the registry, which needs one beside
 `0.txt`, would not take it for NScripter. It carries its own `enginehost.json` instead, as a game
 folder may. Godot's is a project, and the Godot core runs only an exported game (the first run
 refused the project with `"project.godot" is not a Godot game: it is neither a .pck nor an export
 with a pack inside it`), so the workflow exports it to a `.pck` with a pinned Godot 4.4.1 editor,
-checked against its SHA-256 before it runs, and plays the pack on the `godot-v44-v1-unstable`
-core. Ren'Py's is not wired yet: it needs the SDK's runtime beside `game/`. Games
+checked against its SHA-256 before it runs, and puts the pack in the run's artifact for the rig. It is
+not played on the emulator: the 4.4 core runs it there (locked down), but the emulator's GL allows
+261 fragment uniforms and Godot 4.4's canvas shader needs more (`CanvasShaderGLES3: Program
+linking failed: Fragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)`, the
+same with `-gpu guest`), so it draws only its clear colour. Ren'Py's is not wired yet: it needs the
+SDK's runtime beside `game/`. Games
 from the owner's library are tested on the rig, never in the cloud (docs/core-harness.md). An
 emulator with software GL is not a device: a pass here means the core starts, draws, answers
 input and keeps running, not that it plays well on the rig. Save, load and exit are not yet
@@ -154,8 +158,9 @@ exercises in its own header. Assembly notes:
 - **godot** — `test-games/godot` is a project, deliberately free of any
   imported asset. The Godot core runs only an exported game, so the
   emulator workflow exports it with its one preset (`export_presets.cfg`,
-  `--export-pack pack`) using a pinned Godot 4.4.1 editor and plays the
-  `.pck` on the 4.4 line; the pack plays on any 4.x line from 4.4 on.
+  `--export-pack pack`) using a pinned Godot 4.4.1 editor and keeps the
+  `.pck` in the run's artifact for the rig, which plays it on the 4.4 line or any
+  later 4.x line.
   A key press or a touch flips the phase and grows a white bar that never
   shrinks: the harness's four keys alone would flip it back.
   `project.godot` names the compatibility renderer for Android too

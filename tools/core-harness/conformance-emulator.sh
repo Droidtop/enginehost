@@ -4,16 +4,12 @@
 # test-games/, run through the core harness. Called by .github/workflows/conformance-emulator.yml
 # once the emulator is up; usable by hand against any emulator with adb.
 #
-#   conformance-emulator.sh <debug.apk> <folder of *.enginehost.tar.xz> <results folder> [built games]
-#
-# [built games] holds a folder per family whose test game is built rather than played as it is
-# in test-games/ (godot: the exported .pck).
+#   conformance-emulator.sh <debug.apk> <folder of *.enginehost.tar.xz> <results folder>
 set -euo pipefail
 
 apk=$1
 cores=$2
 out=$3
-built=${4:-}
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 games_root=/sdcard/EnginehostConformance
@@ -55,14 +51,9 @@ adb shell mkdir -p "$games_root"
 for family in html love2d nscripter; do
     adb push "$repo/test-games/$family" "$games_root/" >/dev/null
 done
-if [ -n "$built" ]; then
-    for game in "$built"/*/; do
-        adb push "${game%/}" "$games_root/" >/dev/null
-    done
-fi
 
 status=0
-# Cores with no sandbox yet (html, love2d, godot) still run: these are our own MIT games, and the report
+# Cores with no sandbox yet (html, love2d) still run: these are our own MIT games, and the report
 # names every game that ran unsandboxed.
 python3 "$here/core_harness.py" --games "$here/conformance-games.json" --out "$out" --first-frame-seconds 120 --play-seconds 15 --run-unsandboxed || status=$?
 
