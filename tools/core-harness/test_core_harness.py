@@ -38,6 +38,11 @@ class FrameTest(unittest.TestCase):
         self.assertTrue(h.is_flat(black))
         self.assertFalse(h.is_flat(picture))
 
+    def test_the_system_bars_do_not_make_a_black_screen_a_picture(self):
+        # A black game with a navigation bar drawn in its bottom rows, as the emulator showed it.
+        frame = h.parse_raw_frame(raw(32, 64, lambda x, y: (200, 200, 200) if y >= 61 and x % 4 == 0 else (0, 0, 0)))
+        self.assertTrue(h.is_flat(h.sample(*frame, step=1)))
+
     def test_changed_fraction(self):
         self.assertEqual(0.0, h.changed_fraction([10, 20], [10, 20]))
         self.assertEqual(0.5, h.changed_fraction([10, 20], [10, 200]))

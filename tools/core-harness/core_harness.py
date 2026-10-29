@@ -67,10 +67,17 @@ def parse_raw_frame(data):
     return width, height, data[header:]
 
 
+# The share of the screen's height at the top and at the bottom left out of every measure: the
+# status bar and the navigation bar, which Android draws over any game. With them counted, a
+# black game screen read as a picture (the emulator run of 2026-10-29: NScripter "passed" its
+# first frame on the navigation bar alone).
+SYSTEM_BARS = 0.08
+
+
 def sample(width, height, rgba, step=8):
-    """Luma values of a grid of pixels, every [step]th pixel each way."""
+    """Luma values of a grid of pixels, every [step]th pixel each way, between the system bars."""
     values = []
-    for y in range(0, height, step):
+    for y in range(int(height * SYSTEM_BARS), height - int(height * SYSTEM_BARS), step):
         row = y * width * 4
         for x in range(0, width, step):
             i = row + x * 4
