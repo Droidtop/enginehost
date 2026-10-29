@@ -109,6 +109,12 @@ game's frame has to be a Service the host binds to, not a screen the
 engine owns. That is the whole rule, enforced by the kernel (a fresh UID
 with an empty permission set) and by the manifest schema (Services only).
 
+An isolated engine's stdout and stderr are log lines, tag `engine-stdio`
+(`isolated_native_bridge.c`, set up before the first plugin library loads).
+Android points both at /dev/null, and desktop engines report their failures
+there: ONScripter drew a black screen through a whole emulator conformance
+run (Droidtop/tracker#27) with its reason nowhere to be read.
+
 ### The sandbox is on by default; what cannot be isolated asks every time (owner, 2026-09-25)
 
 "Keep the sandbox on, actually. If a plugin doesn't support the sandbox,

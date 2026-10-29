@@ -48,13 +48,69 @@
  * not loaded yet. Every library that carries the isolated file layer's
  * forwarder (plugin-native/enginehost_vfs_forward.c) is bound to the
  * host's table (isolated_vfs.c) as it loads.
+ *
+ * Before the first library loads, the process's stdout and stderr are
+ * turned into log lines (tag "engine-stdio"): Android points both at
+ * /dev/null, and desktop engines say why they fail there (ONScripter's
+ * errors are fprintf(stderr) calls), so a core that drew only black in
+ * the emulator conformance run left nothing behind to say why.
  */
 #include <android/dlext.h>
 #include <android/log.h>
 #include <dlfcn.h>
 #include <jni.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+
+static int g_stdio_read = -1;
+
+/* One log line per line the engine writes; a line longer than the buffer is logged in pieces. */
+static void *stdio_to_log(void *unused) {
+    (void) unused;
+    char line[1024];
+    size_t used = 0;
+    for (;;) {
+        ssize_t got = read(g_stdio_read, line + used, sizeof line - 1 - used);
+        if (got <= 0) break;
+        used += (size_t) got;
+        size_t start = 0;
+        for (size_t i = 0; i < used; i++) {
+            if (line[i] != '\n') continue;
+            line[i] = '\0';
+            if (i > start) __android_log_write(ANDROID_LOG_INFO, "engine-stdio", line + start);
+            start = i + 1;
+        }
+        if (start == 0 && used == sizeof line - 1) {
+            line[used] = '\0';
+            __android_log_write(ANDROID_LOG_INFO, "engine-stdio", line);
+            used = 0;
+        } else {
+            memmove(line, line + start, used - start);
+            used -= start;
+        }
+    }
+    return NULL;
+}
+
+static void stdio_to_log_once(void) {
+    int ends[2];
+    if (pipe(ends) != 0) return;
+    if (dup2(ends[1], STDOUT_FILENO) < 0 || dup2(ends[1], STDERR_FILENO) < 0) {
+        close(ends[0]);
+        close(ends[1]);
+        return;
+    }
+    close(ends[1]);
+    setvbuf(stdout, NULL, _IOLBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+    g_stdio_read = ends[0];
+    pthread_t reader;
+    if (pthread_create(&reader, NULL, stdio_to_log, NULL) == 0) pthread_detach(reader);
+}
+
+static pthread_once_t g_stdio_once = PTHREAD_ONCE_INIT;
 
 #include "isolated_vfs.h"
 
@@ -69,6 +125,7 @@ JNIEXPORT jint JNICALL
 Java_dev_enginehost_IsolatedNativeBridge_loadPluginLibrary0(
         JNIEnv *env, jclass type, jint library_fd, jstring library_name, jclass plugin_class) {
     (void) type;
+    pthread_once(&g_stdio_once, stdio_to_log_once);
     const char *name = (*env)->GetStringUTFChars(env, library_name, NULL);
     if (name == NULL) return NOT_LOADED;
     char soname[256];
