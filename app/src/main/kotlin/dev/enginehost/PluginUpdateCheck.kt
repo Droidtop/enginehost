@@ -23,9 +23,8 @@ class PluginUpdateCheck(private val context: Context) {
 
     var frequency: Frequency
         get() = preferences.getString(FREQUENCY, null)?.let { name -> Frequency.entries.firstOrNull { it.name == name } }
-            // Before there was a frequency there was one switch; honour what it said.
-            ?: if (preferences.getBoolean(LEGACY_CHECK, true)) Frequency.DAILY else Frequency.OFF
-        set(value) = preferences.edit().putString(FREQUENCY, value.name).remove(LEGACY_CHECK).apply()
+            ?: Frequency.DAILY
+        set(value) = preferences.edit().putString(FREQUENCY, value.name).apply()
 
     var installAutomatically: Boolean
         get() = preferences.getBoolean(INSTALL, false)
@@ -162,7 +161,6 @@ class PluginUpdateCheck(private val context: Context) {
         const val CATALOG_MAX_AGE_MS = 10L * 60 * 1000
         /** How soon a pass that could not reach the release info is tried again. */
         private const val RETRY_AFTER_FAILURE_MS = 60L * 60 * 1000
-        private const val LEGACY_CHECK = "checkAutomatically"
         private const val FREQUENCY = "frequency"
         private const val STREAM = "stream"
         private const val INSTALL = "installAutomatically"

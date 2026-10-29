@@ -780,7 +780,6 @@ internal class ControllerBindingFile private constructor(directory: File) : Bind
 
     companion object {
         private const val NAME = "controller-bindings-v1.json"
-        private const val LEGACY = "controller-bindings-v1"
 
         /** The folder under `filesDir` that holds the file; a locked-down game may read and write it. */
         const val FOLDER = "controls"
@@ -793,35 +792,8 @@ internal class ControllerBindingFile private constructor(directory: File) : Bind
             instance?.let { return it }
             return synchronized(this) {
                 instance ?: ControllerBindingFile(folder(context).apply { mkdirs() })
-                    .also { adopt(context.applicationContext, it); instance = it }
+                    .also { instance = it }
             }
-        }
-
-        /**
-         * Carries a map written by an earlier build into the file, once,
-         * and empties the preferences behind it so there is never a second
-         * place to read. A person's remapping is not something to drop for
-         * the sake of a tidier change.
-         */
-        private fun adopt(context: Context, target: ControllerBindingFile) {
-            if (target.file.exists()) return
-            // A locked-down game reads only the folder; the app itself moves what is elsewhere.
-            if (RuntimeSandbox.confined) return
-            // Where the file lived before it had a folder of its own.
-            val earlier = File(context.filesDir, NAME)
-            if (earlier.isFile && earlier.renameTo(target.file)) return
-            val legacy = context.getSharedPreferences(LEGACY, Context.MODE_PRIVATE)
-            val stored = legacy.all
-            if (stored.isEmpty()) return
-            target.edit { values ->
-                stored.forEach { (key, value) ->
-                    when (value) {
-                        is String -> runCatching { JSONObject(value) }.getOrNull()?.let { values[key] = it }
-                        is Boolean -> values[key] = value
-                    }
-                }
-            }
-            legacy.edit().clear().apply()
         }
     }
 }
