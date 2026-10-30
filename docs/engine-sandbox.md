@@ -2304,6 +2304,17 @@ works"):
   to resolve ... I/O error") and HTML died with "not accessible for the namespace product-clns"
   (Droidtop/tracker#550, 2026-10-30). A WebView under `/data/app` was never affected: an app may
   ioctl its own data files.
+  A WebView updated from the Play Store (Google's, as on the AVD and BlueStacks) lives in
+  `/data/app` and keeps its native code in a static shared library, TrichromeLibrary, a package of
+  its own. The policy grants the folder of every library in the WebView's `sharedLibraryFiles`
+  beside the WebView's own, read-only. It also reads ART's module dex cache
+  (`/data/misc/apexdata/com.android.art/dalvik-cache`), where the compiled code of an updated
+  package is looked for first. Without them the AVD rig check failed with "Core startup failed"
+  (2026-10-30).
+  The runtime process itself is never `isolated_app` for a WebView core: it runs under the app's
+  own UID, confined by the lockdown, because WebView, like GLES, is closed to isolated processes.
+  What Android isolates is WebView's renderer, `sandboxed_process` as `isolated_app`, which runs
+  the page's code and exists only once the WebView has loaded and opened a page.
   WebView's renderer is a separate process Android starts as an
   isolated process of its own (`sandboxed_process`, SELinux `isolated_app`)
   whenever WebView runs multiprocess, which every supported Android version

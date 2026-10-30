@@ -293,6 +293,9 @@ object RuntimeSandbox {
         listOf(
             "/system", "/system_ext", "/product", "/vendor", "/odm", "/apex", "/linkerconfig",
             "/data/dalvik-cache", "/data/fonts", "/data/resource-cache", "/proc", "/sys", "/dev/__properties__",
+            // ART's own compiled code for updated system packages (the ART module's dalvik-cache),
+            // where it first looks for an updated WebView's code.
+            "/data/misc/apexdata/com.android.art/dalvik-cache",
             // Time zone data (tzdata updates land here, not in /apex).
             "/data/misc/zoneinfo",
             // Adopted storage's mount root, which Android's storage code stats and opens at start.
@@ -382,7 +385,11 @@ object RuntimeSandbox {
     /** The current WebView provider's APK folder and native libraries, when there is one. */
     private fun webViewCode(context: Context): List<String> {
         val info = runCatching { android.webkit.WebView.getCurrentWebViewPackage()?.applicationInfo }.getOrNull() ?: return emptyList()
-        return listOfNotNull(info.sourceDir?.let { File(it).parent }, info.nativeLibraryDir)
+        // A WebView updated from the Play Store (Google's, on Android 10 and later) keeps its
+        // native code in a static shared library, TrichromeLibrary, installed as a package of its
+        // own in /data/app; without it the WebView cannot load (the AVD rig check, Droidtop/tracker#550).
+        val libraries = info.sharedLibraryFiles.orEmpty().mapNotNull { File(it).parent }
+        return listOfNotNull(info.sourceDir?.let { File(it).parent }, info.nativeLibraryDir) + libraries
     }
 
     /** The broker side, in the main process: serves [fd] on its own thread under [rules]. */
