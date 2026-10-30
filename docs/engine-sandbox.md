@@ -2290,12 +2290,20 @@ works"):
   locked down. Enginehost creates `app_webview` and `app_textures` before the lockdown, because
   the locked-down process may not write the data folder they sit in. The policy also reads
   `/data/misc/shared_relro`, the library relocations the system shares between WebView processes.
-  A WebView that ships in `/product` (AOSP, the emulator, some TV boxes) also needs the sandbox
-  library to answer `readlink` of the process's own `/proc/self/fd/<n>` in the process (sandbox
-  be84422). Before that, bionic's `realpath()` failed in a process that is not dumpable, the
-  linker dropped the WebView's `webview.apk!/lib/<abi>` from its namespace, and HTML died with
-  "not accessible for the namespace product-clns" (Droidtop/tracker#550, 2026-10-30). A WebView
-  under `/data/app` was never affected, because `/data` is always a permitted path.
+  A WebView that ships in `/product` (AOSP, the emulator, some TV boxes) also needs two things
+  from the sandbox library (74af3f0), because bionic's `realpath()` has to resolve its APK:
+  - **`O_PATH` opens.** The broker answers an `O_PATH` open of a readable regular file with a
+    read-only descriptor. An `O_PATH` descriptor passed back is checked by SELinux as `ioctl`,
+    which an app may not do on `system_file`, so the kernel dropped it and the open failed with
+    EIO.
+  - **Its own descriptor links.** A `readlink` of the process's own `/proc/self/fd/<n>` is
+    answered in the process. The broker cannot read `/proc/<pid>/fd` of a release app, which is
+    not dumpable.
+
+  Without them, the linker dropped `webview.apk!/lib/<abi>` from the WebView's namespace ("unable
+  to resolve ... I/O error") and HTML died with "not accessible for the namespace product-clns"
+  (Droidtop/tracker#550, 2026-10-30). A WebView under `/data/app` was never affected: an app may
+  ioctl its own data files.
   WebView's renderer is a separate process Android starts as an
   isolated process of its own (`sandboxed_process`, SELinux `isolated_app`)
   whenever WebView runs multiprocess, which every supported Android version
