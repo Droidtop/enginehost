@@ -11,6 +11,8 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+import io
+import zipfile
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -162,6 +164,120 @@ class Resign(unittest.TestCase):
         with self.assertRaises(SystemExit):
             resign_engine_bundle.resign(other, self.root / "leaf-key.pem", self.root / "leaf.pem",
                                         self.root / "out-other", None)
+
+
+ELF = {"arm64-v8a": 183, "x86_64": 62, "armeabi-v7a": 40, "x86": 3}
+
+
+def elf(abi: str) -> bytes:
+    """Enough of an ELF header for the conformance check: class and machine."""
+    header = bytearray(64)
+    header[:4] = b"\x7fELF"
+    header[4] = 1 if abi in ("armeabi-v7a", "x86") else 2
+    header[5] = 1
+    header[18:20] = ELF[abi].to_bytes(2, "little")
+    return bytes(header)
+
+
+class OnlySixtyFourBit(unittest.TestCase):
+    """--only-64-bit: the September stable builds re-signed without their 32-bit libraries (#646)."""
+
+    ABIS = ("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+
+    def setUp(self):
+        Resign.setUp(self)
+        payload = self.root / "payload"
+        for abi in self.ABIS:
+            (payload / "lib" / abi).mkdir(parents=True)
+            (payload / "lib" / abi / "libengine.so").write_bytes(elf(abi) + abi.encode())
+        apk = io.BytesIO()
+        with zipfile.ZipFile(apk, "w") as archive:
+            archive.writestr("AndroidManifest.xml", b"manifest")
+            for abi in self.ABIS:
+                archive.writestr(zipfile.ZipInfo(f"lib/{abi}/libengine.so"), elf(abi) + abi.encode())
+            stored = zipfile.ZipInfo("assets/stored.bin")
+            stored.compress_type = zipfile.ZIP_STORED
+            archive.writestr(stored, b"stored")
+        (payload / "runtime.apk").write_bytes(apk.getvalue())
+        metadata = json.loads((self.root / "metadata.json").read_text())
+        metadata.update({"pluginVersion": "1.0.13-2", "resourceApks": ["runtime.apk"]})
+        (self.root / "metadata.json").write_text(json.dumps(metadata))
+        self.source = self.root / "v1" / "dev.enginehost.example.enginehost.tar.xz"
+        subprocess.run([
+            "python3", str(SCRIPTS / "build-engine-bundle.py"), "--metadata", str(self.root / "metadata.json"),
+            "--payload", str(payload), "--certificate-key", str(self.root / "leaf-key.pem"),
+            "--certificate-chain", str(self.root / "leaf.pem"), "--output", str(self.source),
+            "--release-envelope", str(self.root / "v1" / "enginehost-release.json"),
+        ], check=True, capture_output=True)
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def strip(self, version: str = "1.0.13-3") -> Path:
+        return resign_engine_bundle.resign(
+            self.source, self.root / "leaf-key.pem", self.root / "leaf.pem", self.root / "out",
+            self.root / "v1" / "enginehost-release.json", version,
+        )
+
+    def test_the_32_bit_libraries_leave_the_bundle_and_its_apk_and_it_verifies(self):
+        out = self.strip()
+        verified = Resign.verify(self, out, "--root-key", str(self.root / "root.pub"))
+        self.assertTrue(verified["verified"])
+        with tarfile.open(out, "r:xz") as archive:
+            names = [m.name for m in archive.getmembers()]
+            manifest = json.loads(archive.extractfile("enginehost-bundle.json").read())
+            apk = zipfile.ZipFile(io.BytesIO(archive.extractfile("runtime.apk").read()))
+            sixty_four = archive.extractfile("lib/x86_64/libengine.so").read()
+        self.assertEqual(names[:2], ["enginehost-bundle.json", "enginehost-bundle.jws"])
+        self.assertEqual([n for n in names if n.startswith("lib/") and n.endswith(".so")],
+                         ["lib/arm64-v8a/libengine.so", "lib/x86_64/libengine.so"])
+        self.assertEqual(sorted(i.filename for i in apk.infolist() if i.filename.startswith("lib/")),
+                         ["lib/arm64-v8a/libengine.so", "lib/x86_64/libengine.so"])
+        self.assertEqual(apk.read("assets/stored.bin"), b"stored")
+        self.assertEqual(sixty_four, elf("x86_64") + b"x86_64")
+        self.assertEqual(manifest["pluginVersion"], "1.0.13-3")
+        self.assertEqual([f["path"] for f in manifest["files"]],
+                         sorted(f["path"] for f in manifest["files"]))
+        self.assertFalse(any("armeabi" in f["path"] or "/x86/" in f["path"] for f in manifest["files"]))
+
+    def test_a_stored_apk_entry_stays_aligned(self):
+        out = self.strip()
+        with tarfile.open(out, "r:xz") as archive:
+            data = archive.extractfile("runtime.apk").read()
+        info = zipfile.ZipFile(io.BytesIO(data)).getinfo("assets/stored.bin")
+        name_length = int.from_bytes(data[info.header_offset + 26:info.header_offset + 28], "little")
+        extra_length = int.from_bytes(data[info.header_offset + 28:info.header_offset + 30], "little")
+        self.assertEqual((info.header_offset + 30 + name_length + extra_length) % 4, 0)
+
+    def test_the_result_passes_the_signing_gates_abi_check(self):
+        conformance = module("check_bundle_conformance_for_tests", "check-bundle-conformance.py")
+        out = self.strip()
+        before, after = [], []
+        with tarfile.open(self.source, "r:xz") as archive:
+            entries = [(m.name, (lambda m=m: archive.extractfile(m).read())) for m in archive.getmembers() if m.isfile()]
+            conformance.check_libraries("", entries, before)
+        with tarfile.open(out, "r:xz") as archive:
+            entries = [(m.name, (lambda m=m: archive.extractfile(m).read())) for m in archive.getmembers() if m.isfile()]
+            conformance.check_libraries("", entries, after)
+            apk = zipfile.ZipFile(io.BytesIO(archive.extractfile("runtime.apk").read()))
+            conformance.check_libraries("runtime.apk!", [(i.filename, (lambda i=i: apk.read(i))) for i in apk.infolist()], after)
+        self.assertTrue(any("32-bit" in problem for problem in before))
+        self.assertEqual(after, [])
+
+    def test_the_envelope_names_the_new_manifest(self):
+        out = self.strip()
+        envelope = json.loads((self.root / "out" / "enginehost-release.json").read_text())
+        with tarfile.open(out, "r:xz") as archive:
+            manifest_bytes = archive.extractfile("enginehost-bundle.json").read()
+            jws = archive.extractfile("enginehost-bundle.jws").read().decode().strip()
+        (entry,) = envelope["bundles"]
+        self.assertEqual(base64.b64decode(entry["manifestBase64"]), manifest_bytes)
+        self.assertEqual(entry["jws"], jws)
+
+    def test_a_version_that_is_not_newer_is_refused(self):
+        for version in ("1.0.13-2", "1.0.12-9", "1.0.13"):
+            with self.assertRaises(SystemExit):
+                self.strip(version)
 
 
 if __name__ == "__main__":
