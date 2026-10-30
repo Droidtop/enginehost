@@ -326,7 +326,20 @@ such as a LÖVE game whose `love.draw` is empty.
 - **Black screen.** The loading notice (`RuntimeLoadingNotice`) already reads
   the game's SurfaceView every 750 ms until something other than black is
   drawn. Still black at 45 s with the game in front, it asks once
-  (`GameTroubleActivity`): Keep waiting, End game, Report a problem. An engine
+  (`GameTroubleActivity`): Keep waiting, End game, Report a problem. The rule
+  is `BlackScreenRule`, about what the person sees rather than the engine's
+  surface (2026-10-30, Droidtop/tracker#821: Ren'Py was asked about with its
+  presplash on screen, and ran 55 seconds later):
+  - the game's own loading picture (`LoadingCover`) is not a black screen;
+  - every progress report the engine sends (`LoadingProgress`) starts the 45
+    seconds again;
+  - the first launch of a core build, which unpacks its runtime and compiles
+    the game's scripts first, has 150 seconds (`CoreLaunches`, decided in the
+    main process and passed in the launch);
+  - the notice stops watching after 180 seconds without a frame or a report,
+    asking once first when it never asked.
+
+  An engine
   with no SurfaceView is not watched, and a game whose surface cannot be read
   is never called black. Both steps are host events ("watching the game's
   screen", "the game drew its first frame"), which the core harness waits on
@@ -391,9 +404,14 @@ the engine drew; it now opens on the game's own loading picture.
   - Ren'Py: `android-presplash.*` beside the game, else `game/presplash.*`. With a background and a
     foreground picture in `game/`, a progress fill as Ren'Py draws it: the background whole, the
     foreground over it from the left up to the fraction loaded. Ren'Py's source names them
-    `presplash_background` and `presplash_foreground`; the hyphenated spelling is read too. Ren'Py
-    counts script files loaded, which the host cannot see, so the fill is an estimate that eases
-    towards the end and never fills; the first frame, not the bar, ends it.
+    `presplash_background` and `presplash_foreground`; the hyphenated spelling is read too. The
+    fill is Ren'Py's own progress (2026-10-30, Droidtop/tracker#821): the core reports the
+    fraction its desktop presplash would draw (each `presplash.pump_window` call over the script
+    files plus Ren'Py's fixed count, as each Ren'Py version counts it) through the named bridge
+    `dev.enginehost.ActivityLoading.progress`, and the host draws exactly that. Nothing is
+    guessed: until the core reports, the bar is empty, as Ren'Py draws it before its first pump.
+    The estimate that eased towards the end showed a 176-second start already filled. The first
+    frame, not the bar, ends it.
   - Godot: the project's `application/boot_splash/image` (and `boot_splash/bg_color`), when
     `project.godot` and the image are plain files. A game shipped as a `.pck`, and one with
     `boot_splash/show_image=false`, are skipped.

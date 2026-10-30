@@ -1,7 +1,6 @@
 package dev.enginehost
 
 import java.io.File
-import kotlin.math.exp
 
 /** A game's own loading art, as found in its folder: what [LoadingImages.find] returns. */
 sealed class LoadingArt {
@@ -143,13 +142,36 @@ internal object GodotProjectSettings {
 }
 
 /**
- * How far along Ren'Py's progress bar is drawn. Ren'Py's own bar counts the
- * script files loaded, which the host cannot see from outside the core, so
- * this is an estimate that eases towards the end and never reaches it; the
- * cover is lifted by the core's first frame, not by the bar filling.
+ * How far along the game's own loading bar is, as its engine reports it: the
+ * fraction Ren'Py's presplash would draw on the desktop (`pump_count` over the
+ * script files plus its fixed count), sent by the core through
+ * [ActivityLoading] as Ren'Py starts (Droidtop/tracker#821). Nothing is
+ * guessed: until the engine reports, the bar is drawn empty, as Ren'Py draws
+ * it before its first pump. [reportedAt] is also how the black-screen rule
+ * ([BlackScreenRule]) knows the game is still loading.
+ *
+ * One game runs per runtime process, so this is process state; plain values,
+ * so it is unit-tested on the JVM.
  */
 internal object LoadingProgress {
-    private const val EASE_MS = 6000.0
+    /** Drawn share of the bar, 0 to 1. */
+    @Volatile
+    var fraction = 0f
+        private set
 
-    fun estimate(elapsedMs: Long): Float = (0.95 * (1 - exp(-elapsedMs.coerceAtLeast(0) / EASE_MS))).toFloat()
+    /** When the engine last reported, in [android.os.SystemClock.uptimeMillis]; 0 for never. */
+    @Volatile
+    var reportedAt = 0L
+        private set
+
+    fun report(done: Float, now: Long) {
+        fraction = if (done.isNaN()) 0f else done.coerceIn(0f, 1f)
+        reportedAt = now
+    }
+
+    /** For tests: as a fresh process. */
+    internal fun reset() {
+        fraction = 0f
+        reportedAt = 0L
+    }
 }

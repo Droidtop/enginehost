@@ -169,6 +169,7 @@ object GameRunner {
             // Which build: several builds of one line can be installed, and the
             // runtime must load the one planned and approved here.
             putExtra(RuntimeActivity.EXTRA_PLUGIN_ARCHIVE, resolved.plugin.archiveSha256)
+            putExtra(RuntimeActivity.EXTRA_FIRST_LAUNCH, CoreLaunches(context).firstLaunch(resolved.plugin.archiveSha256))
             putExtra(RuntimeActivity.EXTRA_SAVE_PATH, saveFolder.absolutePath)
             callerRoot?.let { putExtra(RuntimeActivity.EXTRA_GAME_SAVE_PATH, it.absolutePath) }
             putExtra(RuntimeActivity.EXTRA_ENGINE, config.engine)

@@ -201,9 +201,16 @@ class LoadingImagesTest {
     }
 
     @Test
-    fun theEstimatedProgressRisesAndNeverFills() {
-        val steps = listOf(0L, 1_000L, 5_000L, 20_000L, 600_000L).map(LoadingProgress::estimate)
-        assertEquals(steps.sorted(), steps)
-        assertTrue(steps.last() < 1f)
+    fun reportedProgressIsWhatIsDrawnAndIsHeldToTheBar() {
+        LoadingProgress.reset()
+        assertEquals(0f, LoadingProgress.fraction)
+        LoadingProgress.report(0.25f, 1_000L)
+        assertEquals(0.25f, LoadingProgress.fraction)
+        assertEquals(1_000L, LoadingProgress.reportedAt)
+        LoadingProgress.report(3f, 2_000L)
+        assertEquals(1f, LoadingProgress.fraction)
+        LoadingProgress.report(Float.NaN, 3_000L)
+        assertEquals(0f, LoadingProgress.fraction)
+        LoadingProgress.reset()
     }
 }

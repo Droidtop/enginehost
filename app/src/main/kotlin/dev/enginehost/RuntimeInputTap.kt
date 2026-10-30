@@ -229,8 +229,9 @@ private const val BLANK_CHANNEL = 12
  * with nothing to say it was working (Droidtop/tracker#289). The notice is
  * a small bar at the bottom, not a cover, so a game that starts on a black
  * intro is never hidden by it; it goes when the first non-black frame
- * reaches the surface, when no surface can be watched for a while, or after
- * [GIVE_UP_MS] whatever happens. Never takes touches.
+ * reaches the surface, when no surface can be watched for a while, or when
+ * the game has shown no sign of life for long ([BlackScreenRule.givesUp]).
+ * Never takes touches.
  *
  * It is also what takes the game's own loading screen away ([LoadingCover]):
  * the moment a surface has had any frame posted, black or not, which is the
@@ -242,9 +243,11 @@ private const val BLANK_CHANNEL = 12
  * It is also how Enginehost knows a game drew at all. Its first readable
  * frame and its first drawn one are marked in the session note
  * ([CrashWatch.WATCHED], [CrashWatch.DRAWN]), so a game that closes without
- * ever drawing is reported as a failure; and a surface still black after
- * [BLACK_SCREEN_MS] asks the person, once, whether to keep waiting
- * ([GameTroubleActivity]). An engine with no SurfaceView is not watched.
+ * ever drawing is reported as a failure; and a game that shows the person
+ * nothing for [BlackScreenRule]'s window asks them, once, whether to keep
+ * waiting ([GameTroubleActivity]). The game's own loading picture is not a
+ * black screen, and every progress report the engine sends starts the window
+ * again (Droidtop/tracker#821). An engine with no SurfaceView is not watched.
  */
 internal class RuntimeLoadingNotice(private val activity: Activity) {
     private val handler = Handler(Looper.getMainLooper())
@@ -255,6 +258,9 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
     private var watched = false
     private var asked = false
     private val bar: View = buildBar()
+
+    /** This core build's first launch, as the launch planned it ([CoreLaunches]): it gets a longer window. */
+    private val firstLaunch = activity.intent?.getBooleanExtra(RuntimeActivity.EXTRA_FIRST_LAUNCH, false) == true
 
     fun start() {
         handler.post(::poll)
@@ -285,8 +291,13 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
     private fun poll() {
         if (done) return
         if (activity.isFinishing || activity.isDestroyed) return finish()
-        val elapsed = SystemClock.uptimeMillis() - startedAt
-        if (elapsed > GIVE_UP_MS) return finish()
+        val now = SystemClock.uptimeMillis()
+        val elapsed = now - startedAt
+        if (BlackScreenRule.givesUp(now, startedAt, LoadingProgress.reportedAt, firstLaunch)) {
+            // Silent this long even under the game's own picture: ask once before letting go.
+            ask()
+            return finish()
+        }
         // An Activity that set its content after this started cleared the bar.
         if (bar.parent == null && !LoadingCover.coversBar) {
             activity.addContentView(
@@ -368,7 +379,14 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
      * the person is asked, once, and the game keeps running.
      */
     private fun nothingShown() {
-        if (asked || !RuntimeWatchdog.inFront || SystemClock.uptimeMillis() - startedAt < BLACK_SCREEN_MS) return
+        val now = SystemClock.uptimeMillis()
+        if (!BlackScreenRule.shouldAsk(now, startedAt, LoadingProgress.reportedAt, LoadingCover.coversBar, firstLaunch)) return
+        ask()
+    }
+
+    /** Asks the person, once and only with the game in front, whether to keep waiting. */
+    private fun ask() {
+        if (asked || !RuntimeWatchdog.inFront) return
         asked = true
         GameTroubleActivity.ask(
             activity, GameTroubleActivity.BLACK_SCREEN, activity.intent?.getStringExtra(RuntimeActivity.EXTRA_GAME),
@@ -414,10 +432,6 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         /** No surface this long after the window is up: the loading screen cannot tell when to go, and goes. */
         const val NO_SURFACE_COVER_MS = 5_000L
         const val NO_SURFACE_MS = 20_000L
-        const val GIVE_UP_MS = 180_000L
-
-        /** Black this long and the person is asked what to do (owner, 2026-10-22). */
-        const val BLACK_SCREEN_MS = 45_000L
     }
 }
 

@@ -367,6 +367,8 @@ class RuntimeActivity : FragmentActivity() {
 
         /** The archive digest of the build the planner chose, among the builds of that bundle installed. */
         const val EXTRA_PLUGIN_ARCHIVE = "dev.enginehost.runtime.PLUGIN_ARCHIVE"
+        /** True on the first launch of this core build ([CoreLaunches]): the black-screen question waits longer. */
+        const val EXTRA_FIRST_LAUNCH = "dev.enginehost.runtime.FIRST_LAUNCH"
         const val EXTRA_CALLER_CONFIG = "dev.enginehost.runtime.CALLER_CONFIG"
         /** Game setup's Test: the testing configuration standing in for the folder's (see TestingConfigStore). */
         const val EXTRA_TESTING_CONFIG = "dev.enginehost.runtime.TESTING_CONFIG"

@@ -8,7 +8,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -26,6 +25,9 @@ import kotlin.math.min
  * at the first frame the game's surface posts ([lift], called by
  * [RuntimeLoadingNotice], which already watches for it).
  *
+ * Ren'Py's progress presplash is drawn as Ren'Py draws it, filled to what the
+ * core reports ([LoadingProgress], [ActivityLoading]).
+ *
  * What is shown, first that exists: the engine family's own loading picture
  * ([LoadingImages]), the game's box art ([GameIcon]) over a dark ground, and
  * otherwise nothing, which leaves the plain dark window with the "Loading"
@@ -37,7 +39,7 @@ internal object LoadingCover {
     /** What [prepare] decoded: [image] on [background]; [fill] is Ren'Py's progress foreground; [boxArt] is the fallback. */
     class Prepared(val background: Int, val image: Bitmap, val fill: Bitmap?, val boxArt: Boolean)
 
-    private var view: View? = null
+    @Volatile private var view: View? = null
 
     /** A cover is up and is the game's own picture, which the "Loading" bar must not be drawn over. */
     val coversBar: Boolean get() = view != null && ownArt
@@ -130,6 +132,11 @@ internal object LoadingCover {
         ownArt = !prepared.boxArt
     }
 
+    /** The engine reported progress: the bar is drawn again. Any thread. */
+    fun progressed() {
+        view?.postInvalidate()
+    }
+
     /** Takes the cover away: the game drew its first frame, or nothing can tell. Main thread; harmless when none is up. */
     fun lift() {
         val cover = view ?: return
@@ -142,7 +149,6 @@ internal object LoadingCover {
 
     private class CoverView(context: Context, private val shown: Prepared) : View(context) {
         private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-        private val startedAt = SystemClock.uptimeMillis()
         private val target = RectF()
 
         init {
@@ -164,13 +170,14 @@ internal object LoadingCover {
             val h = shown.image.height * scale
             target.set((screenW - w) / 2, (screenH - h) / 2, (screenW + w) / 2, (screenH + h) / 2)
             canvas.drawBitmap(shown.image, null, target, paint)
+            // Ren'Py's ProgressBar.draw: the background whole, then the foreground cut at
+            // width * done from the left, done as the engine reported it ([LoadingProgress]).
             val fill = shown.fill ?: return
-            val done = LoadingProgress.estimate(SystemClock.uptimeMillis() - startedAt)
+            val done = LoadingProgress.fraction
             canvas.save()
             canvas.clipRect(target.left, target.top, target.left + target.width() * done, target.bottom)
             canvas.drawBitmap(fill, null, target, paint)
             canvas.restore()
-            postInvalidateOnAnimation()
         }
     }
 
