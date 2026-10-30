@@ -2286,8 +2286,17 @@ works"):
   separately installed component is no longer refused.
 - **WebView.** The policy adds the current WebView provider's code (its APK
   folder and native libraries, read-only) and WebView's own profile folders in
-  the app's data (`app_webview*`, read and write), so a WebView core starts
-  locked down. WebView's renderer is a separate process Android starts as an
+  the app's data (`app_webview*` and `app_textures`, read and write), so a WebView core starts
+  locked down. Enginehost creates `app_webview` and `app_textures` before the lockdown, because
+  the locked-down process may not write the data folder they sit in. The policy also reads
+  `/data/misc/shared_relro`, the library relocations the system shares between WebView processes.
+  A WebView that ships in `/product` (AOSP, the emulator, some TV boxes) also needs the sandbox
+  library to answer `readlink` of the process's own `/proc/self/fd/<n>` in the process (sandbox
+  be84422). Before that, bionic's `realpath()` failed in a process that is not dumpable, the
+  linker dropped the WebView's `webview.apk!/lib/<abi>` from its namespace, and HTML died with
+  "not accessible for the namespace product-clns" (Droidtop/tracker#550, 2026-10-30). A WebView
+  under `/data/app` was never affected, because `/data` is always a permitted path.
+  WebView's renderer is a separate process Android starts as an
   isolated process of its own (`sandboxed_process`, SELinux `isolated_app`)
   whenever WebView runs multiprocess, which every supported Android version
   does: the page's code never runs in `:runtime`, and it is already

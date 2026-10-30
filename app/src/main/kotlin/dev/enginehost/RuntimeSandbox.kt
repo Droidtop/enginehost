@@ -342,9 +342,15 @@ object RuntimeSandbox {
         // profile folders in this app's data. Its renderer is a separate
         // process Android isolates itself (docs/engine-sandbox.md).
         webViewCode(context).forEach { rules[it] = SBX_READ }
+        // The RELRO file the system prepares so every WebView process shares the library's relocations.
+        rules["/data/misc/shared_relro"] = SBX_READ
         context.dataDir.listFiles { file -> file.isDirectory && file.name.startsWith("app_webview") }.orEmpty()
             .forEach { rules[it.absolutePath] = SBX_READ or SBX_WRITE }
-        rules[File(context.dataDir, "app_webview").absolutePath] = SBX_READ or SBX_WRITE
+        // Made here: WebView creates them on first use, and the locked-down process may not
+        // write the data folder they sit in (the HTML core's learning run, Droidtop/tracker#550).
+        listOf("app_webview", "app_textures").forEach { name ->
+            rules[File(context.dataDir, name).apply { mkdirs() }.absolutePath] = SBX_READ or SBX_WRITE
+        }
         rules[game] = if (gameWritable) SBX_READ or SBX_WRITE else SBX_READ
         // The longest rule decides, so these stay writable inside a read-only game folder.
         gameWrites.filter(GameWrites::isSubFolder).forEach { rules[File(game, it).path] = SBX_READ or SBX_WRITE }
