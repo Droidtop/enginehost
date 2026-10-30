@@ -271,7 +271,10 @@ Every repository publishes on three streams, and the release envelope
   real games on hardware. Tag `<line>`, a full release. A stable build that
   predates signature format v1 is re-signed, not rebuilt, as `<line>-resigned`
   beside it (docs/engine-bundle-format.md, "Signing, provisioning and the
-  owner's steps").
+  owner's steps"). A stable build that carries 32-bit libraries is published
+  again without them as `<line>-64-bit`, under a newer build number and with
+  its 64-bit code unchanged (`resign-engine-release.yml` with `only-64-bit`;
+  owner, 2026-10-30, Droidtop/tracker#646: "strip it out").
 
 The person chooses the most adventurous stream they want in enginehost's
 Settings (stable by default); the catalog and the update check offer that

@@ -10,6 +10,11 @@ name: Re-sign a stable engine release
 # published release is left as it is. scripts/resign-engine-bundle.py does it,
 # and leaves the legacy enginehost-bundle.sig out (Droidtop/tracker#768).
 #
+# With only-64-bit (a newer pluginVersion), the same release is published again
+# without its 32-bit libraries, as <source-tag>-64-bit: the 64-bit code is the
+# published code byte for byte, and the manifest and signature are new
+# (owner, 2026-10-30, Droidtop/tracker#646).
+#
 # A core repository calls it from a dispatch-only workflow, pinned by commit:
 #
 #   on:
@@ -43,7 +48,15 @@ on:
         type: string
         required: true
       tag:
-        description: Tag of the new stable release (default <source-tag>-resigned).
+        description: Tag of the new stable release (default <source-tag>-resigned, or <source-tag>-64-bit with only-64-bit).
+        type: string
+        default: ""
+      only-64-bit:
+        description: >-
+          A pluginVersion newer than the source's: re-sign without every 32-bit
+          library, in the bundle and in its resource APKs, and publish under this
+          version (owner, 2026-10-30, Droidtop/tracker#646). Empty re-signs the
+          bundle unchanged.
         type: string
         default: ""
       repository-certificate:
@@ -71,12 +84,14 @@ jobs:
           SOURCE_TAG: ${{ inputs.source-tag }}
           TAG: ${{ inputs.tag }}
           CERTIFICATE: ${{ inputs.repository-certificate }}
+          ONLY_64_BIT: ${{ inputs.only-64-bit }}
         run: |
           set -euo pipefail
           [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
           [[ "$SOURCE_TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad source tag '$SOURCE_TAG'" >&2; exit 1; }
           [[ -z "$TAG" || "$TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad tag '$TAG'" >&2; exit 1; }
           [[ "$CERTIFICATE" =~ ^[A-Za-z0-9._/-]+$ && "$CERTIFICATE" != *..* ]] || { echo "bad certificate path '$CERTIFICATE'" >&2; exit 1; }
+          [[ -z "$ONLY_64_BIT" || "$ONLY_64_BIT" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] || { echo "bad version '$ONLY_64_BIT'" >&2; exit 1; }
       - name: Check out the repository's signing certificate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -121,6 +136,7 @@ jobs:
           ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
           CERTIFICATE: repository/${{ inputs.repository-certificate }}
           ROOT_KEY: enginehost-tooling/app/src/main/assets/trust/enginehost-root.pub
+          ONLY_64_BIT: ${{ inputs.only-64-bit }}
         run: |
           set -euo pipefail
           test -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" || { echo "::error::ENGINEHOST_CERTIFICATE_KEY_PEM is not set" >&2; exit 1; }
@@ -132,10 +148,12 @@ jobs:
           envelope="$(find source \( -name enginehost-release.json -o -name enginehost-component.json \) -print -quit)"
           test -f "$envelope"
           mkdir -p output
+          only=()
+          [ -z "$ONLY_64_BIT" ] || only=(--only-64-bit "$ONLY_64_BIT")
           for bundle in source/*.enginehost.tar.xz; do
             python3 enginehost-tooling/scripts/resign-engine-bundle.py "$bundle" \
               --certificate-key "$key" --certificate-chain "$CERTIFICATE" \
-              --output output --release-envelope "$envelope"
+              --output output --release-envelope "$envelope" "${only[@]}"
             # The envelope now carries this bundle's jws; the next bundle (if
             # any) adds its own to the same file.
             envelope="output/$(basename "$envelope")"
@@ -166,9 +184,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_TAG: ${{ inputs.source-tag }}
           TAG: ${{ inputs.tag }}
+          ONLY_64_BIT: ${{ inputs.only-64-bit }}
         run: |
           set -euo pipefail
-          tag="${TAG:-$SOURCE_TAG-resigned}"
+          if [ -n "$ONLY_64_BIT" ]; then tag="${TAG:-$SOURCE_TAG-64-bit}"; else tag="${TAG:-$SOURCE_TAG-resigned}"; fi
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" >/dev/null 2>&1; then
             echo "::error::release $tag already exists" >&2
             exit 1
@@ -191,9 +210,15 @@ jobs:
           data["channel"] = "stable"
           json.dump(data, open(path, "w"), sort_keys=True, separators=(",", ":"))
           PY
-          notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, re-signed in signature format v1 (Droidtop/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, in place of the legacy signature. Install it through Enginehost."
+          if [ -n "$ONLY_64_BIT" ]; then
+            notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, without its 32-bit libraries, as build $ONLY_64_BIT (Droidtop/tracker#646). Its 64-bit code is byte for byte the code published there. Only the libraries for ABIs other than arm64-v8a and x86_64 are gone, from the bundle and its resource APKs, and the manifest and its v1 signature are new. Install it through Enginehost."
+            suffix="64-bit"
+          else
+            notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, re-signed in signature format v1 (Droidtop/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, in place of the legacy signature. Install it through Enginehost."
+            suffix="v1-signed"
+          fi
           gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "$title (v1-signed)" --notes "$notes" --draft
+            --title "$title ($suffix)" --notes "$notes" --draft
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
       - name: Ask droidtop-platforms to reindex
         env:
