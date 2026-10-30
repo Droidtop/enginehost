@@ -24,6 +24,10 @@ if [ "${LOCKDOWN:-}" = 1 ]; then
     adb shell setprop debug.enginehost.lockdown 1
     echo "The process lockdown is forced on for every core"
 fi
+# Under a lockdown or learning run, the linker also logs each dlerror, so a library it refuses says why.
+if [ "${LOCKDOWN:-}" = 1 ] || [ "${LEARN:-}" = 1 ]; then
+    adb shell setprop debug.ld.all dlerror
+fi
 # adb is the unrecognized caller; a person allows it once in Settings, here the debug switch does.
 adb shell am start -W -n dev.enginehost/.DebugCallerAccessActivity
 
@@ -80,6 +84,8 @@ for game in "$out"/*/; do
     [ -f "$game/logcat.txt" ] && { echo "--- Enginehost errors:"; grep -E " [EF] (Enginehost|enginehost|AndroidRuntime|DEBUG)" "$game/logcat.txt" | tail -n 25; } || true
     # What the sandbox said for this game: lockdown on or not, learning, a trace of an ended runtime.
     [ -f "$game/logcat.txt" ] && { echo "--- the sandbox:"; grep " EnginehostSandbox" "$game/logcat.txt" | tail -n 25; } || true
+    # Why the linker refused or could not resolve a library (namespace paths it dropped, dlerror).
+    [ -f "$game/logcat.txt" ] && { echo "--- the linker:"; grep -E " (linker|nativeloader)[ :]" "$game/logcat.txt" | grep -v -E "dlopen\(|dlsym" | tail -n 40; } || true
     # A game that failed a check: the last lines its own processes logged, the engine's among them.
     if [ -f "$game/app-log.txt" ] && ! grep -q '"passed": true' "$game/result.json" 2>/dev/null; then
         echo "--- its processes' log:"; grep -v -E "app_time_stats|AppsFilter" "$game/app-log.txt" | tail -n 80 || true

@@ -2286,8 +2286,25 @@ works"):
   separately installed component is no longer refused.
 - **WebView.** The policy adds the current WebView provider's code (its APK
   folder and native libraries, read-only) and WebView's own profile folders in
-  the app's data (`app_webview*`, read and write), so a WebView core starts
-  locked down. WebView's renderer is a separate process Android starts as an
+  the app's data (`app_webview*` and `app_textures`, read and write), so a WebView core starts
+  locked down. Enginehost creates `app_webview` and `app_textures` before the lockdown, because
+  the locked-down process may not write the data folder they sit in. The policy also reads
+  `/data/misc/shared_relro`, the library relocations the system shares between WebView processes.
+  A WebView that ships in `/product` (AOSP, the emulator, some TV boxes) also needs two things
+  from the sandbox library (74af3f0), because bionic's `realpath()` has to resolve its APK:
+  - **`O_PATH` opens.** The broker answers an `O_PATH` open of a readable regular file with a
+    read-only descriptor. An `O_PATH` descriptor passed back is checked by SELinux as `ioctl`,
+    which an app may not do on `system_file`, so the kernel dropped it and the open failed with
+    EIO.
+  - **Its own descriptor links.** A `readlink` of the process's own `/proc/self/fd/<n>` is
+    answered in the process. The broker cannot read `/proc/<pid>/fd` of a release app, which is
+    not dumpable.
+
+  Without them, the linker dropped `webview.apk!/lib/<abi>` from the WebView's namespace ("unable
+  to resolve ... I/O error") and HTML died with "not accessible for the namespace product-clns"
+  (Droidtop/tracker#550, 2026-10-30). A WebView under `/data/app` was never affected: an app may
+  ioctl its own data files.
+  WebView's renderer is a separate process Android starts as an
   isolated process of its own (`sandboxed_process`, SELinux `isolated_app`)
   whenever WebView runs multiprocess, which every supported Android version
   does: the page's code never runs in `:runtime`, and it is already
