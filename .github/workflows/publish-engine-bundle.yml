@@ -19,6 +19,9 @@ name: Publish engine bundle
 #     secrets:
 #       PLATFORMS_DISPATCH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
 #
+# A push asks for unstable; the script publishes it to testing instead when the
+# line already has a stable release (the owner's channels, docs/plugin-catalog.md).
+#
 # It publishes the channel release (a rolling pointer for unstable and
 # testing; for stable a kept release whose tag moves to each promoted build's
 # commit), the build's permanent history release, and

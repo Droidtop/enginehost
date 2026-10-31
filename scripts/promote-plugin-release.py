@@ -30,6 +30,14 @@ What the script does, in order:
    drafts are invisible to Enginehost, so a half-uploaded release is never
    served). --draft stops before publishing for a manual look.
 
+The channels (the owner, 2026-10-31, Droidtop/tracker#28): "unstable is for
+branches that have never had a stable core, or for major rewrites/etc. Testing
+is for revisions to branches that have had stable cores (before they're tested).
+Stable is for tested cores". The tag says the channel: `<line>` is stable,
+`<line>-testing` testing, `<line>-unstable` unstable. A revision of a line that
+has a stable release goes to testing, so an `-unstable` tag for such a line is
+refused (scripts/publish-engine-release.sh applies the same rule to every push).
+
 Releases are permanent: docs/plugin-catalog.md promises never to delete a
 published engine-bundle release, so run this only for bundles that met the
 bar.
@@ -60,6 +68,30 @@ def run(*argv: str, capture: bool = True) -> str:
     return result.stdout if capture else ""
 
 
+def channel_problem(tag: str, line_has_stable: bool) -> str | None:
+    """Why [tag] breaks the owner's channels, or None: a line with a stable release takes testing, not unstable."""
+    if tag.endswith("-unstable") and line_has_stable:
+        line = tag[: -len("-unstable")]
+        return (
+            f"{line} has a stable release, so a revision of it goes to testing "
+            f"({line}-testing), not unstable"
+        )
+    return None
+
+
+def has_stable_release(repo: str, line: str) -> bool:
+    """Whether [line] (a tag without a channel suffix) is a published full release in [repo]."""
+    result = subprocess.run(
+        ["gh", "release", "view", line, "-R", repo, "--json", "isPrerelease,isDraft"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode:
+        return False
+    info = json.loads(result.stdout)
+    return not info.get("isPrerelease") and not info.get("isDraft")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("repo", help="GitHub repository, e.g. Droidtop/enginehost-renpy-plugin")
@@ -83,6 +115,11 @@ def main() -> None:
             "--evidence must actually describe the on-hardware verification "
             "(game, device, what was seen), not a token phrase"
         )
+
+    if args.tag.endswith("-unstable"):
+        problem = channel_problem(args.tag, has_stable_release(args.repo, args.tag[: -len("-unstable")]))
+        if problem:
+            raise SystemExit(problem)
 
     run_info = json.loads(
         run("gh", "api", f"repos/{args.repo}/actions/runs/{args.run}")

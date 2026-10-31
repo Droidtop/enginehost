@@ -677,6 +677,17 @@ open (rig, Enginehost dev-289: input dispatching timed out waiting for the focus
 is filed against the screen that was in front, PluginTrustActivity, because the new window had
 not taken focus yet). A newer redraw drops an older read.
 
+## Release channels (decided 2026-10-31)
+
+The owner (Droidtop/tracker#28): "unstable is for branches that have never had a stable core, or
+for major rewrites/etc. Testing is for revisions to branches that have had stable cores (before
+they're tested). Stable is for tested cores". CI publishes every green build of a line to unstable
+until the line has a stable release and to testing after; `scripts/publish-engine-release.sh` makes
+that choice for every plugin repository, and `scripts/promote-plugin-release.py` refuses an
+unstable tag for a line with a stable release. A core reaches stable once a game loads a save with
+it on the console. docs/plugin-catalog.md, "Publishing: how a bundle becomes a release", has the
+tags and the rest.
+
 ## Add a core has Install all
 
 After the catalog's cards, when the chosen channel offers two or more cores that are not

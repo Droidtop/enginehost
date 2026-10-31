@@ -7,7 +7,8 @@
 # Environment (all required unless noted):
 #   GH_TOKEN GH_REPO   token and repository the releases are made in
 #   REF_NAME SHA RUN_NUMBER   the build: ref, full commit, workflow run number
-#   CHANNEL            stable, testing or unstable
+#   CHANNEL            stable, testing or unstable (unstable becomes testing for a
+#                      line that already has a stable release)
 #   REQUESTED_TAG      release tag for the channel release (optional; derived
 #                      from the bundle id when empty)
 #   RELEASE_DIR        the directory the signed artifact was downloaded into
@@ -33,6 +34,26 @@ keydoc="$(find "$RELEASE_DIR" -name 'enginehost-public-key.json' -print -quit)"
 certificate="$(find "$RELEASE_DIR" -name 'enginehost-signing-certificate.pem' -print -quit)"
 test -f "$envelope"
 
+tag="${REQUESTED_TAG:-}"
+if [ -z "$tag" ]; then
+  tag="$(printf '%s' "$id" | sed 's/^dev\.enginehost\.//; s/\./-/g')"
+fi
+
+# The owner's channels (2026-10-31, Droidtop/tracker#28): "unstable is for branches that have
+# never had a stable core, or for major rewrites/etc. Testing is for revisions to branches that
+# have had stable cores (before they're tested). Stable is for tested cores". A push asks for
+# unstable; when the line already has a stable release (the tag without a suffix, a full
+# release), this build is a revision of a tested line and goes to testing. A major rewrite is a
+# new line with a bundle id of its own, so it has no stable release and stays on unstable.
+if [ "$CHANNEL" = unstable ]; then
+  line="${tag%-unstable}"
+  if [ "$(gh release view "$line" --json isPrerelease --jq .isPrerelease 2>/dev/null)" = false ]; then
+    echo "$line has a stable release: this build is a revision of a tested line, so it goes to testing."
+    CHANNEL=testing
+    tag="$line"
+  fi
+fi
+
 # The envelope names its channel; the app filters on it. The signed manifest
 # inside is untouched.
 python3 - "$envelope" "$CHANNEL" <<'PY'
@@ -43,10 +64,6 @@ data["channel"] = channel
 json.dump(data, open(path, "w"), indent=2)
 PY
 
-tag="${REQUESTED_TAG:-}"
-if [ -z "$tag" ]; then
-  tag="$(printf '%s' "$id" | sed 's/^dev\.enginehost\.//; s/\./-/g')"
-fi
 case "$CHANNEL" in
   stable) prerelease="" ;;
   testing) [[ "$tag" == *-testing ]] || tag="$tag-testing"; prerelease="--prerelease" ;;

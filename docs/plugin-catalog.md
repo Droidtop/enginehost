@@ -259,16 +259,28 @@ no engine SDK, Gradle core or third-party action shares a runner with the key.
 Why: `docs/security/2026-09-24-ci-supply-chain.md`.
 
 Every repository publishes on three streams, and the release envelope
-(`enginehost-release.json`) names the stream in its `channel` field:
+(`enginehost-release.json`) names the stream in its `channel` field. What each
+stream is for is the owner's (2026-10-31, Droidtop/tracker#28): "unstable is for
+branches that have never had a stable core, or for major rewrites/etc. Testing
+is for revisions to branches that have had stable cores (before they're tested).
+Stable is for tested cores".
 
-- `unstable`: every green build of a `plugin/**` branch, published by CI
-  itself to the rolling pre-release `<line>-unstable`, replaced on each build.
-  Nothing is claimed about it beyond "it built and signed".
-- `testing`: a build a maintainer promoted (manual dispatch with
-  `channel=testing`) because it runs real games but has not been lived with.
-  Tag `<line>-testing`, marked pre-release.
-- `stable`: promoted with `channel=stable` once the build has been used with
-  real games on hardware. Tag `<line>`, a full release. A stable build that
+- `unstable`: every green build of a `plugin/**` branch whose line has never had
+  a stable release, published by CI itself to the rolling pre-release
+  `<line>-unstable`, replaced on each build. Nothing is claimed about it beyond
+  "it built and signed". A major rewrite is a new line with a bundle id of its
+  own, so it starts here too.
+- `testing`: every green build of a line that already has a stable release,
+  published by CI itself to the rolling pre-release `<line>-testing`: a revision
+  of a tested core, waiting for its own test. `publish-engine-release.sh` makes
+  that choice for every push (a push asks for unstable; a line whose `<line>` tag
+  is a full release gets testing), so no plugin repository decides it. A
+  maintainer can also promote a build here by hand (manual dispatch with
+  `channel=testing`).
+- `stable`: promoted with `channel=stable` once the build has been tested:
+  used with real games on hardware. The bar for that (the owner, 2026-10-31): a
+  game loads a save on the console; Ren'Py first, every other core in the week
+  of 2026-11-02. Tag `<line>`, a full release. A stable build that
   predates signature format v1 is re-signed, not rebuilt, as `<line>-resigned`
   beside it (docs/engine-bundle-format.md, "Signing, provisioning and the
   owner's steps"). A stable build that carries 32-bit libraries is published
@@ -283,7 +295,9 @@ wins. Envelopes without a `channel` are read as stable, or testing when
 GitHub's pre-release flag is set, so releases from before streams existed
 keep their meaning.
 
-`scripts/promote-plugin-release.py` is the promotion step. It takes the
+`scripts/promote-plugin-release.py` is the promotion step, and keeps the same
+channel rule: it refuses an `-unstable` tag for a line that has a stable release.
+It takes the
 successful run, re-verifies every bundle offline against the key document
 committed at that run's own commit, requires an `--evidence` statement of
 what was seen on hardware (written verbatim into the release notes -- never

@@ -64,8 +64,10 @@ jobs:
       - name: Build the debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
-      # Each family's rolling unstable core: the build its users get next. One core per family
-      # whose test game in this repository plays on the emulator. Godot's is exported below but
+      # Each family's newest build: the build its users get next. A push publishes to the line's
+      # unstable release until the line has a stable one, and to its testing release after
+      # (docs/plugin-catalog.md, the owner's channels of 2026-10-31), so the newer of the two is it.
+      # One core per family whose test game in this repository plays on the emulator. Godot's is exported below but
       # cannot draw here (see the export step). Ren'Py's runs on its 8.3 core here but shows only
       # black: the emulator's GLES fails its buffer unmaps ("GL2Encoder ... s_glUnmapBuffer ... GL
       # error 0x502", run 40891140086), so it is played on the rig.
@@ -74,12 +76,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p cores
-          while read -r repo tag; do
+          while read -r repo line; do
+            tag="$(for t in "$line-testing" "$line-unstable"; do
+              gh release view "$t" -R "Droidtop/$repo" --json publishedAt --jq ".publishedAt + \" $t\"" 2>/dev/null
+            done | sort -r | head -1 | cut -d' ' -f2)"
+            [ -n "$tag" ] || { echo "$repo has neither $line-testing nor $line-unstable" >&2; exit 1; }
+            echo "$repo: $tag"
             gh release download "$tag" -R "Droidtop/$repo" -p '*.enginehost.tar.xz' -D cores
           done <<'EOF'
-          enginehost-html-plugin html-v1-unstable
-          enginehost-love2d-plugin love2d-11-v1-unstable
-          enginehost-nscripter-plugin nscripter-onsyuri-v1-unstable
+          enginehost-html-plugin html-v1
+          enginehost-love2d-plugin love2d-11-v1
+          enginehost-nscripter-plugin nscripter-onsyuri-v1
           EOF
           ls -l cores
 
