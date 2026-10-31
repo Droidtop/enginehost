@@ -10,47 +10,56 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 
 /**
- * The chrome that names the four [Destination]s and says which one this is:
- * a bar along the bottom of a narrow window, a rail along the left edge of a
- * wide or short one ([SizeClass.usesRail]). Touch moves between them; the pad
- * does it with L1 and R1, so no item takes focus (the D-pad moves within a
- * screen's content and never into its chrome).
+ * The tab bar along the top of every destination screen: the four [Destination]s in a row, this
+ * one marked, between the L1 and R1 glyphs that move left and right along it. The bar runs the way
+ * the shoulder buttons move, on every window size (owner, Droidtop/tracker#644: "move the
+ * enginehost tab bar to the top or bottom, so it's more consistent with how it actually moves,
+ * mapped to l1 and r1"). Touch picks a tab or presses a glyph; no item takes focus, so the D-pad
+ * moves within a screen's content and never into its chrome.
  */
 object DestinationBar {
-    fun create(context: Context, current: Destination, rail: Boolean, onPick: (Destination) -> Unit): LinearLayout {
+    fun create(context: Context, current: Destination, onPick: (Destination) -> Unit): LinearLayout {
         val res = context.resources
+        val gap = res.getDimensionPixelSize(R.dimen.eh_space_xs)
         val bar = LinearLayout(context).apply {
-            orientation = if (rail) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-            gravity = if (rail) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(ContextCompat.getColor(context, R.color.eh_surface))
-            val pad = res.getDimensionPixelSize(R.dimen.eh_space_s)
-            setPadding(pad, pad, pad, pad)
+            val h = res.getDimensionPixelSize(R.dimen.eh_screen_padding_h)
+            setPadding(h, gap, h, gap)
         }
+        bar.addView(shoulder(context, "L1") { onPick(Destinations.neighbour(current, -1)) })
         Destination.entries.forEach { destination ->
-            bar.addView(item(context, destination, selected = destination == current, rail = rail, onPick), itemParams(context, rail))
+            bar.addView(
+                tab(context, destination, selected = destination == current, onPick),
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(gap, 0, gap, 0) },
+            )
         }
+        bar.addView(shoulder(context, "R1") { onPick(Destinations.neighbour(current, 1)) })
         return bar
     }
 
-    private fun itemParams(context: Context, rail: Boolean): LinearLayout.LayoutParams {
-        val gap = context.resources.getDimensionPixelSize(R.dimen.eh_space_xs)
-        return if (rail) {
-            LinearLayout.LayoutParams(context.resources.getDimensionPixelSize(R.dimen.eh_rail_item_width), LinearLayout.LayoutParams.WRAP_CONTENT)
-                .apply { setMargins(0, gap, 0, gap) }
-        } else {
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(gap, 0, gap, 0) }
+    /** L1 or R1 as the hint row prints a button, pressable by touch like a hint. */
+    private fun shoulder(context: Context, button: String, press: () -> Unit): View =
+        TextView(context, null, 0, R.style.Widget_Enginehost_HintGlyph).apply {
+            text = button
+            gravity = Gravity.CENTER
+            minimumHeight = resources.getDimensionPixelSize(R.dimen.eh_touch_target)
+            isClickable = true
+            isFocusable = false
+            contentDescription = context.getString(if (button == "L1") R.string.tab_previous else R.string.tab_next)
+            setOnClickListener { press() }
         }
-    }
 
-    private fun item(context: Context, destination: Destination, selected: Boolean, rail: Boolean, onPick: (Destination) -> Unit): View {
+    private fun tab(context: Context, destination: Destination, selected: Boolean, onPick: (Destination) -> Unit): View {
         val res = context.resources
         val ink = AccentViewInflater.colour(context, if (selected) R.color.eh_on_accent_container else R.color.eh_text_secondary)
+        val space = res.getDimensionPixelSize(R.dimen.eh_space_xs)
         val item = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             minimumHeight = res.getDimensionPixelSize(R.dimen.eh_touch_target)
-            val v = res.getDimensionPixelSize(R.dimen.eh_space_xs) * 2
-            setPadding(0, v, 0, v)
+            setPadding(space, 0, space, 0)
             // Touch only: the pad changes destination with L1 and R1.
             isFocusable = false
             isClickable = true
@@ -79,8 +88,8 @@ object DestinationBar {
                 setText(destination.label)
                 setTextAppearance(R.style.TextAppearance_Enginehost_Caption)
                 setTextColor(ink)
-                gravity = Gravity.CENTER
                 maxLines = 1
+                setPadding(space, 0, 0, 0)
             },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT),
         )

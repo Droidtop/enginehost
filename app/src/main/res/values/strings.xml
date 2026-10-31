@@ -51,7 +51,8 @@
     <string name="appearance_use">Use this colour</string>
     <string name="appearance_session">%1$s, from the app that started the game</string>
     <string name="nav_settings">Settings</string>
-    <string name="hint_sections">Sections</string>
+    <string name="tab_previous">Previous tab</string>
+    <string name="tab_next">Next tab</string>
     <string name="enginehost_settings">Settings</string>
     <string name="browse_plugins">Cores</string>
     <string name="needs_native_access">Launching needs folder access; game setup still works without it</string>

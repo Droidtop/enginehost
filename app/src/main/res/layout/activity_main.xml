@@ -2,7 +2,7 @@
 <!--
     Home, the Library destination. The library is the screen: a filterable
     list that scrolls on its own, with the one way to add games in the header.
-    The other destinations are the bar or rail the activity draws around this
+    The other destinations are the tab bar the activity draws above this
     ([DestinationBar]), so one layout serves every window; the grid fits its
     columns to the width it gets. No explanatory copy: the game cards say what
     state each game is in.

@@ -130,15 +130,19 @@ place of its own since Droidtop/tracker#644 (owner, 2026-10-24: "Four places:
 Library, Cores, Controls, Settings"). Opened for one game or one engine (its
 page, the in-game menu) the Controls screen is inside that flow and draws no
 bar. Adding games is the Library's one primary action, in its header, not a
-place. The destination screens draw a `DestinationBar` around their content: a bar
-along the bottom of a narrow window, a rail at the left edge of a wide (600dp and
-up) or short (under 480dp) one (`SizeClass.usesRail`). Home has one layout for
-every window; the old landscape fork with its button sidebar is gone.
+place. The destination screens draw a `DestinationBar` along the top of their
+content, on every window size: the four tabs in a row between an L1 glyph at the
+left end and an R1 glyph at the right, so the bar runs the way the shoulder
+buttons move (owner, Droidtop/tracker#644, 2026-10-30: "move the enginehost tab
+bar to the top or bottom, so it's more consistent with how it actually moves,
+mapped to l1 and r1"; top was the preferred place). It replaced a bar along the
+bottom of narrow windows and a rail down the left of wide or short ones. Home has
+one layout for every window; the old landscape fork with its button sidebar is gone.
 
 The pad changes destination with L1 and R1 (previous and next, wrapping); no
 destination item takes focus, so the D-pad only ever moves within a screen's
-content. The hint row names L1/R1 where it has the room (windows 480dp wide and
-up) and the buttons answer everywhere a bar is drawn. Opening another destination
+content. Touch picks a tab, or presses the L1 or R1 glyph. The hint row does not
+name L1/R1, because the bar prints them. Opening another destination
 from Cores, Controls or Settings replaces that screen, so back always lands on the
 Library. "Cores" is the destination's name and its heading, with the line that
 cores are the cores that run a game engine; trust, update and error text keep

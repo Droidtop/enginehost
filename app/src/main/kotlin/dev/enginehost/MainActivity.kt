@@ -16,7 +16,7 @@ import java.io.File
 
 /**
  * Home, the Library destination: every game played here and the one way to
- * add more. The other destinations are the bar or rail ([DestinationBar]).
+ * add more. The other destinations are the tab bar along the top ([DestinationBar]).
  * The library is the shared filterable list
  * ([LibraryBrowser]); a game's card opens that game's own screen
  * ([GameActivity]), Y on a card plays it straight away, and X opens the

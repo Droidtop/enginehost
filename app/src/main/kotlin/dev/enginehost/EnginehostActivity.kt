@@ -55,13 +55,13 @@ abstract class EnginehostActivity : AppCompatActivity() {
      */
     protected open val destination: Destination? = null
 
-    /** This screen's buttons, A first. A screen with a button of its own adds it. */
-    protected open fun hints(): List<Hint> = listOfNotNull(
+    /**
+     * This screen's buttons, A first. A screen with a button of its own adds it. L1 and R1 are
+     * printed at the two ends of the tab bar ([DestinationBar]), so the row does not name them again.
+     */
+    protected open fun hints(): List<Hint> = listOf(
         Hint("A", R.string.hint_select) { selection()?.let(::press) },
         Hint("B", R.string.back) { onBackPressedDispatcher.onBackPressed() },
-        // The row names L1/R1 only where it has the room; the buttons answer on every screen that has a bar.
-        Hint("L1/R1", R.string.hint_sections) { step(1) }
-            .takeIf { destination != null && resources.configuration.screenWidthDp >= HINT_SECTIONS_MIN_DP },
     )
 
     /** Moves [steps] destinations along from this one (L1 is -1, R1 is +1). */
@@ -266,25 +266,19 @@ abstract class EnginehostActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(background)
         }
-        column.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        val here = destination
-        val rail = here != null && SizeClass.usesRail(this)
-        // A bar sits between the content and the hint row; a rail stands beside both.
-        val chrome = here?.let { DestinationBar.create(this, it, rail) { to -> Destinations.open(this, it, to) } }
-        if (chrome != null && !rail) {
-            column.addView(chrome, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        // A destination screen's tab bar runs along the top, the content under it, the hint row last.
+        destination?.let { here ->
+            column.addView(
+                DestinationBar.create(this, here) { to -> Destinations.open(this, here, to) },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+            )
         }
+        column.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         val row = HintRow.create(this)
         column.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         hintRow = row
         fill(row)
-        if (chrome == null || !rail) return column
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(background)
-            addView(chrome, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
-            addView(column, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
-        }
+        return column
     }
 
     private fun fill(row: LinearLayout) = HintRow.fill(row, hints())
@@ -297,8 +291,5 @@ abstract class EnginehostActivity : AppCompatActivity() {
 
         /** Taken only by a destination screen, where they move between destinations. */
         val SECTION_BUTTONS = setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1)
-
-        /** Under this width the hint row has no room to name L1/R1. */
-        const val HINT_SECTIONS_MIN_DP = 480
     }
 }

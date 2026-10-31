@@ -29,8 +29,6 @@
     <dimen name="eh_card_min_width">320dp</dimen>
     <!-- A game on a Home shelf. -->
     <dimen name="eh_shelf_card_width">200dp</dimen>
-    <!-- One destination in the left rail: wide enough for its label. -->
-    <dimen name="eh_rail_item_width">80dp</dimen>
     <!-- Gap between side by side panes and between grid columns. -->
     <dimen name="eh_column_gap">16dp</dimen>
     <!-- A landscape sheet's width: a share of the window, never narrower or wider than these. -->
