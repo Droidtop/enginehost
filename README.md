@@ -122,7 +122,7 @@ Where the engine would normally put them. Engines that save beside the game keep
 No. A core is a signed bundle that Enginehost verifies, stores privately and loads in its own runtime process.
 
 **What does "sandboxed" mean on a core?**
-The core runs isolated, or locked down by [Fibrewall](https://github.com/bi0shacker001/sandbox), so it cannot reach beyond the game it was given. A core that cannot run sandboxed yet shows a Full access badge, and Enginehost asks before every launch.
+The core runs isolated, or locked down by [Fibrewall](https://github.com/bi0shacker001/fibrewall), so it cannot reach beyond the game it was given. A core that cannot run sandboxed yet shows a Full access badge, and Enginehost asks before every launch.
 
 **Is it finished?**
 No. See the core table for what each core covers today.
@@ -131,7 +131,7 @@ No. See the core table for what each core covers today.
 
 | Library | What Enginehost uses it for | Licence |
 |---|---|---|
-| [Fibrewall](https://github.com/bi0shacker001/sandbox) (formerly sandbox) | The runtime process's lockdown and network filter: seccomp plus a syscall broker (`vendor/sandbox`) | GPL-3.0 |
+| [Fibrewall](https://github.com/bi0shacker001/fibrewall) | The runtime process's lockdown and network filter: seccomp plus a syscall broker (`vendor/sandbox`) | GPL-3.0 |
 | [droidtop-shared](https://github.com/Droidtop/droidtop-shared) | The launch contract's names and the shared signature verifier (`vendor/droidtop-shared`) | GPL-3.0 |
 | [droidtop-platforms](https://github.com/Droidtop/droidtop-platforms) | The engines database that maps games to cores (`vendor/droidtop-platforms`) | GPL-3.0 |
 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 1.13.8 | Reading games aloud with on-device voices | Apache-2.0 |
