@@ -24,6 +24,7 @@
   <a href="#channels">Channels</a> ·
   <a href="#use-it-from-a-launcher">Launcher contract</a> ·
   <a href="#faq">FAQ</a> ·
+  <a href="#built-with">Built with</a> ·
   <a href="#licence">Licence</a>
 </p>
 
@@ -121,10 +122,27 @@ Where the engine would normally put them. Engines that save beside the game keep
 No. A core is a signed bundle that Enginehost verifies, stores privately and loads in its own runtime process.
 
 **What does "sandboxed" mean on a core?**
-The core runs isolated, or locked down by Enginehost's sandbox, so it cannot reach beyond the game it was given. A core that cannot run sandboxed yet shows a Full access badge, and Enginehost asks before every launch.
+The core runs isolated, or locked down by [Fibrewall](https://github.com/bi0shacker001/sandbox), so it cannot reach beyond the game it was given. A core that cannot run sandboxed yet shows a Full access badge, and Enginehost asks before every launch.
 
 **Is it finished?**
 No. See the core table for what each core covers today.
+
+## Built with
+
+| Library | What Enginehost uses it for | Licence |
+|---|---|---|
+| [Fibrewall](https://github.com/bi0shacker001/sandbox) (formerly sandbox) | The runtime process's lockdown and network filter: seccomp plus a syscall broker (`vendor/sandbox`) | GPL-3.0 |
+| [droidtop-shared](https://github.com/Droidtop/droidtop-shared) | The launch contract's names and the shared signature verifier (`vendor/droidtop-shared`) | GPL-3.0 |
+| [droidtop-platforms](https://github.com/Droidtop/droidtop-platforms) | The engines database that maps games to cores (`vendor/droidtop-platforms`) | GPL-3.0 |
+| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 1.13.8 | Reading games aloud with on-device voices | Apache-2.0 |
+| [SDL](https://github.com/libsdl-org/SDL) controller list | Which glyphs a pad's face buttons print | zlib |
+| [SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB) | Seed button and axis mappings for controller profiles | zlib |
+| [Apache Commons Compress](https://commons.apache.org/proper/commons-compress/) and [XZ for Java](https://tukaani.org/xz/java.html) | Unpacking `*.enginehost.tar.xz` core bundles | Apache-2.0, 0BSD |
+| [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) | Reading signature headers | Apache-2.0 |
+| [AndroidX](https://developer.android.com/jetpack/androidx) Core and AppCompat | The app's Android foundation | Apache-2.0 |
+| [Gantari](https://github.com/googlefonts/gantari) | Titles on the launch screen | OFL 1.1 |
+
+Each core builds on its engine's upstream project, credited in that core's repository.
 
 ## Licence
 
