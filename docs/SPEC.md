@@ -264,10 +264,15 @@ shipped for, as a desktop build would see it, without changing a game file:
 
 - **Ren'Py, every line:** the game's script sees the shipped desktop
   platform in `renpy.exports` and no platform variant (`android`, `mobile`...)
-  in `config.variants`, with `pc` added; the engine keeps its own Android
-  flags, and the layout variants (`touch`, `small`, `phone`, `tablet`...) stay
-  so screens fit the device (owner, 2026-10-23). The core's ENGINEHOST.md has
-  the details.
+  in `config.variants`, and the screen-size variant a desktop build has
+  (`large`, with `pc`) instead of the device's (`small`/`phone`,
+  `medium`/`tablet`, `tv`); `touch` stays (owner, 2026-10-23: "Desktop flags,
+  keep touch layouts"). The engine keeps its own Android flags. The size
+  variants stayed too until 2026-10-31, and on the RP5's 5.5-inch screen they
+  ran Ren'Py's phone overrides of a desktop game's GUI template, which no
+  desktop game lays out. The text was larger and the menus narrower; labels
+  wrapped under their buttons (Love & Sex: Second Base). The core's
+  ENGINEHOST.md has the details.
 - **Godot:** `OS.get_name()` and the feature tags answer the platform the game
   was exported for (`ENGINEHOST_GODOT_PLATFORM`, docs/engine-bundle-format.md).
 - **Any other core** whose game refuses Android gets the same treatment when
