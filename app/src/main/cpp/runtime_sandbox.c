@@ -336,11 +336,28 @@ Java_dev_enginehost_RuntimeSandbox_traceSummary0(JNIEnv *env, jclass clazz, jstr
     return (*env)->NewStringUTF(env, text);
 }
 
-/* Logs every refusal (EACCES, EPERM) under EnginehostSandbox; a call that fails on its own is no refusal. */
+/*
+ * Probes every launch makes, whose refusal costs nothing (docs/engine-sandbox.md, the list of
+ * harmless refusals): the Adreno driver's optional per-app tuning files (esx_config, adreno_priority),
+ * Python's macOS version check (/System/Library/...), and OpenSSL's configuration at the path of
+ * the machine it was built on (openssl.cnf). They are still refused; only their log line is quieter.
+ */
+static int expected_refusal(const char *path) {
+    const char *name = strrchr(path, '/');
+    name = name ? name + 1 : path;
+    return strncmp(path, "/System/Library/", 16) == 0 || strcmp(name, "openssl.cnf") == 0 ||
+           strstr(name, "esx_config") != NULL || strstr(name, "adreno_priority") != NULL;
+}
+
+/*
+ * Logs every refusal (EACCES, EPERM) under EnginehostSandbox; a call that fails on its own is no
+ * refusal. An expected one is logged at debug level, so the warnings are the refusals to look at.
+ */
 static void log_refusal(void *context, const struct sbx_access *access, int result) {
     (void) context;
     if (result != -EACCES && result != -EPERM) return;
-    __android_log_print(ANDROID_LOG_WARN, "EnginehostSandbox", "refused %s %s (%s): %s", access->op, access->asked,
+    int level = expected_refusal(access->asked) ? ANDROID_LOG_DEBUG : ANDROID_LOG_WARN;
+    __android_log_print(level, "EnginehostSandbox", "refused %s %s (%s): %s", access->op, access->asked,
                         access->resolved[0] ? access->resolved : "unresolved", strerror(-result));
 }
 

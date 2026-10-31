@@ -2594,7 +2594,12 @@ abort and no trap death. What was still refused, and what was done:
   `PYTHONDONTWRITEBYTECODE`.
 - Python's and BlueStacks' probes (`/home/...`, `/usr/lib/setup`, `/System/Library/...`,
   `/proc/<pid>/cgroup`, `/data/downloads/.tmp/.modelProp`): outside the launch, and refusing them
-  is harmless. `/mnt/expand` was in this list; it is granted since 2026-10-24, because LÖVE,
+  is harmless.
+- The Adreno driver's optional per-app tuning files (`esx_config...`, `adreno_priority`) and
+  OpenSSL's `openssl.cnf` at the path of the machine it was built on (RP5, Enginehost dev-622,
+  Droidtop/tracker#853): read when present, skipped when not. These, and `/System/Library/...`,
+  are logged at debug level rather than as warnings (`expected_refusal` in `runtime_sandbox.c`),
+  so the warnings are the refusals worth reading; they are still refused. `/mnt/expand` was in this list; it is granted since 2026-10-24, because LÖVE,
   mkxp-z and KiriKiri died right after it was refused.
 
 Order: the preset (done with this note), the game-writes field (`gameWrites`), the host unpack (`unpack`, `CoreUnpacker`), the wrapper's
