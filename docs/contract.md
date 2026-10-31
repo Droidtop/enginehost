@@ -307,7 +307,11 @@ without it, none of this runs and nothing waits for it.
   Its `version` moves whenever the asset changes.
 - **The service** answers the action `dev.droidtop.plugin.APP_INTERFACE`
   with droidtop's `IPluginRuntime` (its AIDL copied unchanged under
-  `app/src/main/aidl/dev/droidtop/pluginhost`). It answers **only droidtop**:
+  `app/src/main/aidl/dev/droidtop/pluginhost`). Binder numbers each method by its
+  place in the file, so the copy has to follow every change droidtop makes to it,
+  stubs included: one method inserted on droidtop's side (droidtop 716ee6d5 added
+  `inputToken` on 2026-10-29) moved every later call onto the wrong method here,
+  droidtop's `handle` arriving as `startJob`. It answers **only droidtop**:
   the calling uid must be `dev.droidtop.app`, signed by a certificate
   pinned in `DroidtopLink.DROIDTOP_CERTS` (droidtop's release key; a debug build
   of droidtop is signed differently and is not answered). Every other caller gets

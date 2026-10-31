@@ -70,8 +70,10 @@ class DroidtopInterfaceService : Service() {
             frames: ParcelFileDescriptor?, framesCapacity: Long, width: Int, height: Int, density: Float,
         ): String? = null
         override fun resizeScreen(pluginId: String?, width: Int, height: Int) {}
-        override fun screenTouch(pluginId: String?, event: MotionEvent?) {}
-        override fun screenKey(pluginId: String?, event: KeyEvent?) {}
+        // Enginehost shows no screen inside droidtop, so it takes no input from it either.
+        override fun inputToken(): Long = 0L
+        override fun screenTouch(token: Long, pluginId: String?, event: MotionEvent?) {}
+        override fun screenKey(token: Long, pluginId: String?, event: KeyEvent?) {}
         override fun detachScreen(pluginId: String?) {}
         override fun lastLoadError(pluginId: String?): String? = null
 

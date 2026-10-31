@@ -100,9 +100,16 @@ interface IPluginRuntime {
 
     void resizeScreen(String pluginId, int width, int height);
 
-    oneway void screenTouch(String pluginId, in MotionEvent event);
+    /**
+     * The secret the one-way screen calls below carry (Droidtop/tracker#511): a one-way call has no caller pid, so
+     * those calls cannot be checked the way every other call is. droidtop asks for it once, over this checked call,
+     * after attachScreen; a process of droidtop's UID that is not droidtop cannot get it.
+     */
+    long inputToken();
 
-    oneway void screenKey(String pluginId, in KeyEvent event);
+    oneway void screenTouch(long token, String pluginId, in MotionEvent event);
+
+    oneway void screenKey(long token, String pluginId, in KeyEvent event);
 
     void detachScreen(String pluginId);
 
