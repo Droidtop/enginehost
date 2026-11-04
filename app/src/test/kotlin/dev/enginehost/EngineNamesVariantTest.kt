@@ -24,4 +24,13 @@ class EngineNamesVariantTest {
     fun anEngineIsNamedForAPerson() {
         assertEquals("RPG Maker", EngineNames.family("rpgmaker"))
     }
+
+    @Test
+    fun twineIsAnEngineOfItsOwn() {
+        // The Twine core (dev.enginehost.twine.2_12.v1) names its engine "twine"; every engine keeps its
+        // own core (docs/SPEC.md), and the Cores screen shows its name, not the raw id.
+        assertEquals("Twine", EngineNames.family("twine"))
+        assertEquals("Twine", EngineNames.line("twine", "compiled-html"))
+        assertNull(EngineNames.variant("twine", "compiled-html"))
+    }
 }

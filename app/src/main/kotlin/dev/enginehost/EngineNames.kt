@@ -17,6 +17,7 @@ object EngineNames {
         "cmvs" -> "CMVS"
         "catsystem2" -> "CatSystem2"
         "html" -> "HTML game"
+        "twine" -> "Twine"
         "flash_air" -> "Flash / AIR"
         "nscripter" -> "NScripter"
         "ags" -> "Adventure Game Studio"
@@ -169,7 +170,7 @@ object EngineNames {
             }
             "catsystem2" -> if (context == "cst") family else "$family $context"
             "love2d", "ags" -> if (context == "standard") family else "$family $context"
-            "html" -> if (context == "compiled-html") family else "$family $context"
+            "html", "twine" -> if (context == "compiled-html") family else "$family $context"
             "flash_air" -> when (context) {
                 "swf" -> "Flash (SWF)"
                 "air" -> "Adobe AIR"
