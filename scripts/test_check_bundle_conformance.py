@@ -105,8 +105,10 @@ class Conformance(unittest.TestCase):
                          self.problems(dexFiles=["missing.dex"]))
 
     def test_an_engine_the_app_cannot_name_is_refused(self):
-        problems = self.problems(engine="twine")
-        self.assertTrue(any("'twine'" in p for p in problems))
+        # An id no engine has: Twine was this example until it got its own core again (SPEC.md,
+        # "Every engine keeps its own core").
+        problems = self.problems(engine="no-such-engine")
+        self.assertTrue(any("'no-such-engine'" in p for p in problems))
 
     def test_a_capability_engine_must_be_one_the_bundle_lists(self):
         capability = {"id": "mv", "engine": "rpgmaker", "engineContext": "mv", "runtimeVersion": "1",
@@ -126,7 +128,8 @@ class Conformance(unittest.TestCase):
         engines = known_engines(ENGINE_NAMES)
         self.assertIn("renpy", engines)
         self.assertIn("kirikiri2", engines)
-        self.assertNotIn("twine", engines)
+        self.assertIn("twine", engines)
+        self.assertNotIn("no-such-engine", engines)
 
 
 if __name__ == "__main__":
