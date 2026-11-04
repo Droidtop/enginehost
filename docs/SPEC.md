@@ -825,7 +825,11 @@ review, #768).
 
 What a repository a person added is verified to is unchanged: the key they pinned for it.
 docs/engine-bundle-format.md, "Legacy signatures".
-## TyranoScript runs on the HTML core (decided 2026-10-28, Droidtop/tracker#637)
+## TyranoScript runs on the HTML core (decided 2026-10-28, Droidtop/tracker#637; superseded 2026-11-04)
+
+**Superseded** by "Every engine keeps its own core": TyranoScript gets a core of its own (below).
+What follows describes how Tyrano runs today, until that core ships.
+
 
 A TyranoScript game is a web page: `index.html`, the `tyrano/` engine folder and `data/`. The
 shared database's `tyranoscript` row maps it to the HTML core (`html`, `compiled-html`), so no
@@ -898,6 +902,10 @@ core can run its games, and a merge that already happened is undone.
   the repository and nothing else: each builds its own wrapper into its own bundle.
 - A game of an engine with its own core is offered that core first. Another core that can also run
   it, such as HTML for a Twine story, stays a choice in the game's setup, never a replacement.
-- Open, for the owner: "TyranoScript runs on the HTML core" (2026-10-28, above) decided that
-  TyranoScript gets no core of its own. Read against this decision, TyranoScript would get its own
-  core. Not changed until the owner says which.
+- **TyranoScript** gets its own core. The owner, 2026-11-04: "Tyrano should get its own core too,
+  in case that wasn't clear." It is built in `Droidtop/enginehost-tyrano-plugin` under "Cores we
+  write from scratch" (survey of real Tyrano games, one broad pass, rig comparison), and the
+  detection and the platform mapping (`tyranoscript`, today HTML) move to it once it is published.
+  The HTML core is then for HTML games and, beside the Twine core, Twine stories.
+- A game moves from a shared core to its own only when its own core is published, so no game is
+  left with no core in between.
