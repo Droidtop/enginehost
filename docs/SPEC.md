@@ -900,8 +900,13 @@ core can run its games, and a merge that already happened is undone.
   `Droidtop/enginehost-html-plugin`, beside the HTML core's `plugin/stable`. The 2026-10-14 move to
   lines (that repository's 395d64e) had dropped its wrapper as "on no line". The two lines share
   the repository and nothing else: each builds its own wrapper into its own bundle.
-- A game of an engine with its own core is offered that core first. Another core that can also run
-  it, such as HTML for a Twine story, stays a choice in the game's setup, never a replacement.
+- A game of an engine with its own core is detected as that engine and offered that core. Twine
+  stories are detected as `twine` (EngineDetector), and the change does not wait for the Twine core's
+  first build. The owner, 2026-11-04: "yes, please change the engine type. Users can still force
+  other engines using the config (one of the benefits of programmatic control), so if the twine
+  stuff is broken, or a twine game is misdetected, they can modify it. But having the different
+  marker is useful". So the HTML core stays a per-game choice for a Twine story through its config
+  (`engine: html`). The HTML core itself is not widened to claim Twine.
 - **TyranoScript** gets its own core. The owner, 2026-11-04: "Tyrano should get its own core too,
   in case that wasn't clear." It is built in `Droidtop/enginehost-tyrano-plugin` under "Cores we
   write from scratch" (survey of real Tyrano games, one broad pass, rig comparison), and the

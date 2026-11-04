@@ -306,7 +306,7 @@ class UnusableSaveFolderException(val folder: File, message: String) : IllegalAr
  *
  * A system location that has no per-game name of its own does need one,
  * or two games would share one store: a browser's localStorage (HTML,
- * Flash/AIR, and RPG Maker MV/MZ as its web runtime runs here), and
+ * Twine, Flash/AIR, and RPG Maker MV/MZ as its web runtime runs here), and
  * CatSystem2's shipped startup.xml, which saves under the user profile. The
  * name comes from what the engine would have used: a Twine story's title,
  * else the game's folder name, stable across devices, so saves move between
@@ -315,7 +315,7 @@ class UnusableSaveFolderException(val folder: File, message: String) : IllegalAr
  */
 object SaveFolders {
     /** Families whose system location has no per-game name of its own. */
-    private val NAMED_BY_THE_HOST = setOf("html", "flash_air", "catsystem2")
+    private val NAMED_BY_THE_HOST = setOf("html", "twine", "flash_air", "catsystem2")
 
     /** RPG Maker lines whose runtime here is a browser, with its one localStorage. */
     private val WEB_RPG_MAKER = setOf("mv", "mz")

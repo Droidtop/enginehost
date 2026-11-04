@@ -95,7 +95,7 @@ object LibraryClassifier {
     /** A game's own config (its folder's enginehost.json, else Game setup's) is what Play runs, so it is also what the library says. */
     private fun fromConfig(context: Context, folder: File): GameFinding? {
         val config = runCatching { GameConfigs.resolve(context, folder, null) }.getOrNull() ?: return null
-        val web = config.engine == "html"
+        val web = config.engine == "html" || config.engine == "twine"
         return GameFinding(
             path = folder.path,
             name = config.title ?: folder.name.ifBlank { folder.path },

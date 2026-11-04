@@ -407,8 +407,12 @@ object EngineDetector {
             story != null -> "Found a Twine story"
             else -> "Found an HTML page at the folder's root"
         }
+        // A Twine story is engine twine, which the Twine core runs; a page that is not one stays
+        // html. The owner (Droidtop/tracker#28, 2026-11-04): "yes, please change the engine type.
+        // Users can still force other engines using the config". So a story that should run on the
+        // HTML core says engine html in its config (docs/SPEC.md, "Every engine keeps its own core").
         return EngineDetection(
-            "html", row.context, version, page?.let { tree.pathPrefix + it }, evidence,
+            if (story != null) "twine" else "html", row.context, version, page?.let { tree.pathPrefix + it }, evidence,
             title = name, saveFolder = name,
         )
     }

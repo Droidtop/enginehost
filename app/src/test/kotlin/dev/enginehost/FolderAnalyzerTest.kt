@@ -172,6 +172,8 @@ class FolderAnalyzerTest {
         val story = File(tempRoot(), "Story").apply { mkdirs() }
         File(story, "index.html").writeText("<tw-storydata name=\"The Tale\" format=\"SugarCube\" format-version=\"2.36.1\"></tw-storydata>")
         val strong = analyze(story)!!
+        assertEquals("twine", strong.engine)
+        assertEquals(BuildPlatform.mask(BuildPlatform.PORTABLE, BuildPlatform.WEB), strong.platforms)
         assertEquals(Confidence.HIGH, strong.confidence)
         assertEquals("The Tale", strong.name)
     }

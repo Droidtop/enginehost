@@ -146,7 +146,7 @@ class FolderAnalyzer(private val rows: List<EngineRow>) {
     private fun fromRegistry(dir: File, entries: List<DirEntry>, det: EngineDetection, signature: Long): GameFinding {
         val native = if (det.hosted) NativeBuild.NONE else nativeIncludingWrapper(dir, entries)
         val platforms = when {
-            det.hosted && det.engine == "html" -> BuildPlatform.mask(BuildPlatform.PORTABLE, BuildPlatform.WEB)
+            det.hosted && (det.engine == "html" || det.engine == "twine") -> BuildPlatform.mask(BuildPlatform.PORTABLE, BuildPlatform.WEB)
             det.hosted -> BuildPlatform.PORTABLE.bit
             native.platforms != 0 -> native.platforms
             else -> BuildPlatform.UNKNOWN.bit
