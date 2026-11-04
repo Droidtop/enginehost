@@ -848,7 +848,7 @@ binaries and applications to see everything they call in advance, do a best-gues
 implementation, then tweak". The goal is to run the games people already have, not test content
 we write ourselves. The owner: "We don't want to use their code."
 
-1. **Static pass, nothing run.** Disassemble the official runtime (Ghidra headless) and trace its
+1. **Static pass, nothing run (local lane only).** Disassemble the official runtime (Ghidra headless) and trace its
    code paths. People write what each part does as a behaviour description of our own: formats,
    commands, timing, and the drawing, sound and input it uses. The core is written from that
    description, never from the runtime's code.
@@ -865,9 +865,17 @@ we write ourselves. The owner: "We don't want to use their code."
    checkpoints). Each mismatch is the next fix. The games are the owner's files, read in place,
    never copied or uploaded.
 
-Order: Wolf (#858) first, then CatSystem2, CMVS, Buriko and xsystem4. A lane's part is the
-reading, the descriptions, the survey tool, the comparison harness and the core; it says on the
-core's issue, with the exact command, when the survey tool or the harness is ready for a rig run.
+Order: Wolf (#858) first, then CatSystem2, CMVS, Buriko and xsystem4.
+
+**Which lane does what (the owner, 2026-11-04).** The static pass "is to be done in a LOCAL lane
+only. You're a cloud lane, you should not have received that instruction." So:
+- A **local lane** does step 1 and everything else that reads or runs the official runtime: the
+  disassembly, the debugger runs in step 5. Its tools stay with it and are not committed to a core
+  repository.
+- A **cloud lane** does the rest: the behaviour descriptions from what a local lane reports, the
+  risk list, the survey tool, the comparison harness and the core. It says on the core's issue,
+  with the exact command, when the survey tool or the harness is ready for a rig run.
+- The coordinator relays step 1 and the runtime half of step 5 to local lanes only.
 
 ## WOLF RPG Editor gets a core of our own (decided 2026-11-04, Droidtop/tracker#858)
 

@@ -8,7 +8,7 @@ for cores written from scratch (SPEC.md, "Cores we write from scratch"), and thi
 policy to Wolf.
 
 Markers: **[V]** checked on a page or in source this pass; **[S]** from a search snippet only;
-**[M]** from memory, to be checked by the static pass (step 1 below). silversecond.com (the
+**[M]** from memory, to be checked by a local lane's static pass (step 1 below). silversecond.com (the
 official site and manual) and dxlib.xsrv.jp were blocked from the cloud session, so everything that
 only they can settle is marked as open.
 
@@ -72,17 +72,17 @@ nothing, because the core reimplements behaviour, not DxLib's API, and the only 
 data needs is the archive format, which is documented. So the core is **SDL2 + GLES for drawing,
 SDL_mixer with libvorbis for sound** (the same stack the LOVE and xsystem4 plans use), FreeType
 for text with Noto Sans CJK standing in for MS Gothic [M: Wolf's default font].
-The static pass (step 1) lists every DxLib call `Game.exe` makes; each becomes a row in the
+A local lane's static pass (step 1) lists every DxLib call `Game.exe` makes; each becomes a row in the
 behaviour description with the SDL/GLES call that provides it.
 
 ## How the core is built: the from-scratch policy, applied
 
-1. **Static pass, nothing run.** Ghidra headless over `Game.exe` of each engine era the survey
-   finds (2.10, 2.20, 2.225, 2.281, 3.x) on the rig: imports, DxLib calls, the event-command
-   dispatch table, timing (frame pacing, wait units), the picture and message systems.
-   `tools/static/` in the core repository is the Ghidra script; its output is an inventory, not
-   code. People write the behaviour description (`docs/behaviour/` in the core repository) from
-   it, and the core is written from the description, never from `Game.exe`'s code.
+1. **Static pass, nothing run; a local lane only** (the owner: "LOCAL lane only"). A local lane
+   reads `Game.exe` of each engine era the survey finds (2.10, 2.20, 2.225, 2.281, 3.x): imports,
+   DxLib calls, the event-command dispatch table, timing (frame pacing, wait units), the picture
+   and message systems. Its tools stay with it, not in the core repository. It reports an
+   inventory, not code; the behaviour description (`docs/behaviour/` in the core repository) is
+   written from that report, and the core from the description, never from `Game.exe`'s code.
 2. **Risk list.** Every behaviour that could be abused goes on #858 with its answer: not
    implemented that way, or behind a Fibrewall permission, off by default. Candidates to confirm
    in the static pass, all [M]:
