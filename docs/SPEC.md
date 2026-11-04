@@ -839,3 +839,41 @@ A game whose `configSave` is `file` writes `.sav` files through its PC build's
 `window.studio_api.fs`, which no WebView has: it runs, but Tyrano says saving does not work. The
 detection says so before it is played. Answering that API from the HTML core is later work, not
 a reason to hold back the games that save through `localStorage`.
+
+## Cores we write from scratch (decided 2026-11-04, relayed by the coordinator)
+
+Policy for every core that is our own interpreter because no open runtime exists (WOLF RPG
+Editor, CatSystem2, CMVS, Buriko, xsystem4's gaps). The owner asked whether we can "pre-read the
+binaries and applications to see everything they call in advance, do a best-guess
+implementation, then tweak". The goal is to run the games people already have, not test content
+we write ourselves. The owner: "We don't want to use their code."
+
+1. **Static pass, nothing run.** Disassemble the official runtime (Ghidra headless) and trace its
+   code paths. People write what each part does as a behaviour description of our own: formats,
+   commands, timing, and the drawing, sound and input it uses. The core is written from that
+   description, never from the runtime's code.
+2. **Risk list.** Anything in the runtime that could be abused goes on the core's issue: file
+   access outside the game's folder, network access, starting processes, loading DLLs or
+   plugins, parsing that trusts the game's data. Each one is either not implemented that way, or
+   sits behind a Fibrewall permission, off by default.
+3. **Survey of real games.** A tool scans the owner's games for each engine, in place: formats,
+   versions, commands, and how often each is used.
+4. **One broad pass.** Implement as much of the survey as possible in one go, most-used first.
+5. **Rig comparison.** On a local rig session: the game under the official runtime, isolated and
+   in a debugger, checks the description; the same game on our core, with the same scripted input,
+   a fixed random seed and a fixed clock, is diffed against it (screen and game variables at
+   checkpoints). Each mismatch is the next fix. The games are the owner's files, read in place,
+   never copied or uploaded.
+
+Order: Wolf (#858) first, then CatSystem2, CMVS, Buriko and xsystem4. A lane's part is the
+reading, the descriptions, the survey tool, the comparison harness and the core; it says on the
+core's issue, with the exact command, when the survey tool or the harness is ready for a rig run.
+
+## WOLF RPG Editor gets a core of our own (decided 2026-11-04, Droidtop/tracker#858)
+
+The owner: "we're adding a new engine to the list: wolf RPG". No open Wolf runtime exists and Wine
+is not a core, so `Droidtop/enginehost-wolf-plugin` is our own interpreter, built under the policy
+above, with SDL2 and GLES rather than DX Library. It reads only what the game itself reads (the
+owner: "no breaking Wolf 3 or Pro protection"): unpacked data, 2.x archives, and 3.x archives on
+the engine's fixed key. Pro games and games with a protect key are refused with a plain message.
+64-bit only and isolatable from its first build. The plan: docs/new-engines/wolf.md.
