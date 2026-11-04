@@ -885,3 +885,19 @@ above, with SDL2 and GLES rather than DX Library. It reads only what the game it
 owner: "no breaking Wolf 3 or Pro protection"): unpacked data, 2.x archives, and 3.x archives on
 the engine's fixed key. Pro games and games with a protect key are refused with a plain message.
 64-bit only and isolatable from its first build. The plan: docs/new-engines/wolf.md.
+
+## Every engine keeps its own core (decided 2026-11-04, Droidtop/tracker#28)
+
+The owner, relayed by the coordinator: "I have REPEATEDLY demanded we not unify cores like that.
+Stop DOING that". Every engine keeps its own core. No line is retired or merged because another
+core can run its games, and a merge that already happened is undone.
+
+- **Twine** is its own core again: `dev.enginehost.twine.2_12.v1`, line `plugin/twine-2.12` in
+  `Droidtop/enginehost-html-plugin`, beside the HTML core's `plugin/stable`. The 2026-10-14 move to
+  lines (that repository's 395d64e) had dropped its wrapper as "on no line". The two lines share
+  the repository and nothing else: each builds its own wrapper into its own bundle.
+- A game of an engine with its own core is offered that core first. Another core that can also run
+  it, such as HTML for a Twine story, stays a choice in the game's setup, never a replacement.
+- Open, for the owner: "TyranoScript runs on the HTML core" (2026-10-28, above) decided that
+  TyranoScript gets no core of its own. Read against this decision, TyranoScript would get its own
+  core. Not changed until the owner says which.

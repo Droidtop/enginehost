@@ -545,9 +545,11 @@ Current core repositories:
 - [CatSystem2](https://github.com/Droidtop/enginehost-catsystem2-plugin)
 - [CMVS](https://github.com/Droidtop/enginehost-cmvs-plugin)
 - [Flash/AIR (Ruffle)](https://github.com/Droidtop/enginehost-flash-air-plugin)
-- [HTML](https://github.com/Droidtop/enginehost-html-plugin): web games, and
-  Twine stories as a capability of the same core (there is no separate Twine
-  repository).
+- [HTML](https://github.com/Droidtop/enginehost-html-plugin): two cores in one
+  repository, each its own line and bundle. `plugin/stable` is the HTML core
+  (`dev.enginehost.html.v1`, web games); `plugin/twine-2.12` is the Twine core
+  (`dev.enginehost.twine.2_12.v1`, Twine 2 stories). Every engine keeps its own
+  core (SPEC.md, "Every engine keeps its own core").
 - [NScripter/ONScripter](https://github.com/Droidtop/enginehost-nscripter-plugin),
   built on OnscripterYuri.
 - [Godot](https://github.com/Droidtop/enginehost-godot-plugin): one
