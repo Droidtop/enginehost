@@ -359,8 +359,9 @@ jobs:
               # A bundle signed in v1 has its signature replaced (--rekey). One that carries only the
               # legacy signature, as releases from before format v1 do, gets a v1 signature added under
               # the new key, in place like the rest (owner: "Yes, replace each release").
+              # v1 sits right after the manifest, or after the legacy signature in builds that carried both.
               mode=(--rekey)
-              if [ "$(tar -tJf "$bundle" | sed -n 2p)" != enginehost-bundle.jws ]; then
+              if ! tar -tJf "$bundle" | sed -n 2,3p | grep -qx enginehost-bundle.jws; then
                 mode=()
                 echo "::notice::$tag: $(basename "$bundle") carries no v1 signature; adding one under the new key."
               fi

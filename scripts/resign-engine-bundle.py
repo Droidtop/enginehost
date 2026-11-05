@@ -169,8 +169,10 @@ def resign(source: Path, key: Path, chain_path: Path, output_dir: Path, envelope
     if rekey:
         if only_64_bit_version is not None:
             raise SystemExit("--rekey and --only-64-bit do not combine")
-        if names[1:2] != [JWS] or names.count(JWS) != 1:
-            raise SystemExit(f"{source.name} carries no v1 signature right after its manifest; sign it without --rekey")
+        # Right after the manifest as build-engine-bundle.py writes it now, or after the legacy
+        # signature in the builds that carried both (e.g. html-v1-build.72); replaced where it is.
+        if names.count(JWS) != 1 or (names[1:2] != [JWS] and names[1:3] != [LEGACY, JWS]):
+            raise SystemExit(f"{source.name} carries no v1 signature after its manifest; sign it without --rekey")
     elif JWS in names and only_64_bit_version is None:
         raise SystemExit(f"{source.name} already carries a v1 signature")
     original_bytes = manifest_bytes = members[0][1]

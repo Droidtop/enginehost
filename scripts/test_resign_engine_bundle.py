@@ -225,6 +225,31 @@ class Rekey(unittest.TestCase):
         self.assertEqual(entry["jws"], jws)
         self.assertNotEqual(entry["jws"], old_entry["jws"])
 
+    def test_a_bundle_with_the_legacy_signature_before_v1_is_rekeyed_in_place(self):
+        # The layout of the builds made while both signatures were written (e.g. html-v1-build.72):
+        # manifest, enginehost-bundle.sig, enginehost-bundle.jws, payload.
+        with tarfile.open(self.source, "r:xz") as legacy:
+            sig = legacy.extractfile("enginehost-bundle.sig").read()
+        both = self.root / "both" / self.v1.name
+        both.parent.mkdir()
+        with tarfile.open(self.v1, "r:xz") as v1, tarfile.open(both, "w:xz", format=tarfile.USTAR_FORMAT) as out:
+            members = v1.getmembers()
+            for index, member in enumerate(members):
+                out.addfile(member, v1.extractfile(member) if member.isfile() else None)
+                if index == 0:
+                    info = tarfile.TarInfo("enginehost-bundle.sig")
+                    info.size, info.mode = len(sig), 0o444
+                    out.addfile(info, io.BytesIO(sig))
+        rekeyed = self.rekey(both, "rekeyed-both")
+        self.assertTrue(Resign.verify(self, rekeyed, "--root-key", str(self.root / "new-root.pub"))["verified"])
+        with tarfile.open(both, "r:xz") as before, tarfile.open(rekeyed, "r:xz") as after:
+            self.assertEqual([m.name for m in before.getmembers()], [m.name for m in after.getmembers()])
+            self.assertEqual(after.getmembers()[2].name, "enginehost-bundle.jws")
+            for member in after.getmembers():
+                if member.isfile():
+                    same = before.extractfile(member.name).read() == after.extractfile(member.name).read()
+                    self.assertEqual(same, member.name != "enginehost-bundle.jws", member.name)
+
     def test_a_bundle_without_v1_is_refused(self):
         with self.assertRaises(SystemExit):
             self.rekey(self.source)
