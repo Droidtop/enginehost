@@ -86,7 +86,7 @@ object SavesOutbox {
      * rest would fail the same way. Returns how many were delivered.
      */
     @Synchronized
-    fun deliver(file: File, nowMs: Long, send: (Report) -> JSONObject?, log: (String) -> Unit = {}): Int {
+    fun deliver(file: File, nowMs: Long, log: (String) -> Unit = {}, send: (Report) -> JSONObject?): Int {
         val waiting = prune(read(file), nowMs)
         val kept = mutableListOf<Report>()
         var delivered = 0
