@@ -369,6 +369,16 @@ without it, none of this runs and nothing waits for it.
   {path, saveFolder, reason, endedAtMs}`, `saveFolder` being what `GAME_ENDED`
   would name. A game droidtop launched gets both: droidtop treats the report as
   idempotent, and a broadcast can be lost (plugin lane, #547).
+  - **The report is never dropped for want of droidtop (Droidtop/tracker#885).** droidtop
+    trusts `GAME_ENDED` only for a `saveFolder` that is the `saveRoot` it passed; saves
+    anywhere else (a `saveRoot` refused, or none usable) reach its synced folder only through
+    this report. So every report is written to `SavesOutbox` (Enginehost's no-backup files)
+    before it is sent, and stays there until droidtop accepts it or refuses it for good.
+  - A report droidtop could not be asked about (not installed or connected, the knock
+    unanswered, the call failed) or that it answered "not ready yet" is sent again when
+    droidtop connects (`loadContained`) and when Enginehost starts.
+  - A newer end of the same game and folder replaces the older report. At most 50 wait, none
+    older than 14 days, and none past 20 answered attempts.
 - **droidtop's engine games** are registered on Enginehost's Home
   (`DroidtopLibrary`, `library.read list_engine_games`) when droidtop connects
   and when Home comes back, at most every ten minutes. Only the game's folder

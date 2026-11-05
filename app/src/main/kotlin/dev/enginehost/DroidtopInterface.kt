@@ -61,6 +61,8 @@ class DroidtopInterfaceService : Service() {
             DroidtopLink.connected(pluginId, broker)
             // droidtop connected: list its engine games now (A7a: "The app asks again when droidtop connects").
             Async.run { runCatching { DroidtopLibrary.sync(context) } }
+            // Save reports droidtop missed while it was away (Droidtop/tracker#885).
+            Async.run { runCatching { DroidtopSaves.flush(context) } }
             return true
         }
 
