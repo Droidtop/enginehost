@@ -179,11 +179,12 @@ def main() -> None:
                     f"at {commit[:12]}; refusing to publish what users cannot verify"
                 )
 
-        root = scripts.parent / "app/src/main/assets/trust/enginehost-root.pub"
+        # The roots Enginehost pins and that are in force now (the old root only until its end, 2026-11-11T23:59:59Z).
+        trust = scripts.parent / "app/src/main/assets/trust"
         for bundle in bundles:
             command = [sys.executable, str(scripts / "verify-engine-bundle.py"), str(bundle)]
-            if root.is_file():
-                command += ["--root-key", str(root)]
+            if (trust / "enginehost-roots.json").is_file():
+                command += ["--trust-dir", str(trust)]
             run(*command)
             print(f"verified: {bundle.name}")
 

@@ -108,6 +108,9 @@ object TestPki {
         )
         val anchor = TrustAnchor.Root(root.keys.public.encoded)
 
+        /** This root as a retired one: trusted through the second [notAfterEpochSecond] names, and not after. */
+        fun anchorUntil(notAfterEpochSecond: Long) = TrustAnchor.Root(root.keys.public.encoded, notAfterEpochSecond)
+
         fun leaf(
             origin: String = "droidtop/enginehost-example-plugin",
             purpose: SignaturePurpose = SignaturePurpose.PLUGIN,

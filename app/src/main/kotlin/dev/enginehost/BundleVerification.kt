@@ -75,8 +75,14 @@ enum class VerificationMoment {
 
 /** Where [BundleVerifier] gets what it trusts. Split out so the decisions run in a plain JVM test. */
 interface BundleTrustSources {
-    /** The Enginehost signing root's pinned public key, or null in a build that pins none. */
-    val root: TrustAnchor.Root?
+    /**
+     * The Enginehost signing roots this build pins, the current one first: one, or two across a key rotation, the retired one
+     * carrying its end ([TrustAnchor.Root.notAfterEpochSecond]). Empty in a build that pins none.
+     */
+    val roots: List<TrustAnchor.Root>
+
+    /** The time a root's term is read against, epoch milliseconds. Injectable so tests can stand on either side of an expiry. */
+    fun now(): Long = System.currentTimeMillis()
 
     /** The key a person pinned for a repository they added, as SubjectPublicKeyInfo DER, or null. */
     fun customKey(origin: String): ByteArray?
@@ -124,12 +130,12 @@ object BundleVerifier {
             if (moment == VerificationMoment.LAUNCH) LEGACY_INSTALLED
             else "New installs and updates need a v1 signature; this bundle carries only the legacy one"
         }
-        val root = sources.root
+        val roots = sources.roots
         val customKey = sources.customKey(origin)
-        require(root != null || customKey != null) {
+        require(roots.isNotEmpty() || customKey != null) {
             "This build pins no certificate this bundle's signature can be verified to"
         }
-        return verifyCertified(jws, manifestBytes, origin, bundleId, moment, root, customKey, sources)
+        return verifyCertified(jws, manifestBytes, origin, bundleId, moment, roots, customKey, sources)
     }
 
     private fun verifyCertified(
@@ -138,34 +144,17 @@ object BundleVerifier {
         origin: String,
         bundleId: String,
         moment: VerificationMoment,
-        root: TrustAnchor.Root?,
+        roots: List<TrustAnchor.Root>,
         customKey: ByteArray?,
         sources: BundleTrustSources,
     ): BundleSigner {
         // The root first: an official certificate for an origin outranks a
         // key a person pinned for it, as a root-certified key always did.
-        val rootFailure: Exception? = if (root != null) {
+        val rootFailure: Exception? = if (roots.isNotEmpty()) {
             try {
-                val verified = CertificateSignatures.verify(
-                    jws, SignaturePurpose.PLUGIN, root, manifestBytes, sources.revoked(ENGINEHOST_CATALOG),
-                )
-                val kind = when {
-                    verified.isDeveloper -> {
-                        // The developer's certificate is good for any origin,
-                        // so it never arrives through a catalog: only as a file
-                        // a person installed, and then at its launches.
-                        require(moment == VerificationMoment.FILE_INSTALL || moment == VerificationMoment.LAUNCH) {
-                            "A developer-signed bundle is installed only from a file"
-                        }
-                        SignerKind.DEVELOPER
-                    }
-                    else -> {
-                        require(verified.namesOrigin(origin)) { "The signing certificate is not for $origin" }
-                        SignerKind.OFFICIAL
-                    }
+                return CertificateSignatures.underAny(roots) { anchor ->
+                    verifyUnderRoot(jws, manifestBytes, origin, bundleId, moment, anchor as TrustAnchor.Root, sources)
                 }
-                require(verified.allowsPlugin(bundleId)) { "The signing certificate does not cover $bundleId" }
-                return signer(verified, kind, root)
             } catch (error: IllegalArgumentException) {
                 error
             } catch (error: java.security.GeneralSecurityException) {
@@ -177,13 +166,44 @@ object BundleVerifier {
         if (customKey != null) {
             val anchor = TrustAnchor.PinnedKey(customKey)
             val verified = CertificateSignatures.verify(
-                jws, SignaturePurpose.PLUGIN, anchor, manifestBytes, sources.revoked(VerifiedJws.originId(origin)),
+                jws, SignaturePurpose.PLUGIN, anchor, manifestBytes, sources.revoked(VerifiedJws.originId(origin)), sources.now(),
             )
             require(verified.namesOrigin(origin)) { "The signing certificate is not for $origin" }
             require(verified.allowsPlugin(bundleId)) { "The signing certificate does not cover $bundleId" }
             return signer(verified, SignerKind.CUSTOM, anchor)
         }
         throw requireNotNull(rootFailure)
+    }
+
+    private fun verifyUnderRoot(
+        jws: String,
+        manifestBytes: ByteArray,
+        origin: String,
+        bundleId: String,
+        moment: VerificationMoment,
+        root: TrustAnchor.Root,
+        sources: BundleTrustSources,
+    ): BundleSigner {
+        val verified = CertificateSignatures.verify(
+            jws, SignaturePurpose.PLUGIN, root, manifestBytes, sources.revoked(ENGINEHOST_CATALOG), sources.now(),
+        )
+        val kind = when {
+            verified.isDeveloper -> {
+                // The developer's certificate is good for any origin,
+                // so it never arrives through a catalog: only as a file
+                // a person installed, and then at its launches.
+                require(moment == VerificationMoment.FILE_INSTALL || moment == VerificationMoment.LAUNCH) {
+                    "A developer-signed bundle is installed only from a file"
+                }
+                SignerKind.DEVELOPER
+            }
+            else -> {
+                require(verified.namesOrigin(origin)) { "The signing certificate is not for $origin" }
+                SignerKind.OFFICIAL
+            }
+        }
+        require(verified.allowsPlugin(bundleId)) { "The signing certificate does not cover $bundleId" }
+        return signer(verified, kind, root)
     }
 
     private fun signer(verified: VerifiedJws, kind: SignerKind, anchor: TrustAnchor) = BundleSigner(

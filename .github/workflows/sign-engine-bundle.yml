@@ -226,7 +226,7 @@ jobs:
           BUNDLE: ${{ inputs.bundle }}
           KEY_DOCUMENT: repository/${{ inputs.repository-key-document }}
           CERTIFICATE: repository/${{ inputs.repository-certificate }}
-          ROOT_KEY: enginehost-tooling/app/src/main/assets/trust/enginehost-root.pub
+          TRUST_DIR: enginehost-tooling/app/src/main/assets/trust
           CHANNEL: ${{ inputs.channel }}
           # Reads the calling repository's releases to number this build.
           GH_TOKEN: ${{ github.token }}
@@ -271,8 +271,10 @@ jobs:
           # The certificate the repository committed travels with the release,
           # and the bundle must verify to the signing root this tooling pins.
           cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
-          if [ -f "$ROOT_KEY" ]; then
-            python3 enginehost-tooling/scripts/verify-engine-bundle.py "output/$BUNDLE" --root-key "$ROOT_KEY"
+          # --trust-dir: the chain must end at a root that commit lists and that is in force now, the
+          # new one, or the old one until its end (signing-root rotation 2026-11-04, Droidtop/tracker#876).
+          if [ -f "$TRUST_DIR/enginehost-roots.json" ]; then
+            python3 enginehost-tooling/scripts/verify-engine-bundle.py "output/$BUNDLE" --trust-dir "$TRUST_DIR"
           else
             echo "::warning::this Enginehost commit pins no signing root key; the v1 chain was not checked here"
           fi

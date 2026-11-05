@@ -406,14 +406,15 @@ class PluginOriginStore(private val context: Context) {
      */
     fun learnOfficial(index: PluginsIndex): List<String> {
         val before = all().toSet()
-        val root = EnginehostRoot.get(context)
+        val roots = EnginehostRoots.get(context)
         val revoked = RevocationListStore(context).revoked(BundleVerifier.ENGINEHOST_CATALOG)
         index.origins.values.forEach { indexed ->
             // Format v1: a bundle-signing certificate the signing root issued, naming the origin.
-            val certified = root != null && indexed.certificates.isNotEmpty() && runCatching {
-                val chain = CertificateSignatures.verifyChain(
-                    CertificateSignatures.parseChain(indexed.certificates), SignaturePurpose.PLUGIN, root, revoked,
-                )
+            val certified = roots.isNotEmpty() && indexed.certificates.isNotEmpty() && runCatching {
+                val parsed = CertificateSignatures.parseChain(indexed.certificates)
+                val chain = CertificateSignatures.underAny(roots) { root ->
+                    CertificateSignatures.verifyChain(parsed, SignaturePurpose.PLUGIN, root, revoked)
+                }
                 VerifiedJws(chain, ByteArray(0)).namesOrigin(indexed.origin)
             }.getOrDefault(false)
             if (!certified) return@forEach

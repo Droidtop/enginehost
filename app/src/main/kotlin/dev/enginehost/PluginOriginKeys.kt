@@ -22,7 +22,7 @@ data class PluginOriginKey(
  * anchor a v1 signature from that repository is verified to ([BundleTrust]).
  *
  * Enginehost's own repositories have no key here: their bundles are verified
- * to the Enginehost signing root ([EnginehostRoot]). The root-certified key
+ * to the Enginehost signing root ([EnginehostRoots]). The root-certified key
  * documents that used to stand for them, with the developer's key, belonged
  * to the legacy signature and went with its verifier (2026-10-29,
  * Droidtop/tracker#768).

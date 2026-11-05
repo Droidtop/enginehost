@@ -18,10 +18,11 @@ class BundleVerifierTest {
     private val manifest = """{"bundleId":"$bundleId"}""".toByteArray()
 
     private class Sources(
-        override val root: TrustAnchor.Root?,
+        root: TrustAnchor.Root?,
         val custom: Map<String, ByteArray> = emptyMap(),
         val lists: Map<String, RevokedSet> = emptyMap(),
     ) : BundleTrustSources {
+        override val roots = listOfNotNull(root)
         override fun customKey(origin: String) = custom[origin]
         override fun revoked(catalog: String) = lists[catalog] ?: RevokedSet.NONE
     }
