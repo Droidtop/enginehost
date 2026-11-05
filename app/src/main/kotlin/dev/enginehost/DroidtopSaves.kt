@@ -22,7 +22,8 @@ import java.util.concurrent.TimeUnit
  * Before a launch droidtop did not make, Enginehost asks droidtop's `saves where`
  * and launches with the answer exactly as if the caller had passed it
  * (`saveRoot`, `savesSynced`: the one mechanism a caller's save folder already has).
- * After such a game ends it tells droidtop with `saves report_changed`.
+ * After any game ends it tells droidtop with `saves report_changed`, kept until droidtop takes it
+ * ([SavesOutbox], Droidtop/tracker#885).
  * Without droidtop installed, or with no answer, nothing waits and nothing changes.
  */
 object DroidtopSaves {
@@ -64,17 +65,52 @@ object DroidtopSaves {
         return merged.toString()
     }
 
-    /** Tells droidtop that the game at [gameFolder] wrote saves in [saveFolder]. Runs off the main thread ([Async]). */
+    /**
+     * Tells droidtop that the game at [gameFolder] wrote saves in [saveFolder], for every game that ends,
+     * a game droidtop launched included. droidtop trusts its GAME_ENDED broadcast only for the folder it
+     * passed as saveRoot (Droidtop/tracker#885), so for saves anywhere else this report is the only way
+     * in, and it must not be lost: it is kept in [SavesOutbox] until droidtop takes it, and sent again
+     * when droidtop connects ([flush]) if droidtop was not there or not ready. Runs off the main thread.
+     */
     fun reportChanged(context: Context, gameFolder: File, saveFolder: String, reason: String, endedAtMs: Long) {
         val app = context.applicationContext
         Async.run {
-            if (!installed(app) || !ensureConnected(app)) return@run
-            val reply = DroidtopLink.call(
-                "saves", "report_changed",
-                JSONObject().put("path", gameFolder.absolutePath).put("saveFolder", saveFolder)
-                    .put("reason", reason).put("endedAtMs", endedAtMs),
-            )
-            Log.i(TAG, "told droidtop about saves in $saveFolder: ${reply?.optJSONObject("data")?.optString("message") ?: "no answer"}")
+            runCatching {
+                SavesOutbox.add(outbox(app), SavesOutbox.Report(gameFolder.absolutePath, saveFolder, reason, endedAtMs), System.currentTimeMillis())
+            }.onFailure { Log.w(TAG, "could not keep the save report for $saveFolder", it) }
+            flush(app)
+        }
+    }
+
+    /** Where reports wait until droidtop takes them. */
+    fun outbox(context: Context): File = File(context.applicationContext.noBackupFilesDir, "droidtop-saves-outbox.json")
+
+    private val flushing = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * Sends every save report droidtop has not taken yet ([SavesOutbox]). Called after a game ends, when
+     * droidtop connects (DroidtopInterface) and when Enginehost starts. One at a time; knocks on droidtop's
+     * door only when something is waiting. Blocks: off the main thread.
+     */
+    fun flush(context: Context) {
+        val app = context.applicationContext
+        if (!flushing.compareAndSet(false, true)) return
+        try {
+            val file = outbox(app)
+            if (SavesOutbox.pending(file).isEmpty()) return
+            if (!installed(app) || !ensureConnected(app)) {
+                Log.i(TAG, "droidtop is not connected; ${SavesOutbox.pending(file).size} save report(s) wait for it")
+                return
+            }
+            val delivered = SavesOutbox.deliver(file, System.currentTimeMillis(), send = { report ->
+                DroidtopLink.call("saves", "report_changed", report.args())
+            }, log = { Log.i(TAG, it) })
+            val left = SavesOutbox.pending(file).size
+            Log.i(TAG, "told droidtop about $delivered save report(s)" + if (left > 0) "; $left wait for it" else "")
+        } catch (error: Exception) {
+            Log.w(TAG, "could not send the save reports", error)
+        } finally {
+            flushing.set(false)
         }
     }
 
@@ -88,6 +124,8 @@ object DroidtopSaves {
     fun announce(context: Context) {
         val app = context.applicationContext
         Async.run {
+            // Reports a game left while droidtop was away go first; sending them knocks if need be.
+            runCatching { flush(app) }
             runCatching { if (installed(app) && !DroidtopLink.isConnected()) knock(app) }
         }
     }
