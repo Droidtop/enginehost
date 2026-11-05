@@ -293,7 +293,7 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
         if (activity.isFinishing || activity.isDestroyed) return finish()
         val now = SystemClock.uptimeMillis()
         val elapsed = now - startedAt
-        if (BlackScreenRule.givesUp(now, startedAt, LoadingProgress.reportedAt, firstLaunch)) {
+        if (BlackScreenRule.givesUp(now, startedAt, LoadingProgress.reportedAt, firstLaunch, midLoad())) {
             // Silent this long even under the game's own picture: ask once before letting go.
             ask()
             return finish()
@@ -380,9 +380,12 @@ internal class RuntimeLoadingNotice(private val activity: Activity) {
      */
     private fun nothingShown() {
         val now = SystemClock.uptimeMillis()
-        if (!BlackScreenRule.shouldAsk(now, startedAt, LoadingProgress.reportedAt, LoadingCover.coversBar, firstLaunch)) return
+        if (!BlackScreenRule.shouldAsk(now, startedAt, LoadingProgress.reportedAt, LoadingCover.coversBar, firstLaunch, midLoad())) return
         ask()
     }
+
+    /** Whether the engine has said it is part-way through loading ([BlackScreenRule.midLoad]). */
+    private fun midLoad(): Boolean = BlackScreenRule.midLoad(LoadingProgress.reportedAt, LoadingProgress.fraction)
 
     /** Asks the person, once and only with the game in front, whether to keep waiting. */
     private fun ask() {
