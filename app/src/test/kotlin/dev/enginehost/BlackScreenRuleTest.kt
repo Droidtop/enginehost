@@ -48,4 +48,22 @@ class BlackScreenRuleTest {
         assertFalse(BlackScreenRule.givesUp(240_000, 0, 100_000, firstLaunch = false))
         assertFalse(BlackScreenRule.givesUp(280_000, 0, 0, firstLaunch = true))
     }
+
+    @Test
+    fun aLongStepPartWayThroughLoadingIsNotABlackScreen() {
+        // #855: one init block ran 198 s after the last report, on a loading screen part-way through.
+        val last = 82_500L
+        assertTrue(BlackScreenRule.midLoad(last, 0.4f))
+        assertFalse(BlackScreenRule.shouldAsk(last + 198_000, 0, last, ownPictureShown = false, firstLaunch = false, midLoad = true))
+        assertFalse(BlackScreenRule.givesUp(last + 198_000, 0, last, firstLaunch = false, midLoad = true))
+        // a load that stops for ten minutes is still asked about
+        assertTrue(BlackScreenRule.shouldAsk(last + 600_000, 0, last, ownPictureShown = false, firstLaunch = false, midLoad = true))
+    }
+
+    @Test
+    fun midLoadNeedsAReportShortOfDone() {
+        assertFalse(BlackScreenRule.midLoad(0, 0f)) // nothing reported: the 45 s window
+        assertFalse(BlackScreenRule.midLoad(5_000, 1f)) // done loading: a black screen after it is one
+        assertTrue(BlackScreenRule.midLoad(5_000, 0.99f))
+    }
 }
