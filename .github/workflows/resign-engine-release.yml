@@ -15,12 +15,22 @@ name: Re-sign a stable engine release
 # published code byte for byte, and the manifest and signature are new
 # (owner, 2026-10-30, Droidtop/tracker#646).
 #
+# With rekey (signing-root rotation 2026-11-04, Droidtop/tracker#876 and #550), a release
+# that is already v1-signed, stable or not, is published again as <source-tag>-rekeyed
+# with its signature replaced by one made by the repository's new certificate key and
+# chain, under the new Enginehost root: the manifest and every other file are exactly
+# the published ones (the owner decided not to re-audit), the original stays (permanent
+# version history), the prerelease and latest flags are the original's, and the new
+# signature is verified against the new root alone before anything is published. A
+# release with no bundle asset is left alone and the run says so.
+#
 # A core repository calls it from a dispatch-only workflow, pinned by commit:
 #
 #   on:
 #     workflow_dispatch:
 #       inputs:
-#         source-tag: { description: "The stable release to re-sign", required: true }
+#         source-tag: { description: "The release to re-sign (a stable one), or to re-key", required: true }
+#         rekey: { description: "Re-key a v1-signed release under the new root", type: boolean, default: false }
 #   jobs:
 #     resign:
 #       permissions:
@@ -29,6 +39,7 @@ name: Re-sign a stable engine release
 #       with:
 #         tooling-sha: <the same sha>
 #         source-tag: ${{ inputs.source-tag }}
+#         rekey: ${{ inputs.rekey }}
 #       secrets:
 #         ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
 #         PLATFORMS_DISPATCH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
@@ -48,7 +59,9 @@ on:
         type: string
         required: true
       tag:
-        description: Tag of the new stable release (default <source-tag>-resigned, or <source-tag>-64-bit with only-64-bit).
+        description: >-
+          Tag of the new release (default <source-tag>-resigned, <source-tag>-64-bit
+          with only-64-bit, or <source-tag>-rekeyed with rekey).
         type: string
         default: ""
       only-64-bit:
@@ -59,8 +72,18 @@ on:
           bundle unchanged.
         type: string
         default: ""
+      rekey:
+        description: >-
+          Replace the v1 signature of an already v1-signed release with one by the
+          repository's new certificate (under the new Enginehost root) and publish it as
+          <source-tag>-rekeyed beside the original, with the original's prerelease and
+          latest flags. Nothing but the signature changes. Does not combine with only-64-bit.
+        type: boolean
+        default: false
       repository-certificate:
-        description: The repository's committed signing certificate, relative to its root.
+        description: >-
+          The repository's committed signing certificate, relative to its root. For rekey it must be the
+          new one (issued under the new root), committed before the run; the key secret must be its key.
         type: string
         default: enginehost-signing-certificate.pem
     secrets:
@@ -77,6 +100,8 @@ permissions:
 jobs:
   resign:
     runs-on: ubuntu-latest
+    outputs:
+      has-bundle: ${{ steps.download.outputs.has-bundle }}
     steps:
       - name: Check the inputs
         env:
@@ -85,8 +110,10 @@ jobs:
           TAG: ${{ inputs.tag }}
           CERTIFICATE: ${{ inputs.repository-certificate }}
           ONLY_64_BIT: ${{ inputs.only-64-bit }}
+          REKEY: ${{ inputs.rekey }}
         run: |
           set -euo pipefail
+          [ "$REKEY" != true ] || [ -z "$ONLY_64_BIT" ] || { echo "rekey and only-64-bit do not combine" >&2; exit 1; }
           [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
           [[ "$SOURCE_TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad source tag '$SOURCE_TAG'" >&2; exit 1; }
           [[ -z "$TAG" || "$TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad tag '$TAG'" >&2; exit 1; }
@@ -109,17 +136,31 @@ jobs:
           sparse-checkout: |
             scripts
             app/src/main/assets/trust
-      - name: Download the stable release
+      - name: Download the release
+        id: download
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_TAG: ${{ inputs.source-tag }}
+          REKEY: ${{ inputs.rekey }}
         run: |
           set -euo pipefail
           release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$SOURCE_TAG")"
-          # Only a published stable release: a draft or a pre-release is a
-          # testing or unstable build, which is rebuilt, not re-signed.
-          printf '%s' "$release" | python3 -c 'import json,sys; r=json.load(sys.stdin); sys.exit(0 if not r["draft"] and not r["prerelease"] else 1)' \
-            || { echo "::error::$SOURCE_TAG is not a published stable release" >&2; exit 1; }
+          if [ "$REKEY" = true ]; then
+            # Any published release: its own flags are carried to the -rekeyed one.
+            printf '%s' "$release" | python3 -c 'import json,sys; sys.exit(0 if not json.load(sys.stdin)["draft"] else 1)' \
+              || { echo "::error::$SOURCE_TAG is a draft" >&2; exit 1; }
+            if ! printf '%s' "$release" | python3 -c 'import json,sys; sys.exit(0 if any(a["name"].endswith(".enginehost.tar.xz") for a in json.load(sys.stdin)["assets"]) else 1)'; then
+              echo "::notice::$SOURCE_TAG carries no bundle asset (*.enginehost.tar.xz); nothing to re-key, nothing published."
+              echo "has-bundle=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            # Only a published stable release: a draft or a pre-release is a
+            # testing or unstable build, which is rebuilt, not re-signed.
+            printf '%s' "$release" | python3 -c 'import json,sys; r=json.load(sys.stdin); sys.exit(0 if not r["draft"] and not r["prerelease"] else 1)' \
+              || { echo "::error::$SOURCE_TAG is not a published stable release" >&2; exit 1; }
+          fi
+          echo "has-bundle=true" >> "$GITHUB_OUTPUT"
           mkdir -p source
           printf '%s' "$release" | python3 -c 'import json,sys; [print(a["id"], a["name"]) for a in json.load(sys.stdin)["assets"]]' |
           while read -r id name; do
@@ -132,16 +173,18 @@ jobs:
           ls -l source
           test -n "$(find source -name '*.enginehost.tar.xz' -print -quit)"
       - name: Re-sign
+        if: steps.download.outputs.has-bundle == 'true'
         env:
           ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
           CERTIFICATE: repository/${{ inputs.repository-certificate }}
           TRUST_DIR: enginehost-tooling/app/src/main/assets/trust
           ONLY_64_BIT: ${{ inputs.only-64-bit }}
+          REKEY: ${{ inputs.rekey }}
         run: |
           set -euo pipefail
           test -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" || { echo "::error::ENGINEHOST_CERTIFICATE_KEY_PEM is not set" >&2; exit 1; }
           test -f "$CERTIFICATE" || { echo "::error::$CERTIFICATE is not committed" >&2; exit 1; }
-          test -f "$TRUST_DIR/enginehost-roots.json"
+          test -f "$TRUST_DIR/enginehost-root.pub" && test -f "$TRUST_DIR/enginehost-roots.json"
           key="$RUNNER_TEMP/certificate-key.pem"
           trap 'rm -f "$key"' EXIT
           (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$key")
@@ -150,6 +193,7 @@ jobs:
           mkdir -p output
           only=()
           [ -z "$ONLY_64_BIT" ] || only=(--only-64-bit "$ONLY_64_BIT")
+          [ "$REKEY" != true ] || only=(--rekey)
           for bundle in source/*.enginehost.tar.xz; do
             python3 enginehost-tooling/scripts/resign-engine-bundle.py "$bundle" \
               --certificate-key "$key" --certificate-chain "$CERTIFICATE" \
@@ -159,11 +203,18 @@ jobs:
             envelope="output/$(basename "$envelope")"
           done
           for bundle in output/*.enginehost.tar.xz; do
-            python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --trust-dir "$TRUST_DIR"
+            if [ "$REKEY" = true ]; then
+              # The new root alone: a re-keyed bundle that still ends at the old root is no re-key.
+              python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --root-key "$TRUST_DIR/enginehost-root.pub"
+            else
+              # A root that commit lists and that is in force now.
+              python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --trust-dir "$TRUST_DIR"
+            fi
           done
           [ ! -f source/enginehost-public-key.json ] || cp source/enginehost-public-key.json output/
           cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.download.outputs.has-bundle == 'true'
         with:
           name: resigned
           path: output/*
@@ -171,6 +222,7 @@ jobs:
 
   publish:
     needs: resign
+    if: needs.resign.outputs.has-bundle == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -185,9 +237,12 @@ jobs:
           SOURCE_TAG: ${{ inputs.source-tag }}
           TAG: ${{ inputs.tag }}
           ONLY_64_BIT: ${{ inputs.only-64-bit }}
+          REKEY: ${{ inputs.rekey }}
         run: |
           set -euo pipefail
-          if [ -n "$ONLY_64_BIT" ]; then tag="${TAG:-$SOURCE_TAG-64-bit}"; else tag="${TAG:-$SOURCE_TAG-resigned}"; fi
+          if [ "$REKEY" = true ]; then tag="${TAG:-$SOURCE_TAG-rekeyed}"
+          elif [ -n "$ONLY_64_BIT" ]; then tag="${TAG:-$SOURCE_TAG-64-bit}"
+          else tag="${TAG:-$SOURCE_TAG-resigned}"; fi
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" >/dev/null 2>&1; then
             echo "::error::release $tag already exists" >&2
             exit 1
@@ -203,14 +258,28 @@ jobs:
           commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_TAG" --jq .sha)"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           envelope="$(find release \( -name enginehost-release.json -o -name enginehost-component.json \) -print -quit)"
-          python3 - "$envelope" <<'PY'
+          # A re-key keeps the envelope's channel and the release's flags as they were published.
+          if [ "$REKEY" != true ]; then
+            python3 - "$envelope" <<'PY'
           import json, sys
           path = sys.argv[1]
           data = json.load(open(path))
           data["channel"] = "stable"
           json.dump(data, open(path, "w"), sort_keys=True, separators=(",", ":"))
           PY
-          if [ -n "$ONLY_64_BIT" ]; then
+          fi
+          prerelease="$(printf '%s' "$source" | python3 -c 'import json,sys; print("true" if json.load(sys.stdin)["prerelease"] else "false")')"
+          source_id="$(printf '%s' "$source" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+          latest_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .id 2>/dev/null || echo 0)"
+          if [ "$REKEY" = true ]; then
+            [ "$latest_id" = "$source_id" ] && latest=true || latest=false
+          else
+            prerelease=false; latest=false
+          fi
+          if [ "$REKEY" = true ]; then
+            notes="\`$SOURCE_TAG\` re-keyed (Droidtop/tracker#876): built from \`$commit\`, its code, build number and manifest are byte for byte the ones published at [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), which stays as it is. Only \`enginehost-bundle.jws\` is new, chained to the new Enginehost signing root, in place of the one chained to the old root that ends 2026-11-11T23:59:59Z. Install it through Enginehost."
+            suffix="rekeyed"
+          elif [ -n "$ONLY_64_BIT" ]; then
             notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, without its 32-bit libraries, as build $ONLY_64_BIT (Droidtop/tracker#646). Its 64-bit code is byte for byte the code published there. Only the libraries for ABIs other than arm64-v8a and x86_64 are gone, from the bundle and its resource APKs, and the manifest and its v1 signature are new. Install it through Enginehost."
             suffix="64-bit"
           else
@@ -219,7 +288,7 @@ jobs:
           fi
           gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "$title ($suffix)" --notes "$notes" --draft
-          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease="$prerelease" --latest="$latest"
       - name: Ask droidtop-platforms to reindex
         env:
           GH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
