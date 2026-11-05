@@ -218,6 +218,15 @@ person pinned stay in this app. A certificate that marks an extension critical w
 refused (as PKIX requires), and a signature's JWS header is read with `kotlinx-serialization-json`, a dependency this
 app gained for it. The older root-certified origin-key document (`OriginKeyDocuments`) is not part of the library.
 
+**Shared libraries build and test Enginehost (owner, 2026-11-04, Droidtop/tracker#867 D2).** The code Enginehost
+shares with droidtop, Pythia and droidtop-agent moves into library repositories that belong to no program, each
+"versioned and pinned by each app; each repo's CI builds and tests every app that uses it". Enginehost takes a
+library as a submodule under `vendor/`, as it takes droidtop-shared. A library's CI calls
+`.github/workflows/library-check.yml` with its submodule path and the commit under test; that workflow checks out
+Enginehost's `main`, moves only that submodule to the commit, and runs `build.yml`'s unit tests and the debug APK,
+unsigned by the release key (a library's CI holds no Enginehost secret). Started by hand it builds the branch it is
+started on.
+
 ### The anchor
 
 The hierarchy (owner, 2026-10-15: "enginehost gets its key separately derived
