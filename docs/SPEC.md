@@ -914,3 +914,26 @@ core can run its games, and a merge that already happened is undone.
   The HTML core is then for HTML games and, beside the Twine core, Twine stories.
 - A game moves from a shared core to its own only when its own core is published, so no game is
   left with no core in between.
+
+## The Enginehost signing root was rotated; the old one ends 2026-11-11T23:59:59Z (decided 2026-11-04, Droidtop/tracker#876, #550)
+
+The owner's words: "Pin the old key for 7 days, then expire it. That should give time for users to
+organically move off the old cores." He also decided not to re-audit: every release is re-signed as it is.
+
+- The new root (SPKI sha256 `9629576d51bf000c2a8df606c66c1366fa27481e2297dc4e1ab68a646b95f5f0`) is
+  `trust/enginehost-root.pub`, trusted with no end. The old root is `trust/enginehost-root-2026-10.pub`, trusted
+  until **2026-11-11T23:59:59Z**. Both are listed in `trust/enginehost-roots.json`, the one place the end is written;
+  the app and `scripts/bundle_jws.py` read it.
+- After that second a chain ending at the old root is refused everywhere: install, update, the check before each
+  launch, the catalog and plugins index, the revocation list. The coordinator publishes a revocation list under the
+  new root that revokes the old leaves after it.
+- Enginehost's revocation list is accepted under either root while both are in force and applies to chains ending at
+  either.
+- An approval carries from a build under the old root to a build of the same origin under the new one.
+- Released builds are re-signed under the new root without a rebuild: `resign-engine-bundle.py --rekey`, run by
+  `resign-engine-release.yml` with `rekey: true`, publishes `<tag>-rekeyed` beside the original, which stays. Details in
+  docs/engine-bundle-format.md "Root rotation".
+- droidtop-platforms' plugins index reads this tooling and root list from a pinned Enginehost commit; it moves to the
+  commit that carries this change to accept the new root.
+- `official_plugin_root_key.json` and `default_plugin_keys.json` are not pinned here any more (legacy raw-key
+  signature, deleted 2026-10-29); nothing to re-pin.

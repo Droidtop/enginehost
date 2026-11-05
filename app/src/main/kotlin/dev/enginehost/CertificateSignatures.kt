@@ -41,8 +41,17 @@ sealed interface TrustAnchor {
      * root's certificate. The chain's last certificate must be signed by it,
      * and no certificate in the chain may carry it.
      */
-    class Root(val spki: ByteArray) : TrustAnchor {
+    class Root(val spki: ByteArray, val notAfterEpochSecond: Long? = null) : TrustAnchor {
         override val keySha256: String = sha256(spki)
+
+        /**
+         * Whether this root is still in force at [nowMillis]. A retired root (key rotation 2026-11-04, owner: "Pin the
+         * old key for 7 days, then expire it") is trusted through the whole second named by [notAfterEpochSecond] and
+         * not after it; a root with no end is always in force. This is the root key's own term, read from the pin
+         * ([EnginehostRoots]); it is not a certificate's validity period, which is still never read.
+         */
+        fun inForceAt(nowMillis: Long): Boolean =
+            notAfterEpochSecond == null || Math.floorDiv(nowMillis, 1000L) <= notAfterEpochSecond
     }
 
     /**
@@ -146,8 +155,9 @@ object CertificateSignatures {
         anchor: TrustAnchor,
         detachedContent: ByteArray?,
         revoked: RevokedSet = RevokedSet.NONE,
-    ): VerifiedJws =
-        when (
+        now: Long = System.currentTimeMillis(),
+    ): VerifiedJws {
+        val verified = when (
             val result = ChainSignature.verify(
                 compact, purpose.shared(), anchor.shared(), detachedContent, revoked::revokesChainCertificate, revoked.revokesKey(anchor.keySha256),
             )
@@ -155,6 +165,43 @@ object CertificateSignatures {
             is ChainSignature.Result.Refused -> throw IllegalArgumentException(result.reason)
             is ChainSignature.Result.Verified -> VerifiedJws(result.chain, detachedContent ?: requireNotNull(result.payload) { "Signature payload is missing" })
         }
+        requireInForce(anchor, now)
+        return verified
+    }
+
+    /** Thrown for a chain that is sound but ends at a retired root: the root's term is over, whatever the chain signed or when. */
+    class RetiredRootException(message: String) : IllegalArgumentException(message)
+
+    /** Checked after the chain verified, so only a chain that really ends at the retired root is told so. */
+    private fun requireInForce(anchor: TrustAnchor, now: Long) {
+        if (anchor is TrustAnchor.Root && !anchor.inForceAt(now)) {
+            throw RetiredRootException("This was signed under an Enginehost signing root that has retired; it must be signed again under the current root")
+        }
+    }
+
+    /**
+     * Runs [attempt] under each of [anchors] in turn and answers the first that does not throw. When none does, the first
+     * failure is thrown, so the reason a person sees is the one for the first (current) root, unless the chain is sound and its root retired. Several roots are pinned only
+     * across a key rotation ([EnginehostRoots]).
+     */
+    fun <T> underAny(anchors: List<TrustAnchor>, attempt: (TrustAnchor) -> T): T {
+        var first: Exception? = null
+        for (anchor in anchors) {
+            try {
+                return attempt(anchor)
+            } catch (error: RetiredRootException) {
+                // Said in preference to the other roots' refusals: it is the reason this chain no longer holds.
+                throw error
+            } catch (error: IllegalArgumentException) {
+                first = first ?: error
+            } catch (error: java.security.GeneralSecurityException) {
+                first = first ?: error
+            } catch (error: org.json.JSONException) {
+                first = first ?: error
+            }
+        }
+        throw first ?: IllegalArgumentException("Nothing is pinned to verify this to")
+    }
 
     /**
      * Verifies [chain] (leaf first, the anchor excluded) for [purpose] up to [anchor] and no further: the checks of [verify] without a
@@ -165,9 +212,11 @@ object CertificateSignatures {
         purpose: SignaturePurpose,
         anchor: TrustAnchor,
         revoked: RevokedSet = RevokedSet.NONE,
+        now: Long = System.currentTimeMillis(),
     ): List<X509Certificate> {
         ChainSignature.verifyChain(chain, purpose.shared(), anchor.shared(), revoked::revokesChainCertificate, revoked.revokesKey(anchor.keySha256))
             ?.let { throw IllegalArgumentException(it) }
+        requireInForce(anchor, now)
         return chain
     }
 
@@ -232,6 +281,18 @@ data class RevocationList(
         private val HEX_SHA256 = Regex("[0-9A-Fa-f]{64}")
 
         /**
+         * [verify] under whichever of [anchors] accepts it. Enginehost's list, signed under the current root, speaks for chains
+         * ending at either root while both are in force, because one [RevokedSet] is applied to every chain of the catalog.
+         */
+        fun verifyUnderAny(
+            compact: String,
+            anchors: List<TrustAnchor>,
+            catalog: String,
+            alreadyRevoked: RevokedSet = RevokedSet.NONE,
+            now: Long = System.currentTimeMillis(),
+        ): RevocationList = CertificateSignatures.underAny(anchors) { verify(compact, it, catalog, alreadyRevoked, now) }
+
+        /**
          * Verifies [compact] under [anchor] for [catalog]: the signer must be a
          * revocation-list certificate naming that catalog, and the list must
          * say the same. [alreadyRevoked] is the list held before, so a signer
@@ -242,10 +303,11 @@ data class RevocationList(
             anchor: TrustAnchor,
             catalog: String,
             alreadyRevoked: RevokedSet = RevokedSet.NONE,
+            now: Long = System.currentTimeMillis(),
         ): RevocationList {
             val expected = catalog.lowercase()
             val verified = CertificateSignatures.verify(
-                compact, SignaturePurpose.REVOCATIONS, anchor, detachedContent = null, revoked = alreadyRevoked,
+                compact, SignaturePurpose.REVOCATIONS, anchor, detachedContent = null, revoked = alreadyRevoked, now = now,
             )
             require(expected in verified.catalogs) { "The revocation list's signer does not speak for $catalog" }
             val json = JSONObject(verified.payload.toString(Charsets.UTF_8))

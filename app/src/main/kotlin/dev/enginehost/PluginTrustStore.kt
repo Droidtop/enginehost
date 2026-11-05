@@ -35,10 +35,15 @@ class PluginTrustStore(private val context: Context) {
      * the installer only ever replaces a build with a newer one from its own
      * origin, so what is left to check is that the signer did not change. A
      * different key, or a build the person denied, still asks.
+     *
+     * The one exception is a root rotation (2026-11-04, Droidtop/tracker#876): a build re-signed or newly
+     * built under the new Enginehost root has a new signing key by construction, so it inherits the approval of
+     * a build of the same origin that an Enginehost root, the old one, vouched for ([shouldCarry]).
      */
     fun carryApproval(previous: List<InstalledPlugin>, updated: InstalledPlugin) {
         if (updated.signerIdentity.isBlank()) return
-        if (previous.any { shouldCarry(preferences.getString(decisionKey(it), null), it, updated) }) approve(updated)
+        val pinnedRoots = EnginehostRoots.get(context).map { it.keySha256 }.toSet()
+        if (previous.any { shouldCarry(preferences.getString(decisionKey(it), null), it, updated, pinnedRoots) }) approve(updated)
     }
 
     /**
@@ -89,10 +94,28 @@ class PluginTrustStore(private val context: Context) {
     fun isDeveloperDebug(plugin: InstalledPlugin): Boolean = certifiedSigner(plugin)?.kind == SignerKind.DEVELOPER
 
     companion object {
-        /** Whether [updated] inherits [previous]'s stored decision. Only an explicit approval carries. */
-        internal fun shouldCarry(stored: String?, previous: InstalledPlugin, updated: InstalledPlugin): Boolean =
-            stored == "approved" && previous.signerIdentity.isNotBlank() &&
-                previous.signerIdentity == updated.signerIdentity && previous.origin == updated.origin
+        /**
+         * Whether [updated] inherits [previous]'s stored decision. Only an explicit approval carries, from the same
+         * origin, and either under the same signing key or across a root rotation: both signed in format v1 as the same
+         * kind (official, or the developer's) under two different roots that [pinnedRoots] (key hashes) both name.
+         */
+        internal fun shouldCarry(
+            stored: String?,
+            previous: InstalledPlugin,
+            updated: InstalledPlugin,
+            pinnedRoots: Set<String> = emptySet(),
+        ): Boolean =
+            stored == "approved" && previous.signerIdentity.isNotBlank() && previous.origin == updated.origin &&
+                (previous.signerIdentity == updated.signerIdentity || acrossRootRotation(previous.signer, updated.signer, pinnedRoots))
+
+        private fun acrossRootRotation(previous: BundleSigner?, updated: BundleSigner?, pinnedRoots: Set<String>): Boolean {
+            if (previous == null || updated == null) return false
+            val pinned = pinnedRoots.map(String::uppercase).toSet()
+            return previous.format == 1 && updated.format == 1 && previous.kind == updated.kind &&
+                previous.kind != SignerKind.CUSTOM &&
+                previous.anchorKeySha256.uppercase() != updated.anchorKeySha256.uppercase() &&
+                previous.anchorKeySha256.uppercase() in pinned && updated.anchorKeySha256.uppercase() in pinned
+        }
 
         /** The signer of every earlier approval and the origin of the last one, against [plugin]. */
         internal fun changeSince(approvedSigners: Set<String>, approvedOrigin: String?, plugin: InstalledPlugin): TrustChange? = when {

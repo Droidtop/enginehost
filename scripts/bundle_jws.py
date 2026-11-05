@@ -14,7 +14,10 @@ import json
 import re
 import subprocess
 import tempfile
+import time
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import NamedTuple
 
 PURPOSE_ARC = "2.25.230248497294207031301727532441854392946"
 PURPOSES = {
@@ -29,6 +32,46 @@ DEVELOPER_URN = "urn:enginehost:developer"
 
 class Refused(Exception):
     pass
+
+
+class Retired(Refused):
+    """The chain is sound but ends at a root whose term is over."""
+
+
+class Root(NamedTuple):
+    """A pinned signing root: its public key (SubjectPublicKeyInfo DER) and, for a retired one, the last second it is trusted."""
+
+    spki: bytes
+    not_after: int | None = None
+
+    def in_force(self, now: float) -> bool:
+        return self.not_after is None or int(now) <= self.not_after
+
+
+def pinned_roots(trust_dir: Path) -> list[Root]:
+    """
+    Every root listed in <trust_dir>/enginehost-roots.json, the current one first, retired ones included.
+    The app reads the same file (EnginehostRoots in BundleTrust.kt), so tooling and app agree on which roots
+    exist and when the old one ends (key rotation 2026-11-04: "Pin the old key for 7 days, then expire it").
+    """
+    listing = json.loads((trust_dir / "enginehost-roots.json").read_text(encoding="utf-8"))
+    roots = []
+    for entry in listing["roots"]:
+        name = entry["key"]
+        if not name or "/" in name or "\\" in name:
+            raise Refused("not a key file name: " + name)
+        not_after = entry.get("notAfter")
+        end = int(datetime.strptime(not_after, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()) if not_after else None
+        roots.append(Root(pem_public_key((trust_dir / name).read_text(encoding="utf-8")), end))
+    if not roots:
+        raise Refused("no signing root is pinned in " + str(trust_dir))
+    return roots
+
+
+def _as_roots(root) -> list[Root]:
+    """[root] as pinned roots: a bare key has no end, a Root carries its own, a list is each of those."""
+    items = root if isinstance(root, (list, tuple)) and not isinstance(root, Root) else [root]
+    return [item if isinstance(item, Root) else Root(item) for item in items]
 
 
 def b64url(data: bytes) -> str:
@@ -210,12 +253,14 @@ def sign(content: bytes, private_key: Path, chain: list[bytes], purpose: str, de
     return header_part + "." + ("" if detached else payload_part) + "." + b64url(signature)
 
 
-def verify(compact: str, purpose: str, root: bytes, content: bytes | None) -> dict:
+def verify(compact: str, purpose: str, root, content: bytes | None, now: float | None = None) -> dict:
     """
-    Checks [compact] for [purpose] up to the signing root's public key [root]
-    (SubjectPublicKeyInfo DER) and
+    Checks [compact] for [purpose] up to a signing root's public key and
     no further, the way the app does: header, chain, the leaf's usage, and the
-    signature. Answers what the leaf names. Raises Refused.
+    signature. [root] is a key (SubjectPublicKeyInfo DER), a [Root], or a list of
+    them (several roots are pinned across a rotation, see [pinned_roots]); a
+    retired root is refused after its end, [now] (epoch seconds, the clock when
+    omitted) being the time read. Answers what the leaf names. Raises Refused.
     """
     oid, typ = PURPOSES[purpose]
     parts = compact.strip().split(".")
@@ -230,28 +275,52 @@ def verify(compact: str, purpose: str, root: bytes, content: bytes | None) -> di
     if algorithm not in ("ES256", "RS256"):
         raise Refused("unsupported alg")
     chain = [base64.b64decode(item, validate=True) for item in header.get("x5c") or []]
-    named = verify_chain(chain, purpose, root)
+    named = verify_chain(chain, purpose, root, now)
     leaf_spki = named["leafSpki"]
     if key_algorithm(leaf_spki) != algorithm:
         raise Refused("alg does not match the signing key")
     with tempfile.TemporaryDirectory() as temporary:
-        root = Path(temporary)
-        (root / "leaf.der").write_bytes(leaf_spki)
+        work = Path(temporary)
+        (work / "leaf.der").write_bytes(leaf_spki)
         signing_payload = b64url(content) if content is not None else parts[1]
         if content is not None and parts[1]:
             raise Refused("a detached signature carries no payload")
-        (root / "input").write_bytes((parts[0] + "." + signing_payload).encode("ascii"))
+        (work / "input").write_bytes((parts[0] + "." + signing_payload).encode("ascii"))
         signature = b64url_decode(parts[2])
         if algorithm == "ES256":
             signature = _ecdsa_raw_to_der(signature)
-        (root / "signature").write_bytes(signature)
-        openssl("dgst", "-sha256", "-verify", str(root / "leaf.der"), "-keyform", "DER",
-                "-signature", str(root / "signature"), str(root / "input"))
+        (work / "signature").write_bytes(signature)
+        openssl("dgst", "-sha256", "-verify", str(work / "leaf.der"), "-keyform", "DER",
+                "-signature", str(work / "signature"), str(work / "input"))
     named["payload"] = b64url_decode(parts[1]) if content is None else content
     return named
 
 
-def verify_chain(chain: list[bytes], purpose: str, root: bytes) -> dict:
+def verify_chain(chain: list[bytes], purpose: str, root, now: float | None = None) -> dict:
+    """
+    [verify_chain_to] under whichever of the pinned roots [root] (a key, a [Root]
+    or a list of them) is still in force at [now] and accepts the chain; when
+    none does, the first refusal is raised. The answer names the root it ended at
+    as "anchorSpki".
+    """
+    moment = time.time() if now is None else now
+    first = retired = None
+    for candidate in _as_roots(root):
+        try:
+            named = verify_chain_to(chain, purpose, candidate.spki)
+        except Refused as refusal:
+            first = first or refusal
+            continue
+        if not candidate.in_force(moment):
+            # Said in preference to the other roots' refusals: it is the reason this chain no longer holds.
+            retired = Retired("the chain ends at a signing root that has retired; it must be signed again under the current root")
+            continue
+        named["anchorSpki"] = candidate.spki
+        return named
+    raise retired or first or Refused("no signing root is pinned")
+
+
+def verify_chain_to(chain: list[bytes], purpose: str, root: bytes) -> dict:
     """
     Checks a certificate chain (DER, leaf first, root excluded) for [purpose]
     up to the signing root's public key [root] (SubjectPublicKeyInfo DER) and

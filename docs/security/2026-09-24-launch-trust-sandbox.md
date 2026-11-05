@@ -146,7 +146,9 @@ their subdomains only.
 Checked against the code: `PluginOriginKeyStore.importCustom` refuses a
 changed key and nothing defines a rotation; `official_plugin_root_key.json`
 holds one root; built-in keys cannot be replaced (audit S-3). (Since
-2026-10-29, Droidtop/tracker#768, those built-in keys and that root are gone:
+2026-11-04 the signing root can be rotated: `trust/enginehost-roots.json` pins more than
+one with an end for a retired one, docs/engine-bundle-format.md "Root rotation".
+Since 2026-10-29, Droidtop/tracker#768, those built-in keys and that root are gone:
 official keys are v1 certificates from the signing root, replaced by a new
 certificate and withdrawn by the revocation list.) This is a
 recovery problem more than an exposure: a compromised repository key

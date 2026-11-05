@@ -135,13 +135,13 @@ jobs:
         env:
           ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
           CERTIFICATE: repository/${{ inputs.repository-certificate }}
-          ROOT_KEY: enginehost-tooling/app/src/main/assets/trust/enginehost-root.pub
+          TRUST_DIR: enginehost-tooling/app/src/main/assets/trust
           ONLY_64_BIT: ${{ inputs.only-64-bit }}
         run: |
           set -euo pipefail
           test -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" || { echo "::error::ENGINEHOST_CERTIFICATE_KEY_PEM is not set" >&2; exit 1; }
           test -f "$CERTIFICATE" || { echo "::error::$CERTIFICATE is not committed" >&2; exit 1; }
-          test -f "$ROOT_KEY"
+          test -f "$TRUST_DIR/enginehost-roots.json"
           key="$RUNNER_TEMP/certificate-key.pem"
           trap 'rm -f "$key"' EXIT
           (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$key")
@@ -159,7 +159,7 @@ jobs:
             envelope="output/$(basename "$envelope")"
           done
           for bundle in output/*.enginehost.tar.xz; do
-            python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --root-key "$ROOT_KEY"
+            python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --trust-dir "$TRUST_DIR"
           done
           [ ! -f source/enginehost-public-key.json ] || cp source/enginehost-public-key.json output/
           cp "$CERTIFICATE" output/enginehost-signing-certificate.pem

@@ -30,6 +30,7 @@ the full rules are [engine-bundle-format.md](engine-bundle-format.md)
 Droidtop CA              the owner's CA key; never pinned or used by any app
   └ Enginehost signing root    derived from the CA by the owner; its public key is
       │                        app/src/main/assets/trust/enginehost-root.pub
+      │                        (the old root until 2026-11-11T23:59:59Z, enginehost-roots.json)
       ├ one certificate per official repository, naming its origin
       ├ the developer certificate (urn:enginehost:developer)
       └ the revocation-list signer for catalog "enginehost"

@@ -1,42 +1,60 @@
 package dev.enginehost
 
 import android.content.Context
+import org.json.JSONObject
 import java.io.FileNotFoundException
+import java.time.Instant
 
 /**
- * The Enginehost signing root's public key, the one anchor of every official
- * chain: `assets/trust/enginehost-root.pub`, a PEM `PUBLIC KEY` block. The
- * owner derives the root from the Droidtop CA, which Enginehost never pins
- * (Droidtop/tracker#550); its private key stays on the owner's machine. A
- * build without the file pins no root: no official v1 signature can be
- * verified, and only a repository the person pinned a key for installs.
+ * The Enginehost signing roots this build pins: `assets/trust/enginehost-roots.json` lists them, each naming a PEM
+ * `PUBLIC KEY` file beside it, the current root first. The owner derives a root from the Droidtop CA, which Enginehost
+ * never pins (Droidtop/tracker#550); its private key stays on the owner's machine. A build without the list pins no root:
+ * no official v1 signature can be verified, and only a repository the person pinned a key for installs.
+ *
+ * Across the key rotation of 2026-11-04 the list holds two: the new root, with no end, and the old one with `notAfter`
+ * (owner: "Pin the old key for 7 days, then expire it. That should give time for users to organically move off the old
+ * cores"). That instant is the one constant of the rotation; `scripts/bundle_jws.py` reads the same file, so tooling and
+ * app agree. After it a chain ending at the old root is refused ([TrustAnchor.Root.inForceAt]).
  */
-object EnginehostRoot {
-    const val ASSET = "trust/enginehost-root.pub"
+object EnginehostRoots {
+    const val ASSET_DIR = "trust"
+    const val LIST = "$ASSET_DIR/enginehost-roots.json"
 
-    @Volatile private var loaded = false
-    @Volatile private var anchor: TrustAnchor.Root? = null
+    @Volatile private var loaded: List<TrustAnchor.Root>? = null
 
-    fun get(context: Context): TrustAnchor.Root? {
-        if (!loaded) synchronized(this) {
-            if (!loaded) {
-                anchor = try {
-                    context.assets.open(ASSET).bufferedReader().use { reader ->
-                        TrustAnchor.Root(CertificateSignatures.parsePemPublicKey(reader.readText()))
-                    }
-                } catch (absent: FileNotFoundException) {
-                    null
-                }
-                loaded = true
-            }
+    /** Every pinned root, retired ones included (a retired root is refused by its own term, not by being absent). */
+    fun get(context: Context): List<TrustAnchor.Root> {
+        loaded?.let { return it }
+        return synchronized(this) {
+            loaded ?: read(context).also { loaded = it }
         }
-        return anchor
+    }
+
+    private fun read(context: Context): List<TrustAnchor.Root> = try {
+        parse(context.assets.open(LIST).bufferedReader().use { it.readText() }) { name ->
+            context.assets.open("$ASSET_DIR/$name").bufferedReader().use { it.readText() }
+        }
+    } catch (absent: FileNotFoundException) {
+        emptyList()
+    }
+
+    /** Reads the list [manifest]; [readKey] answers a listed key file's PEM text. Split out so a plain JVM test runs it. */
+    fun parse(manifest: String, readKey: (String) -> String): List<TrustAnchor.Root> {
+        val entries = JSONObject(manifest).getJSONArray("roots")
+        return (0 until entries.length()).map { index ->
+            val entry = entries.getJSONObject(index)
+            val key = entry.getString("key")
+            require(key.isNotEmpty() && '/' !in key && '\\' !in key) { "Not a key file name: $key" }
+            val notAfter = entry.optString("notAfter").takeIf(String::isNotEmpty)?.let { Instant.parse(it).epochSecond }
+            TrustAnchor.Root(CertificateSignatures.parsePemPublicKey(readKey(key)), notAfter)
+        }
     }
 }
 
 /**
  * Revocation lists, one per catalog: Enginehost's own ("enginehost", beside
- * the plugins index, under the Enginehost root) and each added repository's (`owner/repo`,
+ * the plugins index, under the Enginehost root, or under either root while two are in force; it applies to chains
+ * ending at either) and each added repository's (`owner/repo`,
  * its own `revocations.jws`, under the key the person pinned for it).
  *
  * A list is taken only when its sequence is higher than the one held, so an
@@ -53,10 +71,11 @@ class RevocationListStore(private val context: Context) {
     /** Takes [compact] for [catalog] when it verifies and is newer than the list held. Answers whether it did. */
     fun accept(catalog: String, compact: String): Boolean {
         val key = catalog.lowercase()
-        val anchor = anchorFor(key) ?: return false
+        val anchors = anchorsFor(key)
+        if (anchors.isEmpty()) return false
         val current = held(key)
         val offered = runCatching {
-            RevocationList.verify(compact, anchor, key, current?.revoked ?: RevokedSet.NONE)
+            RevocationList.verifyUnderAny(compact, anchors, key, current?.revoked ?: RevokedSet.NONE)
         }.getOrNull() ?: return false
         if (current != null && offered.sequence <= current.sequence) return false
         preferences.edit().putString(key, offered.compact).apply()
@@ -82,17 +101,19 @@ class RevocationListStore(private val context: Context) {
         val key = catalog.lowercase()
         val compact = preferences.getString(key, null) ?: return null
         synchronized(Companion) { verified[key]?.takeIf { it.compact == compact }?.let { return it } }
-        val anchor = anchorFor(key) ?: return null
-        return runCatching { RevocationList.verify(compact, anchor, key) }.getOrNull()
+        val anchors = anchorsFor(key)
+        if (anchors.isEmpty()) return null
+        return runCatching { RevocationList.verifyUnderAny(compact, anchors, key) }.getOrNull()
             ?.also { list -> synchronized(Companion) { verified[key] = list } }
     }
 
-    private fun anchorFor(catalog: String): TrustAnchor? =
+    private fun anchorsFor(catalog: String): List<TrustAnchor> =
         if (catalog == BundleVerifier.ENGINEHOST_CATALOG) {
-            EnginehostRoot.get(context)
+            EnginehostRoots.get(context)
         } else {
-            PluginOriginKeyStore(context).custom("https://github.com/$catalog")
-                ?.let { TrustAnchor.PinnedKey(it.publicKeySpki) }
+            listOfNotNull(
+                PluginOriginKeyStore(context).custom("https://github.com/$catalog")?.let { TrustAnchor.PinnedKey(it.publicKeySpki) },
+            )
         }
 
     private companion object {
@@ -107,7 +128,7 @@ class RevocationListStore(private val context: Context) {
 class BundleTrust(private val context: Context) : BundleTrustSources {
     private val revocations = RevocationListStore(context)
 
-    override val root: TrustAnchor.Root? get() = EnginehostRoot.get(context)
+    override val roots: List<TrustAnchor.Root> get() = EnginehostRoots.get(context)
 
     override fun customKey(origin: String): ByteArray? = PluginOriginKeyStore(context).custom(origin)?.publicKeySpki
 
@@ -118,9 +139,9 @@ class BundleTrust(private val context: Context) : BundleTrustSources {
 
     /**
      * Whether a signer verified earlier still holds without verifying again:
-     * nothing it rests on is revoked, and its anchor is still the one pinned
-     * (the Enginehost root for official and developer certificates, the person's key for
-     * their repository). A legacy signer never holds. Cheap enough for
+     * nothing it rests on is revoked, and its anchor is still pinned and in force
+     * (an Enginehost root for official and developer certificates, the person's key for
+     * their repository). A legacy signer never holds, nor one under a retired root. Cheap enough for
      * every read of a cached catalog.
      */
     fun stillTrusted(origin: String, signer: BundleSigner): Boolean {
@@ -130,7 +151,7 @@ class BundleTrust(private val context: Context) : BundleTrustSources {
             signer.format == 0 -> false
             signer.kind == SignerKind.CUSTOM ->
                 PluginOriginKeyStore(context).custom(origin)?.fingerprint == signer.anchorKeySha256
-            else -> root?.keySha256 == signer.anchorKeySha256
+            else -> roots.any { it.keySha256 == signer.anchorKeySha256 && it.inForceAt(now()) }
         }
     }
 }

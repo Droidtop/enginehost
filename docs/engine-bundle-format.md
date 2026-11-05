@@ -234,10 +234,13 @@ Droidtop CA              the owner's CA key; never pinned or used by any app
 droidtop and gamegrab have roots of their own, derived the same way; none of
 them is trusted here.
 
-- **The Enginehost signing root's public key** is the one anchor Enginehost
+- **The Enginehost signing root's public key** is the anchor Enginehost
   pins for its own cores: `app/src/main/assets/trust/enginehost-root.pub`, a
   PEM `PUBLIC KEY` block (SubjectPublicKeyInfo), byte for byte the file
   published at Droidtop/tracker `coordination/signing/roots/enginehost-root.pub`.
+  Which roots are pinned, and until when, is `trust/enginehost-roots.json`
+  ("Root rotation" below); the app (`EnginehostRoots`) and the scripts
+  (`bundle_jws.pinned_roots`) both read that one file.
   The anchor is the key, not the root's self-signed certificate (owner,
   2026-10-15: "The cert exists on the local machine. It will not be
   uploaded." / "Pubkeys will be committed, but allow the coordinator to do
@@ -345,6 +348,42 @@ workflow lost `ENGINEHOST_SIGNING_KEY_PEM`, `resign-engine-bundle.py` leaves an
 old `.sig` out of what it writes, and `verify-engine-bundle.py` requires the
 JWS and never trusts a `.sig` (Droidtop/tracker#768).
 
+### Root rotation (2026-11-04, Droidtop/tracker#876 and #550)
+
+The Enginehost signing root was replaced. The new root is SPKI sha256
+`9629576d51bf000c2a8df606c66c1366fa27481e2297dc4e1ab68a646b95f5f0`
+(`enginehost-root.pub`) and is trusted with no end. The old root is pinned
+beside it (`enginehost-root-2026-10.pub`) and trusted only until
+**2026-11-11T23:59:59Z**, the `notAfter` of its entry in `enginehost-roots.json`
+and the one constant of the rotation (owner: "Pin the old key for 7 days, then
+expire it. That should give time for users to organically move off the old
+cores"; and no re-audit: every release is re-signed as it is, `resign-engine-bundle.py --rekey`).
+
+- A root's end is the root's own term, not a certificate's validity period, which
+  is still never read. A chain that ends at the retired root is refused from the
+  second after the end, everywhere a chain is verified: a bundle install and
+  update, the check before each launch, a cached catalog's signer
+  (`BundleTrust.stillTrusted`), the plugins index's origin certificates
+  (`learnOfficial`) and revocation lists. The refusal says the build must be signed
+  again under the current root. The clock is injectable (`BundleTrustSources.now`,
+  the `now` of `CertificateSignatures`), so the tests stand on both sides of the instant.
+- The signer a bundle verified records which root it ended at (`anchorKeySha256`).
+- Enginehost's revocation list (`revocations.jws`, catalog `enginehost`) is accepted
+  under either root while both are in force and applies to chains ending at either:
+  one revoked set serves the catalog. After the old root ends, a list signed under it
+  verifies no longer (it revokes nothing, like no list), and nothing under that root
+  verifies either; the coordinator publishes one under the new root that revokes
+  the old leaves.
+- An approval carries from a build under the old root to a build of the same
+  origin under the new one, though its signing key is new by construction: both
+  signed in v1 as the same kind (official, or the developer's) under two roots this
+  build pins (`PluginTrustStore.shouldCarry`). A denial, another origin, or a new key
+  under the same root still ask, as before.
+- The old per-repository pins `official_plugin_root_key.json` and
+  `default_plugin_keys.json` no longer exist in this repository: they served only the
+  legacy raw-key signature, which no build accepts, and were deleted on 2026-10-29
+  (Droidtop/tracker#768; "Legacy signatures"). Nothing there was re-pinned.
+
 ### Revocation
 
 A signed list, carried where the catalog is, never CRL or OCSP (the device may
@@ -359,7 +398,8 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
 
 - **Enginehost's own list**, catalog `enginehost`, is `plugins/revocations.jws`
   in droidtop-platforms beside the plugins index, signed by the root's
-  revocation-list certificate. It applies to every root-anchored chain.
+  revocation-list certificate. It applies to every root-anchored chain, whichever
+  pinned root the chain or the list ends at ("Root rotation").
 - **An added repository's list**, catalog `<owner>/<repo>`, is `revocations.jws`
   on its core branch, under the key the person pinned; read at most once a
   day per repository (GitHub API allowance). It applies only to that origin.

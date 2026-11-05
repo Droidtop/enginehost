@@ -33,9 +33,14 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("bundle", type=Path)
     parser.add_argument("--root-key", type=Path,
-                        help="The Enginehost signing root's public key (PEM PUBLIC KEY) the JWS chain must end at; "
-                             "without it the archive's structure and payload are checked, not who signed it")
+                        help="One signing root's public key (PEM PUBLIC KEY) the JWS chain must end at, with no end of its own; "
+                             "without this or --trust-dir the archive's structure and payload are checked, not who signed it")
+    parser.add_argument("--trust-dir", type=Path,
+                        help="The app's trust directory (app/src/main/assets/trust): the chain must end at a root its "
+                             "enginehost-roots.json lists and that is in force now, as the app decides")
     args = parser.parse_args()
+    if args.root_key and args.trust_dir:
+        fail("give --root-key or --trust-dir, not both")
     if not args.bundle.is_file() or not args.bundle.name.endswith(".enginehost.tar.xz"):
         fail("bundle must be an existing *.enginehost.tar.xz file")
 
@@ -77,8 +82,12 @@ def main() -> None:
 
         fingerprint = None
         jws = read(jws_member).decode("ascii").strip()
-        if args.root_key:
-            root = bundle_jws.pem_public_key(args.root_key.read_text(encoding="utf-8"))
+        if args.root_key or args.trust_dir:
+            try:
+                root = (bundle_jws.pem_public_key(args.root_key.read_text(encoding="utf-8")) if args.root_key
+                        else bundle_jws.pinned_roots(args.trust_dir))
+            except (bundle_jws.Refused, OSError, ValueError, KeyError) as error:
+                fail("could not read the pinned root: " + str(error))
             try:
                 named = bundle_jws.verify(jws, "plugin", root, manifest_bytes)
             except bundle_jws.Refused as error:

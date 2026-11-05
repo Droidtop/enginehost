@@ -1,0 +1,6 @@
+{
+  "roots": [
+    { "key": "enginehost-root.pub" },
+    { "key": "enginehost-root-2026-10.pub", "notAfter": "2026-11-11T23:59:59Z" }
+  ]
+}
