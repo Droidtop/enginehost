@@ -381,14 +381,14 @@ class PluginTrustActivity : EnginehostActivity() {
         val sheet = Sheet(this)
             .title(PluginVersions.display(plugin.info.pluginVersion))
             .message(
-                listOf(
+                (listOf(
                     plugin.bundleId,
                     "${getString(R.string.origin_label)}: $origin",
                     "${getString(R.string.signer_label)}: ${plugin.signerIdentity.ifBlank { "-" }}",
                 ) + listOfNotNull(
                     // #887: the person is told the signing key changed; a notice, never a gate.
                     trust.keyChange(plugin)?.let { (old, new) -> getString(R.string.signing_key_changed, old.take(8), new.take(8)) },
-                ).joinToString("\n"),
+                )).joinToString("\n"),
             )
         if (!facts.legacyRefused && facts.state != PluginTrustState.DENIED && plugin.signerIdentity.isNotBlank()) {
             sheet.choice(R.string.deny, Sheet.Tone.DANGER) { trust.deny(plugin); render() }
