@@ -938,3 +938,24 @@ organically move off the old cores." He also decided not to re-audit: every rele
   commit that carries this change to accept the new root.
 - `official_plugin_root_key.json` and `default_plugin_keys.json` are not pinned here any more (legacy raw-key
   signature, deleted 2026-10-29); nothing to re-pin.
+
+## A superseded key points at the key that replaced it (decided 2026-11-05, Droidtop/tracker#887)
+
+The owner: "We don't need dates or a chain. Every key is superceded by the current key. It's a simple check:
+if it's marked as "superceded", then trust the key it's superceded by, which'll be denoted. We still tell the
+user the key is changing" and "the place that provides the "superceded" notice has to be the same source the
+plugin came from for it to be trusted".
+
+- **Where.** Each root entry in `app/src/main/assets/trust/enginehost-roots.json` may carry
+  `"superseded": [{"keySha256": "<old root>", "by": "<current root>"}]`. It ships inside the app, under the
+  app's signature. `EnginehostRoots.superseded` reads it, and `scripts/bundle_jws.py` ignores it.
+- **What it does.** A core approved under the old root keeps that approval for an update signed under the
+  root the marker names (`PluginTrustStore.shouldCarry`), even after the old root's file is no longer
+  pinned. Whatever the old root signed stays installed and running, as before. Revocation stays separate.
+- **Only for its own source.** This list speaks for what the Enginehost roots vouch for: official and
+  developer cores. It never moves a repository the person added.
+- **Repositories, not yet.** A repository's `enginehost-public-key.json` is unsigned, so a marker there would
+  not be covered by any signature the person already trusts. Anyone able to change that file could swap the
+  pinned key. Repository markers wait for that document to be signed by the key it replaces.
+- **The person is told.** A carried key change is recorded per core, and its details say "Signing key
+  changed from … to …". It is a notice, not a review gate.

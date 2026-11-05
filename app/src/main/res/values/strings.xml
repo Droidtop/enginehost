@@ -184,6 +184,7 @@
     <string name="origin_verified">%1$s (verified)</string>
     <string name="origin_verified_third_party">%1$s (verified; third party, maintained by %2$s)</string>
     <string name="signer_label">Signer</string>
+    <string name="signing_key_changed">Signing key changed from %1$s… to %2$s…: the old key was marked as replaced, so your approval carried over.</string>
     <string name="ultimate_warning">Signed with the primary developer\'s own key. Not a production release; if that is not you, do not use this build.</string>
     <string name="approve">Approve</string>
     <string name="deny">Deny</string>

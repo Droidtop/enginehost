@@ -175,4 +175,46 @@ class KeyRotationTest {
         val sameRootNewKey = plugin(signedUnder(newPki, newRoot))
         assertFalse(PluginTrustStore.shouldCarry("approved", after, sameRootNewKey, pinned))
     }
+
+    @Test
+    fun `a superseded marker carries an approval to the key it names, once the old root is no longer pinned`() {
+        val before = plugin(signedUnder(oldPki, oldRoot))
+        val after = plugin(signedUnder(newPki, newRoot))
+        val onlyNew = setOf(newRoot.keySha256)
+        val marker = mapOf(oldRoot.keySha256.uppercase() to newRoot.keySha256.uppercase())
+        // The old root's file can go: the marker alone links the two (Droidtop/tracker#887).
+        assertFalse(PluginTrustStore.shouldCarry("approved", before, after, onlyNew))
+        assertTrue(PluginTrustStore.shouldCarry("approved", before, after, onlyNew, marker))
+        // Only the direction it names, only an approval, only the same origin.
+        assertFalse(PluginTrustStore.shouldCarry("approved", after, before, onlyNew, marker))
+        assertFalse(PluginTrustStore.shouldCarry(null, before, after, onlyNew, marker))
+        assertFalse(PluginTrustStore.shouldCarry("approved", before, plugin(after.signer!!, "https://github.com/droidtop/other"), onlyNew, marker))
+        // A marker naming another key does not link these two.
+        assertFalse(PluginTrustStore.shouldCarry("approved", before, after, onlyNew, mapOf(oldRoot.keySha256.uppercase() to "AB".repeat(32))))
+        // Never for a repository the person added: the root set does not speak for it.
+        val custom = { s: BundleSigner -> plugin(s.copy(kind = SignerKind.CUSTOM)) }
+        assertFalse(PluginTrustStore.shouldCarry("approved", custom(before.signer!!), custom(after.signer!!), onlyNew, marker))
+    }
+
+    @Test
+    fun `the pinned list reads its superseded markers`() {
+        val old = oldRoot.keySha256
+        val new = newRoot.keySha256
+        val markers = EnginehostRoots.parseSuperseded(
+            """{"roots":[{"key":"enginehost-root.pub","superseded":[
+               {"keySha256":"${old.lowercase()}","by":"${new.lowercase()}"},
+               {"keySha256":"not a fingerprint","by":"$new"},
+               {"keySha256":"$new","by":"$new"}]},
+              {"key":"enginehost-root-2026-10.pub","notAfter":"$EXPIRY"}]}""",
+        )
+        assertEquals(mapOf(old.uppercase() to new.uppercase()), markers)
+        assertEquals(emptyMap<String, String>(), EnginehostRoots.parseSuperseded("""{"roots":[{"key":"enginehost-root.pub"}]}"""))
+        // The roots themselves read as before, the marker ignored by the root parser.
+        val keys = mapOf("enginehost-root.pub" to pem(newRoot), "enginehost-root-2026-10.pub" to pem(oldRoot))
+        val roots = EnginehostRoots.parse(
+            """{"roots":[{"key":"enginehost-root.pub","superseded":[{"keySha256":"$old","by":"$new"}]},
+              {"key":"enginehost-root-2026-10.pub","notAfter":"$EXPIRY"}]}""",
+        ) { keys.getValue(it) }
+        assertEquals(listOf(new, old), roots.map { it.keySha256 })
+    }
 }
