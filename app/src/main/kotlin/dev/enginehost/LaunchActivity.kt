@@ -439,7 +439,11 @@ class LaunchActivity : EnginehostActivity() {
             visibility = if (config == null) View.GONE else View.VISIBLE
         }
         findViewById<TextView>(R.id.runtimeLine).apply {
-            text = plan?.let { getString(R.string.launch_runtime_line, it.resolved.plugin.info.pluginVersion.toString(), it.resolved.capability.runtimeVersion.toString()) }
+            text = plan?.let {
+                val line = getString(R.string.launch_runtime_line, it.resolved.plugin.info.pluginVersion.toString(), it.resolved.capability.runtimeVersion.toString())
+                // #855: every line of a core had the same build string; the source says which is installed.
+                it.resolved.plugin.source?.describe()?.let { source -> getString(R.string.launch_runtime_source, line, source) } ?: line
+            }
             visibility = if (plan == null) View.GONE else View.VISIBLE
         }
         val icon = findViewById<ImageView>(R.id.gameIcon)

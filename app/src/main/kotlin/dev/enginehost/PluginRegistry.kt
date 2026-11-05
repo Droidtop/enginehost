@@ -82,6 +82,8 @@ data class InstalledPlugin(
      * and does not start ([legacySigned]).
      */
     val signer: BundleSigner? = null,
+    /** Which line, commit and plugin-core it was built from, when its manifest says ([BundleSource]). */
+    val source: BundleSource? = null,
 ) {
     /** Compatibility alias while callers migrate from package terminology. */
     val packageName: String get() = bundleId
@@ -344,6 +346,7 @@ object PluginRegistry {
             component = component,
             license = ComponentManifestReader.license(json.optJSONObject("license")),
             signer = json.optJSONObject("signer")?.let(BundleSigner::fromJson),
+            source = BundleSource.parse(json.optJSONObject("source")),
         )
     }
 
