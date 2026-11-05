@@ -379,14 +379,16 @@ cores"; and no re-audit: every release is re-signed as it is, `resign-engine-bun
   signed in v1 as the same kind (official, or the developer's) under two roots this
   build pins (`PluginTrustStore.shouldCarry`). A denial, another origin, or a new key
   under the same root still ask, as before.
-- **Re-keying a release.** `scripts/resign-engine-bundle.py --rekey` replaces the
-  `enginehost-bundle.jws` of a v1-signed bundle with one made by the repository's new
-  certificate key and chain, in the same place in the archive: the manifest bytes and
-  every other member are written back unchanged, and the envelope's entry gains the new
-  `jws` under the same `manifestBase64`. `resign-engine-release.yml` with `rekey: true`
-  verifies the result against the new root alone and publishes it as `<tag>-rekeyed`
-  beside the original, which stays, with the original's prerelease and latest flags; a
-  release with no bundle asset is left alone and the run says so.
+- **Re-keying a release** (owner: "Yes, replace each release"). `scripts/resign-engine-bundle.py
+  --rekey` replaces the `enginehost-bundle.jws` of a v1-signed bundle with one made by the
+  repository's new certificate key and chain, in the same place in the archive: the manifest
+  bytes and every other member are written back unchanged, and the envelope's entry gains the
+  new `jws` under the same `manifestBase64`. `resign-engine-release.yml` with `rekey: true` does
+  it to each named release (a list of tags, or `all`) in place, same tag and flags: it uploads
+  the bundle, the envelope and `enginehost-signing-certificate.pem` over the release's assets,
+  deletes the legacy `enginehost-public-key.json`, then downloads the result and verifies it to
+  the new root alone before the next release. A release with no bundle, or with no v1 signature,
+  is skipped and the run says so.
 - The old per-repository pins `official_plugin_root_key.json` and
   `default_plugin_keys.json` no longer exist in this repository: they served only the
   legacy raw-key signature, which no build accepts, and were deleted on 2026-10-29
