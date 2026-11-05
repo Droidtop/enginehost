@@ -386,6 +386,7 @@ class PluginTrustActivity : EnginehostActivity() {
                     "${getString(R.string.origin_label)}: $origin",
                     "${getString(R.string.signer_label)}: ${plugin.signerIdentity.ifBlank { "-" }}",
                 ) + listOfNotNull(
+                    plugin.source?.describe()?.let { "${getString(R.string.built_from_label)}: $it" },
                     // #887: the person is told the signing key changed; a notice, never a gate.
                     trust.keyChange(plugin)?.let { (old, new) -> getString(R.string.signing_key_changed, old.take(8), new.take(8)) },
                 )).joinToString("\n"),
