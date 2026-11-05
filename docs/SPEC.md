@@ -635,7 +635,8 @@ what the pad reports or as the person sets it, and every control surface draws t
 glyph for the button that does the job. `PadNames` stays the text for keyboard keys and for
 screen readers.
 The family comes from the pad's USB or Bluetooth id through SDL's controller list
-(`PadFamilies`, `SdlControllerIds`, third_party/sdl_controller_list), and the profile page's
+(`PadFamilies` over Droidtop/lib-input's, the submodule `vendor/lib-input`, which droidtop uses too:
+one model and one generated table instead of a copy in each; Droidtop/tracker#867 D4), and the profile page's
 "Button labels" sets it for a pad the list does not know or gets wrong (as the pad says, Xbox,
 PlayStation, Nintendo). A pad nobody has said anything about is drawn as Xbox, and the page says
 so. Glyphs are drawn in the text colour (`PadGlyphDrawable`), and each sits over its name in the

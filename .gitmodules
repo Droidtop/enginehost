@@ -7,3 +7,9 @@
 [submodule "vendor/droidtop-shared"]
 	path = vendor/droidtop-shared
 	url = https://github.com/Droidtop/droidtop-shared
+[submodule "vendor/lib-input"]
+	path = vendor/lib-input
+	url = https://github.com/Droidtop/lib-input
+[submodule "vendor/lib-plugins"]
+	path = vendor/lib-plugins
+	url = https://github.com/Droidtop/lib-plugins

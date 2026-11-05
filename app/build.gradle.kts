@@ -89,6 +89,11 @@ android {
     // One GitHub client for both apps: which requests may carry the token, redirects decided per hop, releases, downloads
     // (Droidtop/tracker#194, #195; GithubClients).
     sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/net/src/main/kotlin")
+    // The shared libraries Enginehost takes as submodules (Droidtop/tracker#867, each "versioned and pinned by each app"),
+    // compiled in as source like droidtop-shared: lib-input's pad model (PadFamily, PadFamilies.classify, SDL's ids) and
+    // lib-plugins' plugin-host AIDL (dev.droidtop.pluginhost), which this app used to carry its own copies of.
+    sourceSets.getByName("main").java.srcDir("../vendor/lib-input/pads/src/main/kotlin")
+    sourceSets.getByName("main").aidl.srcDir("../vendor/lib-plugins/android/aidl")
 }
 
 // --- The bundled engine registry is a SNAPSHOT of droidtop-platforms -----
