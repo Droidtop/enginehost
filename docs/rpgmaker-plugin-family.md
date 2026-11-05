@@ -23,9 +23,9 @@ not share the portable data/runtime boundary of the generations above. It must
 not be advertised until a credible in-place native host exists.
 
 Each repository is independently installable and uses the standard engine-fork
-branch model where an upstream exists:
+branch model where an upstream exists (docs/plugin-lines.md has the whole of it):
 
-- the upstream-facing branch follows the engine project;
+- `upstream-sync` follows the engine project (docs/plugin-lines.md, "Branches");
 - `plugin-core` is an orphan branch that contains only the portable
   Android/enginehost changeset: `enginehost/` metadata and integration, the
   core workflow, the repository key document, and the wrapper's hooks into
