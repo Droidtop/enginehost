@@ -15,7 +15,7 @@ import java.util.Base64
  * anchor and never past it. The anchor is the pinned Enginehost signing
  * root's public key for Enginehost's own plugins, or the key a person pinned for a
  * repository they added. Nothing here touches Android: it is the JDK's
- * shared verifier (vendor/droidtop-shared) and org.json for the revocation lists, so plain JVM tests
+ * shared verifier (vendor/lib-net) and org.json for the revocation lists, so plain JVM tests
  * exercise exactly what a device runs.
  */
 
@@ -137,7 +137,7 @@ class VerifiedJws(
 }
 
 /**
- * Enginehost's names for the shared verifier (vendor/droidtop-shared, `:trust`, `ChainSignature`): the same JWS-with-`x5c`
+ * Enginehost's names for the shared verifier (vendor/lib-net, `:trust`, `ChainSignature`): the same JWS-with-`x5c`
  * format droidtop checks, verified up to one anchor and no further. This object keeps Enginehost's types (a
  * [TrustAnchor], a [RevokedSet], a [VerifiedJws]) and its convention that a signature which does not verify throws
  * [IllegalArgumentException] with the reason; the checks themselves are the library's.

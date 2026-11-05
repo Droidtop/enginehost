@@ -4,7 +4,7 @@ import android.content.Context
 import dev.droidtop.shared.net.GitHubClient
 
 /**
- * The one way Enginehost talks to GitHub: droidtop-shared's `:net` (Droidtop/tracker#194, #195). It decides which requests
+ * The one way Enginehost talks to GitHub: lib-net's `:net` (Droidtop/tracker#194, #195). It decides which requests
  * may carry the person's token (the three GitHub hosts, exactly; never the pre-signed address a release asset redirects to,
  * which refuses a request that carries both) and follows redirects hop by hop, https only.
  *

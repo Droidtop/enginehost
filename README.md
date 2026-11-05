@@ -132,7 +132,7 @@ No. See the core table for what each core covers today.
 | Library | What Enginehost uses it for | Licence |
 |---|---|---|
 | [Fibrewall](https://github.com/bi0shacker001/fibrewall) | The runtime process's lockdown and network filter: seccomp plus a syscall broker (`vendor/sandbox`) | GPL-3.0 |
-| [droidtop-shared](https://github.com/Droidtop/droidtop-shared) | The launch contract's names and the shared signature verifier (`vendor/droidtop-shared`) | GPL-3.0 |
+| [lib-net](https://github.com/Droidtop/lib-net) | The launch contract's names and the shared signature verifier (`vendor/lib-net`) | GPL-3.0 |
 | [droidtop-platforms](https://github.com/Droidtop/droidtop-platforms) | The engines database that maps games to cores (`vendor/droidtop-platforms`) | GPL-3.0 |
 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 1.13.8 | Reading games aloud with on-device voices | Apache-2.0 |
 | [SDL](https://github.com/libsdl-org/SDL) controller list | Which glyphs a pad's face buttons print | zlib |

@@ -8,7 +8,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The contract with droidtop is held once, in droidtop-shared's `:launch-contract`
+ * The contract with droidtop is held once, in lib-net's `:launch-contract`
  * (Droidtop/tracker#204). What cannot import a Kotlin constant -- the manifest and the prose in
  * docs/contract.md -- is checked against it here, so a rename on either side fails a test instead of
  * a launch.

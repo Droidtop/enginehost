@@ -4,6 +4,6 @@
 [submodule "vendor/sandbox"]
 	path = vendor/sandbox
 	url = https://github.com/bi0shacker001/fibrewall.git
-[submodule "vendor/droidtop-shared"]
-	path = vendor/droidtop-shared
-	url = https://github.com/Droidtop/droidtop-shared
+[submodule "vendor/lib-net"]
+	path = vendor/lib-net
+	url = https://github.com/Droidtop/lib-net

@@ -393,7 +393,7 @@ object EngineBundleInstaller {
             orderedPaths = declared.files.map { it.path }
         }
 
-        // BundleTar (vendor/droidtop-shared, :trust) refuses an unsafe path, a link or special file, a repeated path and
+        // BundleTar (vendor/lib-net, :trust) refuses an unsafe path, a link or special file, a repeated path and
         // an xz stream that asks for too much memory. The signed manifest bounds the size and count of the files, so no
         // cap of its own is set here.
         val limits = BundleTar.Limits(maxEntryBytes = Long.MAX_VALUE, maxEntries = Int.MAX_VALUE, xzMemoryKiB = XZ_MEMORY_LIMIT_KIB)

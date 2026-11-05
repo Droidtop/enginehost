@@ -4,7 +4,7 @@ import dev.droidtop.shared.version.Version
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** What stays in Enginehost of the version tests: the display of a plugin version. The ordering tests run in droidtop-shared. */
+/** What stays in Enginehost of the version tests: the display of a plugin version. The ordering tests run in lib-net. */
 class PluginVersionsTest {
     private fun v(raw: String) = Version.parse(raw)
 

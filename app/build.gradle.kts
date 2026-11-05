@@ -79,16 +79,16 @@ android {
 
     sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/platformDatabase/assets"))
 
-    // The version and trust code droidtop and Enginehost share (vendor/droidtop-shared, Droidtop/droidtop-shared, pinned as a
+    // The version and trust code droidtop and Enginehost share (vendor/lib-net, Droidtop/lib-net, pinned as a
     // submodule): compiled in as source, so neither app depends on the other and no Kotlin plugin version is shared
     // (docs/engine-bundle-format.md "Shared trust code").
-    sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/version/src/main/kotlin")
-    sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/trust/src/main/kotlin")
+    sourceSets.getByName("main").java.srcDir("../vendor/lib-net/version/src/main/kotlin")
+    sourceSets.getByName("main").java.srcDir("../vendor/lib-net/trust/src/main/kotlin")
     // The names droidtop and Enginehost agree on to start each other (docs/contract.md, Droidtop/tracker#204).
-    sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/launch-contract/src/main/kotlin")
+    sourceSets.getByName("main").java.srcDir("../vendor/lib-net/launch-contract/src/main/kotlin")
     // One GitHub client for both apps: which requests may carry the token, redirects decided per hop, releases, downloads
     // (Droidtop/tracker#194, #195; GithubClients).
-    sourceSets.getByName("main").java.srcDir("../vendor/droidtop-shared/net/src/main/kotlin")
+    sourceSets.getByName("main").java.srcDir("../vendor/lib-net/net/src/main/kotlin")
 }
 
 // --- The bundled engine registry is a SNAPSHOT of droidtop-platforms -----

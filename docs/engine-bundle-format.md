@@ -205,8 +205,9 @@ tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
 ### Shared trust code (Droidtop/tracker#191 and #193)
 
 The verifier and the container reader are not Enginehost's own code. droidtop and Enginehost each vendor
-`Droidtop/droidtop-shared` and neither depends on the other: Enginehost pins it as the submodule
-`vendor/droidtop-shared` and compiles its `version` and `trust` sources into the app (`app/build.gradle.kts`).
+`Droidtop/lib-net` (droidtop-shared until 2026-11-05, when it moved there with its history as one of the shared
+libraries of Droidtop/tracker#867) and neither depends on the other: Enginehost pins it as the submodule
+`vendor/lib-net` and compiles its `version` and `trust` sources into the app (`app/build.gradle.kts`).
 `CertificateSignatures` is Enginehost's names and types (a `TrustAnchor`, a `RevokedSet`, a `VerifiedJws`, and the
 convention that a signature which does not verify throws `IllegalArgumentException` with the reason) over the library's
 `ChainSignature`; `Version`, `VersionSeries` and `VersionConstraint` are the library's; the archive reader
@@ -221,7 +222,7 @@ app gained for it. The older root-certified origin-key document (`OriginKeyDocum
 **Shared libraries build and test Enginehost (owner, 2026-11-04, Droidtop/tracker#867 D2).** The code Enginehost
 shares with droidtop, Pythia and droidtop-agent moves into library repositories that belong to no program, each
 "versioned and pinned by each app; each repo's CI builds and tests every app that uses it". Enginehost takes a
-library as a submodule under `vendor/`, as it takes droidtop-shared. A library's CI calls
+library as a submodule under `vendor/`, as it takes lib-net. A library's CI calls
 `.github/workflows/library-check.yml` with its submodule path and the commit under test; that workflow checks out
 Enginehost's `main`, moves only that submodule to the commit, and runs `build.yml`'s unit tests and the debug APK,
 unsigned by the release key (a library's CI holds no Enginehost secret). Started by hand it builds the branch it is

@@ -134,7 +134,7 @@ never logged or placed in a URL. Without a token the behavior is unchanged: unau
 with today's rate limits.
 
 **One client sends it (2026-10-29, Droidtop/tracker#195).** Every GitHub request goes through
-droidtop-shared's `:net` (`GitHubClient`, via `GithubClients`), the same code droidtop uses, with one rule for
+lib-net's `:net` (`GitHubClient`, via `GithubClients`), the same code droidtop uses, with one rule for
 the token: it is attached only to https requests for `api.github.com`, `github.com` and
 `raw.githubusercontent.com`, matched exactly. Redirects are followed one hop at a time (https only, at most
 five) and the header is decided again at each hop. This changes two things from the earlier rule, which listed
