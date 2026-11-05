@@ -2206,6 +2206,20 @@ call with the same flags (none), so cores stay without network. The
 library's own suite passed at both commits on Linux x86_64, every one of
 the 120 checks at the old pin unchanged at the new one, with 67 new checks.
 
+The pin moved to `0c599fc` (library 0.4.0) on 2026-11-05 for its parent cache
+(Droidtop/tracker#791, #855). On the console (Retroid Pocket 5), every `stat` a locked-down
+Ren'Py made on a game on the SD card cost about 18 ms. The broker resolved each path one
+`readlink` per component, through Android's FUSE layer. Love & Sex: Second Base made 8,560 of
+them during init (157 s of its 329 s). The cache keeps what each folder resolved to for 2
+seconds and checks only the last name, and a stale entry can only refuse. Everything else
+between the two pins is opt-in, and Enginehost asks for none of it:
+- network filtering (`SBX_LOCK_NET_FILTER`);
+- bounded zones;
+- `sbx_spawn_confined`;
+- `sbx_list_stat`.
+The library's suite passed at the new pin on Linux x86_64 (543 checks). Its benchmark puts a
+brokered `stat` at about 47 µs there; the console's cost is the FUSE walk the cache removes.
+
 - `sbx_lockdown()` installs a seccomp filter on every thread (TSYNC; a
   lockdown that misses a thread fails instead). Every system call that names
   a path traps; the SIGSYS handler sends it over a `SOCK_SEQPACKET` socket,
