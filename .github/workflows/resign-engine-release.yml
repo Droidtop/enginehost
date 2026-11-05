@@ -24,8 +24,9 @@ name: Re-sign a stable engine release
 # repository's new certificate. enginehost-public-key.json, the legacy key document of the
 # old seed that no official origin uses any more, is deleted from the release. Each release is
 # re-downloaded and verified against the new root alone before the next one is touched. A
-# release with no bundle, a draft, or a bundle with no v1 signature is skipped and the run
-# says so. The job that holds the key signs everything first and verifies it; the job that
+# bundle that carries only the legacy signature (releases from before format v1) gets a v1
+# signature added under the new key, in the same release. A release with no bundle, or a
+# draft, is skipped and the run says so. The job that holds the key signs everything first and verifies it; the job that
 # writes the releases never sees the key. Dispatch the caller on the branch holding the
 # repository's new committed certificate (ci/key-rotation-cert).
 #
@@ -351,20 +352,20 @@ jobs:
                   gh api "repos/$GITHUB_REPOSITORY/releases/assets/$id" -H 'Accept: application/octet-stream' > "source/$tag/$name" ;;
               esac
             done < "$RUNNER_TEMP/assets.txt"
-            skip=""
-            for bundle in source/$tag/*.enginehost.tar.xz; do
-              [ "$(tar -tJf "$bundle" | sed -n 2p)" = enginehost-bundle.jws ] || skip="$bundle"
-            done
-            if [ -n "$skip" ]; then
-              echo "::warning::$tag: $(basename "$skip") carries no v1 signature, so there is none to re-key; the release is left as it is (it needs a re-sign without rekey)."
-              continue
-            fi
             envelope="$(find "source/$tag" \( -name enginehost-release.json -o -name enginehost-component.json \) -print -quit)"
             for bundle in source/$tag/*.enginehost.tar.xz; do
               args=()
               [ -z "$envelope" ] || args=(--release-envelope "$envelope")
+              # A bundle signed in v1 has its signature replaced (--rekey). One that carries only the
+              # legacy signature, as releases from before format v1 do, gets a v1 signature added under
+              # the new key, in place like the rest (owner: "Yes, replace each release").
+              mode=(--rekey)
+              if [ "$(tar -tJf "$bundle" | sed -n 2p)" != enginehost-bundle.jws ]; then
+                mode=()
+                echo "::notice::$tag: $(basename "$bundle") carries no v1 signature; adding one under the new key."
+              fi
               python3 enginehost-tooling/scripts/resign-engine-bundle.py "$bundle" \
-                --certificate-key "$key" --certificate-chain "$CERTIFICATE" --output "output/$tag" --rekey "${args[@]}"
+                --certificate-key "$key" --certificate-chain "$CERTIFICATE" --output "output/$tag" "${mode[@]}" "${args[@]}"
               [ -z "$envelope" ] || envelope="output/$tag/$(basename "$envelope")"
             done
             for bundle in output/$tag/*.enginehost.tar.xz; do

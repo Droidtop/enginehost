@@ -387,8 +387,9 @@ cores"; and no re-audit: every release is re-signed as it is, `resign-engine-bun
   it to each named release (a list of tags, or `all`) in place, same tag and flags: it uploads
   the bundle, the envelope and `enginehost-signing-certificate.pem` over the release's assets,
   deletes the legacy `enginehost-public-key.json`, then downloads the result and verifies it to
-  the new root alone before the next release. A release with no bundle, or with no v1 signature,
-  is skipped and the run says so.
+  the new root alone before the next release. A bundle that carries only the legacy signature
+  (released before format v1) gets a v1 signature added under the new key instead, in the same
+  release. A release with no bundle is skipped and the run says so.
 - The old per-repository pins `official_plugin_root_key.json` and
   `default_plugin_keys.json` no longer exist in this repository: they served only the
   legacy raw-key signature, which no build accepts, and were deleted on 2026-10-29
