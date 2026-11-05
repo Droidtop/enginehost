@@ -930,9 +930,10 @@ organically move off the old cores." He also decided not to re-audit: every rele
 - Enginehost's revocation list is accepted under either root while both are in force and applies to chains ending at
   either.
 - An approval carries from a build under the old root to a build of the same origin under the new one.
-- Released builds are re-signed under the new root without a rebuild: `resign-engine-bundle.py --rekey`, run by
-  `resign-engine-release.yml` with `rekey: true`, publishes `<tag>-rekeyed` beside the original, which stays. Details in
-  docs/engine-bundle-format.md "Root rotation".
+- Released builds are re-signed under the new root without a rebuild, and each release is replaced in place (owner:
+  "Yes, replace each release"): `resign-engine-bundle.py --rekey`, run by `resign-engine-release.yml` with `rekey: true`,
+  uploads the re-keyed bundle, envelope and certificate over the same release's assets (same tag, same flags) and
+  verifies the download to the new root. Details in docs/engine-bundle-format.md "Root rotation".
 - droidtop-platforms' plugins index reads this tooling and root list from a pinned Enginehost commit; it moves to the
   commit that carries this change to accept the new root.
 - `official_plugin_root_key.json` and `default_plugin_keys.json` are not pinned here any more (legacy raw-key

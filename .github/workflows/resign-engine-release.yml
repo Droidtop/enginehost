@@ -15,22 +15,27 @@ name: Re-sign a stable engine release
 # published code byte for byte, and the manifest and signature are new
 # (owner, 2026-10-30, Droidtop/tracker#646).
 #
-# With rekey (signing-root rotation 2026-11-04, Droidtop/tracker#876 and #550), a release
-# that is already v1-signed, stable or not, is published again as <source-tag>-rekeyed
-# with its signature replaced by one made by the repository's new certificate key and
-# chain, under the new Enginehost root: the manifest and every other file are exactly
-# the published ones (the owner decided not to re-audit), the original stays (permanent
-# version history), the prerelease and latest flags are the original's, and the new
-# signature is verified against the new root alone before anything is published. A
-# release with no bundle asset is left alone and the run says so.
+# With rekey (signing-root rotation 2026-11-04, Droidtop/tracker#876 and #550; owner: "Yes,
+# replace each release"), no new release is made: each named release (source-tag is a list
+# of tags separated by spaces or commas, or "all") has its signed assets replaced in place,
+# same tag, same flags, with `gh release upload --clobber`: the re-keyed bundle (only its
+# enginehost-bundle.jws differs, the manifest and every other file are the published ones),
+# the release envelope with the new jws, and enginehost-signing-certificate.pem, the
+# repository's new certificate. enginehost-public-key.json, the legacy key document of the
+# old seed that no official origin uses any more, is deleted from the release. Each release is
+# re-downloaded and verified against the new root alone before the next one is touched. A
+# release with no bundle, a draft, or a bundle with no v1 signature is skipped and the run
+# says so. The job that holds the key signs everything first and verifies it; the job that
+# writes the releases never sees the key. Dispatch the caller on the branch holding the
+# repository's new committed certificate (ci/key-rotation-cert).
 #
 # A core repository calls it from a dispatch-only workflow, pinned by commit:
 #
 #   on:
 #     workflow_dispatch:
 #       inputs:
-#         source-tag: { description: "The release to re-sign (a stable one), or to re-key", required: true }
-#         rekey: { description: "Re-key a v1-signed release under the new root", type: boolean, default: false }
+#         source-tag: { description: "The stable release to re-sign; with rekey, tags separated by spaces, or all", required: true }
+#         rekey: { description: "Replace the v1 signature of each named release in place, under the new root", type: boolean, default: false }
 #   jobs:
 #     resign:
 #       permissions:
@@ -55,13 +60,13 @@ on:
         type: string
         required: true
       source-tag:
-        description: The published stable release whose bundle is re-signed.
+        description: >-
+          The published stable release whose bundle is re-signed. With rekey: the tags of
+          the releases to re-key in place, separated by spaces or commas, or "all".
         type: string
         required: true
       tag:
-        description: >-
-          Tag of the new release (default <source-tag>-resigned, <source-tag>-64-bit
-          with only-64-bit, or <source-tag>-rekeyed with rekey).
+        description: Tag of the new stable release (default <source-tag>-resigned, or <source-tag>-64-bit with only-64-bit).
         type: string
         default: ""
       only-64-bit:
@@ -74,16 +79,16 @@ on:
         default: ""
       rekey:
         description: >-
-          Replace the v1 signature of an already v1-signed release with one by the
-          repository's new certificate (under the new Enginehost root) and publish it as
-          <source-tag>-rekeyed beside the original, with the original's prerelease and
-          latest flags. Nothing but the signature changes. Does not combine with only-64-bit.
+          Replace, in each named release, the v1 signature with one by the repository's new
+          certificate under the new Enginehost root, uploading over the release's assets
+          (same tag, same flags). Nothing but the signature changes. Does not combine with
+          only-64-bit or tag.
         type: boolean
         default: false
       repository-certificate:
         description: >-
-          The repository's committed signing certificate, relative to its root. For rekey it must be the
-          new one (issued under the new root), committed before the run; the key secret must be its key.
+          The repository's committed signing certificate, relative to its root, as checked out
+          on the ref the caller runs on. For rekey it is the new one (issued under the new root).
         type: string
         default: enginehost-signing-certificate.pem
     secrets:
@@ -99,9 +104,8 @@ permissions:
 
 jobs:
   resign:
+    if: ${{ !inputs.rekey }}
     runs-on: ubuntu-latest
-    outputs:
-      has-bundle: ${{ steps.download.outputs.has-bundle }}
     steps:
       - name: Check the inputs
         env:
@@ -110,10 +114,8 @@ jobs:
           TAG: ${{ inputs.tag }}
           CERTIFICATE: ${{ inputs.repository-certificate }}
           ONLY_64_BIT: ${{ inputs.only-64-bit }}
-          REKEY: ${{ inputs.rekey }}
         run: |
           set -euo pipefail
-          [ "$REKEY" != true ] || [ -z "$ONLY_64_BIT" ] || { echo "rekey and only-64-bit do not combine" >&2; exit 1; }
           [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA, got '$TOOLING_SHA'" >&2; exit 1; }
           [[ "$SOURCE_TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad source tag '$SOURCE_TAG'" >&2; exit 1; }
           [[ -z "$TAG" || "$TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad tag '$TAG'" >&2; exit 1; }
@@ -136,31 +138,17 @@ jobs:
           sparse-checkout: |
             scripts
             app/src/main/assets/trust
-      - name: Download the release
-        id: download
+      - name: Download the stable release
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_TAG: ${{ inputs.source-tag }}
-          REKEY: ${{ inputs.rekey }}
         run: |
           set -euo pipefail
           release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$SOURCE_TAG")"
-          if [ "$REKEY" = true ]; then
-            # Any published release: its own flags are carried to the -rekeyed one.
-            printf '%s' "$release" | python3 -c 'import json,sys; sys.exit(0 if not json.load(sys.stdin)["draft"] else 1)' \
-              || { echo "::error::$SOURCE_TAG is a draft" >&2; exit 1; }
-            if ! printf '%s' "$release" | python3 -c 'import json,sys; sys.exit(0 if any(a["name"].endswith(".enginehost.tar.xz") for a in json.load(sys.stdin)["assets"]) else 1)'; then
-              echo "::notice::$SOURCE_TAG carries no bundle asset (*.enginehost.tar.xz); nothing to re-key, nothing published."
-              echo "has-bundle=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          else
-            # Only a published stable release: a draft or a pre-release is a
-            # testing or unstable build, which is rebuilt, not re-signed.
-            printf '%s' "$release" | python3 -c 'import json,sys; r=json.load(sys.stdin); sys.exit(0 if not r["draft"] and not r["prerelease"] else 1)' \
-              || { echo "::error::$SOURCE_TAG is not a published stable release" >&2; exit 1; }
-          fi
-          echo "has-bundle=true" >> "$GITHUB_OUTPUT"
+          # Only a published stable release: a draft or a pre-release is a
+          # testing or unstable build, which is rebuilt, not re-signed.
+          printf '%s' "$release" | python3 -c 'import json,sys; r=json.load(sys.stdin); sys.exit(0 if not r["draft"] and not r["prerelease"] else 1)' \
+            || { echo "::error::$SOURCE_TAG is not a published stable release" >&2; exit 1; }
           mkdir -p source
           printf '%s' "$release" | python3 -c 'import json,sys; [print(a["id"], a["name"]) for a in json.load(sys.stdin)["assets"]]' |
           while read -r id name; do
@@ -173,18 +161,16 @@ jobs:
           ls -l source
           test -n "$(find source -name '*.enginehost.tar.xz' -print -quit)"
       - name: Re-sign
-        if: steps.download.outputs.has-bundle == 'true'
         env:
           ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
           CERTIFICATE: repository/${{ inputs.repository-certificate }}
           TRUST_DIR: enginehost-tooling/app/src/main/assets/trust
           ONLY_64_BIT: ${{ inputs.only-64-bit }}
-          REKEY: ${{ inputs.rekey }}
         run: |
           set -euo pipefail
           test -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" || { echo "::error::ENGINEHOST_CERTIFICATE_KEY_PEM is not set" >&2; exit 1; }
           test -f "$CERTIFICATE" || { echo "::error::$CERTIFICATE is not committed" >&2; exit 1; }
-          test -f "$TRUST_DIR/enginehost-root.pub" && test -f "$TRUST_DIR/enginehost-roots.json"
+          test -f "$TRUST_DIR/enginehost-roots.json"
           key="$RUNNER_TEMP/certificate-key.pem"
           trap 'rm -f "$key"' EXIT
           (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$key")
@@ -193,7 +179,6 @@ jobs:
           mkdir -p output
           only=()
           [ -z "$ONLY_64_BIT" ] || only=(--only-64-bit "$ONLY_64_BIT")
-          [ "$REKEY" != true ] || only=(--rekey)
           for bundle in source/*.enginehost.tar.xz; do
             python3 enginehost-tooling/scripts/resign-engine-bundle.py "$bundle" \
               --certificate-key "$key" --certificate-chain "$CERTIFICATE" \
@@ -203,18 +188,11 @@ jobs:
             envelope="output/$(basename "$envelope")"
           done
           for bundle in output/*.enginehost.tar.xz; do
-            if [ "$REKEY" = true ]; then
-              # The new root alone: a re-keyed bundle that still ends at the old root is no re-key.
-              python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --root-key "$TRUST_DIR/enginehost-root.pub"
-            else
-              # A root that commit lists and that is in force now.
-              python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --trust-dir "$TRUST_DIR"
-            fi
+            python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --trust-dir "$TRUST_DIR"
           done
           [ ! -f source/enginehost-public-key.json ] || cp source/enginehost-public-key.json output/
           cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: steps.download.outputs.has-bundle == 'true'
         with:
           name: resigned
           path: output/*
@@ -222,7 +200,7 @@ jobs:
 
   publish:
     needs: resign
-    if: needs.resign.outputs.has-bundle == 'true'
+    if: ${{ !inputs.rekey }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -237,12 +215,9 @@ jobs:
           SOURCE_TAG: ${{ inputs.source-tag }}
           TAG: ${{ inputs.tag }}
           ONLY_64_BIT: ${{ inputs.only-64-bit }}
-          REKEY: ${{ inputs.rekey }}
         run: |
           set -euo pipefail
-          if [ "$REKEY" = true ]; then tag="${TAG:-$SOURCE_TAG-rekeyed}"
-          elif [ -n "$ONLY_64_BIT" ]; then tag="${TAG:-$SOURCE_TAG-64-bit}"
-          else tag="${TAG:-$SOURCE_TAG-resigned}"; fi
+          if [ -n "$ONLY_64_BIT" ]; then tag="${TAG:-$SOURCE_TAG-64-bit}"; else tag="${TAG:-$SOURCE_TAG-resigned}"; fi
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" >/dev/null 2>&1; then
             echo "::error::release $tag already exists" >&2
             exit 1
@@ -258,28 +233,14 @@ jobs:
           commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_TAG" --jq .sha)"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           envelope="$(find release \( -name enginehost-release.json -o -name enginehost-component.json \) -print -quit)"
-          # A re-key keeps the envelope's channel and the release's flags as they were published.
-          if [ "$REKEY" != true ]; then
-            python3 - "$envelope" <<'PY'
+          python3 - "$envelope" <<'PY'
           import json, sys
           path = sys.argv[1]
           data = json.load(open(path))
           data["channel"] = "stable"
           json.dump(data, open(path, "w"), sort_keys=True, separators=(",", ":"))
           PY
-          fi
-          prerelease="$(printf '%s' "$source" | python3 -c 'import json,sys; print("true" if json.load(sys.stdin)["prerelease"] else "false")')"
-          source_id="$(printf '%s' "$source" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
-          latest_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .id 2>/dev/null || echo 0)"
-          if [ "$REKEY" = true ]; then
-            [ "$latest_id" = "$source_id" ] && latest=true || latest=false
-          else
-            prerelease=false; latest=false
-          fi
-          if [ "$REKEY" = true ]; then
-            notes="\`$SOURCE_TAG\` re-keyed (Droidtop/tracker#876): built from \`$commit\`, its code, build number and manifest are byte for byte the ones published at [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), which stays as it is. Only \`enginehost-bundle.jws\` is new, chained to the new Enginehost signing root, in place of the one chained to the old root that ends 2026-11-11T23:59:59Z. Install it through Enginehost."
-            suffix="rekeyed"
-          elif [ -n "$ONLY_64_BIT" ]; then
+          if [ -n "$ONLY_64_BIT" ]; then
             notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, without its 32-bit libraries, as build $ONLY_64_BIT (Droidtop/tracker#646). Its 64-bit code is byte for byte the code published there. Only the libraries for ABIs other than arm64-v8a and x86_64 are gone, from the bundle and its resource APKs, and the manifest and its v1 signature are new. Install it through Enginehost."
             suffix="64-bit"
           else
@@ -288,7 +249,7 @@ jobs:
           fi
           gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "$title ($suffix)" --notes "$notes" --draft
-          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease="$prerelease" --latest="$latest"
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
       - name: Ask droidtop-platforms to reindex
         env:
           GH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
@@ -296,6 +257,188 @@ jobs:
           set -euo pipefail
           if [ -z "${GH_TOKEN:-}" ]; then
             echo "No PLATFORMS_DISPATCH_TOKEN; the plugins index picks this release up on its schedule."
+            exit 0
+          fi
+          gh api repos/Droidtop/droidtop-platforms/dispatches \
+            -f event_type=plugin-published -f "client_payload[repo]=$GITHUB_REPOSITORY"
+
+  rekey:
+    if: ${{ inputs.rekey }}
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.work.outputs.tags }}
+    steps:
+      - name: Check the inputs
+        env:
+          TOOLING_SHA: ${{ inputs.tooling-sha }}
+          SOURCE_TAGS: ${{ inputs.source-tag }}
+          TAG: ${{ inputs.tag }}
+          ONLY_64_BIT: ${{ inputs.only-64-bit }}
+          CERTIFICATE: ${{ inputs.repository-certificate }}
+        run: |
+          set -euo pipefail
+          [[ "$TOOLING_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "tooling-sha must be a full commit SHA" >&2; exit 1; }
+          [[ "$SOURCE_TAGS" =~ ^[A-Za-z0-9._,\ -]+$ ]] || { echo "bad source-tag list '$SOURCE_TAGS'" >&2; exit 1; }
+          [ -z "$TAG$ONLY_64_BIT" ] || { echo "rekey does not combine with tag or only-64-bit" >&2; exit 1; }
+          [[ "$CERTIFICATE" =~ ^[A-Za-z0-9._/-]+$ && "$CERTIFICATE" != *..* ]] || { echo "bad certificate path '$CERTIFICATE'" >&2; exit 1; }
+      - name: Check out the repository's new signing certificate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: repository
+          persist-credentials: false
+          sparse-checkout: ${{ inputs.repository-certificate }}
+          sparse-checkout-cone-mode: false
+      - name: Check out the signing tooling and the pinned root keys
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: Droidtop/enginehost
+          ref: ${{ inputs.tooling-sha }}
+          path: enginehost-tooling
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            app/src/main/assets/trust
+      - name: Re-key each release
+        id: work
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENGINEHOST_CERTIFICATE_KEY_PEM: ${{ secrets.ENGINEHOST_CERTIFICATE_KEY_PEM }}
+          SOURCE_TAGS: ${{ inputs.source-tag }}
+          CERTIFICATE: repository/${{ inputs.repository-certificate }}
+          TRUST_DIR: enginehost-tooling/app/src/main/assets/trust
+        run: |
+          set -euo pipefail
+          test -n "$ENGINEHOST_CERTIFICATE_KEY_PEM" || { echo "::error::ENGINEHOST_CERTIFICATE_KEY_PEM is not set" >&2; exit 1; }
+          test -f "$CERTIFICATE" || { echo "::error::$CERTIFICATE is not committed on this ref" >&2; exit 1; }
+          test -f "$TRUST_DIR/enginehost-root.pub"
+          key="$RUNNER_TEMP/certificate-key.pem"
+          trap 'rm -f "$key"' EXIT
+          (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$key")
+          # The new certificate must verify to the new root: a chain still under the old root is no re-key.
+          python3 - "$CERTIFICATE" "$TRUST_DIR" <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, "enginehost-tooling/scripts")
+          import bundle_jws
+          chain = bundle_jws.pem_certificates(Path(sys.argv[1]).read_text())
+          new = bundle_jws.pinned_roots(Path(sys.argv[2]))[0]
+          assert new.not_after is None, "the first pinned root is not the current one"
+          bundle_jws.verify_chain(chain[:3], "plugin", new)
+          print("the committed certificate ends at the new root")
+          PY
+          if [ "$SOURCE_TAGS" = all ]; then
+            tags="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.draft | not) | .tag_name')"
+          else
+            tags="$(printf '%s' "$SOURCE_TAGS" | tr ',' ' ' | xargs -n1)"
+          fi
+          mkdir -p output
+          done_tags=""
+          for tag in $tags; do
+            [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "::error::bad tag '$tag'" >&2; exit 1; }
+            release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
+            if printf '%s' "$release" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["draft"] else 1)'; then
+              echo "::notice::$tag is a draft; skipped."; continue
+            fi
+            printf '%s' "$release" | python3 -c 'import json,sys; [print(a["id"], a["name"]) for a in json.load(sys.stdin)["assets"]]' > "$RUNNER_TEMP/assets.txt"
+            if ! grep -q ' [A-Za-z0-9._-]*\.enginehost\.tar\.xz$' "$RUNNER_TEMP/assets.txt"; then
+              echo "::notice::$tag carries no bundle asset (*.enginehost.tar.xz); nothing to re-key, left as it is."; continue
+            fi
+            mkdir -p "source/$tag" "output/$tag"
+            while read -r id name; do
+              case "$name" in
+                *.enginehost.tar.xz|enginehost-release.json|enginehost-component.json)
+                  [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad asset name '$name'" >&2; exit 1; }
+                  gh api "repos/$GITHUB_REPOSITORY/releases/assets/$id" -H 'Accept: application/octet-stream' > "source/$tag/$name" ;;
+              esac
+            done < "$RUNNER_TEMP/assets.txt"
+            skip=""
+            for bundle in source/$tag/*.enginehost.tar.xz; do
+              [ "$(tar -tJf "$bundle" | sed -n 2p)" = enginehost-bundle.jws ] || skip="$bundle"
+            done
+            if [ -n "$skip" ]; then
+              echo "::warning::$tag: $(basename "$skip") carries no v1 signature, so there is none to re-key; the release is left as it is (it needs a re-sign without rekey)."
+              continue
+            fi
+            envelope="$(find "source/$tag" \( -name enginehost-release.json -o -name enginehost-component.json \) -print -quit)"
+            for bundle in source/$tag/*.enginehost.tar.xz; do
+              args=()
+              [ -z "$envelope" ] || args=(--release-envelope "$envelope")
+              python3 enginehost-tooling/scripts/resign-engine-bundle.py "$bundle" \
+                --certificate-key "$key" --certificate-chain "$CERTIFICATE" --output "output/$tag" --rekey "${args[@]}"
+              [ -z "$envelope" ] || envelope="output/$tag/$(basename "$envelope")"
+            done
+            for bundle in output/$tag/*.enginehost.tar.xz; do
+              python3 enginehost-tooling/scripts/verify-engine-bundle.py "$bundle" --root-key "$TRUST_DIR/enginehost-root.pub"
+            done
+            cp "$CERTIFICATE" "output/$tag/enginehost-signing-certificate.pem"
+            echo "re-keyed $tag"
+            done_tags="$done_tags $tag"
+          done
+          echo "tags=$(echo $done_tags)" >> "$GITHUB_OUTPUT"
+          [ -n "$done_tags" ] || echo "::notice::no release had a bundle to re-key; nothing will be uploaded."
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rekeyed
+          path: output
+          if-no-files-found: ignore
+
+  rekey-publish:
+    needs: rekey
+    if: ${{ inputs.rekey && needs.rekey.outputs.tags != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the signing tooling and the pinned root keys
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: Droidtop/enginehost
+          ref: ${{ inputs.tooling-sha }}
+          path: enginehost-tooling
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            app/src/main/assets/trust
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: rekeyed
+          path: output
+      - name: Replace the signed assets, one release at a time
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAGS: ${{ needs.rekey.outputs.tags }}
+          TRUST_DIR: enginehost-tooling/app/src/main/assets/trust
+        run: |
+          set -euo pipefail
+          for tag in $TAGS; do
+            [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]]
+            # Same tag, same flags: only assets change.
+            gh release upload "$tag" "output/$tag"/* --repo "$GITHUB_REPOSITORY" --clobber
+            # The legacy key document belongs to the old seed; no official origin uses one.
+            old="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq '.assets[] | select(.name == "enginehost-public-key.json") | .id')"
+            [ -z "$old" ] || gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$old"
+            # Download what is published now and verify it to the new root before the next release.
+            mkdir -p "check/$tag"
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "check/$tag" --clobber
+            for bundle in output/$tag/*.enginehost.tar.xz; do
+              name="$(basename "$bundle")"
+              cmp "$bundle" "check/$tag/$name"
+              python3 enginehost-tooling/scripts/verify-engine-bundle.py "check/$tag/$name" --root-key "$TRUST_DIR/enginehost-root.pub"
+            done
+            cmp "output/$tag/enginehost-signing-certificate.pem" "check/$tag/enginehost-signing-certificate.pem"
+            for envelope in output/$tag/enginehost-release.json output/$tag/enginehost-component.json; do
+              [ ! -f "$envelope" ] || cmp "$envelope" "check/$tag/$(basename "$envelope")"
+            done
+            ! test -e "check/$tag/enginehost-public-key.json"
+            echo "$tag: replaced and verified to the new root"
+          done
+      - name: Ask droidtop-platforms to reindex
+        env:
+          GH_TOKEN: ${{ secrets.PLATFORMS_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "No PLATFORMS_DISPATCH_TOKEN; the plugins index picks the releases up on its schedule."
             exit 0
           fi
           gh api repos/Droidtop/droidtop-platforms/dispatches \
