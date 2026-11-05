@@ -345,6 +345,14 @@ such as a LÖVE game whose `love.draw` is empty.
   - the first launch of a core build, which unpacks its runtime and compiles
     the game's scripts first, has 150 seconds (`CoreLaunches`, decided in the
     main process and passed in the launch);
+  - once the engine has reported progress short of done, it has 10 minutes
+    (`MID_LOAD_QUIET_MS`). The person is then looking at a loading screen
+    part-way through, not a black one. An engine reports between its steps,
+    and one step can be long: on the console, Love & Sex: Second Base's
+    `start.rpy:266` init block ran 198 seconds and its whole init 347. The
+    45-second question ended a load that would have finished (2026-11-05,
+    Droidtop/tracker#855). This was built to the recommendation while the
+    owner was away; the owner is to confirm the length;
   - the notice stops watching after 180 seconds without a frame or a report,
     asking once first when it never asked.
 
@@ -635,7 +643,8 @@ what the pad reports or as the person sets it, and every control surface draws t
 glyph for the button that does the job. `PadNames` stays the text for keyboard keys and for
 screen readers.
 The family comes from the pad's USB or Bluetooth id through SDL's controller list
-(`PadFamilies`, `SdlControllerIds`, third_party/sdl_controller_list), and the profile page's
+(`PadFamilies` over Droidtop/lib-input's, the submodule `vendor/lib-input`, which droidtop uses too:
+one model and one generated table instead of a copy in each; Droidtop/tracker#867 D4), and the profile page's
 "Button labels" sets it for a pad the list does not know or gets wrong (as the pad says, Xbox,
 PlayStation, Nintendo). A pad nobody has said anything about is drawn as Xbox, and the page says
 so. Glyphs are drawn in the text colour (`PadGlyphDrawable`), and each sits over its name in the

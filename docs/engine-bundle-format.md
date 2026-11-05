@@ -1109,6 +1109,24 @@ lockdown, is read-only to it (owner, 2026-10-23: the runtime is part of the core
 unpacks it and the core reads it). Removing the build removes the folder. A host older than this
 field ignores it, and the core unpacks itself as before.
 
+## `source` (2026-11-05)
+
+Optional object saying where a bundle was built from. Informational: nothing trusts or decides on
+it, and a field that is not what it claims is dropped rather than shown.
+
+| Field | Written by | Meaning |
+|---|---|---|
+| `upstream` | the core's `bundle-metadata.json` | the engine project's URL |
+| `revision` | the core's `bundle-metadata.json` | the line branch, `plugin/8.5` |
+| `commit` | the signing workflow | the 40-hex commit that was built (`github.sha` of the calling repository) |
+| `pluginCore` | the signing workflow | the `plugin-core` commit that line pins (`enginehost/line.json`, docs/plugin-lines.md) |
+
+Every line of a core used to show the same build string, so a rig run could not tell which line,
+or which recipe, was installed (Droidtop/tracker#855). Enginehost shows the source beside the
+build on the launch screen ("Engine build 1.0.19-1 · runtime 8.5.3 · plugin/8.5 23ef63f,
+plugin-core a745d59") and in a core's details. Builds signed before this carry only `upstream`
+and `revision`.
+
 ## `lockdown` (2026-10-17)
 
 Optional, boolean, default `false`, on either transport. `true` says the core

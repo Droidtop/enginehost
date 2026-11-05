@@ -135,7 +135,7 @@ No. See the core table for what each core covers today.
 | [lib-net](https://github.com/Droidtop/lib-net) | The launch contract's names and the shared signature verifier (`vendor/lib-net`) | GPL-3.0 |
 | [droidtop-platforms](https://github.com/Droidtop/droidtop-platforms) | The engines database that maps games to cores (`vendor/droidtop-platforms`) | GPL-3.0 |
 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 1.13.8 | Reading games aloud with on-device voices | Apache-2.0 |
-| [SDL](https://github.com/libsdl-org/SDL) controller list | Which glyphs a pad's face buttons print | zlib |
+| [SDL](https://github.com/libsdl-org/SDL) controller list, through [lib-input](https://github.com/Droidtop/lib-input) | Which glyphs a pad's face buttons print | zlib |
 | [SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB) | Seed button and axis mappings for controller profiles | zlib |
 | [Apache Commons Compress](https://commons.apache.org/proper/commons-compress/) and [XZ for Java](https://tukaani.org/xz/java.html) | Unpacking `*.enginehost.tar.xz` core bundles | Apache-2.0, 0BSD |
 | [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) | Reading signature headers | Apache-2.0 |

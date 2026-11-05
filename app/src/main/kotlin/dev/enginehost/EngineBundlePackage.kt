@@ -50,6 +50,8 @@ data class EngineBundleManifest(
     val component: ComponentInfo? = null,
     /** The bundle's own licence and the payload file with its text, when it declares one. */
     val license: BundleLicense? = null,
+    /** See InstalledPlugin.source (docs/engine-bundle-format.md "source"). */
+    val source: BundleSource? = null,
 ) {
     /** Isolated or locked down: see [InstalledPlugin.sandboxed]. */
     val sandboxed: Boolean get() = isolatable || lockdown
@@ -91,6 +93,7 @@ data class EngineBundleManifest(
         .put("kind", if (component == null) BUNDLE_KIND_ENGINE else BUNDLE_KIND_COMPONENT)
         .putOpt("component", component?.toJson())
         .putOpt("license", license?.toJson())
+        .putOpt("source", source?.toJson())
 }
 
 object EngineBundleManifestReader {
@@ -206,6 +209,7 @@ object EngineBundleManifestReader {
             lockdown = json.optBoolean("lockdown", false),
             component = component,
             license = license,
+            source = BundleSource.parse(json.optJSONObject("source")),
         )
     }
 }
