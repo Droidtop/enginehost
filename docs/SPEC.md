@@ -345,6 +345,14 @@ such as a LÖVE game whose `love.draw` is empty.
   - the first launch of a core build, which unpacks its runtime and compiles
     the game's scripts first, has 150 seconds (`CoreLaunches`, decided in the
     main process and passed in the launch);
+  - once the engine has reported progress short of done, it has 10 minutes
+    (`MID_LOAD_QUIET_MS`). The person is then looking at a loading screen
+    part-way through, not a black one. An engine reports between its steps,
+    and one step can be long: on the console, Love & Sex: Second Base's
+    `start.rpy:266` init block ran 198 seconds and its whole init 347. The
+    45-second question ended a load that would have finished (2026-11-05,
+    Droidtop/tracker#855). This was built to the recommendation while the
+    owner was away; the owner is to confirm the length;
   - the notice stops watching after 180 seconds without a frame or a report,
     asking once first when it never asked.
 
