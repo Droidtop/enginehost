@@ -15,13 +15,18 @@ and CI fails any line that is not exactly that output.
 
 ## Branches
 
-- **The upstream-facing branch** (`main`, `master`, `dev`, `yuri`, ...) follows
-  the engine project. Where we change the engine itself (fixes that upstream
-  could take), the changes live on an engine branch of the fork (`main` of a
-  vendored engine such as NScripter's, or `engine/<line>` such as Buriko's
-  `engine/0.0.1`) and are proposed upstream. A line's upstream commit may be
-  a commit of that branch.
-- **`plugin-core`** holds the wrapper and nothing else: workflows, bundle
+A core has only these branches (the owner, 2026-11-05, Droidtop/tracker#324: "No core should
+have a main branch"; "main, master, or etc, shouldn't exist. we rename it to upstream-sync"):
+
+- **`upstream-sync`** follows the engine project: the branch once called `main`, `master`,
+  `dev` or `yuri`. Nothing of ours is developed there. Where we change the engine itself
+  (fixes that upstream could take), the changes live on an engine branch of the fork,
+  `engine/<line>` (Buriko's `engine/0.0.1`, CatSystem2's `engine/0.1`, CMVS's
+  `engine/2.0-3.0`, the Wolf and Tyrano cores' `engine/0.1`), and are proposed upstream. A
+  line's upstream commit may be a commit of that branch. A core with no upstream engine (the
+  HTML core) has no `upstream-sync`: its lines say `"upstream": null`.
+- **`plugin-core`**, the default branch, holds the wrapper and nothing else (the owner: "ALL
+  plugins should keep the recipe on plugin-core"): workflows, bundle
   metadata, the core class, Enginehost's API copy, native glue and the file
   layer (`plugin-native/`), licences and docs, plus:
   - `enginehost/lines/<id>/line.json`: each supported line, with its upstream
@@ -75,8 +80,10 @@ Every core repository triggers the same way (checked 2026-10-28 on all fourteen)
 - **`plugin-core`** runs `plugin-line.yml` only: it composes every declared line and
   compiles nothing. A wrapper change is first compiled when a line composed from it is
   pushed.
-- **The upstream-facing branch**, the default branch of most core repositories, carries no
-  Enginehost build. Where it is a mirror, `sync-upstream.yml` merges upstream into it daily.
+- **`upstream-sync`** carries no Enginehost build. Where it is a mirror, `sync-upstream.yml`
+  merges upstream into it daily. That workflow lives on `plugin-core`, the default branch,
+  because GitHub runs scheduled workflows only from the default branch; it checks out and
+  pushes `upstream-sync`. Upstream's own workflows on `upstream-sync` still run on its pushes.
   A merge that touches upstream's own `.github/workflows` files can be pushed only with a
   token that has the workflow scope, so the sync uses the `SYNC_UPSTREAM_PAT` secret when one
   is set and `GITHUB_TOKEN` otherwise. A sync that cannot push fails its run every day and
