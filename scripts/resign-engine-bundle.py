@@ -17,12 +17,23 @@ own member metadata.
 
     resign-engine-bundle.py SOURCE.enginehost.tar.xz --certificate-key KEY.pem \
         --certificate-chain enginehost-signing-certificate.pem --output DIR \
-        [--release-envelope enginehost-release.json]
+        [--release-envelope enginehost-release.json] [--rekey]
 
 The output is DIR/<the manifest's assetName>; with --release-envelope, the
 envelope's entry for this manifest gains the same `jws`, loses its legacy
 `signatureBase64`, and is written to DIR.
 A bundle that already carries a v1 signature is refused, not signed twice.
+
+With --rekey (signing-root rotation 2026-11-04, Droidtop/tracker#876 and #550; owner:
+"The owner also decided not to re-audit: every release is re-signed as it is"), the
+opposite: a bundle that already carries a v1 signature is signed again under the
+key and chain given, which are the new root's. The old `enginehost-bundle.jws` is
+replaced, in its place, by one made by the new certificate key; the manifest
+bytes and every other member are written back unchanged, so the code, the build
+number and every digest are exactly what was published and audited. The envelope's
+entry for this manifest gains the new `jws` and its manifest is untouched. A
+bundle without a v1 signature is refused: it is re-signed without --rekey.
+--rekey and --only-64-bit change different things and do not combine.
 
 With --only-64-bit VERSION (owner, 2026-10-30, Droidtop/tracker#646: "strip it
 out"), the bundle is re-signed without its 32-bit libraries instead: every
@@ -150,12 +161,17 @@ def only_64_bit(members, manifest: dict, version: str):
 
 
 def resign(source: Path, key: Path, chain_path: Path, output_dir: Path, envelope: Path | None,
-           only_64_bit_version: str | None = None) -> Path:
+           only_64_bit_version: str | None = None, rekey: bool = False) -> Path:
     members = read_members(source)
     names = [info.name for info, _ in members]
     if not names or names[0] != MANIFEST:
         raise SystemExit(f"{source.name}: the first member is not {MANIFEST}")
-    if JWS in names and only_64_bit_version is None:
+    if rekey:
+        if only_64_bit_version is not None:
+            raise SystemExit("--rekey and --only-64-bit do not combine")
+        if names[1:2] != [JWS] or names.count(JWS) != 1:
+            raise SystemExit(f"{source.name} carries no v1 signature right after its manifest; sign it without --rekey")
+    elif JWS in names and only_64_bit_version is None:
         raise SystemExit(f"{source.name} already carries a v1 signature")
     original_bytes = manifest_bytes = members[0][1]
     manifest = json.loads(manifest_bytes)
@@ -189,13 +205,17 @@ def resign(source: Path, key: Path, chain_path: Path, output_dir: Path, envelope
                 else:
                     archive.addfile(*build_engine_bundle.tar_member(info.name, data, info.mode))
         for index, (info, data) in enumerate(members):
-            if info.name == LEGACY:
+            if info.name == LEGACY and not rekey:
+                continue
+            if rekey and info.name == JWS:
+                # In its place: the new signature over the same manifest bytes.
+                archive.addfile(*build_engine_bundle.tar_member(JWS, jws.encode("ascii") + b"\n"))
                 continue
             if data is None:
                 archive.addfile(info)
             else:
                 archive.addfile(*build_engine_bundle.tar_member(info.name, data, info.mode))
-            if index == 0:
+            if index == 0 and not rekey:
                 archive.addfile(*build_engine_bundle.tar_member(JWS, jws.encode("ascii") + b"\n"))
 
     if envelope is not None:
@@ -220,11 +240,13 @@ def main() -> None:
     parser.add_argument("--certificate-chain", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path, help="Directory for the re-signed bundle (and envelope)")
     parser.add_argument("--release-envelope", type=Path)
+    parser.add_argument("--rekey", action="store_true",
+                        help="Replace the v1 signature of a bundle that already carries one with this key's; nothing else changes")
     parser.add_argument("--only-64-bit", metavar="VERSION",
                         help="Leave out every 32-bit library and publish as pluginVersion VERSION (newer than the bundle's)")
     args = parser.parse_args()
     print(resign(args.bundle, args.certificate_key, args.certificate_chain, args.output, args.release_envelope,
-                 args.only_64_bit))
+                 args.only_64_bit, args.rekey))
 
 
 if __name__ == "__main__":

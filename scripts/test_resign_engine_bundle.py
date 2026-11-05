@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -16,6 +17,8 @@ import zipfile
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS))
+from pki_for_tests import make_pki  # noqa: E402
 
 
 def module(name: str, file: str):
@@ -164,6 +167,77 @@ class Resign(unittest.TestCase):
         with self.assertRaises(SystemExit):
             resign_engine_bundle.resign(other, self.root / "leaf-key.pem", self.root / "leaf.pem",
                                         self.root / "out-other", None)
+
+
+class Rekey(unittest.TestCase):
+    """--rekey: a v1-signed release re-signed under the new root's key, nothing else changed (signing-root rotation, #876)."""
+
+    def setUp(self):
+        Resign.setUp(self)
+        make_pki(self.root, "new-")
+        # A bundle as CI builds it now: v1 only, signed under the old root's leaf, with its release envelope.
+        self.v1 = self.root / "v1" / "dev.enginehost.example.enginehost.tar.xz"
+        subprocess.run([
+            "python3", str(SCRIPTS / "build-engine-bundle.py"), "--metadata", str(self.root / "metadata.json"),
+            "--payload", str(self.root / "payload"), "--certificate-key", str(self.root / "leaf-key.pem"),
+            "--certificate-chain", str(self.root / "leaf.pem"), "--output", str(self.v1),
+            "--release-envelope", str(self.root / "v1" / "enginehost-release.json"),
+        ], check=True, capture_output=True)
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def rekey(self, bundle: Path | None = None, output: str = "rekeyed") -> Path:
+        return resign_engine_bundle.resign(
+            bundle or self.v1, self.root / "new-leaf-key.pem", self.root / "new-leaf.pem", self.root / output,
+            self.root / "v1" / "enginehost-release.json", rekey=True,
+        )
+
+    def test_the_new_key_signs_the_same_manifest_and_nothing_else_changes(self):
+        out = self.rekey()
+        self.assertTrue(Resign.verify(self, out, "--root-key", str(self.root / "new-root.pub"))["verified"])
+        # The old root no longer vouches for it, and the new root does not vouch for the old signature.
+        refused = subprocess.run(["python3", str(SCRIPTS / "verify-engine-bundle.py"), str(out), "--root-key", str(self.root / "root.pub")],
+                                 capture_output=True, text=True)
+        self.assertNotEqual(refused.returncode, 0)
+        refused = subprocess.run(["python3", str(SCRIPTS / "verify-engine-bundle.py"), str(self.v1), "--root-key", str(self.root / "new-root.pub")],
+                                 capture_output=True, text=True)
+        self.assertNotEqual(refused.returncode, 0)
+        with tarfile.open(self.v1, "r:xz") as before, tarfile.open(out, "r:xz") as after:
+            old = [(m.name, m.mode, m.isdir()) for m in before.getmembers()]
+            new = [(m.name, m.mode, m.isdir()) for m in after.getmembers()]
+            self.assertEqual(old, new)
+            self.assertEqual(new[1][0], "enginehost-bundle.jws")
+            for name, _mode, is_dir in new:
+                if is_dir:
+                    continue
+                same = before.extractfile(name).read() == after.extractfile(name).read()
+                self.assertEqual(same, name != "enginehost-bundle.jws", name)
+
+    def test_the_envelope_gains_the_new_jws_and_keeps_its_manifest(self):
+        out = self.rekey()
+        before = json.loads((self.root / "v1" / "enginehost-release.json").read_text())
+        after = json.loads((self.root / "rekeyed" / "enginehost-release.json").read_text())
+        with tarfile.open(out, "r:xz") as archive:
+            jws = archive.extractfile("enginehost-bundle.jws").read().decode().strip()
+        (old_entry,), (entry,) = before["bundles"], after["bundles"]
+        self.assertEqual(entry["manifestBase64"], old_entry["manifestBase64"])
+        self.assertEqual(entry["jws"], jws)
+        self.assertNotEqual(entry["jws"], old_entry["jws"])
+
+    def test_a_bundle_without_v1_is_refused(self):
+        with self.assertRaises(SystemExit):
+            self.rekey(self.source)
+
+    def test_rekey_does_not_combine_with_only_64_bit(self):
+        with self.assertRaises(SystemExit):
+            resign_engine_bundle.resign(self.v1, self.root / "new-leaf-key.pem", self.root / "new-leaf.pem",
+                                        self.root / "x", None, "1.0.0-4", rekey=True)
+
+    def test_a_rekeyed_bundle_is_not_signed_again_without_the_flag(self):
+        out = self.rekey()
+        with self.assertRaises(SystemExit):
+            resign_engine_bundle.resign(out, self.root / "new-leaf-key.pem", self.root / "new-leaf.pem", self.root / "again", None)
 
 
 ELF = {"arm64-v8a": 183, "x86_64": 62, "armeabi-v7a": 40, "x86": 3}
