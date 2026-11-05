@@ -21,6 +21,48 @@ object EnginehostRoots {
     const val LIST = "$ASSET_DIR/enginehost-roots.json"
 
     @Volatile private var loaded: List<TrustAnchor.Root>? = null
+    @Volatile private var markers: Map<String, String>? = null
+
+    /**
+     * This source's `superseded` markers (Droidtop/tracker#887): each key the pinned root set marks as superseded, to the
+     * key that replaced it, as SHA-256 hex in upper case. The owner, 2026-11-05: "if it's marked as "superceded", then
+     * trust the key it's superceded by, which'll be denoted", and the marker counts only for content from the source
+     * that published it. This list ships inside the app, under the app's own signature, and speaks only for what the
+     * Enginehost roots vouch for: official and developer cores, never a repository the person added.
+     */
+    fun superseded(context: Context): Map<String, String> {
+        markers?.let { return it }
+        return synchronized(this) {
+            markers ?: (try {
+                parseSuperseded(context.assets.open(LIST).bufferedReader().use { it.readText() })
+            } catch (absent: FileNotFoundException) {
+                emptyMap()
+            }).also { markers = it }
+        }
+    }
+
+    /**
+     * Every `"superseded": [{"keySha256", "by"}]` marker on the list's root entries. A marker must name two different
+     * SHA-256 fingerprints; anything else is dropped. Every marker points straight at the source's current key: no dates,
+     * no chain (#887). Split out so a plain JVM test runs it.
+     */
+    fun parseSuperseded(manifest: String): Map<String, String> {
+        val out = linkedMapOf<String, String>()
+        val entries = JSONObject(manifest).getJSONArray("roots")
+        for (index in 0 until entries.length()) {
+            val list = entries.getJSONObject(index).optJSONArray("superseded") ?: continue
+            for (i in 0 until list.length()) {
+                val marker = list.optJSONObject(i) ?: continue
+                val old = marker.optString("keySha256").uppercase()
+                val by = marker.optString("by").uppercase()
+                if (!SHA256_HEX.matches(old) || !SHA256_HEX.matches(by) || old == by) continue
+                out.putIfAbsent(old, by)
+            }
+        }
+        return out
+    }
+
+    private val SHA256_HEX = Regex("[0-9A-F]{64}")
 
     /** Every pinned root, retired ones included (a retired root is refused by its own term, not by being absent). */
     fun get(context: Context): List<TrustAnchor.Root> {

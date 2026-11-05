@@ -43,8 +43,23 @@ class PluginTrustStore(private val context: Context) {
     fun carryApproval(previous: List<InstalledPlugin>, updated: InstalledPlugin) {
         if (updated.signerIdentity.isBlank()) return
         val pinnedRoots = EnginehostRoots.get(context).map { it.keySha256 }.toSet()
-        if (previous.any { shouldCarry(preferences.getString(decisionKey(it), null), it, updated, pinnedRoots) }) approve(updated)
+        val superseded = EnginehostRoots.superseded(context)
+        val from = previous.firstOrNull { shouldCarry(preferences.getString(decisionKey(it), null), it, updated, pinnedRoots, superseded) } ?: return
+        approve(updated)
+        // The person is still told the key changed (#887: "We still tell the user the key is changing"): a notice, not a gate.
+        val old = from.signer?.anchorKeySha256
+        val new = updated.signer?.anchorKeySha256
+        if (old != null && new != null && !old.equals(new, ignoreCase = true)) {
+            preferences.edit().putString(keyChangeKey(updated.bundleId), "${old.uppercase()}>${new.uppercase()}").apply()
+        }
     }
+
+    /**
+     * The signing key change last carried for [plugin]'s line, as (old, new) root fingerprints, for the details sheet's
+     * notice; null when its approval never crossed a key change.
+     */
+    fun keyChange(plugin: InstalledPlugin): Pair<String, String>? =
+        preferences.getString(keyChangeKey(plugin.bundleId), null)?.split('>')?.takeIf { it.size == 2 }?.let { it[0] to it[1] }
 
     /**
      * Why a build waiting for approval was not carried over from one the person
@@ -104,17 +119,28 @@ class PluginTrustStore(private val context: Context) {
             previous: InstalledPlugin,
             updated: InstalledPlugin,
             pinnedRoots: Set<String> = emptySet(),
+            superseded: Map<String, String> = emptyMap(),
         ): Boolean =
             stored == "approved" && previous.signerIdentity.isNotBlank() && previous.origin == updated.origin &&
-                (previous.signerIdentity == updated.signerIdentity || acrossRootRotation(previous.signer, updated.signer, pinnedRoots))
+                (previous.signerIdentity == updated.signerIdentity || acrossRootRotation(previous.signer, updated.signer, pinnedRoots, superseded))
 
-        private fun acrossRootRotation(previous: BundleSigner?, updated: BundleSigner?, pinnedRoots: Set<String>): Boolean {
+        /**
+         * Two v1 signers of the same kind, official or the developer's (never a repository the person added: the Enginehost
+         * roots do not speak for it), under two different roots that are either both pinned, or linked by the root set's
+         * own marker: the previous root marked superseded by the updated one ([EnginehostRoots.superseded], #887).
+         */
+        private fun acrossRootRotation(
+            previous: BundleSigner?,
+            updated: BundleSigner?,
+            pinnedRoots: Set<String>,
+            superseded: Map<String, String>,
+        ): Boolean {
             if (previous == null || updated == null) return false
             val pinned = pinnedRoots.map(String::uppercase).toSet()
-            return previous.format == 1 && updated.format == 1 && previous.kind == updated.kind &&
-                previous.kind != SignerKind.CUSTOM &&
-                previous.anchorKeySha256.uppercase() != updated.anchorKeySha256.uppercase() &&
-                previous.anchorKeySha256.uppercase() in pinned && updated.anchorKeySha256.uppercase() in pinned
+            val from = previous.anchorKeySha256.uppercase()
+            val to = updated.anchorKeySha256.uppercase()
+            if (previous.format != 1 || updated.format != 1 || previous.kind != updated.kind || previous.kind == SignerKind.CUSTOM || from == to) return false
+            return (from in pinned && to in pinned) || superseded[from] == to
         }
 
         /** The signer of every earlier approval and the origin of the last one, against [plugin]. */
@@ -153,6 +179,8 @@ class PluginTrustStore(private val context: Context) {
     }
 
     private fun originKey(bundleId: String) = "approved-origin:$bundleId"
+
+    private fun keyChangeKey(bundleId: String) = "key-changed:$bundleId"
 
     private fun decisionKey(plugin: InstalledPlugin) =
         "decision:${plugin.bundleId}:${plugin.archiveSha256}:${plugin.signerIdentity}"
