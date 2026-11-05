@@ -724,6 +724,9 @@
     <string name="runtime_loading">Loading %1$s</string>
     <string name="launch_engine_line">%1$s %2$s</string>
     <string name="launch_runtime_line">Engine build %1$s · runtime %2$s</string>
+    <!-- The build line, then where the core was built from: "plugin/8.5 23ef63f, plugin-core 0ae1ff8". -->
+    <string name="launch_runtime_source">%1$s · %2$s</string>
+    <string name="built_from_label">Built from</string>
     <string name="launch_crashed">Stopped unexpectedly: %1$s.</string>
     <string name="launch_stopped_by_android">Android stopped the game: %1$s.</string>
     <string name="launch_engine_stale">This game\'s engine needs updating: the one installed has an old signature that Enginehost no longer accepts.</string>

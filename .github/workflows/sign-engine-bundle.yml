@@ -205,6 +205,7 @@ jobs:
           sparse-checkout: |
             ${{ inputs.repository-key-document }}
             ${{ inputs.repository-certificate }}
+            enginehost/line.json
           sparse-checkout-cone-mode: false
       - name: Check out the signing tooling and the pinned root key
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -259,6 +260,26 @@ jobs:
               exit 1
             fi
           fi
+          # Which commit this is, and the plugin-core commit its line pins (enginehost/line.json, written
+          # by the plugin-line tool), go into the manifest's source (docs/engine-bundle-format.md
+          # "source"). Every line of a core had the same build string, so a rig could not tell which
+          # was installed (Droidtop/tracker#855). github.sha is the calling repository's commit.
+          python3 - unsigned/bundle-metadata.json "$GITHUB_SHA" repository/enginehost/line.json <<'PYEOF'
+          import json, os, re, sys
+          path, commit, line = sys.argv[1:4]
+          meta = json.load(open(path))
+          source = meta.get("source") if isinstance(meta.get("source"), dict) else {}
+          if re.fullmatch(r"[0-9a-f]{40}", commit):
+              source["commit"] = commit
+          if os.path.isfile(line):
+              core = json.load(open(line)).get("pluginCore")
+              if isinstance(core, str) and re.fullmatch(r"[0-9a-f]{40}", core):
+                  source["pluginCore"] = core
+          meta["source"] = source
+          with open(path, "w") as f:
+              json.dump(meta, f, indent=2)
+          print("source:", json.dumps(source))
+          PYEOF
           certificate_key="$RUNNER_TEMP/certificate-key.pem"
           trap 'rm -f "$certificate_key"' EXIT
           (umask 077; printf '%s' "$ENGINEHOST_CERTIFICATE_KEY_PEM" > "$certificate_key")

@@ -22,6 +22,35 @@ class EngineBundleManifestTest {
     }
 
     @Test
+    fun `source says which line, commit and plugin-core a build came from`() {
+        // #855: every line showed the same build string; the signing workflow adds commit and pluginCore.
+        val keys = keyPair("secp256r1")
+        val line = "23ef63f76563f1b20bfe72c888ab9427e7279c67"
+        val core = "0ae1ff85f6a1b2c3d4e5f60718293a4b5c6d7e8f"
+        val raw = JSONObject(manifest(keys.public.encoded).toString(Charsets.UTF_8))
+            .put("source", JSONObject().put("revision", "plugin/8.5").put("upstream", "https://github.com/renpy/renpy")
+                .put("commit", line).put("pluginCore", core))
+            .toString().toByteArray()
+        val parsed = EngineBundleManifestReader.parse(raw)
+        assertEquals(BundleSource("plugin/8.5", line, core), parsed.source)
+        assertEquals("plugin/8.5 23ef63f, plugin-core 0ae1ff8", parsed.source?.describe())
+        // the install record keeps it
+        val record = parsed.installedRecord("a".repeat(64), BundleSigner.fromJson(JSONObject()
+            .put("format", 1).put("keySha256", "b".repeat(64)).put("kind", SignerKind.values().first().name)
+            .put("anchorKeySha256", "c".repeat(64))))
+        assertEquals(parsed.source, BundleSource.parse(record.getJSONObject("source")))
+    }
+
+    @Test
+    fun `a source field that is not what it claims is dropped`() {
+        assertEquals(BundleSource("plugin/1", null, null),
+            BundleSource.parse(JSONObject().put("revision", "plugin/1").put("commit", "not a sha").put("pluginCore", "12345")))
+        assertEquals(null, BundleSource.parse(JSONObject().put("revision", "a b\nc")))
+        assertEquals(null, BundleSource.parse(null))
+        assertEquals("plugin/1", BundleSource("plugin/1", null, null).describe())
+    }
+
+    @Test
     fun `lockdown is read from the manifest, on either transport, and counts as sandboxed`() {
         // docs/engine-bundle-format.md "lockdown"; owner, 2026-10-17.
         val keys = keyPair("secp256r1")
