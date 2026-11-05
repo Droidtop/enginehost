@@ -958,6 +958,10 @@ plugin came from for it to be trusted".
 - **Where.** Each root entry in `app/src/main/assets/trust/enginehost-roots.json` may carry
   `"superseded": [{"keySha256": "<old root>", "by": "<current root>"}]`. It ships inside the app, under the
   app's signature. `EnginehostRoots.superseded` reads it, and `scripts/bundle_jws.py` ignores it.
+- **First marker.** The 2026-11-04 rotation (Droidtop/tracker#876): the current root (`9629576d…`) marks the
+  root it replaced (`916dbb97…`, `enginehost-root-2026-10.pub`) as superseded. The marker stays after that
+  root's file is dropped at its end, 2026-11-11T23:59:59Z, so approvals keep carrying. At the next rotation,
+  every marker is rewritten to point at the new current root, and the replaced root is added.
 - **What it does.** A core approved under the old root keeps that approval for an update signed under the
   root the marker names (`PluginTrustStore.shouldCarry`), even after the old root's file is no longer
   pinned. Whatever the old root signed stays installed and running, as before. Revocation stays separate.

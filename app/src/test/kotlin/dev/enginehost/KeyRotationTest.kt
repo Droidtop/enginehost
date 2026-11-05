@@ -197,6 +197,20 @@ class KeyRotationTest {
     }
 
     @Test
+    fun `the shipped list marks the rotated-out root as superseded by the current one`() {
+        // The 2026-11-04 rotation (Droidtop/tracker#876, #887): the marker must name the old root's key file and
+        // point at the root the list pins first, by the same fingerprints the pinned key files give.
+        val dir = java.io.File("src/main/assets/trust")
+        val manifest = java.io.File(dir, "enginehost-roots.json").readText()
+        val roots = EnginehostRoots.parse(manifest) { java.io.File(dir, it).readText() }
+        val current = roots.single { it.notAfterEpochSecond == null }.keySha256.uppercase()
+        val old = roots.single { it.notAfterEpochSecond != null }.keySha256.uppercase()
+        assertEquals(mapOf(old to current), EnginehostRoots.parseSuperseded(manifest))
+        assertEquals("9629576D51BF000C2A8DF606C66C1366FA27481E2297DC4E1AB68A646B95F5F0", current)
+        assertEquals("916DBB9719186C293F9F1277ACBF851B7407203092991887B068B33F06F0474F", old)
+    }
+
+    @Test
     fun `the pinned list reads its superseded markers`() {
         val old = oldRoot.keySha256
         val new = newRoot.keySha256

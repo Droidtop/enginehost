@@ -1,6 +1,14 @@
 {
   "roots": [
-    { "key": "enginehost-root.pub" },
+    {
+      "key": "enginehost-root.pub",
+      "superseded": [
+        {
+          "keySha256": "916dbb9719186c293f9f1277acbf851b7407203092991887b068b33f06f0474f",
+          "by": "9629576d51bf000c2a8df606c66c1366fa27481e2297dc4e1ab68a646b95f5f0"
+        }
+      ]
+    },
     { "key": "enginehost-root-2026-10.pub", "notAfter": "2026-11-11T23:59:59Z" }
   ]
 }
