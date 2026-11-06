@@ -1,12 +1,14 @@
 name: Enginehost plugin API
 description: >-
-  Checks out Enginehost's plugin API (plugin-api/) and its web game host (plugin-web/) at the commit
+  Checks out Enginehost's plugin API (plugin-api/), its web game host (plugin-web/) and its native
+  plugin layer (plugin-native/: the file layer, the audio ring and the libretro frontend) at the commit
   this action is pinned to, for a plugin to compile against. The one copy of each every plugin builds
-  with (Droidtop/tracker#768): a plugin repository pins this action by commit, as it pins the signing
-  workflow, and commits no copy of its own. A web core compiles plugin-web/ into its own dex.
+  with (Droidtop/tracker#768, #921 item 17): a plugin repository pins this action by commit, as it pins
+  the signing workflow, and commits no copy of its own. A web core compiles plugin-web/ into its own
+  dex; a native core builds plugin-native/ into its library.
 inputs:
   path:
-    description: Where the plugin-api and plugin-web folders go, relative to the workspace.
+    description: Where the plugin-api, plugin-web and plugin-native folders go, relative to the workspace.
     default: build/enginehost
 runs:
   using: composite
@@ -27,6 +29,7 @@ runs:
         sparse-checkout: |
           plugin-api
           plugin-web
+          plugin-native
         sparse-checkout-cone-mode: true
         persist-credentials: false
     - shell: bash
@@ -35,3 +38,6 @@ runs:
       run: |
         test -f "$CHECKOUT/plugin-api/src/main/java/dev/enginehost/api/EnginePlugin.java"
         test -f "$CHECKOUT/plugin-web/src/main/java/dev/enginehost/web/GameServer.java"
+        test -f "$CHECKOUT/plugin-native/enginehost_vfs.cmake"
+        test -f "$CHECKOUT/plugin-native/enginehost_audio_ring.c"
+        test -f "$CHECKOUT/plugin-native/libretro/enginehost_libretro.c"

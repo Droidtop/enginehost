@@ -510,7 +510,10 @@ carried hand copies, all out of date). A web core (HTML, RPG Maker MV/MZ) also c
 `GameServer` serves the game folder as a private https origin, and `LocalStorageBridge` keeps
 `localStorage` in the save folder. The core supplies only its engine check, its input and a
 `GameServer.Site` (entry pages, a stand-in for a missing file, any extra page script); the two cores
-had each carried their own copy, and the copies had drifted apart. It receives a host-owned render
+had each carried their own copy, and the copies had drifted apart. A native core builds
+`plugin-native/` (the file layer, the audio ring and the libretro frontend) from the same checkout
+into its library and commits no copy of it either (Droidtop/tracker#921 item 17: buriko, easyrpg,
+nscripter and wolf carried identical copies). It receives a host-owned render
 container, lifecycle callbacks, the game path, engine/context/requested and
 selected runtime versions, capability ID, runtime requirements, executable,
 raw options JSON, save/cache directories, logging/finish services, and an
