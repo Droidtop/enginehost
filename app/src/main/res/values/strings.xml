@@ -71,8 +71,8 @@
     <string name="action_manage">Manage</string>
     <string name="action_choose_picture">Choose a picture</string>
     <string name="action_own_picture">Use the game\'s own picture</string>
-    <string name="picture_unusable">That picture could not be used</string>
-    <string name="launch_needs_config">A few details could not be read from the game. Check them, then save or test.</string>
+    <string name="picture_unusable">Couldn\'t use that picture. Pick another one.</string>
+    <string name="launch_needs_config">Couldn\'t read a few details from the game. Check them, then save or test.</string>
     <string name="unhosted_engine">This is a %1$s game. No Enginehost core runs %1$s games, so it cannot be started here.</string>
     <string name="unhosted_unity">This is a Unity game%1$s. Enginehost cannot run it: Unity\'s engine is closed source, and no Unity runtime exists for Android to run the game with.</string>
     <string name="unhosted_unity_il2cpp">This is a Unity game%1$s, built with IL2CPP for %2$s. Enginehost cannot run it: IL2CPP turned the game\'s scripts into machine code for that processor, and Unity\'s engine is closed source, so there is nothing an Android runtime could load in its place.</string>
@@ -92,7 +92,7 @@
     <string name="scan_cancel">Stop</string>
     <string name="scan_finished">Done. %1$d folders, %2$d games.</string>
     <string name="scan_finished_unchanged">Done. %1$d folders, %2$d games, %3$d unchanged since the last scan.</string>
-    <string name="scan_finished_skipped">Done. %1$d folders, %2$d games. %3$d entries could not be read.</string>
+    <string name="scan_finished_skipped">Done. %1$d folders, %2$d games. Couldn\'t read %3$d entries.</string>
     <string name="scan_stopped">Stopped. %1$d folders, %2$d games so far.</string>
     <string name="scan_empty">Nothing found yet. Choose a folder; games are recognised by their engine and executable files, not by folder names.</string>
     <string name="scan_add">Add</string>
@@ -242,7 +242,7 @@
     <string name="link_copied">Link copied</string>
     <string name="link_no_app">Nothing on this device opens that link</string>
     <string name="link_refused_title">This game tried to open a link Enginehost does not open</string>
-    <string name="link_refused_message">Enginehost opens only web pages, email addresses and the apps it knows (Discord, YouTube, Steam and others). This one was something else, so it was not opened.</string>
+    <string name="link_refused_message">Enginehost opens web pages, email and the apps it knows. This link is something else.</string>
     <string name="component_request_install_message">It is a separate part, installed once, under its own licence (%1$s). The game waits while you decide.</string>
     <string name="component_request_install">Install it</string>
     <string name="component_request_accept_message">It is installed and waiting for you to accept its licence. The game waits while you decide.</string>
@@ -255,11 +255,11 @@
     <string name="license_line">Licence: %1$s</string>
     <string name="license_show">Read the licence</string>
     <string name="license_hide">Hide the licence</string>
-    <string name="license_unreadable">The licence text could not be read from the installed bundle.</string>
+    <string name="license_unreadable">Couldn\'t read the licence from the installed bundle.</string>
     <string name="approve_accept_license">Accept licence and allow</string>
     <string name="releases_not_loaded">Not loaded yet. Refresh to fetch releases.</string>
     <string name="releases_none_published">Nothing published yet. Check again later.</string>
-    <string name="releases_unavailable">The catalog could not be loaded. %1$s</string>
+    <string name="releases_unavailable">Couldn\'t load the catalog. %1$s</string>
     <string name="releases_stream_empty">No cores on the %1$s channel yet.</string>
     <string name="switch_to_stream">Switch to %1$s</string>
     <string name="catalog_stream_label">Channel</string>
@@ -322,7 +322,7 @@
     <string name="voices_unpacking">Unpacking the voices…</string>
     <string name="voices_own">Your own voices</string>
     <string name="voices_ready">Reading aloud with %1$s</string>
-    <string name="voices_failed">The voices could not be added</string>
+    <string name="voices_failed">Couldn\'t add the voices. Try again.</string>
     <string name="voices_remove">Remove voices</string>
     <string name="voices_kokoro_en">English voices (Kokoro)</string>
     <string name="voices_kokoro_multi">Voices in many languages (Kokoro)</string>
@@ -424,7 +424,7 @@
     <string name="saves_restore_message">Your current saves are backed up first. Saves this backup doesn\'t have are kept.</string>
     <string name="saves_restore_confirm">Restore</string>
     <string name="saves_copied">Copied to %1$s</string>
-    <string name="saves_failed">The saves could not be copied</string>
+    <string name="saves_failed">Couldn\'t copy the saves. Try again.</string>
     <plurals name="saves_backed_up">
         <item quantity="one">Backed up %d file.</item>
         <item quantity="other">Backed up %d files.</item>
@@ -438,8 +438,8 @@
         <item quantity="other">%d files</item>
     </plurals>
     <plurals name="saves_skipped">
-        <item quantity="one">%d item was left out: a link, or a file that could not be read.</item>
-        <item quantity="other">%d items were left out: links, or files that could not be read.</item>
+        <item quantity="one">%d item was left out: a link, or a file it couldn\'t read.</item>
+        <item quantity="other">%d items were left out: links, or files it couldn\'t read.</item>
     </plurals>
     <string name="section_history">History</string>
     <string name="core_value">%1$s · %2$s</string>
@@ -493,7 +493,7 @@
     <string name="move_saves_message">Copies saves to the new folder and removes the originals once each copy is verified.</string>
     <string name="migrate">Move</string>
     <string name="not_now">Not now</string>
-    <string name="migration_failed">The saves could not be moved: %1$s</string>
+    <string name="migration_failed">Couldn\'t move the saves: %1$s</string>
     <string name="migration_result">Moved %1$d files; %2$d conflicts kept in place; %3$d failed</string>
     <string name="migration_progress">Moving saves… %1$d files so far. This keeps going if you close this.</string>
     <string name="migration_running">Saves are still being moved. Try again when that has finished.</string>
@@ -716,7 +716,7 @@
     <string name="app_update_install">Install Enginehost %1$s</string>
     <string name="app_update_downloading">Downloading Enginehost %1$s…</string>
     <string name="app_update_handing_to_installer">Handing over to the Android installer…</string>
-    <string name="app_update_failed">Enginehost could not be updated. Check the connection, then press Install to try again.</string>
+    <string name="app_update_failed">Couldn\'t update Enginehost. Check the connection, then press Install.</string>
     <string name="app_update_not_installed">Android did not install the update. Press Install to try again.</string>
     <!-- Launch screen: shown from the tap until the engine draws its first frame. -->
     <string name="launch_starting">Starting…</string>
@@ -761,7 +761,7 @@
     <string name="report_save">Save report as a file</string>
     <string name="report_file_name">Enginehost report - %1$s.txt</string>
     <string name="report_saved">Report saved</string>
-    <string name="report_save_failed">The report could not be saved there</string>
+    <string name="report_save_failed">Couldn\'t save the report there. Pick another place.</string>
     <string name="report_copy_explanation">Report on GitHub needs an account. Copy report works without one: paste it wherever you can reach us.</string>
     <string name="report_copied">Report copied</string>
     <string name="report_copied_paste">Report copied. Paste it into the description.</string>
@@ -844,10 +844,10 @@
     <string name="caller_access_blocked_remote">%1$s looks like a remote-access or automation tool. These are blocked from launching games by default.</string>
     <string name="caller_access_allow_anyway">Allow this app</string>
     <string name="caller_access_running_refused">A game is already running, and this app is not allowed to bring it forward. Allow it under Settings, App launch access.</string>
-    <string name="launch_plan_failed">Enginehost could not prepare this game.</string>
-    <string name="launch_runtime_failed">The game\'s engine could not be started. Try again.</string>
+    <string name="launch_plan_failed">Couldn\'t prepare this game.</string>
+    <string name="launch_runtime_failed">Couldn\'t start the game\'s engine. Try again.</string>
     <string name="error_network">Could not reach the server. Check the connection, then try again.</string>
-    <string name="core_install_failed">The core could not be installed.</string>
+    <string name="core_install_failed">Couldn\'t install the core. Try again.</string>
     <string name="scan_request_title">Look for games here?</string>
     <string name="scan_request_message">%1$s asks Enginehost to look for games in %2$s.</string>
     <string name="scan_request_scan">Look for games</string>
@@ -867,8 +867,8 @@
         <item quantity="other">Copied %1$d save files into the game folder. The originals are still where they were.</item>
     </plurals>
     <plurals name="earlier_saves_failed">
-        <item quantity="one">%1$d save file could not be copied into the game folder. It is still in %2$s.</item>
-        <item quantity="other">%1$d save files could not be copied into the game folder. They are still in %2$s.</item>
+        <item quantity="one">Couldn\'t copy %1$d save file into the game folder. It\'s still in %2$s.</item>
+        <item quantity="other">Couldn\'t copy %1$d save files into the game folder. They\'re still in %2$s.</item>
     </plurals>
     <string name="launch_folder_missing">The game folder is not there: %1$s. If it is on a memory card, check that the card is inserted and mounted, then try again.</string>
 </resources>
