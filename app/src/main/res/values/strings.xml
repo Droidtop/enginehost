@@ -242,7 +242,7 @@
     <string name="link_copied">Link copied</string>
     <string name="link_no_app">Nothing on this device opens that link</string>
     <string name="link_refused_title">This game tried to open a link Enginehost does not open</string>
-    <string name="link_refused_message">Enginehost opens web pages, email and the apps it knows. This link is something else.</string>
+    <string name="link_refused_message">Enginehost didn\'t open this link. It opens web pages, email and the apps it knows.</string>
     <string name="component_request_install_message">It is a separate part, installed once, under its own licence (%1$s). The game waits while you decide.</string>
     <string name="component_request_install">Install it</string>
     <string name="component_request_accept_message">It is installed and waiting for you to accept its licence. The game waits while you decide.</string>
