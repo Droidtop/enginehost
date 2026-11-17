@@ -55,7 +55,7 @@
     <string name="tab_next">Next tab</string>
     <string name="enginehost_settings">Settings</string>
     <string name="browse_plugins">Cores</string>
-    <string name="needs_native_access">Launching needs folder access; game setup still works without it</string>
+    <string name="needs_native_access">Launching needs folder access. Game setup works without it</string>
     <string name="game_folder_unavailable">That game folder is not available right now</string>
     <string name="remove_game_title">Remove from Enginehost?</string>
     <string name="remove_game_message">Only the shortcut goes. The game and its saves stay where they are.</string>
@@ -73,7 +73,7 @@
     <string name="action_own_picture">Use the game\'s own picture</string>
     <string name="picture_unusable">Couldn\'t use that picture. Pick another one.</string>
     <string name="launch_needs_config">Couldn\'t read a few details from the game. Check them, then save or test.</string>
-    <string name="unhosted_engine">This is a %1$s game. No Enginehost core runs %1$s games, so it cannot be started here.</string>
+    <string name="unhosted_engine">This is a %1$s game. No Enginehost core runs %1$s games, so it can\'t start here.</string>
     <string name="unhosted_unity">This is a Unity game%1$s. Enginehost cannot run it: Unity\'s engine is closed source, and no Unity runtime exists for Android to run the game with.</string>
     <string name="unhosted_unity_il2cpp">This is a Unity game%1$s, built with IL2CPP for %2$s. Enginehost cannot run it: IL2CPP turned the game\'s scripts into machine code for that processor, and Unity\'s engine is closed source, so there is nothing an Android runtime could load in its place.</string>
     <string name="unhosted_unity_mono">This is a Unity game%1$s with Mono scripts, built for %2$s. Enginehost cannot run it: the scripts themselves are portable .NET, but they need Unity\'s own engine, which is closed source and comes with the game only as that PC player. No Unity runtime exists for Android to run them with.</string>
@@ -94,7 +94,7 @@
     <string name="scan_finished_unchanged">Done. %1$d folders, %2$d games, %3$d unchanged since the last scan.</string>
     <string name="scan_finished_skipped">Done. %1$d folders, %2$d games. Couldn\'t read %3$d entries.</string>
     <string name="scan_stopped">Stopped. %1$d folders, %2$d games so far.</string>
-    <string name="scan_empty">Nothing found yet. Choose a folder; games are recognised by their engine and executable files, not by folder names.</string>
+    <string name="scan_empty">Nothing found yet. Choose a folder. Games are recognised by their engine and executable files, not by folder names.</string>
     <string name="scan_add">Add</string>
     <string name="scan_added">Added</string>
     <string name="scan_add_shown">Add all shown (%1$d)</string>
@@ -182,10 +182,10 @@
     <string name="trust_state_denied">Denied</string>
     <string name="origin_label">Origin</string>
     <string name="origin_verified">%1$s (verified)</string>
-    <string name="origin_verified_third_party">%1$s (verified; third party, maintained by %2$s)</string>
+    <string name="origin_verified_third_party">%1$s (verified, third party, maintained by %2$s)</string>
     <string name="signer_label">Signer</string>
     <string name="signing_key_changed">Signing key changed from %1$s… to %2$s…: the old key was marked as replaced, so your approval carried over.</string>
-    <string name="ultimate_warning">Signed with the primary developer\'s own key. Not a production release; if that is not you, do not use this build.</string>
+    <string name="ultimate_warning">Signed with the primary developer\'s own key. Not a production release. If that is not you, do not use this build.</string>
     <string name="approve">Approve</string>
     <string name="deny">Deny</string>
     <string name="close">Close</string>
@@ -217,7 +217,7 @@
     <string name="refreshed_ok">Every installed core is up to date.</string>
     <string name="refreshed_partial">Refreshed; %1$s unavailable — %2$s</string>
     <string name="catalog_rate_limited_until">GitHub rate limit, try again after %1$s.</string>
-    <string name="catalog_rate_limited">GitHub rate limit reached; try again later.</string>
+    <string name="catalog_rate_limited">GitHub rate limit reached. Try again later.</string>
     <string name="catalog_http_error">GitHub returned HTTP %1$d.</string>
     <string name="catalog_offline">No network connection.</string>
     <string name="origins_heading">Sources</string>
@@ -289,7 +289,7 @@
     <string name="quick_add_delisted">No longer listed. Its cores keep working until you remove it.</string>
     <string name="quick_add_add">Add</string>
     <string name="quick_add_prompt_title">Add %1$s?</string>
-    <string name="quick_add_prompt_message">Maintained by %1$s, not by Droidtop.\n\nSigning key\n%2$s\n\nDroidtop lists who maintains this repository and which key signs it; it has not reviewed the cores. Each one still asks for your approval before it runs, and none of them is marked Official.</string>
+    <string name="quick_add_prompt_message">Maintained by %1$s, not by Droidtop.\n\nSigning key\n%2$s\n\nDroidtop lists who maintains this repository and which key signs it. It has not reviewed the cores. Each one still asks for your approval before it runs, and none of them is marked Official.</string>
     <string name="quick_add_trust">Trust this key and add</string>
     <string name="quick_add_adding">Checking the repository\'s key…</string>
     <string name="quick_add_done">%1$s added.</string>
@@ -309,9 +309,9 @@
     <string name="read_aloud">Read text aloud</string>
     <string name="read_aloud_detail">With this device\'s own voices, one per character. Lines the game voices itself are not read. Only cores that report their text can be read: CatSystem2 so far.</string>
     <string name="voices_row">Voices</string>
-    <string name="voices_message">Which voices read games aloud. Voices on the device give each character a voice of their own, female and male; they are downloaded once, or you can add your own.</string>
+    <string name="voices_message">Which voices read games aloud. Voices on the device give each character a voice of their own, female and male. They are downloaded once, or you can add your own.</string>
     <string name="voices_device">This device\'s voices</string>
-    <string name="voices_device_detail">No download; characters differ by pitch</string>
+    <string name="voices_device_detail">No download. Characters differ by pitch</string>
     <string name="voices_model_genders">%1$s · %2$d voices, %3$d female, %4$d male</string>
     <string name="voices_model_count">%1$s · %2$d voices</string>
     <string name="voices_download">Download voices</string>
@@ -346,7 +346,7 @@
     <string name="translator_model_hint">Model, e.g. gpt-4o-mini</string>
     <string name="translator_into_hint">Translate into, e.g. English</string>
     <string name="translator_key_hint">Key, if the service needs one</string>
-    <string name="translator_key_kept">A key is kept; type to replace it</string>
+    <string name="translator_key_kept">A key is kept. Type to replace it</string>
     <string name="translator_key_remove">Remove the key</string>
     <string name="translator_save">Save</string>
     <string name="translator_endpoint_invalid">That address is not an http or https address.</string>
@@ -519,7 +519,7 @@
     <string name="controls_follow">Follows the engine\'s buttons</string>
     <string name="capture_prompt">Press a button or move a stick for %1$s.</string>
     <string name="global_map_hint">The map every engine starts from.</string>
-    <string name="native_engine_hint">%1$s reads the controller itself; set it up inside the game.</string>
+    <string name="native_engine_hint">%1$s reads the controller itself. Set it up inside the game.</string>
     <string name="scoped_hint">Overrides for %1$s. Anything inherited follows All engines.</string>
     <string name="binding_row">%1$s: %2$s</string>
     <string name="binding_unbound">Unbound</string>
@@ -550,7 +550,7 @@
     <string name="profile_labels">Button labels: %1$s</string>
     <string name="profile_labels_title">What this pad\'s buttons say</string>
     <string name="profile_labels_detected">%1$s (from the pad)</string>
-    <string name="profile_labels_assumed">%1$s (this pad is not known; choose if it differs)</string>
+    <string name="profile_labels_assumed">%1$s (unknown pad: choose if it differs)</string>
     <string name="profile_labels_as_detected">As the pad says: %1$s</string>
     <string name="profile_labels_as_detected_unknown">As the pad says (not known, drawn as Xbox)</string>
     <string name="pad_family_xbox">Xbox (A, B, X, Y)</string>
@@ -613,9 +613,9 @@
     <string name="runtime_none">None</string>
     <string name="exec_clear">Detected automatically</string>
     <string name="exec_up">.. (up one folder)</string>
-    <string name="exec_unavailable">This folder cannot be browsed; type the file\'s relative path instead.</string>
+    <string name="exec_unavailable">Can\'t browse this folder. Type the file\'s relative path instead.</string>
     <string name="ok">OK</string>
-    <string name="no_installed_choices">No installed core offers choices here; enter a value.</string>
+    <string name="no_installed_choices">No installed core offers choices here. Enter a value.</string>
     <string name="add_option">Add option</string>
     <string name="option_custom">Custom option…</string>
     <string name="option_key_prompt">Option key</string>
@@ -643,14 +643,14 @@
     <string name="detected_engine">%1$s · %2$s</string>
     <string name="detected_nothing_to_change">Nothing to change: Play runs it as detected.</string>
     <string name="detected_change">Change what was detected</string>
-    <string name="plugin_selected_manually">Engine chosen by hand; check the version before saving.</string>
+    <string name="plugin_selected_manually">Engine chosen by hand. Check the version before saving.</string>
     <string name="saved_config">Saved</string>
     <string name="save_to_folder">Also save to the game folder</string>
     <string name="saved_in_enginehost">Saved in Enginehost</string>
     <string name="saved_in_enginehost_and_folder">Saved in Enginehost and in the game folder</string>
     <string name="config_source_folder">This game\'s folder has its own enginehost.json, and it is what the game runs on. A setup saved here is kept in Enginehost and applies only once you also save it to the game folder.</string>
     <string name="config_source_enginehost">This setup is kept in Enginehost. Nothing is written into the game folder unless you turn on \u201cAlso save to the game folder\u201d.</string>
-    <string name="folder_config_still_applies">Saved in Enginehost. The game folder\'s enginehost.json still applies to this game; to run on this setup, save it to the game folder too.</string>
+    <string name="folder_config_still_applies">Saved in Enginehost. The game folder\'s enginehost.json still applies to this game. To run on this setup, save it to the game folder too.</string>
     <string name="replace_folder_config_title">Replace the game folder\'s enginehost.json?</string>
     <string name="replace_folder_config_message">The game folder already has an enginehost.json. Saving there replaces it with this setup, and the old file is not kept.</string>
     <string name="replace_folder_config_confirm">Replace it</string>
@@ -670,8 +670,8 @@
     <string name="testing_discard">Discard: use the working config</string>
     <string name="testing_kept">Kept as this game\'s setup in Enginehost.</string>
     <string name="testing_discarded">Testing configuration discarded.</string>
-    <string name="engine_version_missing">Engine version is empty. The game\'s files did not say which version of the engine made it; type that version in Engine version.</string>
-    <string name="engine_version_not_found">The game\'s files did not say which engine version made it; type it in Engine version.</string>
+    <string name="engine_version_missing">Engine version is empty. The game\'s files did not say which version of the engine made it. Type that version in Engine version.</string>
+    <string name="engine_version_not_found">The game\'s files did not say which engine version made it. Type it in Engine version.</string>
     <string name="field_required">%1$s is required</string>
     <string name="engine_family">Engine</string>
     <string name="json_object_error">%1$s must be a JSON object: %2$s</string>
@@ -772,10 +772,10 @@
     <string name="report_open_in_browser">Browser</string>
     <string name="action_report">Report a problem</string>
     <string name="trouble_black_title">%1$s isn\'t showing anything</string>
-    <string name="trouble_black_message">The screen has stayed black for 45 seconds. Some games take longer to start; you can keep waiting, end the game, or report it.</string>
+    <string name="trouble_black_message">The screen has stayed black for 45 seconds. Some games take longer to start. You can keep waiting, end the game, or report it.</string>
     <string name="trouble_black_reason">Showed only a black screen</string>
     <string name="trouble_hang_title">%1$s isn\'t responding</string>
-    <string name="trouble_hang_message">The game has not responded for 15 seconds. It may still recover; you can keep waiting, end the game, or report it.</string>
+    <string name="trouble_hang_message">The game has not responded for 15 seconds. It may still recover. You can keep waiting, end the game, or report it.</string>
     <string name="trouble_hang_reason">Stopped responding</string>
     <string name="trouble_keep_waiting">Keep waiting</string>
     <string name="trouble_end_game">End game</string>
@@ -800,9 +800,9 @@
         <item quantity="other">%1$s has %2$d cores</item>
     </plurals>
     <string name="launch_needs_all_files">Enginehost is not allowed to use all files, which it needs to read games and keep their saves. Allow it in Android\'s settings (Apps, Enginehost, All files access), then try again.</string>
-    <string name="launch_save_folder_unusable">Enginehost cannot keep saves in %1$s: the folder cannot be created or written to. If it is on a memory card, check that the card is inserted and mounted, or choose another save folder in Enginehost\'s settings, then try again.</string>
+    <string name="launch_save_folder_unusable">Enginehost can\'t keep saves in %1$s: it can\'t create the folder or write to it. If it is on a memory card, check that the card is inserted and mounted, or choose another save folder in Enginehost\'s settings, then try again.</string>
     <string name="sandbox_consent_title">Warning: this engine runs without a sandbox</string>
-    <string name="sandbox_consent_message">%1$s has no sandboxed runtime yet. Run it anyway and its code has Enginehost\'s own access while it runs: it can read and write anything on shared storage and use the network, the same as the app itself. We recommend not installing cores that cannot run sandboxed. This is asked every time; nothing is remembered.</string>
+    <string name="sandbox_consent_message">%1$s has no sandboxed runtime yet. Run it anyway and its code has Enginehost\'s own access while it runs: it can read and write anything on shared storage and use the network, the same as the app itself. We recommend not installing cores that can\'t run sandboxed. This is asked every time. Nothing is remembered.</string>
     <string name="unsandboxed_install_title">Warning: this core can\'t run sandboxed</string>
     <string name="unsandboxed_install_message">%1$s can\'t run in Enginehost\'s sandbox. While a game plays, its code has Enginehost\'s own access: it can read and write anything on shared storage and use the network. We recommend not installing cores that cannot run sandboxed.</string>
     <string name="unsandboxed_install_anyway">Install anyway</string>
@@ -818,7 +818,7 @@
     </plurals>
     <string name="launch_access_title">App launch access</string>
     <string name="launch_access_intro">Enginehost can be asked by any app to launch a game (that is the point of it). Decide here which apps may do that with no prompt, which are refused outright, and which are asked about each time.</string>
-    <string name="launch_access_empty">No app has an explicit decision yet. A browser or a known remote-access/automation tool is blocked by default; anything else is asked about the first time it tries.</string>
+    <string name="launch_access_empty">No app has an explicit decision yet. A browser or a known remote-access/automation tool is blocked by default. Anything else is asked about the first time it tries.</string>
     <string name="launch_access_add">Add an app</string>
     <string name="launch_access_add_empty">Every launchable app on this device already has a decision.</string>
     <string name="launch_access_add_none">No launchers, frontends or games found. Show every app to pick another.</string>
@@ -851,7 +851,7 @@
     <string name="scan_request_title">Look for games here?</string>
     <string name="scan_request_message">%1$s asks Enginehost to look for games in %2$s.</string>
     <string name="scan_request_scan">Look for games</string>
-    <string name="folder_unusable_choice">That folder cannot be used here. Choose another one.</string>
+    <string name="folder_unusable_choice">Can\'t use that folder here. Choose another one.</string>
     <string name="launch_save_folder_invalid_name">The save folder name in the game\'s configuration is not valid.</string>
     <string name="launch_exec_file_missing">The game\'s entry file \"%1$s\" does not exist in the game folder.</string>
     <string name="earlier_saves_title">Saves from an earlier Enginehost</string>

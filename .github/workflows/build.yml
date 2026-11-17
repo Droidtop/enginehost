@@ -55,6 +55,11 @@ jobs:
       - name: Test the bundle scripts
         run: python3 -m unittest discover -s scripts -p "test_*.py"
 
+      # One copy rule for droidtop and Enginehost (Droidtop/tracker#945): two sentences, not a
+      # semicolon splice; "Couldn't X", not "X could not be Y". scripts/check-copy.py.
+      - name: Check the strings against the copy rule
+        run: python3 scripts/check-copy.py
+
       - name: Restore official Enginehost APK signing subkey
         env:
           ENGINEHOST_ANDROID_KEYSTORE_BASE64: ${{ secrets.ENGINEHOST_ANDROID_KEYSTORE_BASE64 }}
