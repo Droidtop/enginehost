@@ -236,7 +236,7 @@ class IsolatedRuntimeService : Service() {
                 // Answered while this process can still read its own /proc: after the clamp the
                 // broker would read Enginehost's, and the plugins' static initialisers ask it.
                 dev.enginehost.api.EngineProcess.isIsolated()
-                check(RuntimeSandbox.confineIsolated(sandboxBroker, sandboxLearn)) { "the sandbox could not be set up" }
+                check(RuntimeSandbox.confineIsolated(sandboxBroker, sandboxLearn)) { "couldn't set up the sandbox" }
             }
             val loaded = loadEnginePluginFromInMemoryDex(dexBuffers, entrypointClass, nativeLibraryFdsByName, classLoader)
             resourceHandles += loaded.resourceHandles

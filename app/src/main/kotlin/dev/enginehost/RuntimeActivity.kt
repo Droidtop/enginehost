@@ -104,7 +104,7 @@ class RuntimeActivity : FragmentActivity() {
                         plugin = resolved.plugin,
                     )
                 ) {
-                    return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")
+                    return failAndFinish(STARTUP_FAILED + "couldn't set up the sandbox")
                 }
             }
             val instance = loadPlugin(resolved.plugin)
@@ -192,7 +192,7 @@ class RuntimeActivity : FragmentActivity() {
         val sandboxLearn = RuntimeSandbox.learning(resolved.plugin)
         val sandboxBroker = if (RuntimeSandbox.locksDown(resolved.plugin)) {
             RuntimeSandbox.brokerForIsolated(this, resolved.plugin, engineFolder, saveFolder)
-                ?: return failAndFinish(STARTUP_FAILED + "the sandbox could not be set up")
+                ?: return failAndFinish(STARTUP_FAILED + "couldn't set up the sandbox")
         } else {
             null
         }
@@ -320,7 +320,7 @@ class RuntimeActivity : FragmentActivity() {
         if (folder == null) { finish(); return }
         val installed = PatchSupply.install(this, picked, folder, pendingRequiredFile)
         if (!installed) {
-            failAndFinish("That file couldn't be used as a patch for this game")
+            failAndFinish("Couldn't use that file as a patch for this game")
             return
         }
         // Relaunch cleanly rather than resuming a half-started engine:

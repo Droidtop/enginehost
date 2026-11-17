@@ -116,7 +116,7 @@ object VoiceModels {
     /** Installs a voice archive the person picked ([uri], from the system picker), named [label]. */
     fun supply(context: Context, uri: Uri, label: String): Installed {
         val id = "own-" + System.currentTimeMillis()
-        val input = context.contentResolver.openInputStream(uri) ?: throw IOException("The file could not be opened")
+        val input = context.contentResolver.openInputStream(uri) ?: throw IOException("Couldn't open the file")
         return input.use { install(context, id, label, it, supplied = true) }
     }
 
@@ -146,7 +146,7 @@ object VoiceModels {
             val folder = File(root, id)
             folder.deleteRecursively()
             if (!staging.renameTo(folder)) throw IOException("Could not move the voices into place")
-            return read(folder) ?: throw IOException("The installed voices could not be read back")
+            return read(folder) ?: throw IOException("Couldn't read the installed voices back")
         } finally {
             staging.deleteRecursively()
         }

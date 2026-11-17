@@ -59,7 +59,7 @@ class EnginehostComponentFactory : AppComponentFactory() {
             val game = intent.getStringExtra(RuntimeActivity.EXTRA_PATH) ?: error("Bundled runtime omitted its game folder")
             val save = intent.getStringExtra(RuntimeActivity.EXTRA_SAVE_PATH) ?: error("Bundled runtime omitted its save folder")
             check(RuntimeSandbox.lockdown(context, File(game), installed.writesGameFolder, File(save), listOf(installed.directory) + listOfNotNull(runtimeFolder), installed.gameWrites, plugin = installed)) {
-                "The sandbox could not be set up for ${installed.bundleId}"
+                "Couldn't set up the sandbox for ${installed.bundleId}"
             }
         }
         val resourceApks = installed.resourceApks.map {
