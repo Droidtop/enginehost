@@ -68,12 +68,22 @@ object EngineCores {
         builds.groupBy { it.bundleId }.mapValues { (_, all) -> all.maxBy { it.info.pluginVersion } }
 
     /**
-     * Tells droidtop the list changed (`engines report_changed {}`), off the caller's thread. With
-     * no broker, droidtop is not connected and asks for the whole list when it next connects.
+     * Tells droidtop the list changed, off the caller's thread. droidtop's binding goes idle
+     * between calls, so a core a launch installed found no broker and droidtop kept offering
+     * "Get … support" until it restarted (console, droidtop dev.3411). With no broker this knocks
+     * on droidtop's door, as save reports do: droidtop connects and asks for the whole list
+     * (its door calls `enginesChanged` once connected), so nothing more is sent. With one, it
+     * says `engines report_changed {}`.
      */
     fun reportChanged(context: Context) {
-        if (!DroidtopLink.isConnected()) return
+        val app = context.applicationContext
         Async.run {
+            if (!DroidtopLink.isConnected()) {
+                if (DroidtopSaves.installed(app) && !DroidtopSaves.ensureConnected(app)) {
+                    Log.i(TAG, "droidtop did not connect; it reads the core list when it next does")
+                }
+                return@run
+            }
             val reply = DroidtopLink.call("engines", "report_changed", JSONObject())
             if (reply?.optBoolean("ok") != true) Log.i(TAG, "droidtop did not take the core list change: $reply")
         }
