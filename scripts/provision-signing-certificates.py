@@ -5,7 +5,7 @@ Run by the owner, on the machine holding the Enginehost signing root's key,
 never in CI. The owner derives that root from the Droidtop CA outside this
 repository; the CA itself signs nothing Enginehost reads. Everything here is
 reproducible: deriving the root again and running this again yields the same
-signing keys.
+signing keys and byte-identical certificates, so neither is ever stored.
 
     master seed  = HKDF-SHA256(ikm = the root's raw private value,
                                salt = "droidtop-ca-root-v1",
@@ -57,7 +57,13 @@ SEED_SALT = b"droidtop-ca-root-v1"
 SEED_INFO = b"enginehost-plugin-root-master-seed"
 # X.509 needs a validity period; no Enginehost verifier reads it (expiry never
 # invalidates a signature, docs/engine-bundle-format.md "When each is checked").
-VALIDITY_DAYS = 3 * 365
+# Certificates are re-derived, never stored (owner, 2026-11-21: "we don't save
+# the cert file, we re-derive it when we need it"), so nothing in one may come
+# from the clock or a random source: fixed dates, a serial from the subject and
+# purpose, and deterministic ECDSA (RFC 6979). The same root and subject always
+# give the same certificate bytes.
+ISSUED = datetime.datetime(2026, 11, 4, tzinfo=datetime.timezone.utc)
+EXPIRES = ISSUED.replace(year=2126)
 
 
 def raw_private_value(key) -> bytes:
@@ -74,15 +80,15 @@ def master_seed(root_key) -> bytes:
 
 
 def issue(root_key, root_cert: x509.Certificate, key, common_name: str, purpose: str, uris: list[str]) -> x509.Certificate:
-    now = datetime.datetime.now(datetime.timezone.utc)
+    serial = int.from_bytes(hashlib.sha256(f"{purpose}:{common_name}".encode()).digest()[:16], "big") >> 1
     builder = (
         x509.CertificateBuilder()
         .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)]))
         .issuer_name(root_cert.subject)
         .public_key(key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now - datetime.timedelta(days=1))
-        .not_valid_after(now + datetime.timedelta(days=VALIDITY_DAYS))
+        .serial_number(serial)
+        .not_valid_before(ISSUED)
+        .not_valid_after(EXPIRES)
         .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
         .add_extension(
             x509.KeyUsage(
@@ -96,7 +102,9 @@ def issue(root_key, root_cert: x509.Certificate, key, common_name: str, purpose:
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
         .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(root_cert.public_key()), critical=False)
     )
-    return builder.sign(root_key, hashes.SHA256())
+    # An RSA root's PKCS#1 v1.5 signature is deterministic already; an EC root's needs RFC 6979.
+    deterministic = True if isinstance(root_key, ec.EllipticCurvePrivateKey) else None
+    return builder.sign(root_key, hashes.SHA256(), ecdsa_deterministic=deterministic)
 
 
 def write_private(path: Path, key) -> None:
