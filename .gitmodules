@@ -1,15 +1,15 @@
 [submodule "vendor/droidtop-platforms"]
 	path = vendor/droidtop-platforms
-	url = https://github.com/Droidtop/droidtop-platforms.git
+	url = https://github.com/mytop-project/droidtop-platforms.git
 [submodule "vendor/sandbox"]
 	path = vendor/sandbox
 	url = https://github.com/bi0shacker001/fibrewall.git
-[submodule "vendor/lib-input"]
-	path = vendor/lib-input
-	url = https://github.com/Droidtop/lib-input
-[submodule "vendor/lib-plugins"]
-	path = vendor/lib-plugins
-	url = https://github.com/Droidtop/lib-plugins
-[submodule "vendor/lib-net"]
-	path = vendor/lib-net
-	url = https://github.com/Droidtop/lib-net
+[submodule "vendor/mytop-input"]
+	path = vendor/mytop-input
+	url = https://github.com/mytop-project/mytop-input
+[submodule "vendor/mytop-plugins"]
+	path = vendor/mytop-plugins
+	url = https://github.com/mytop-project/mytop-plugins
+[submodule "vendor/mytop-net"]
+	path = vendor/mytop-net
+	url = https://github.com/mytop-project/mytop-net

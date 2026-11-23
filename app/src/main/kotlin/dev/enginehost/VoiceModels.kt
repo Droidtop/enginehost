@@ -20,7 +20,7 @@ import java.util.zip.GZIPInputStream
 
 /**
  * The voice models on this device, for reading games aloud with sherpa-onnx (docs/text-services.md,
- * "Voices on the device"; Droidtop/tracker#490). The owner, 2026-10-29: the engine is in the build
+ * "Voices on the device"; mytop-project/tracker#490). The owner, 2026-10-29: the engine is in the build
  * "that way they can supply their own voices"; the models are downloads on request, pinned by
  * SHA-256, or archives the person picks. Both install the same way: unpacked under the app's own
  * files, `voices/<id>/`, with what was found recorded beside them.

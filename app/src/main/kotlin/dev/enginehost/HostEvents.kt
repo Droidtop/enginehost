@@ -10,7 +10,7 @@ import java.util.concurrent.Executors
 /**
  * The last things Enginehost itself did, kept so a problem report can say what
  * happened just before a failure without asking the person to remember
- * (Droidtop/tracker#22). A short ring of one-line events in a file in the
+ * (mytop-project/tracker#22). A short ring of one-line events in a file in the
  * app's own storage: it survives the process dying, which is the moment it is
  * wanted. Lines name what happened (who was allowed, what the plan decided,
  * how the runtime ended), never a game's name or path; reports redact what
@@ -21,7 +21,7 @@ import java.util.concurrent.Executors
  * An event is appended as one line; the file is cut back to the newest
  * [MAX_LINES] only once it holds twice that. Rewriting the whole ring for
  * every event, as this did, meant a read and a write of the file per line a
- * chatty engine logged (code quality review, Droidtop/tracker#768).
+ * chatty engine logged (code quality review, mytop-project/tracker#768).
  */
 object HostEvents {
     private const val FILE = "host-events.log"

@@ -116,7 +116,7 @@ internal class IsolatedAudioBridge private constructor(
             val chunk = ByteArray(4096)
             // An empty ring backs off, 1 ms doubling to IDLE_MAX_MS, and the first sound after silence
             // starts it over. A fixed 5 ms sleep spun the reader 200 times a second through every
-            // silence, a whole menu's worth (Droidtop/tracker#768).
+            // silence, a whole menu's worth (mytop-project/tracker#768).
             var idleMs = 1L
             while (playing) {
                 val writePos = readHeaderInt(OFFSET_WRITE_POS)

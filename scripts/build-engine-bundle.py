@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Build an Enginehost bundle (format v1) and sign it.
 
-Signature format v1 (Droidtop/tracker#550): `--certificate-key` and
+Signature format v1 (mytop-project/tracker#550): `--certificate-key` and
 `--certificate-chain` add `enginehost-bundle.jws`, a detached JWS over the
 manifest whose x5c chain ends at the Enginehost signing root, or at the key a
 person pinned for a repository they added. It is the only signature: the
 legacy raw-key one (`enginehost-bundle.sig` and the manifest's `signing`
-block) is no longer made, and no Enginehost verifies it (Droidtop/tracker#768).
+block) is no longer made, and no Enginehost verifies it (mytop-project/tracker#768).
 See docs/engine-bundle-format.md "Signatures".
 """
 
@@ -114,7 +114,7 @@ def main() -> None:
     # is hand-written and rarely touched, so no build was ever a newer build
     # of another and the in-app update check had nothing to offer. The
     # maintainer declares X.Y.Z; this appends a per-version build counter
-    # (Droidtop/tracker#126) taken from the repository's own releases, so a
+    # (mytop-project/tracker#126) taken from the repository's own releases, so a
     # CI rerun never repeats a number and a new declared version restarts at 1.
     if args.release_history_repo:
         declared = str(metadata["pluginVersion"])

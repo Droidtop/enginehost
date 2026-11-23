@@ -7,7 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Where each engine family's own loading picture is found (Droidtop/tracker#640). */
+/** Where each engine family's own loading picture is found (mytop-project/tracker#640). */
 class LoadingImagesTest {
     private val root: File = Files.createTempDirectory("loading").toFile().canonicalFile
 

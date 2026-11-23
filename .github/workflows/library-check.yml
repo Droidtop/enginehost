@@ -1,17 +1,17 @@
 name: Library check
 
-# A shared library's CI calls this with the commit it is testing (Droidtop/tracker#867 D2: "each repo's CI
+# A shared library's CI calls this with the commit it is testing (mytop-project/tracker#867 D2: "each repo's CI
 # builds and tests every app that uses it"). It builds Enginehost's main with that one vendored library
 # moved to the commit: the unit tests and the debug APK, as build.yml makes them, without the release
 # signing a library has no business with. Enginehost keeps the knowledge of how it builds; a library only
 # names its submodule and its commit:
 #
 #   enginehost:
-#     uses: Droidtop/enginehost/.github/workflows/library-check.yml@main
+#     uses: mytop-project/enginehost/.github/workflows/library-check.yml@main
 #     with:
-#       submodule: vendor/lib-net
+#       submodule: vendor/mytop-net
 #       ref: ${{ github.sha }}
-#       repository: Droidtop/lib-net   # only while the submodule still points at the library's old repository
+#       repository: mytop-project/mytop-net   # only while the submodule still points at the library's old repository
 #
 # Started by hand (workflow_dispatch), it builds the branch it is started on instead of main.
 on:
@@ -57,8 +57,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # Called from a library, github.repository is the library's, so name Enginehost and its main.
-          repository: Droidtop/enginehost
-          ref: ${{ github.repository == 'Droidtop/enginehost' && github.ref || 'main' }}
+          repository: mytop-project/enginehost
+          ref: ${{ github.repository == 'mytop-project/enginehost' && github.ref || 'main' }}
           submodules: recursive
           fetch-depth: 1
           persist-credentials: false

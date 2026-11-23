@@ -155,14 +155,14 @@ it in the list.
 ## Order of checks, 2026-09-28
 
 Caller access is the first thing `LaunchActivity` does, before anything about
-the game is read (Droidtop/tracker#44). The access decision needs only the
+the game is read (mytop-project/tracker#44). The access decision needs only the
 caller key and, for a prompt, the folder's name as text; it never touches the
 folder. Block refuses and Ask waits for the person's choice with no planning
 done, so a blocked or unapproved caller cannot make Enginehost inspect the
 folder it named, resolve plugins, persist a pending launch or open the setup,
 catalog or trust screens. Only after Allow does `GameRunner.plan` run, and it
 runs off the main thread with the launch screen showing its starting state
-(Droidtop/tracker#45); the result is applied on the main thread and dropped if
+(mytop-project/tracker#45); the result is applied on the main thread and dropped if
 the screen has gone. A retry or an engine restart on the same screen does not
 ask again.
 

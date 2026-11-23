@@ -86,7 +86,7 @@ public final class GameWebView {
                 if (server.serves(request.getUrl())) return false;
                 // A link the game opens (an <a>, a location change or window.open, which stays in
                 // this view): offered by Enginehost and never opened here (Enginehost docs/SPEC.md,
-                // "Links a game opens"; Droidtop/tracker#635). Only a navigation the person caused
+                // "Links a game opens"; mytop-project/tracker#635). Only a navigation the person caused
                 // is offered, so a game cannot raise the sheet by itself; the view never leaves it.
                 if (request.isForMainFrame() && request.hasGesture()) game.offerLink(request.getUrl().toString());
                 return true;

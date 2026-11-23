@@ -19,7 +19,7 @@ none, and no secret reaches it. It refuses:
 - native code under `lib/<abi>/` for any ABI but `arm64-v8a` and `x86_64`, or
   for only one of the two, at the payload's top level or inside a payload APK
   (`docs/engine-bundle-format.md`: both 64-bit ABIs in one archive; 32-bit
-  dropped 2026-10-24, Droidtop/tracker#646);
+  dropped 2026-10-24, mytop-project/tracker#646);
 - the two ABIs carrying different library sets, or a `.so` whose ELF header is
   not a 64-bit library for the directory it sits in;
 - `dexFiles` or `resourceApks` the payload does not carry, and a resource APK
@@ -27,7 +27,7 @@ none, and no secret reaches it. It refuses:
 - an engine id, or a capability's `engine`, that the app's
   `EngineNames.family` has no name for (read from the app's source at the pinned
   commit, so the two cannot disagree), since the Cores screen would show the
-  raw id (the 2026-10-01 design pass on Droidtop/tracker#27: "every installed
+  raw id (the 2026-10-01 design pass on mytop-project/tracker#27: "every installed
   core must declare a display name and engine line the Cores screen and game
   page can show without falling back to raw ids");
 - a capability with no `id`, `engineContext` or `runtimeVersion`, or one that

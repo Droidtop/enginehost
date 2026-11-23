@@ -16,7 +16,7 @@ section when a real version is cut.
 
 - The launch contract with droidtop (the actions, extras and `enginehost.json` keys) is held once, in the shared
   library's `:launch-contract`, and the manifest and docs/contract.md are checked against it; every string is
-  unchanged, so released builds of both apps interoperate (Droidtop/tracker#204).
+  unchanged, so released builds of both apps interoperate (mytop-project/tracker#204).
 - Read text aloud (Settings, Reading and translation): a game's lines in the device's own voices,
   one per character, stopping when you move on. It works with cores that report their text, which
   is CatSystem2 so far; Enginehost now takes the lines, speakers and menus a core reports in one
@@ -39,10 +39,10 @@ section when a real version is cut.
   plugin bundle downloads) go through the shared `:net` client, the same as droidtop's. The GitHub token is no longer
   sent to `objects.githubusercontent.com` or to a subdomain of a GitHub host; redirects are followed one hop at a
   time. A bundle download that ends short of the length the server announced is now an error at once, not only a log
-  line (Droidtop/tracker#195).
+  line (mytop-project/tracker#195).
 - The signature verifier, the bundle archive reader and the version ordering are now the library
   droidtop and Enginehost share (Droidtop/droidtop-shared, pinned as `vendor/droidtop-shared`) instead of
-  Enginehost's own copies (Droidtop/tracker#193). Behaviour is the same except that the shared verifier
+  Enginehost's own copies (mytop-project/tracker#193). Behaviour is the same except that the shared verifier
   also checks key sizes on every certificate of a chain and not only the leaf's, and the archive reader
   refuses a link or special file, a repeated path and an xz stream over 512 MiB the same way as before
   but in one place. Adds the `kotlinx-serialization-json` library.

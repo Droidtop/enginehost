@@ -1,6 +1,6 @@
 name: Conformance on an emulator
 
-# Conformance layer 1b (docs/conformance-test-games.md, "Layer 1b"; Droidtop/tracker#27): this
+# Conformance layer 1b (docs/conformance-test-games.md, "Layer 1b"; mytop-project/tracker#27): this
 # commit's Enginehost and each family's published unstable core run the MIT test games in
 # test-games/ on an x86_64 emulator, through the core harness (docs/core-harness.md). Nightly, and
 # by hand on any branch. It plays only the games written for it: games from the owner's library are

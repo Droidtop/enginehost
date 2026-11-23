@@ -10,11 +10,11 @@ now show a second small badge beside the provenance badge, reading from the exis
 `eh_official_container` / `eh_on_official_container`; warning state reuses
 `eh_caution_container` / `eh_on_caution_container`. No new color token added.
 
-Refs Droidtop/tracker#23. Part of Droidtop/tracker#24 (Enginehost UI v2, docs/ui-v2.md §4).
+Refs mytop-project/tracker#23. Part of mytop-project/tracker#24 (Enginehost UI v2, docs/ui-v2.md §4).
 
 ## The library, the scanner and its filters (2026-10-01)
 
-Refs Droidtop/tracker#210.
+Refs mytop-project/tracker#210.
 
 ### The model: Enginehost is the emulator, cores are cores, games are content
 
@@ -75,7 +75,7 @@ never searched for games inside itself, and a wrapper folder (`Game-1.0/Game-1.0
 through rather than counted. When the registry sees a game one folder down from a folder that also has
 files of its own, that folder is the game and its launch file is found in the subfolder. A folder in which two
 subfolders are games is a collection, not a wrapper: it is no game itself, and the walk goes into it
-and finds each (Droidtop/tracker#774; first-match made a folder of the test games one HTML game). A
+and finds each (mytop-project/tracker#774; first-match made a folder of the test games one HTML game). A
 folder whose own `enginehost.json` names an engine is that game, as Play would run it, even when the
 registry can tell nothing from its files (a game from sources, as the conformance Ren'Py game is). An archive
 beside a folder that unpacks from it (same release name, platform tags ignored) is dropped. Results
@@ -125,7 +125,7 @@ scan screen. Touch taps a row; the search field and Filters button are touch tar
 fast scroll. A row's second line says only what is unusual about the game: its builds, architecture
 and "Needs a core" or "Not supported here" when it does not run here, and "unconfirmed" when its engine
 is a guess. Otherwise it says when the game was last played, or "Not played yet"; while the list is
-sorted by size it adds the size (Droidtop/tracker#620, E10). "Needs a core" is the only caution
+sorted by size it adds the size (mytop-project/tracker#620, E10). "Needs a core" is the only caution
 colour. The Filters button counts the filters that narrow the list (engine, platform, status, folder,
 favourites), not the search or the sort. The game page shows its status line only when something
 stands in the way of Play.
@@ -166,7 +166,7 @@ lives. The owner's standing rule, the same day: "Spec documents need to be updat
 - **Re-signing stable builds.** Owner: "we need to resign all the stable builds", each published
   as a new stable release beside the original rather than replacing its assets (the owner's
   choice). `engine-bundle-format.md` "Signing, provisioning and the owner's steps"; Enginehost
-  `96d2541`, `cfde265`; eight `<tag>-resigned` releases (Droidtop/tracker#550). Promoting other
+  `96d2541`, `cfde265`; eight `<tag>-resigned` releases (mytop-project/tracker#550). Promoting other
   v1 builds to stable is the local agent's re-signing, not this repository's: the owner, "Cores
   ... are already being resigned by a local agent. It's a non-issue".
 - **Several builds of a line.** Owner: "Users should not be tied to only one plugin version. This
@@ -183,9 +183,9 @@ lives. The owner's standing rule, the same day: "Spec documents need to be updat
   main and retries the push (droidtop-platforms `3b6647c`).
 - **Trust stays per build.** The owner chose to keep a decision bound to one exact build, with an
   approval carried to a same-key update and a denial never carried, over trusting a whole line
-  (Droidtop/tracker#23).
+  (mytop-project/tracker#23).
 - **No large arrays on a core's stack.** Relayed from the coordinator after the CMVS crash
-  (Droidtop/tracker#558): catsystem2's 256 KB and 128 KB listings move to the heap, as CMVS's did.
+  (mytop-project/tracker#558): catsystem2's 256 KB and 128 KB listings move to the heap, as CMVS's did.
   The rule is in `engine-sandbox.md` "Stack size under the sandbox"; catsystem2 engine `8014211`.
 - **Repository renames: not now.** Owner: "nope. no need to rename repos yet, that's largely
   cosmetic". If they happen, the earlier plan stands: `enginehost-<x>-core` with a successor map,
@@ -204,5 +204,5 @@ lives. The owner's standing rule, the same day: "Spec documents need to be updat
   (`c7b1861d08`, left on `wip/repomove-2026-09-27-ehfix/plugin/4.5`), which the owner had said to
   redo properly. No failing game was ever reported, and the owner: "I don't believe there's a
   network share on the rp5 at the moment" / "Yep, close it". The coordinator's reproduction
-  (Droidtop/tracker#569) opened both Godot packs from a shared folder, and from Android 11 Godot
+  (mytop-project/tracker#569) opened both Godot packs from a shared folder, and from Android 11 Godot
   reads packs through Java, so the diagnosis did not hold either. No code changes.

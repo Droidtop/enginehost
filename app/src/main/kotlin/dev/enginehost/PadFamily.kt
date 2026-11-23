@@ -4,7 +4,7 @@ import android.view.InputDevice
 
 /**
  * What is printed on a pad's buttons (docs/SPEC.md, "Controls are drawn as glyphs"): Xbox, PlayStation or Nintendo, with
- * the word Enginehost stores ([PadFamily.id]). It is lib-input's ([dev.droidtop.lib.input.PadFamily], Droidtop/tracker#867
+ * the word Enginehost stores ([PadFamily.id]). It is mytop-input's ([dev.droidtop.lib.input.PadFamily], mytop-project/tracker#867
  * D4: one shared controller model), the same enum this app kept a copy of.
  */
 typealias PadFamily = dev.droidtop.lib.input.PadFamily
@@ -16,7 +16,7 @@ data class PadLabels(val family: PadFamily, val source: Source) {
 
 /**
  * Which [PadFamily] a pad belongs to, from its USB or Bluetooth vendor and product id with its name as the fallback: SDL's
- * ids and rules, as lib-input's [dev.droidtop.lib.input.PadFamilies] applies them (Droidtop/tracker#867), plus the labels a
+ * ids and rules, as mytop-input's [dev.droidtop.lib.input.PadFamilies] applies them (mytop-project/tracker#867), plus the labels a
  * pad's profile page shows. An id SDL does not know answers null, which is "unknown", never a guess.
  */
 object PadFamilies {

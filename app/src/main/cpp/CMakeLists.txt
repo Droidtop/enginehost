@@ -10,7 +10,7 @@ project(enginehost_sandbox C)
 add_library(enginehost_sandbox SHARED
     runtime_sandbox.c isolated_native_bridge.c isolated_vfs.c isolated_vfs_jni.c)
 # The sandbox library Enginehost shares with droidtop (bi0shacker001/sandbox,
-# Droidtop/tracker#470), pinned as a submodule; only its static library is built.
+# mytop-project/tracker#470), pinned as a submodule; only its static library is built.
 set(SBX_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/sandbox ${CMAKE_CURRENT_BINARY_DIR}/sandbox)
 # The isolated file layer's table (isolated_vfs.c) is declared in the header

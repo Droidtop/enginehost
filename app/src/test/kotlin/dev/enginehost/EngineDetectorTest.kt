@@ -160,7 +160,7 @@ class EngineDetectorTest {
 
     @Test
     fun `a game wrapped beside a sibling folder runs in the folder it was found in`() {
-        // MGQ Paradox's layout (Droidtop/tracker#636): the game one folder down, a Pictures folder beside it.
+        // MGQ Paradox's layout (mytop-project/tracker#636): the game one folder down, a Pictures folder beside it.
         val root = tempRoot()
         File(root, "Pictures").mkdirs()
         File(root, "Pictures/cover.png").writeBytes(byteArrayOf(1))
@@ -182,7 +182,7 @@ class EngineDetectorTest {
 
     @Test
     fun `a folder holding two games is a collection, not a wrapper`() {
-        // The conformance test games side by side (Droidtop/tracker#774): html sorted first and made
+        // The conformance test games side by side (mytop-project/tracker#774): html sorted first and made
         // the whole folder one HTML game.
         val root = tempRoot()
         File(root, "html").mkdirs()

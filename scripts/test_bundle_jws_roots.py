@@ -1,6 +1,6 @@
 """Run with: python3 -m unittest discover -s scripts -p "test_*.py".
 
-The signing roots across the key rotation of 2026-11-04 (Droidtop/tracker#876, #550): the new root has no end, the old
+The signing roots across the key rotation of 2026-11-04 (mytop-project/tracker#876, #550): the new root has no end, the old
 one is trusted until the instant app/src/main/assets/trust/enginehost-roots.json names. Every key here is generated per
 run (openssl), never a real one; the real pins are only read.
 """

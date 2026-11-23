@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     The dark palette: droidtop's visual language as the proposal gives it
-    (Droidtop/tracker#644, section 4.1 and 4.2). Text on the azure accent is
+    (mytop-project/tracker#644, section 4.1 and 4.2). Text on the azure accent is
     near-black: white on #3BB5FF is 2.3:1.
 -->
 <resources>

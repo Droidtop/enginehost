@@ -5,7 +5,7 @@ import java.io.File
 
 /**
  * A caller's save folder for one launch: the inline config's `saveRoot`
- * (docs/contract.md "A caller's save folder: `saveRoot`", Droidtop/tracker#580).
+ * (docs/contract.md "A caller's save folder: `saveRoot`", mytop-project/tracker#580).
  * Read from the caller's inline config only, never from a folder's
  * enginehost.json, and never stored. When accepted it is the game's own save
  * folder, as the caller keeps it, and the engine uses it as is (owner,
@@ -17,7 +17,7 @@ object SaveRoot {
     /**
      * The inline config's `savesSynced`: the caller keeps this game's saves
      * synced by a system of its own, so they must never quietly land in the
-     * person's default location (owner, 2026-10-22, Droidtop/tracker#580).
+     * person's default location (owner, 2026-10-22, mytop-project/tracker#580).
      */
     const val SYNCED_KEY = "savesSynced"
 

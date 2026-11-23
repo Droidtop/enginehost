@@ -75,11 +75,11 @@ internal class LibraryDb private constructor(private val appContext: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Version 2: games can be marked as favourites (Droidtop/tracker#236).
+        // Version 2: games can be marked as favourites (mytop-project/tracker#236).
         if (oldVersion < 2) db.execSQL("ALTER TABLE games ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0")
-        // Version 3: the person's per-game choices (Droidtop/tracker#235).
+        // Version 3: the person's per-game choices (mytop-project/tracker#235).
         if (oldVersion < 3) db.execSQL(OVERRIDES_TABLE)
-        // Version 4: play history (Droidtop/tracker#237).
+        // Version 4: play history (mytop-project/tracker#237).
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE games ADD COLUMN launches INTEGER NOT NULL DEFAULT 0")
             db.execSQL("ALTER TABLE games ADD COLUMN play_ms INTEGER NOT NULL DEFAULT 0")
@@ -87,7 +87,7 @@ internal class LibraryDb private constructor(private val appContext: Context) :
         }
         // Version 5: games added by hand that nothing recognised are classified again. The classifier
         // used to screen a folder's top level before detecting, and missed a game one wrapper folder
-        // down that Play ran (Droidtop/tracker#550, 2026-10-24).
+        // down that Play ran (mytop-project/tracker#550, 2026-10-24).
         if (oldVersion < 5) db.execSQL("UPDATE games SET classified = 0 WHERE added = 1 AND engine IS NULL")
     }
 

@@ -7,7 +7,7 @@ import kotlin.math.pow
 
 /**
  * The accent colours one screen is drawn with, derived from one chosen colour
- * (Droidtop/tracker#644, docs/ui-v2.md "The accent at run time"): the accent
+ * (mytop-project/tracker#644, docs/ui-v2.md "The accent at run time"): the accent
  * itself, its pressed state, the text on it, its container (the focus fill and
  * tonal buttons), that container pressed, and the text on the container.
  *

@@ -100,7 +100,7 @@ interface BundleTrustSources {
  * person pinned for a repository they added. The JWS decides alone.
  *
  * The legacy raw-key signature is not verified at all (owner, 2026-10-16:
- * "Deprecate legacy keys"; its verifier deleted 2026-10-29, Droidtop/tracker#768).
+ * "Deprecate legacy keys"; its verifier deleted 2026-10-29, mytop-project/tracker#768).
  * A bundle that carries only it is refused at every moment: an install, an
  * update, and the launch of a core installed with it, which says to remove
  * the core and install it again ([LEGACY_INSTALLED]).

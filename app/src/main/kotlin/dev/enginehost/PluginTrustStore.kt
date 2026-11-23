@@ -31,12 +31,12 @@ class PluginTrustStore(private val context: Context) {
 
     /**
      * An update keeps the person's approval when it is signed by the same key
-     * from the same repository as a build they approved (Droidtop/tracker#23):
+     * from the same repository as a build they approved (mytop-project/tracker#23):
      * the installer only ever replaces a build with a newer one from its own
      * origin, so what is left to check is that the signer did not change. A
      * different key, or a build the person denied, still asks.
      *
-     * The one exception is a root rotation (2026-11-04, Droidtop/tracker#876): a build re-signed or newly
+     * The one exception is a root rotation (2026-11-04, mytop-project/tracker#876): a build re-signed or newly
      * built under the new Enginehost root has a new signing key by construction, so it inherits the approval of
      * a build of the same origin that an Enginehost root, the old one, vouched for ([shouldCarry]).
      */
@@ -63,7 +63,7 @@ class PluginTrustStore(private val context: Context) {
 
     /**
      * Why a build waiting for approval was not carried over from one the person
-     * approved before (Droidtop/tracker#23): the key that signed it, or the
+     * approved before (mytop-project/tracker#23): the key that signed it, or the
      * repository it came from, is not the one they trusted. Null when nothing
      * was ever approved for this bundle, so a first install says nothing extra.
      */
@@ -154,7 +154,7 @@ class PluginTrustStore(private val context: Context) {
          * The person's own decision always wins. With none, a bundle signed by
          * its origin's root-certified key is approved: Enginehost already
          * verified where it came from to give it the Official badge, so a fresh
-         * install is not a wall of identical Approve prompts (Droidtop/tracker#34).
+         * install is not a wall of identical Approve prompts (mytop-project/tracker#34).
          * Third-party, community and developer-key builds stay pending until the
          * person approves them, exactly as before. So does any bundle that
          * declares a licence of its own, official or not (a component under

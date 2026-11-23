@@ -3,7 +3,7 @@ package dev.enginehost
 import org.json.JSONObject
 
 /**
- * The person's per-game choices as one JSON document (Droidtop/tracker#235):
+ * The person's per-game choices as one JSON document (mytop-project/tracker#235):
  * top-level config keys (`pluginVersion`) and one level of `options.<name>`.
  * Free of Android so the editing rules are testable on the JVM. The document
  * lives in the library database ([GameLibraryStore.setOverride]); it is layered

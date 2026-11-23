@@ -35,7 +35,7 @@ import java.io.File
  * its rig depends on, and a person's release install never becomes debug.
  */
 object AppUpdate {
-    private const val RELEASES = "https://github.com/Droidtop/enginehost/releases/download/latest"
+    private const val RELEASES = "https://github.com/mytop-project/enginehost/releases/download/latest"
     const val RELEASE_INFO_URL = "$RELEASES/release-info.json"
 
     data class Info(val versionCode: Long, val versionName: String, val apkName: String, val apkSha256: String) {

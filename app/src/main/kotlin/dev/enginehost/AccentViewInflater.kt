@@ -22,7 +22,7 @@ import androidx.core.graphics.ColorUtils
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The accent painter (Droidtop/tracker#644; docs/ui-v2.md "The accent at run time"):
+ * The accent painter (mytop-project/tracker#644; docs/ui-v2.md "The accent at run time"):
  * Enginehost's screens are drawn in the accent [Accent] resolves, not only in the one
  * the XML palette ships.
  *

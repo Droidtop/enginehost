@@ -19,7 +19,7 @@ not a fresh redesign from a blank page — the existing screens already carry re
 detail panels, typed failure messages, per-card progress). v2 keeps that and fixes the navigation,
 vocabulary and coverage gaps below.
 
-## Visual language: droidtop's, with Enginehost's own defaults (2026-10-24, Droidtop/tracker#644)
+## Visual language: droidtop's, with Enginehost's own defaults (2026-10-24, mytop-project/tracker#644)
 
 The owner approved the menus and visual-language proposal (tracker
 `coordination/design/proposals/2026-10-24-menus-and-visual-language.md`, dda41db) and
@@ -36,7 +36,7 @@ at on the device before the next.
    - **Type:** Display 32, Body 18, Label 15, Section 13 in capitals; nothing under 13.
    - **Focus:** a focused row wears the accent's container with a 4 dp leading bar; art and
      cards keep the ring.
-2. **The accent at run time** (built, Droidtop/tracker#644). Settings > Appearance offers
+2. **The accent at run time** (built, mytop-project/tracker#644). Settings > Appearance offers
    Enginehost's blue, "Match my device" (the system's dynamic accent, API 31+) or a hue of the
    person's own on a slider. All of them go through one contrast guard (`AccentPalette.guard`):
    the hue stays and only the lightness moves, until the accent reads at 4.5:1 on the ground.
@@ -70,7 +70,7 @@ Decisions taken here:
   apps match when used apart. Enginehost does not read droidtop's tokens. A copy lives here
   until droidtop-shared (#188) exists.
 
-## Landed: the updater rework (Droidtop/tracker#23)
+## Landed: the updater rework (mytop-project/tracker#23)
 
 Home > Cores now opens the installed list (`PluginTrustActivity`, titled Cores). Add in its
 header opens the catalog (titled Add a core), which no longer has a button back to the list. The

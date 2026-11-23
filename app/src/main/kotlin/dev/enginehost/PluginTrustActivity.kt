@@ -78,7 +78,7 @@ class PluginTrustActivity : EnginehostActivity() {
      * every build of every line installed side by side after Update all
      * (about sixty cards), doing it card by card on the main thread, while
      * the installs kept the disk busy, ended in "Enginehost isn't
-     * responding" on this screen (rig, 2026-10-23, Droidtop/tracker#604).
+     * responding" on this screen (rig, 2026-10-23, mytop-project/tracker#604).
      */
     private class CardFacts(
         val plugin: InstalledPlugin,
@@ -138,7 +138,7 @@ class PluginTrustActivity : EnginehostActivity() {
                             .thenByDescending { it.info.pluginVersion }
                             .thenBy { it.archiveSha256 },
                     )
-                // A core with an old signature gets one press that fixes it (Droidtop/tracker#774).
+                // A core with an old signature gets one press that fixes it (mytop-project/tracker#774).
                 val replacements = runCatching { PluginUpdateCheck(this).replacements(installed) }.getOrDefault(emptyMap())
                 installed.map { factsOf(it, replacements) }
             }.getOrDefault(emptyList())
@@ -152,7 +152,7 @@ class PluginTrustActivity : EnginehostActivity() {
      * message (about sixty after Update all) spent 4.77 s of CPU inflating
      * rows inside a single Handler message, and BlueStacks answered with
      * "Enginehost isn't responding" on the first open (rig ANR trace,
-     * Droidtop/tracker#291 comment 6370357050: addPlugin under showPlugins).
+     * mytop-project/tracker#291 comment 6370357050: addPlugin under showPlugins).
      * Between batches the screen draws and input is handled; a newer render
      * stops an older one's remaining batches.
      */

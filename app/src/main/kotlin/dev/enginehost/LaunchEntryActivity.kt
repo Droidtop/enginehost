@@ -78,7 +78,7 @@ class LaunchEntryActivity : Activity() {
         const val ACTION_END_GAME = EnginehostIntents.ACTION_END_GAME
         const val EXTRA_ENDED = EnginehostIntents.EXTRA_ENDED
 
-        /** Sent to the launching app's package when its game ends (docs/contract.md, Droidtop/tracker#580). */
+        /** Sent to the launching app's package when its game ends (docs/contract.md, mytop-project/tracker#580). */
         const val ACTION_GAME_ENDED = EnginehostIntents.ACTION_GAME_ENDED
         const val EXTRA_GAME_PATH = EnginehostIntents.EXTRA_PATH
         const val EXTRA_SAVE_FOLDER = EnginehostIntents.EXTRA_SAVE_FOLDER

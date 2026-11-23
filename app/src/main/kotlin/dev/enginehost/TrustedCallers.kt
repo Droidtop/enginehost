@@ -18,7 +18,7 @@ object TrustedCallers {
 
     /**
      * SHA-256 of the X.509 certificate droidtop's APK is signed with.
-     * Extracted 2026-09-27 from both assets of the `Droidtop/droidtop`
+     * Extracted 2026-09-27 from both assets of the `mytop-project/droidtop`
      * `latest` release (`droidtop-latest.apk`, `droidtop-latest-debug.apk`);
      * both carry this same certificate, so one entry covers rig and
      * production installs alike. There is one droidtop signer, unlike

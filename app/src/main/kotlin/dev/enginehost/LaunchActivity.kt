@@ -125,7 +125,7 @@ class LaunchActivity : EnginehostActivity() {
      * go where the plan says first. Caller access comes first and reads
      * nothing of the game: a blocked or not yet approved caller must not
      * make Enginehost inspect its folder or open the setup, catalog or trust
-     * screens (Droidtop/tracker#44).
+     * screens (mytop-project/tracker#44).
      */
     private fun launch(waitedForRuntime: Boolean = false) {
         if (!accessCleared && !resolveCallerAccess()) return
@@ -180,7 +180,7 @@ class LaunchActivity : EnginehostActivity() {
      * Everything planning does (folder checks, engine detection, config and
      * save-location reads, plugin discovery) touches storage that can be slow
      * or missing, so it runs off the main thread and the screen shows the
-     * starting state meanwhile (Droidtop/tracker#45). The result is applied
+     * starting state meanwhile (mytop-project/tracker#45). The result is applied
      * on the main thread, and dropped when the screen has gone by then.
      */
     private fun planAndStart(waitedForRuntime: Boolean) {
@@ -191,7 +191,7 @@ class LaunchActivity : EnginehostActivity() {
         val autoInstall = intent.getBooleanExtra(EXTRA_AUTOINSTALL, false)
         val testing = intent.getBooleanExtra(EXTRA_TESTING, false)
         Async.load(this, work = {
-            // Saves go where droidtop keeps them, whoever started the game (Droidtop/tracker#547):
+            // Saves go where droidtop keeps them, whoever started the game (mytop-project/tracker#547):
             // asked before planning, and merged in as the caller's own saveRoot would be.
             val started = SystemClock.elapsedRealtime()
             val withSaves = runCatching {
@@ -201,7 +201,7 @@ class LaunchActivity : EnginehostActivity() {
             val plan = runCatching { GameRunner.plan(this, gameFolder, withSaves, autoInstall, testing) }
                 .getOrElse { GameRunner.Plan.Failure(ErrorText.of(this, it, R.string.launch_plan_failed), retry = true) }
             // Which half of the wait between Play and the plan is slow, on the device that has it
-            // (23 s for a wrapped game on a card, Droidtop/tracker#636): droidtop's save folder, or
+            // (23 s for a wrapped game on a card, mytop-project/tracker#636): droidtop's save folder, or
             // the plan itself (detection lists the folder four levels deep, plugins resolve).
             HostEvents.record(this, "planned in ${SystemClock.elapsedRealtime() - asked} ms after ${asked - started} ms asking droidtop for saves")
             plan
@@ -562,7 +562,7 @@ class LaunchActivity : EnginehostActivity() {
     /**
      * Tells the app that launched this game that it has ended, so it can
      * upload its saves (docs/contract.md "A caller's save folder",
-     * Droidtop/tracker#580): `dev.enginehost.GAME_ENDED` to that caller's
+     * mytop-project/tracker#580): `dev.enginehost.GAME_ENDED` to that caller's
      * package and no other, once per run. A launch from inside Enginehost, or
      * from a caller Android did not identify, reports to nobody.
      */
@@ -574,7 +574,7 @@ class LaunchActivity : EnginehostActivity() {
         // planned folder as before.
         val folder = EngineSaveFolders.recorded(this, gameFolder, File(planned))?.path ?: planned
         val callerKey = intent.getStringExtra(EXTRA_CALLER_KEY)
-        // droidtop hears of every game's saves through its plugin interface (Droidtop/tracker#547),
+        // droidtop hears of every game's saves through its plugin interface (mytop-project/tracker#547),
         // a game it launched too: it treats the report as idempotent, and a broadcast can be lost.
         DroidtopSaves.reportChanged(this, gameFolder, folder, reason, System.currentTimeMillis())
         val caller = callerKey?.takeIf { it != LaunchCaller.UNKNOWN_KEY && it != LaunchCaller.IN_APP_KEY } ?: return
@@ -722,7 +722,7 @@ class LaunchActivity : EnginehostActivity() {
                 // the shortcut, because the shortcut carries no extras for the
                 // launch screen to decide on, and a launch screen started for
                 // a prompt would clear the game that is running
-                // (Droidtop/tracker#44). Anything but Allow leaves it alone.
+                // (mytop-project/tracker#44). Anything but Allow leaves it alone.
                 if (caller !is LaunchCaller.InApp &&
                     EffectiveAccess.forCaller(CallerAccessStore(context), context.packageManager, caller.storeKey) !is EffectiveAccess.Allow
                 ) {

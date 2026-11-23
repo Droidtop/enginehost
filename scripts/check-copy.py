@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fails when a string resource breaks the copy rule Enginehost shares with droidtop.
 
-One rule for both apps (Droidtop/tracker#945, droidtop's docs/DESIGN-LANGUAGE.md "Copy" and its
+One rule for both apps (mytop-project/tracker#945, droidtop's docs/DESIGN-LANGUAGE.md "Copy" and its
 scripts/check-ui-rules.sh copy-phrases-res): a string says one thing in active words, so no
 semicolon splice (two sentences instead), no "its own page", errors as "Couldn't X" never
 "X could not be Y", no "Recommended." and no "Press to" / "Tap here". The pattern is droidtop's,
@@ -38,7 +38,7 @@ def main(argv):
     if found:
         print(
             f"{len(found)} string(s) break the copy rule: two sentences, not a semicolon; "
-            '"Couldn\'t X", not "X could not be Y" (Droidtop/tracker#945).',
+            '"Couldn\'t X", not "X could not be Y" (mytop-project/tracker#945).',
             file=sys.stderr,
         )
         return 1

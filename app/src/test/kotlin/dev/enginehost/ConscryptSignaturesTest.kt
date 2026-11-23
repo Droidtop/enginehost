@@ -15,7 +15,7 @@ import java.security.cert.X509Certificate
  * X509Certificate.getExtendedKeyUsage throws on the purpose OIDs' UUID arc,
  * which is wider than 64 bits, so a verifier that called it would refuse every
  * Droidtop certificate on a device while passing every test on the JDK
- * (Droidtop/tracker#550, found in droidtop). Conscrypt is installed first here
+ * (mytop-project/tracker#550, found in droidtop). Conscrypt is installed first here
  * so CertificateFactory hands out its certificates, as on Android.
  */
 class ConscryptSignaturesTest {

@@ -1,4 +1,4 @@
-"""Signature format v1: JWS with an x5c chain to the Enginehost signing root (Droidtop/tracker#550).
+"""Signature format v1: JWS with an x5c chain to the Enginehost signing root (mytop-project/tracker#550).
 
 Shared by build-engine-bundle.py (signs), verify-engine-bundle.py (checks a
 bundle offline before it is published) and sign-revocation-list.py. Like the
@@ -326,7 +326,7 @@ def verify_chain_to(chain: list[bytes], purpose: str, root: bytes) -> dict:
     up to the signing root's public key [root] (SubjectPublicKeyInfo DER) and
     no further: each certificate signed by the next, the last by the root's
     key, and no certificate carrying the root's key. The anchor is a key, not a
-    certificate (Droidtop/tracker#550), so there is no issuer name to compare.
+    certificate (mytop-project/tracker#550), so there is no issuer name to compare.
     No validity period is read: expiry never invalidates a signature, only a
     revocation list does (the app's rule). Answers what the leaf names. Raises Refused. An origin's published
     certificate is checked this way.

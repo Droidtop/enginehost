@@ -40,7 +40,7 @@ class ConfigEditorActivity : EnginehostActivity() {
             ?: findViewById(R.id.chooseConfigFolderButton)
 
     /**
-     * The game folder, as a path however it was chosen (Droidtop/tracker#768). A folder picked
+     * The game folder, as a path however it was chosen (mytop-project/tracker#768). A folder picked
      * through Android's picker is resolved to its path once, here, as a caller's path already is:
      * the launch, the config store and the testing store all key by path, and a second set of
      * branches kept the picker's tree URI beside it.
@@ -629,7 +629,7 @@ class ConfigEditorActivity : EnginehostActivity() {
     /**
      * Shows [folder]'s setup: its folder's enginehost.json, else the setup kept in Enginehost, else
      * an empty one, with a pending testing configuration over it. The reads happen off the main
-     * thread; a card or a large folder used to stall the screen here (Droidtop/tracker#768).
+     * thread; a card or a large folder used to stall the screen here (mytop-project/tracker#768).
      */
     private fun openFolder(folder: File) {
         Async.load(this, work = {

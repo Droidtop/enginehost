@@ -1,7 +1,7 @@
 # XNA / FNA / MonoGame core: scoping
 
 Step 1 of the XNA-family effort (the census's new-engine recommendations,
-the family's batch of 18 titles, Droidtop/tracker#23): this page is the
+the family's batch of 18 titles, mytop-project/tracker#23): this page is the
 written scope. No repository, no code, and no host change in this step.
 The sandbox (`docs/engine-sandbox.md`), CatSystem2, and the detection
 code are deliberately untouched. Unlike AGS -- where the host already
@@ -27,8 +27,8 @@ its `MonoGame.Framework.Android.csproj`, `Platform/Android/`,
 `.github/workflows/main.yml`), `MonoGame/MonoGame.Library.OpenAL` (its
 pinned `kcat/openal-soft` submodule), `kcat/openal-soft` (COPYING), and
 `0x0ade/XnaToFna`. The two shipped core repos are the structural
-precedents, as they were for AGS: `Droidtop/enginehost-godot-plugin`
-(`plugin/4.5`) and `Droidtop/enginehost-kirikiri-plugin`
+precedents, as they were for AGS: `mytop-project/enginehost-godot-plugin`
+(`plugin/4.5`) and `mytop-project/enginehost-kirikiri-plugin`
 (`plugin/stable`).
 
 ## (a) The real upstream Android story -- there are two, and they are not equal
@@ -357,7 +357,7 @@ jobs:
     # tar -cf build/unsigned.tar -C build/unsigned payload bundle-metadata.json; upload
 
   sign:     # the org's one signing mechanism, pinned to a full Enginehost commit SHA
-            # uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<full-sha>
+            # uses: mytop-project/enginehost/.github/workflows/sign-engine-bundle.yml@<full-sha>
             # secrets: ENGINEHOST_CERTIFICATE_KEY_PEM; the key never shares a
             # runner with the build.
 

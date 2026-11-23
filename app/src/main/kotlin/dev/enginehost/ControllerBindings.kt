@@ -83,7 +83,7 @@ class ControllerBindingStore internal constructor(
     private val file: BindingStorage,
     private val engine: String? = null,
     /**
-     * A game's path, for the scope that is one game's own (Droidtop/tracker#239). Its
+     * A game's path, for the scope that is one game's own (mytop-project/tracker#239). Its
      * bindings sit above the engine's: game, then engine, then everywhere, then the
      * action's default. The engine scope still decides which actions exist.
      */

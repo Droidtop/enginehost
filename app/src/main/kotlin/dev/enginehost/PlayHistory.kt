@@ -1,6 +1,6 @@
 package dev.enginehost
 
-/** One game's play history (Droidtop/tracker#237), from the sessions the launch screen saw start and end. */
+/** One game's play history (mytop-project/tracker#237), from the sessions the launch screen saw start and end. */
 data class PlayHistory(
     val launches: Int = 0,
     val playedMs: Long = 0,

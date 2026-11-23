@@ -16,7 +16,7 @@ import kotlin.math.min
 
 /**
  * The game's own loading screen, drawn by the host over the runtime's window
- * from before the core loads until the core's first frame (Droidtop/tracker#640).
+ * from before the core loads until the core's first frame (mytop-project/tracker#640).
  *
  * Two steps, split by the sandbox. [prepare] reads and decodes the picture and
  * must run before [RuntimeSandbox.lockdown]: after it, nothing in the process

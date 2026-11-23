@@ -260,7 +260,7 @@ class LibraryBrowser(
     // ---- Filters ----------------------------------------------------------------
 
     /**
-     * How many filters narrow the list, for the Filters button (Droidtop/tracker#620, E10). The
+     * How many filters narrow the list, for the Filters button (mytop-project/tracker#620, E10). The
      * search shows in its own field on Home and the sort narrows nothing, so neither is counted.
      */
     private fun filtersOn(f: LibraryFilter): Int =
@@ -455,7 +455,7 @@ class LibraryBrowser(
     // ---- Rows -------------------------------------------------------------------
 
     /**
-     * A row's second line (Droidtop/tracker#620, E10): what is unusual about the game (it needs a
+     * A row's second line (mytop-project/tracker#620, E10): what is unusual about the game (it needs a
      * core, it does not run here, its engine is a guess), and otherwise when it was last played.
      * A line that says the same thing on every row says nothing. The size shows while the list is
      * sorted by it.

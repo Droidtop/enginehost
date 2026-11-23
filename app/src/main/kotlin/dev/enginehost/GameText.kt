@@ -17,7 +17,7 @@ import android.widget.TextView
  *
  * Every event passes [TextRate] and [TextEvents] first, off the main thread where it arrives.
  * [GameSpeech] reads lines aloud and [GameTranslation] translates them, each when the person
- * turned it on (Droidtop/tracker#490). For the rig, with `debug.enginehost.text` set to 1, the last
+ * turned it on (mytop-project/tracker#490). For the rig, with `debug.enginehost.text` set to 1, the last
  * few events are also drawn over the top of the game. Game text is never logged: it can be anything
  * the game shows, and host events never carry a game's content.
  */

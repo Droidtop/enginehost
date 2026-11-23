@@ -30,7 +30,7 @@ What the script does, in order:
    drafts are invisible to Enginehost, so a half-uploaded release is never
    served). --draft stops before publishing for a manual look.
 
-The channels (the owner, 2026-10-31, Droidtop/tracker#28): "unstable is for
+The channels (the owner, 2026-10-31, mytop-project/tracker#28): "unstable is for
 branches that have never had a stable core, or for major rewrites/etc. Testing
 is for revisions to branches that have had stable cores (before they're tested).
 Stable is for tested cores". The tag says the channel: `<line>` is stable,
@@ -44,7 +44,7 @@ bar.
 
 Example:
 
-    scripts/promote-plugin-release.py Droidtop/enginehost-renpy-plugin \
+    scripts/promote-plugin-release.py mytop-project/enginehost-renpy-plugin \
         --run 33589981163 --tag renpy-8.1-v1 --title "Ren'Py 8.1 runtime" \
         --evidence "Boots <game> to its main menu and into gameplay on the
                     Retroid Pocket 5 (build installed from this exact run)."
@@ -94,7 +94,7 @@ def has_stable_release(repo: str, line: str) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("repo", help="GitHub repository, e.g. Droidtop/enginehost-renpy-plugin")
+    parser.add_argument("repo", help="GitHub repository, e.g. mytop-project/enginehost-renpy-plugin")
     parser.add_argument("--run", required=True, help="workflow run id whose artifacts to promote")
     parser.add_argument("--tag", required=True, help="release tag, e.g. renpy-8.2-v1")
     parser.add_argument("--title", required=True, help="release title, e.g. \"Ren'Py 8.2 runtime\"")
@@ -152,7 +152,7 @@ def main() -> None:
         envelopes = sorted(workdir.rglob("enginehost-release.json")) + sorted(workdir.rglob("enginehost-component.json"))
         # The v1 signing certificate, and the committed key document when the
         # repository has one: what the signing job produced (docs/engine-bundle-format.md
-        # "Signatures"). The legacy signature is no longer made (Droidtop/tracker#768).
+        # "Signatures"). The legacy signature is no longer made (mytop-project/tracker#768).
         key_documents = sorted(workdir.rglob("enginehost-public-key.json"))
         certificates = sorted(workdir.rglob("enginehost-signing-certificate.pem"))
         if not bundles or len(envelopes) != 1 or len(key_documents) > 1 or len(certificates) != 1:

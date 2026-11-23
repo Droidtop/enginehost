@@ -98,7 +98,7 @@ class RuntimeInputTap(private val activity: Activity) {
      * @return the event to hand on, or null when the host has taken it.
      */
     fun key(event: KeyEvent, forward: (KeyEvent) -> Unit): KeyEvent? {
-        // Back is the host's in every engine (Droidtop/tracker#289): SDL and
+        // Back is the host's in every engine (mytop-project/tracker#289): SDL and
         // other engines swallow it, which left Home as the only way out. It
         // opens the in-game menu (Resume, Controller settings, Quit), and
         // the engine never sees half of a press.
@@ -226,7 +226,7 @@ private const val BLANK_CHANNEL = 12
  *
  * The launch screen stops showing the moment the runtime's window is up,
  * and a heavy RPG Maker game then sat on a black window for about a minute
- * with nothing to say it was working (Droidtop/tracker#289). The notice is
+ * with nothing to say it was working (mytop-project/tracker#289). The notice is
  * a small bar at the bottom, not a cover, so a game that starts on a black
  * intro is never hidden by it; it goes when the first non-black frame
  * reaches the surface, when no surface can be watched for a while, or when
@@ -247,7 +247,7 @@ private const val BLANK_CHANNEL = 12
  * nothing for [BlackScreenRule]'s window asks them, once, whether to keep
  * waiting ([GameTroubleActivity]). The game's own loading picture is not a
  * black screen, and every progress report the engine sends starts the window
- * again (Droidtop/tracker#821). An engine with no SurfaceView is not watched.
+ * again (mytop-project/tracker#821). An engine with no SurfaceView is not watched.
  */
 internal class RuntimeLoadingNotice(private val activity: Activity) {
     private val handler = Handler(Looper.getMainLooper())

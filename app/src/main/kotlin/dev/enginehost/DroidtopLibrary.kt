@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * droidtop's engine games, registered in Enginehost's library (Droidtop/tracker#547;
+ * droidtop's engine games, registered in Enginehost's library (mytop-project/tracker#547;
  * droidtop docs/plugin-api.md A7a, `library.read list_engine_games`). The owner,
  * 2026-10-23: "droidtop should also present games for enginehost to register, but
  * not necessarily their whole configs". Only identity and folder travel: a game's

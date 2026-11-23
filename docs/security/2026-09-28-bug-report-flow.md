@@ -78,7 +78,7 @@ plugin's origin, signer identity, and whether it is running sandboxed
 
 ## Second pass, 2026-09-28: account-free, nothing in a URL, more facts
 
-Droidtop/tracker#37, #22, and the privacy review's findings on the first pass.
+mytop-project/tracker#37, #22, and the privacy review's findings on the first pass.
 
 - **One payload, built at send time.** `ProblemReport.compose` builds the text
   that leaves the device from the fields as they stand and redacts it once more

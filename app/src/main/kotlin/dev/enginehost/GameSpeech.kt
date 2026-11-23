@@ -7,7 +7,7 @@ import java.util.Locale
 
 /**
  * Reads the game's lines aloud with the device's own text-to-speech (docs/text-services.md,
- * "Reading aloud"; Droidtop/tracker#490). It is one backend of several the owner asked for, and
+ * "Reading aloud"; mytop-project/tracker#490). It is one backend of several the owner asked for, and
  * the one that needs no download; it is on only when the person turned on "Read text aloud".
  *
  * Fed by [GameText], in the runtime process:

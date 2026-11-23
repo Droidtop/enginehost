@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Publishes one signed engine bundle (Droidtop/tracker#196): the release for its
-# channel, then the permanent history release of the build (Droidtop/tracker#122).
+# Publishes one signed engine bundle (mytop-project/tracker#196): the release for its
+# channel, then the permanent history release of the build (mytop-project/tracker#122).
 # Run by .github/workflows/publish-engine-bundle.yml, which every plugin
 # repository calls; it is the only copy of this logic.
 #
@@ -39,7 +39,7 @@ if [ -z "$tag" ]; then
   tag="$(printf '%s' "$id" | sed 's/^dev\.enginehost\.//; s/\./-/g')"
 fi
 
-# The owner's channels (2026-10-31, Droidtop/tracker#28): "unstable is for branches that have
+# The owner's channels (2026-10-31, mytop-project/tracker#28): "unstable is for branches that have
 # never had a stable core, or for major rewrites/etc. Testing is for revisions to branches that
 # have had stable cores (before they're tested). Stable is for tested cores". A push asks for
 # unstable; when the line already has a stable release (the tag without a suffix, a full

@@ -21,9 +21,9 @@ clones of the upstream projects -- `nunuhara/xsystem4` at
 (master stale at `6a36fc8f`, 2024-12-29), checked separately, and
 `kichikuou/xsystem4-android` at `1c8f691` (v1.0.7, 2026-09-22), which pins
 the engine as a submodule at exactly `04333ad`; and two shipped core repos
-as structural references, `Droidtop/enginehost-buriko-plugin` at its
+as structural references, `mytop-project/enginehost-buriko-plugin` at its
 `plugin-core` branch (`05a0de8`), the model this plan follows, and
-`Droidtop/enginehost-love2d-plugin` at its `plugin-core` branch
+`mytop-project/enginehost-love2d-plugin` at its `plugin-core` branch
 (`6c0b00c5`), the SDL-family plugin-api precedent the wrapper should copy
 rather than invent.
 
@@ -317,7 +317,7 @@ LTO).
 
 ## (d) First CI workflow, modeled on the Buriko core repo
 
-The core repository is `Droidtop/enginehost-xsystem4-plugin`, created
+The core repository is `mytop-project/enginehost-xsystem4-plugin`, created
 when this plan executes. It is a fork of `kichikuou/xsystem4-android`
 with the engine source arriving as the port already carries it -- a
 submodule pinned per line -- so the engine revision is the branch's
@@ -388,7 +388,7 @@ jobs:
                          # Enginehost commit SHA (Buriko pins
                          # a8a6270dbfe0e7bd475c6d8209e9615960a8c0d7; the new
                          # repo pins whatever is current when it is created)
-                         # uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<sha>
+                         # uses: mytop-project/enginehost/.github/workflows/sign-engine-bundle.yml@<sha>
                          # secrets: ENGINEHOST_CERTIFICATE_KEY_PEM; the key
                          # never shares a runner with the build
 
@@ -414,7 +414,7 @@ with no new Enginehost build.
 ## What this step deliberately does not do, and what comes next
 
 - **Next steps, each a separate change:** create
-  `Droidtop/enginehost-xsystem4-plugin` and land the wrapper -- the
+  `mytop-project/enginehost-xsystem4-plugin` and land the wrapper -- the
   `SdlEnginePlugin`-shaped entry class modeled on LÖVE's
   `EngineHostGamePlugin`, save routing (one argument), the
   fallback-set-to-virtual-key translation -- against the pinned port

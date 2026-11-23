@@ -4,7 +4,7 @@
 Run by the `conformance` job of .github/workflows/sign-engine-bundle.yml on
 the payload/ and bundle-metadata.json a core repository's build uploads,
 before anything is signed (docs/conformance-test-games.md, layer 1a;
-Droidtop/tracker#27). It reads bytes and never runs them, so it is safe to
+mytop-project/tracker#27). It reads bytes and never runs them, so it is safe to
 point at a payload nobody reviewed.
 
 What it refuses, each a way a core has installed cleanly and then failed on
@@ -38,7 +38,7 @@ from pathlib import Path, PurePosixPath
 REQUIRED_ABIS = ("arm64-v8a", "x86_64")
 # ELF e_machine for each ABI directory (ELF64 only).
 ELF_MACHINE = {"arm64-v8a": 183, "x86_64": 62}
-# Present in old builds and refused outright since 2026-10-24 (Droidtop/tracker#646).
+# Present in old builds and refused outright since 2026-10-24 (mytop-project/tracker#646).
 KNOWN_32_BIT = ("armeabi-v7a", "armeabi", "x86")
 
 

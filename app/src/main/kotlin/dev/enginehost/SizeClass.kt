@@ -1,7 +1,7 @@
 package dev.enginehost
 
 /**
- * The one place a layout decision reads the window's size (Droidtop/tracker#234).
+ * The one place a layout decision reads the window's size (mytop-project/tracker#234).
  * Layouts key off the window's own width and height in dp, which Android
  * reports per window, so a tablet, a foldable, a split-screen half and a
  * freeform window each get the answer for the space they really have, where

@@ -7,7 +7,7 @@ import android.view.View
  * the main thread for seconds while its rows inflate. Cores built about sixty
  * cards inside one Handler message, 4.77 s of CPU, and Android answered
  * "isn't responding" on opening it, scrolling it and on Add a core
- * (Droidtop/tracker#291, #620 E1). Between batches the screen draws and the pad
+ * (mytop-project/tracker#291, #620 E1). Between batches the screen draws and the pad
  * and touch work. A newer [add] on the same batches, or [cancel], stops what an
  * older one had left.
  */

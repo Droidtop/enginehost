@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sign a revocation list (revocations.jws, Droidtop/tracker#550).
+"""Sign a revocation list (revocations.jws, mytop-project/tracker#550).
 
 Run by whoever holds a revocation-list signer (provision-signing-certificates.py
 --revocations CATALOG). The list replaces the one devices hold only when its

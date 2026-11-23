@@ -6,7 +6,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 
 /**
- * Which accent Enginehost is drawn in (Settings > Appearance, Droidtop/tracker#644).
+ * Which accent Enginehost is drawn in (Settings > Appearance, mytop-project/tracker#644).
  *
  * The person picks one of three: Enginehost's own azure (the default, and what a
  * device without droidtop shows), "Match my device" (Android's dynamic colour,

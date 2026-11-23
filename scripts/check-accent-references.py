@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep the accent colours where the accent painter reaches them (Droidtop/tracker#644).
+"""Keep the accent colours where the accent painter reaches them (mytop-project/tracker#644).
 
 Enginehost draws its accent from Settings > Appearance or a launching app, not only
 from the colour the XML palette ships (docs/ui-v2.md, "The accent at run time").

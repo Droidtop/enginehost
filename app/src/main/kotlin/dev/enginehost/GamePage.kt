@@ -16,7 +16,7 @@ import java.io.File
  * report, taking it off the list). It draws
  * into whatever view tree it is given, so the same page is the
  * [GameActivity] on a narrow window and a pane beside Home's list on a wide
- * one (Droidtop/tracker#234); there is one page, not two.
+ * one (mytop-project/tracker#234); there is one page, not two.
  *
  * Game setup lives here and nowhere on Home (UI assessment 2026-09-24, H9):
  * it is always about one game, so it is reached from that game.
@@ -76,7 +76,7 @@ class GamePage(
     /**
      * The folder is named the way the person knows it; the full location (a raw
      * mount path on some devices) is one press away, not the first thing read
-     * (Droidtop/tracker#36).
+     * (mytop-project/tracker#36).
      */
     private fun showFolderLine() {
         val game = folder ?: return
@@ -125,7 +125,7 @@ class GamePage(
                 }
                 root.findViewById<TextView>(R.id.gameStatus).apply {
                     text = status.text
-                    // "Ready" said nothing Play does not (Droidtop/tracker#620, E10): the line shows only what stands in the way.
+                    // "Ready" said nothing Play does not (mytop-project/tracker#620, E10): the line shows only what stands in the way.
                     visibility = if (status.ok) View.GONE else View.VISIBLE
                     setTextColor(
                         ContextCompat.getColor(activity, if (status.ok) R.color.eh_text_secondary else R.color.eh_caution),
@@ -203,7 +203,7 @@ class GamePage(
 
     /**
      * Manage: what is done to the game rather than with it, in one sheet below Game setup
-     * (Droidtop/tracker#644): its favourite mark, a problem report, and taking it off the list.
+     * (mytop-project/tracker#644): its favourite mark, a problem report, and taking it off the list.
      */
     private fun showManage() {
         val game = folder ?: return
@@ -219,7 +219,7 @@ class GamePage(
             .show()
     }
 
-    /** A picture of the person's own for this game (Droidtop/tracker#240), from the device's picker. */
+    /** A picture of the person's own for this game (mytop-project/tracker#240), from the device's picker. */
     private fun choosePicture(game: File) {
         val key = "game-art-${System.nanoTime()}"
         var launcher: androidx.activity.result.ActivityResultLauncher<Intent>? = null

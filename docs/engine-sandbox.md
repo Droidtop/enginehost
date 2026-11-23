@@ -80,7 +80,7 @@ A sandboxed core runs its engine on whichever thread calls it, and an
 isolated runtime's calls arrive on a binder thread, whose stack is 1 MB.
 Upstream engine code written for a desktop main thread (8 MB) often keeps
 large arrays on the stack. CMVS's broker index kept two 256 KB listings per
-directory level and overflowed it on the console (Droidtop/tracker#558,
+directory level and overflowed it on the console (mytop-project/tracker#558,
 CMVS engine `48639b2`). So a core keeps no array of 32 KB or more on the
 stack: allocate it, and free it on every return. catsystem2's key search
 followed (engine `8014211`), checked with a 64 KB-stack probe that the old
@@ -113,7 +113,7 @@ An isolated engine's stdout and stderr are log lines, tag `engine-stdio`
 (`isolated_native_bridge.c`, set up before the first plugin library loads).
 Android points both at /dev/null, and desktop engines report their failures
 there: ONScripter drew a black screen through a whole emulator conformance
-run (Droidtop/tracker#27) with its reason nowhere to be read.
+run (mytop-project/tracker#27) with its reason nowhere to be read.
 
 ### The sandbox is on by default; what cannot be isolated asks every time (owner, 2026-09-25)
 
@@ -2149,7 +2149,7 @@ any core code loads, after Chromium's Linux broker
 (`sandbox/linux/syscall_broker`) and minijail's seccomp policies. Since
 2026-10-14 the code is the sandbox library Enginehost shares with droidtop
 (`vendor/sandbox`, bi0shacker001/sandbox, GPL-3.0-or-later, pinned as a
-submodule; Droidtop/tracker#470), which grew out of this prototype:
+submodule; mytop-project/tracker#470), which grew out of this prototype:
 `runtime_sandbox.c` only passes Enginehost's device list and policy to it.
 
 The pin moved to the library's `a40cc14` on 2026-10-17 (owner, through the
@@ -2163,7 +2163,7 @@ separate isolated UID is a mode a host chooses, not Android's isolation.
 The pin moved to `ba4fc61` on 2026-10-22. The library keeps SIGSYS open on
 every confined thread: a trapped call on a thread with SIGSYS blocked killed
 the whole process by signal 31 with no tombstone, which is what LÖVE's first
-lockdown run did 143 times on BlueStacks (Droidtop/tracker#550).
+lockdown run did 143 times on BlueStacks (mytop-project/tracker#550).
 `rt_sigprocmask` now traps and leaves SIGSYS out of every mask, and
 `sbx_lockdown` answers `-EDEADLK` while a thread already has it blocked.
 When that happens Enginehost logs the names of those threads under
@@ -2174,7 +2174,7 @@ below). The SIGSYS check now also skips a thread that has already exited,
 which `/proc` can still list for a moment after it is joined.
 
 The pin moved to `e024006` on 2026-10-23. LÖVE still died by signal 31 with
-the thread masks fixed (Droidtop/tracker#550): a signal handler's mask
+the thread masks fixed (mytop-project/tracker#550): a signal handler's mask
 blocks SIGSYS while it runs too, and libraries install handlers with every
 signal masked, so a trapped call inside one killed the process just the
 same. The library now takes SIGSYS out of every handler's mask at lockdown
@@ -2207,7 +2207,7 @@ library's own suite passed at both commits on Linux x86_64, every one of
 the 120 checks at the old pin unchanged at the new one, with 67 new checks.
 
 The pin moved to `0c599fc` (library 0.4.0) on 2026-11-05 for its parent cache
-(Droidtop/tracker#791, #855). On the console (Retroid Pocket 5), every `stat` a locked-down
+(mytop-project/tracker#791, #855). On the console (Retroid Pocket 5), every `stat` a locked-down
 Ren'Py made on a game on the SD card cost about 18 ms. The broker resolved each path one
 `readlink` per component, through Android's FUSE layer. Love & Sex: Second Base made 8,560 of
 them during init (157 s of its 329 s). The cache keeps what each folder resolved to for 2
@@ -2272,7 +2272,7 @@ brokered `stat` at about 47 µs there; the console's cost is the FUSE walk the c
 The owner's rule, through the coordinator: GPU apps use our sandbox library
 without Android isolation. Most cores cannot be isolated: they draw with GLES
 or Vulkan, which Android closes to isolated processes on every device (above),
-or with a WebView (Droidtop/tracker#550, the survey of 2026-10-17). For them
+or with a WebView (mytop-project/tracker#550, the survey of 2026-10-17). For them
 the lockdown is the sandbox. Agreed with the owner on 2026-10-17 ("All that
 works"):
 
@@ -2316,7 +2316,7 @@ works"):
 
   Without them, the linker dropped `webview.apk!/lib/<abi>` from the WebView's namespace ("unable
   to resolve ... I/O error") and HTML died with "not accessible for the namespace product-clns"
-  (Droidtop/tracker#550, 2026-10-30). A WebView under `/data/app` was never affected: an app may
+  (mytop-project/tracker#550, 2026-10-30). A WebView under `/data/app` was never affected: an app may
   ioctl its own data files.
   A WebView updated from the Play Store (Google's, as on the AVD and BlueStacks) lives in
   `/data/app` and keeps its native code in a static shared library, TrichromeLibrary, a package of
@@ -2359,12 +2359,12 @@ cores in the survey's order.
 The owner, on making every core sandboxed: "Alright, let's push the all those unprotected lines to
 get both layers of protection", and on how a GPU core is sandboxed: "Our sandboxing model DOES
 allow for GPU access. Remember? Allocate and clamp?" ... "We essentially allocate what's needed,
-then drop permissions as much as possible." (Droidtop/tracker#550.)
+then drop permissions as much as possible." (mytop-project/tracker#550.)
 
 **The model.** A core's process first sets up everything it needs while it still holds its
 rights: the GPU (EGL, buffers), audio, the binder descriptors the graphics stack opens by itself,
 its code, and its files through the broker. Then it drops every right it can: seccomp, files only
-through the broker, no sockets, no exec. The probe (Droidtop/tracker#470) showed GLES keeps drawing after
+through the broker, no sockets, no exec. The probe (mytop-project/tracker#470) showed GLES keeps drawing after
 this (the sandbox library's `tests/android/gpu_probe.c`). A GPU core under the clamp is therefore
 fully sandboxed, not a lesser case. This replaces the earlier reading that a GLES core needs
 software GL or a second UID.
@@ -2406,7 +2406,7 @@ isolated cores, then AGS and EasyRPG.
 
 The owner, 2026-10-22: "we need something like a permissive mode to train the
 sandbox". It comes before any core is flagged. LÖVE's first lockdown run died
-by SIGSYS 143 times with nothing to say which call (Droidtop/tracker#550), and
+by SIGSYS 143 times with nothing to say which call (mytop-project/tracker#550), and
 the rig steps above only show the paths a run reached before it failed. The
 library's half is its design.md, "Learning mode". It records what a lockdown
 would refuse and refuses nothing. This is Enginehost's half.
@@ -2424,7 +2424,7 @@ debug.enginehost.learn 0` turns it off. Only adb or root can set it. It is
 never on by default and never in the app's own settings, and it exists only in
 the debug build (`enginehost-latest-debug.apk`): the release build's
 `DebugProperty` reads nothing, so no `debug.enginehost.*` switch, this one
-included, can loosen a release build's sandbox (Droidtop/tracker#768). It is per core;
+included, can loosen a release build's sandbox (mytop-project/tracker#768). It is per core;
 which game it runs with is the operator's choice of what to launch. A
 learning run:
 
@@ -2485,7 +2485,7 @@ in the roadmap's order.
 
 On dev.392 every lockdown core died with signal 31 soon after "Process locked
 down", and LÖVE, KiriKiri and mkxp-z died in learning mode too
-(Droidtop/tracker#604, rig pass of 2026-10-23). The filter has no kill action.
+(mytop-project/tracker#604, rig pass of 2026-10-23). The filter has no kill action.
 Signal 31 is a trapped call whose SIGSYS the kernel could not hand to the
 handler, which leaves no tombstone and no record at the broker. The library's
 design.md ("When a trap kills") has the mechanism. Enginehost keeps two
@@ -2505,7 +2505,7 @@ records of it:
     still leaves one line per dead process.
 - **A fatal signal is noted in the same ring** (sandbox library 0.1.3,
   `sbx_trace_fault`; built 2026-10-24 for the SIGSEGV of KiriKiri, mkxp-z and
-  LÖVE, Droidtop/tracker#550). Android writes a tombstone by starting
+  LÖVE, mytop-project/tracker#550). Android writes a tombstone by starting
   crash_dump, a new process, which the lockdown refuses. So a locked-down
   core that segfaulted left nothing saying where. When the ring is set up,
   `:runtime` installs handlers for SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGTRAP
@@ -2551,7 +2551,7 @@ kept the filter but not the handler.
 #### Ren'Py under lockdown: what it needs, and the owner's choices (2026-10-23)
 
 Read from the dev.405 learning profiles of Ren'Py 7.5, 7.6 and 8.4 and two 8.4 lockdown logs
-(Droidtop/tracker#550, evidence `2026-10-23-renpy-learning`; analysis in comment 6372058364).
+(mytop-project/tracker#550, evidence `2026-10-23-renpy-learning`; analysis in comment 6372058364).
 
 - **Why 8.4 aborted.** The GPU, not Ren'Py: BlueStacks' GL pipe `/dev/bstpgaipc` was refused,
   EGL could not reach the host, and ART aborted creating a context. The preset now lists it
@@ -2584,7 +2584,7 @@ Read from the dev.405 learning profiles of Ren'Py 7.5, 7.6 and 8.4 and two 8.4 l
   the launch (`/home`, `/usr/lib`, `/var/adm`, `/proc/<pid>/cgroup`, `/dev/cpuctl`, ART's
   profile file) is refused, and Ren'Py carries on without it.
 
-**Rig, 2026-10-23 (Droidtop/tracker#550, comment 6373234141):** with all five pieces, Ren'Py 8.4
+**Rig, 2026-10-23 (mytop-project/tracker#550, comment 6373234141):** with all five pieces, Ren'Py 8.4
 (30YearOldVirgin) and 7.5 (NekoParadise) play to their menus locked down on BlueStacks, with no
 abort and no trap death. What was still refused, and what was done:
 - **The host's own settings in the game process.** The controller bindings (a file in `filesDir`,
@@ -2611,7 +2611,7 @@ abort and no trap death. What was still refused, and what was done:
   is harmless.
 - The Adreno driver's optional per-app tuning files (`esx_config...`, `adreno_priority`) and
   OpenSSL's `openssl.cnf` at the path of the machine it was built on (RP5, Enginehost dev-622,
-  Droidtop/tracker#853): read when present, skipped when not. These, and `/System/Library/...`,
+  mytop-project/tracker#853): read when present, skipped when not. These, and `/System/Library/...`,
   are logged at debug level rather than as warnings (`expected_refusal` in `runtime_sandbox.c`),
   so the warnings are the refusals worth reading; they are still refused. `/mnt/expand` was in this list; it is granted since 2026-10-24, because LÖVE,
   mkxp-z and KiriKiri died right after it was refused.
@@ -2620,7 +2620,7 @@ Order: the preset (done with this note), the game-writes field (`gameWrites`), t
 external folder, then the library's brokered watch. Then lockdown 1 with audit 1 on 7.5, 7.6
 and 8.4 on the rig, and Ren'Py declares `lockdown` once all three play.
 
-#### The loading screen is read before the clamp (2026-10-24, Droidtop/tracker#640)
+#### The loading screen is read before the clamp (2026-10-24, mytop-project/tracker#640)
 
 A game's own loading picture (Ren'Py's presplash, Godot's boot splash, RPG Maker's `Loading.png`)
 is shown while the core starts. The host reads and decodes it in `RuntimeActivity.onCreate`,

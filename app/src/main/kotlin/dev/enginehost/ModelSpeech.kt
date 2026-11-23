@@ -16,7 +16,7 @@ import java.util.concurrent.Executors
 
 /**
  * Reads a game's lines aloud with a voice model on the device, through sherpa-onnx, in Enginehost's
- * main process (docs/text-services.md, "Voices on the device"; Droidtop/tracker#490). Each character
+ * main process (docs/text-services.md, "Voices on the device"; mytop-project/tracker#490). Each character
  * keeps a voice of their own ([CharacterVoicePick], [CharacterVoices]).
  *
  * It runs here, not in the game's process: a locked-down runtime cannot open the model's files, and a

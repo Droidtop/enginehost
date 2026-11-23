@@ -85,7 +85,7 @@ class RuntimeActivity : FragmentActivity() {
         }
         // The game's own loading screen goes up before the core loads and before the sandbox
         // closes: the host reads the picture now, and nothing may open a file after lockdown.
-        // RuntimeLoadingNotice lifts it at the game's first frame (Droidtop/tracker#640).
+        // RuntimeLoadingNotice lifts it at the game's first frame (mytop-project/tracker#640).
         LoadingCover.prepare(this, gameFolder, config)?.let { LoadingCover.show(this, it) }
         if (resolved.plugin.isolatable) {
             return startIsolatedRuntime(resolved, config, gameFolder, engineFolder, saveFolder, display)

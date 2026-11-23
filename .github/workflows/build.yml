@@ -55,7 +55,7 @@ jobs:
       - name: Test the bundle scripts
         run: python3 -m unittest discover -s scripts -p "test_*.py"
 
-      # One copy rule for droidtop and Enginehost (Droidtop/tracker#945): two sentences, not a
+      # One copy rule for droidtop and Enginehost (mytop-project/tracker#945): two sentences, not a
       # semicolon splice; "Couldn't X", not "X could not be Y". scripts/check-copy.py.
       - name: Check the strings against the copy rule
         run: python3 scripts/check-copy.py
@@ -111,7 +111,7 @@ jobs:
 
   publish:
     # Two releases from one mechanism (build-scripts/release_channel.py,
-    # ported from droidtop's; Droidtop/tracker#122): a permanent, never
+    # ported from droidtop's; mytop-project/tracker#122): a permanent, never
     # overwritten release per green build (publish-build) is Enginehost's
     # build history, and the rolling "latest" release (publish-latest) is
     # the one moving pointer AppUpdate.kt reads. The tag for publish-build

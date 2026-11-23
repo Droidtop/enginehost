@@ -9,13 +9,13 @@ import java.security.cert.X509Certificate
 import java.util.Base64
 
 /*
- * Signature format v1 (Droidtop/tracker#550, docs/engine-bundle-format.md
+ * Signature format v1 (mytop-project/tracker#550, docs/engine-bundle-format.md
  * "Signatures"): a JWS (RFC 7515) in compact serialization whose protected
  * header carries the signer's X.509 chain in `x5c`, verified up to one
  * anchor and never past it. The anchor is the pinned Enginehost signing
  * root's public key for Enginehost's own plugins, or the key a person pinned for a
  * repository they added. Nothing here touches Android: it is the JDK's
- * shared verifier (vendor/lib-net) and org.json for the revocation lists, so plain JVM tests
+ * shared verifier (vendor/mytop-net) and org.json for the revocation lists, so plain JVM tests
  * exercise exactly what a device runs.
  */
 
@@ -37,7 +37,7 @@ sealed interface TrustAnchor {
     /**
      * The Enginehost signing root's public key (its SubjectPublicKeyInfo).
      * The owner derives this root from the Droidtop CA, which no app pins or
-     * uses directly (Droidtop/tracker#550): the anchor is the key, not the
+     * uses directly (mytop-project/tracker#550): the anchor is the key, not the
      * root's certificate. The chain's last certificate must be signed by it,
      * and no certificate in the chain may carry it.
      */
@@ -137,7 +137,7 @@ class VerifiedJws(
 }
 
 /**
- * Enginehost's names for the shared verifier (vendor/lib-net, `:trust`, `ChainSignature`): the same JWS-with-`x5c`
+ * Enginehost's names for the shared verifier (vendor/mytop-net, `:trust`, `ChainSignature`): the same JWS-with-`x5c`
  * format droidtop checks, verified up to one anchor and no further. This object keeps Enginehost's types (a
  * [TrustAnchor], a [RevokedSet], a [VerifiedJws]) and its convention that a signature which does not verify throws
  * [IllegalArgumentException] with the reason; the checks themselves are the library's.
@@ -146,7 +146,7 @@ object CertificateSignatures {
     /**
      * Verifies a JWS whose content is [detachedContent] (bundle manifests, catalog indexes) or, when that is null, carried in
      * the JWS itself (revocation lists). No certificate's validity period is read: expiry never invalidates a signature (owner,
-     * Droidtop/tracker#550: "We don't want older plugins to be invalidated"); only [revoked] withdraws trust, and it names any
+     * mytop-project/tracker#550: "We don't want older plugins to be invalidated"); only [revoked] withdraws trust, and it names any
      * chain certificate or key, the anchor's key included.
      */
     fun verify(

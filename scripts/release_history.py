@@ -64,7 +64,7 @@ def next_build(declared: str, published: list) -> int:
 
 # The releases API now and then answers a push build with an empty or cut-off
 # body (gh: "unexpected end of JSON input"); the same call a minute later is
-# fine (Droidtop/tracker#398). So a call is tried again after a growing pause
+# fine (mytop-project/tracker#398). So a call is tried again after a growing pause
 # before the build is failed.
 RETRY_PAUSES = (5, 15, 45)
 
@@ -108,7 +108,7 @@ def gh_api(*arguments: str, parse=None, run=_run_gh, sleep=time.sleep, gone_is_f
 
 # A rolling channel's release is deleted and recreated by every publish, so
 # an envelope listed a moment ago can be gone by the time it is fetched (HTTP
-# 404) when several lines publish at once (Droidtop/tracker#551). The listing
+# 404) when several lines publish at once (mytop-project/tracker#551). The listing
 # is then taken again, after these pauses, and the build fails only when an
 # envelope is still missing: the version check needs the whole history, so a
 # missing envelope is never skipped.
@@ -126,7 +126,7 @@ def envelope_of(asset: dict, repository: str, api=gh_api, download=_download) ->
     reading every envelope through the API (two reads per build, one per
     release) emptied the installation's allowance when twelve Ren'Py lines
     built at once, and every signing job after failed with "API rate limit
-    exceeded" (2026-10-23, Droidtop/tracker#604). A 404 there is Gone, as from
+    exceeded" (2026-10-23, mytop-project/tracker#604). A 404 there is Gone, as from
     the API; any other failure falls back to the API, with its retries."""
     url = asset.get("browser_download_url")
     if url:

@@ -15,7 +15,7 @@ import android.widget.Toast
 
 /**
  * Offers a link the running game asked to open (EngineHost.openLink; docs/SPEC.md, "Links a game
- * opens"; Droidtop/tracker#635). Owner, 2026-10-23: "Enginehost should parse the link type
+ * opens"; mytop-project/tracker#635). Owner, 2026-10-23: "Enginehost should parse the link type
  * (safely), and then OFFER to open it. A discord link gets offered to discord, etc".
  *
  * Enginehost's process does the opening; the core never calls startActivity for a link. The sheet

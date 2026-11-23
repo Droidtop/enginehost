@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 /**
  * The published summary of everyone's ratings (docs/stats-schema.md, "The aggregate";
- * Droidtop/tracker#491): per model, how many rated it, the average, and the purpose it is rated for
+ * mytop-project/tracker#491): per model, how many rated it, the average, and the purpose it is rated for
  * most. Pure, so it is unit-tested. A model with fewer than [MIN_RATINGS] ratings is left out, so a
  * handful of reports never stands for a verdict.
  */

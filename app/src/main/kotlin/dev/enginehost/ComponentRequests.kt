@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * there is none, [ComponentRequestActivity] opens over the game: install it, accept its licence, or
  * not now. Its answer comes back over binder, through the [ResultReceiver] the request carries, and
  * wakes the waiting call at once. It used to come back as a file polled every 250 ms, which a
- * locked-down game process could not even read (Droidtop/tracker#768).
+ * locked-down game process could not even read (mytop-project/tracker#768).
  */
 object ComponentRequests {
     private const val TAG = "EnginehostComponents"

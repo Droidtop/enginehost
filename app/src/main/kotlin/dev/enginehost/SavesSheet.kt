@@ -8,7 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import java.io.File
 
 /**
- * The game page's Saves row (Droidtop/tracker#238): where the game's saves are, then
+ * The game page's Saves row (mytop-project/tracker#238): where the game's saves are, then
  * Back up now, Restore a backup and Copy to a folder ([SaveBackups]). Every copy runs off
  * the main thread with a running count; a restore asks first and backs the current saves up
  * before it. A game whose saves sit among its own files with no folder the core declares

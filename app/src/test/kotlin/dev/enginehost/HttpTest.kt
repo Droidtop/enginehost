@@ -3,7 +3,7 @@ package dev.enginehost
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
-/** Which addresses the one HTTP helper asks at all (Droidtop/tracker#768); no network is used. */
+/** Which addresses the one HTTP helper asks at all (mytop-project/tracker#768); no network is used. */
 class HttpTest {
     private fun check(url: String, allowPlainHttp: Boolean = false, key: Boolean = false) =
         Http.checkScheme(

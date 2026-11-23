@@ -6,7 +6,7 @@ import android.app.Activity
  * The text route for a core on the activity transport (Ren'Py): such a core runs its own Activity
  * in the runtime process and has no EngineHost to call emitText and replaceText on, so it calls
  * these by name, through reflection, from that Activity. They go to the same [GameText] as
- * EngineHost.emitText and replaceText (docs/text-services.md; Droidtop/tracker#490).
+ * EngineHost.emitText and replaceText (docs/text-services.md; mytop-project/tracker#490).
  *
  * The owner chose this bridge on 2026-10-28, the same kind as [ActivityLinks], as the activity
  * transport's route until each of those cores moves onto the plugin transport, where

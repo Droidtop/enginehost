@@ -14,7 +14,7 @@ import java.io.File
 
 /**
  * Draws a game's [GameSections] as rows under its status and answers their taps
- * (Droidtop/tracker#235, #237): the controls, the core and its builds, an
+ * (mytop-project/tracker#235, #237): the controls, the core and its builds, an
  * update to it, the core's options, the saves, and the play history. Every
  * choice a person makes here is stored as a per-game override in the library database
  * ([GameOverrides]); nothing is written into the game folder.
@@ -35,10 +35,10 @@ class GameSectionsView(
         val focused = container.focusedChild?.let(container::indexOfChild) ?: -1
         container.removeAllViews()
         val core = sections.core
-        // The owner's order for a game page (Droidtop/tracker#644, 2026-10-24): "Play, Run with,
+        // The owner's order for a game page (mytop-project/tracker#644, 2026-10-24): "Play, Run with,
         // Controls, Saves, Game setup, Manage". The engine's own options follow Saves, so a long
         // list of them never pushes Controls under the fold, which is why Controls once came
-        // first (Droidtop/tracker#618, C12). Play is above these rows; Game setup and Manage below.
+        // first (mytop-project/tracker#618, C12). Play is above these rows; Game setup and Manage below.
         if (core != null) {
             addCore(sections, core)
         } else {

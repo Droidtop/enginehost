@@ -6,7 +6,7 @@ import java.net.URI
 
 /**
  * One rating of a voice or translation model, as it would be shared (docs/stats-schema.md;
- * Droidtop/tracker#491). Pure, so it is unit-tested on the JVM.
+ * mytop-project/tracker#491). Pure, so it is unit-tested on the JVM.
  *
  * Built only from what the person chose and coarse classes of the device: never a game's name or
  * text, an account, a key, a device or install id, or the address of the person's own service.

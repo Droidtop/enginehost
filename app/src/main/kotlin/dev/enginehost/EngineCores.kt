@@ -7,7 +7,7 @@ import org.json.JSONObject
 
 /**
  * Enginehost's engine cores as its application interface presents them to droidtop
- * (Droidtop/tracker#752, point `engines.cores@1`): one entry per core line, installed or
+ * (mytop-project/tracker#752, point `engines.cores@1`): one entry per core line, installed or
  * installable, with what it runs and which of the shared engines database's rows it serves, so
  * droidtop can make a game's own engine its runner instead of falling back to Wine. Read from the
  * installed bundles and the cached catalog only: answering never fetches. When the list changes

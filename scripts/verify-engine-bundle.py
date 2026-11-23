@@ -4,7 +4,7 @@
 Only the format-v1 signature (`enginehost-bundle.jws`) is verified. An archive
 published with the legacy raw-key signature as well carries
 `enginehost-bundle.sig` before the JWS; it is passed over and never trusted
-(Droidtop/tracker#768). One that carries only the legacy signature is refused.
+(mytop-project/tracker#768). One that carries only the legacy signature is refused.
 """
 
 import argparse

@@ -1,7 +1,7 @@
 name: Commit hygiene
 
-# The rule lives once, in Droidtop/droidtop-platforms, and is pinned by commit
-# (Droidtop/tracker#199).
+# The rule lives once, in mytop-project/droidtop-platforms, and is pinned by commit
+# (mytop-project/tracker#199).
 on:
   push:
   pull_request:

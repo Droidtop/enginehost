@@ -59,7 +59,7 @@
 #elif defined(__x86_64__)
 #define SANDBOX_ARCH AUDIT_ARCH_X86_64
 #else
-/* Enginehost builds arm64-v8a and x86_64 only (Droidtop/tracker#646). */
+/* Enginehost builds arm64-v8a and x86_64 only (mytop-project/tracker#646). */
 #error "Enginehost's sandbox builds for arm64 and x86_64 only"
 #endif
 
@@ -113,7 +113,7 @@ Java_dev_enginehost_RuntimeSandbox_denyInternet(JNIEnv *env, jclass clazz) {
  * Logs the signals whose installed handler blocks SIGSYS while it runs,
  * read with the raw call (ART interposes sigaction()). A trapped call made
  * inside such a handler used to kill the process by signal 31 with no
- * tombstone (Droidtop/tracker#550); the library now takes SIGSYS out of
+ * tombstone (mytop-project/tracker#550); the library now takes SIGSYS out of
  * these masks at lockdown, and this says which handlers it had to change.
  */
 static void log_handlers_masking_sigsys(void) {

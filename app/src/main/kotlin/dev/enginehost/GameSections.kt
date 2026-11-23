@@ -19,7 +19,7 @@ class SavesInfo(
     val bytes: Long,
     /**
      * The folders that are this game's saves and nothing else, for Back up, Restore and Copy
-     * (Droidtop/tracker#238). Beside the game that is only what the core declares it writes
+     * (mytop-project/tracker#238). Beside the game that is only what the core declares it writes
      * there (`gameWrites`, KiriKiri's `savedata`): the game's own files are never copied.
      * Empty when no folder is known to hold only saves.
      */
@@ -30,7 +30,7 @@ class SavesInfo(
 
 /**
  * Everything the game's page shows under its status, read off the main thread
- * (Droidtop/tracker#235): the core that runs it and the other builds that
+ * (mytop-project/tracker#235): the core that runs it and the other builds that
  * could, whether a newer build of that core is waiting, the core's declared
  * options with their sources, where the saves are, and the play history.
  */

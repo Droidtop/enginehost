@@ -31,7 +31,7 @@ int enginehost_audio_ring_open(struct enginehost_audio_ring *ring, int fd) {
     ring->mapped = (size_t) info.st_size;
     uint32_t capacity = __atomic_load_n(header_word(ring, OFFSET_CAPACITY), __ATOMIC_ACQUIRE);
     /* A power of two: the positions are free-running 32-bit counters, and "% capacity" stays
-     * continuous across their wrap only then (Droidtop/tracker#768: any multiple of 4 was taken,
+     * continuous across their wrap only then (mytop-project/tracker#768: any multiple of 4 was taken,
      * and a capacity of 48 KiB would have broken playback after about six hours of audio). */
     if (capacity == 0 || capacity > ring->mapped - HEADER_SIZE || capacity % FRAME_BYTES != 0 ||
         (capacity & (capacity - 1)) != 0) {

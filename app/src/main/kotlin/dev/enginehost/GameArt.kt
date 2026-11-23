@@ -17,7 +17,7 @@ import java.security.MessageDigest
 import java.util.concurrent.Executors
 
 /**
- * A game's picture, from local sources only (Droidtop/tracker#240): a picture the person
+ * A game's picture, from local sources only (mytop-project/tracker#240): a picture the person
  * chose for it, else the game's own icon ([GameIcon]: the one its engine configures, or its
  * executable's). Never fetched, never made up: a game with neither is drawn as a plate of
  * its engine's colour with its initial, the same honest stand-in the game page uses.
@@ -69,7 +69,7 @@ object GameArt {
         val context = view.context.applicationContext
         worker.execute {
             // A fast scroll queues a job per row passed; a view that shows another game by the time
-            // its job runs needs nothing read for this one (Droidtop/tracker#768).
+            // its job runs needs nothing read for this one (mytop-project/tracker#768).
             if (view.tag != key) return@execute
             val thumb = runCatching { thumbnail(context, row) }.getOrNull()
             if (thumb == null) {
@@ -120,7 +120,7 @@ object GameArt {
         directory.mkdirs()
         runCatching { cached.outputStream().use { thumb.compress(Bitmap.CompressFormat.PNG, 100, it) } }
         // The name carries the folder's and the chosen picture's times, so each change wrote a new
-        // file beside the old ones and nothing removed them (Droidtop/tracker#768). The game's
+        // file beside the old ones and nothing removed them (mytop-project/tracker#768). The game's
         // older thumbnails go once its new one is written.
         forgetThumbnails(directory, folder, keep = cached)
         return thumb

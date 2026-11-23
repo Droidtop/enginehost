@@ -1,6 +1,6 @@
 # Enginehost UI decisions
 
-## 64-bit only: arm64-v8a and x86_64 (decided 2026-10-24, Droidtop/tracker#646)
+## 64-bit only: arm64-v8a and x86_64 (decided 2026-10-24, mytop-project/tracker#646)
 
 Enginehost, its sandbox library and every core build for `arm64-v8a` and `x86_64`
 and nothing else. Owner: "why do we have to care about 32-bit devices? The last
@@ -79,7 +79,7 @@ them".
   off the main thread with the list. With every line's old and new builds
   installed after Update all (about sixty cards), working it out card by card
   on the main thread, while the installs kept the disk busy, ended in "isn't
-  responding" (rig, 2026-10-23, Droidtop/tracker#604).
+  responding" (rig, 2026-10-23, mytop-project/tracker#604).
 - **Home's update notices** sit in the header beside Add games, as tall as it:
   "N core updates" (a primary button, opening Cores) and, when there is one,
   "Enginehost <version>" (a secondary chip, opening Settings' update). The check
@@ -126,14 +126,14 @@ The app is organised around four destinations, always the same four
 (`Destination`): the Library (Home), Cores (the installed cores, with updates
 and Add), Controls (the button maps every engine reads, pad profiles and the
 in-game menu button) and Settings. Controls was a row inside Settings; it is a
-place of its own since Droidtop/tracker#644 (owner, 2026-10-24: "Four places:
+place of its own since mytop-project/tracker#644 (owner, 2026-10-24: "Four places:
 Library, Cores, Controls, Settings"). Opened for one game or one engine (its
 page, the in-game menu) the Controls screen is inside that flow and draws no
 bar. Adding games is the Library's one primary action, in its header, not a
 place. The destination screens draw a `DestinationBar` along the top of their
 content, on every window size: the four tabs in a row between an L1 glyph at the
 left end and an R1 glyph at the right, so the bar runs the way the shoulder
-buttons move (owner, Droidtop/tracker#644, 2026-10-30: "move the enginehost tab
+buttons move (owner, mytop-project/tracker#644, 2026-10-30: "move the enginehost tab
 bar to the top or bottom, so it's more consistent with how it actually moves,
 mapped to l1 and r1"; top was the preferred place). It replaced a bar along the
 bottom of narrow windows and a rail down the left of wide or short ones. Home has
@@ -149,7 +149,7 @@ cores are the cores that run a game engine; trust, update and error text keep
 "plugin" for the signed bundle. A Cores screen showing one just-installed core
 (`EXTRA_BUNDLE`) is opened inside a flow and draws no bar.
 
-## A game's picture, from local sources only (Droidtop/tracker#240)
+## A game's picture, from local sources only (mytop-project/tracker#240)
 
 Every screen that shows a game's picture asks `GameArt`: a picture the person chose for the
 game (Manage > Choose a picture, kept scaled down in Enginehost's own files), else the game's
@@ -178,7 +178,7 @@ A launch, from another app (`dev.enginehost.LAUNCH`) or from Play, shows the gam
 screens its plan needs on the way: the launch screen, the catalog filtered to the game,
 the trust screen for one core, Game setup, the unsandboxed question. None of them is one
 of the four places, and none leads into one, so a game started from droidtop never
-leaves the person in Enginehost's library (owner, 2026-10-24, Droidtop/tracker#644:
+leaves the person in Enginehost's library (owner, 2026-10-24, mytop-project/tracker#644:
 "Launched from droidtop: only the game, with sheets as needed"). A catalog a launch
 opened installs a newer build of an installed core on its own card ("Update"), where a
 catalog opened from Cores sends updates to Cores. The missing-core detour to the catalog
@@ -283,7 +283,7 @@ A game's options can still choose Android: `"platform": "android"`.
 ## Links a game opens (decided 2026-10-23)
 
 The owner, 2026-10-23: "Enginehost should parse the link type (safely), and then OFFER to open
-it. A discord link gets offered to discord, etc" (Droidtop/tracker#635).
+it. A discord link gets offered to discord, etc" (mytop-project/tracker#635).
 
 A core never opens a link itself. Every engine's own route goes to `EngineHost.openLink(url)`:
 SDL `openURL`, Godot `OS.shell_open`, Ren'Py `webbrowser` and `renpy.open_url`, KiriKiri
@@ -337,7 +337,7 @@ such as a LÖVE game whose `love.draw` is empty.
   drawn. Still black at 45 s with the game in front, it asks once
   (`GameTroubleActivity`): Keep waiting, End game, Report a problem. The rule
   is `BlackScreenRule`, about what the person sees rather than the engine's
-  surface (2026-10-30, Droidtop/tracker#821: Ren'Py was asked about with its
+  surface (2026-10-30, mytop-project/tracker#821: Ren'Py was asked about with its
   presplash on screen, and ran 55 seconds later):
   - the game's own loading picture (`LoadingCover`) is not a black screen;
   - every progress report the engine sends (`LoadingProgress`) starts the 45
@@ -351,7 +351,7 @@ such as a LÖVE game whose `love.draw` is empty.
     and one step can be long: on the console, Love & Sex: Second Base's
     `start.rpy:266` init block ran 198 seconds and its whole init 347. The
     45-second question ended a load that would have finished (2026-11-05,
-    Droidtop/tracker#855). This was built to the recommendation while the
+    mytop-project/tracker#855). This was built to the recommendation while the
     owner was away; the owner is to confirm the length;
   - the notice stops watching after 180 seconds without a frame or a report,
     asking once first when it never asked.
@@ -382,7 +382,7 @@ such as a LÖVE game whose `love.draw` is empty.
   on the launch screen as "Closed before it showed anything", with Try again
   and Report, instead of returning silently. A Back press that closes such a
   game is reported the same way.
-- **Android stopped the game (owner, 2026-10-29, Droidtop/tracker#27).** A game
+- **Android stopped the game (owner, 2026-10-29, mytop-project/tracker#27).** A game
   whose process Android ended from outside is a failure, not a clean close: the
   launch screen says "Android stopped the game: it needed the memory." (low
   memory), "...: a system service it was using stopped." (a provider it used
@@ -402,11 +402,11 @@ such as a LÖVE game whose `love.draw` is empty.
   Share, Copy, Save and the GitHub button come first; what the report includes
   folds under "What the report includes".
 - **Reports go to the tracker.** The GitHub button opens a new issue on
-  Droidtop/tracker (owner, 2026-10-22: "always the tracker"), no longer the
+  mytop-project/tracker (owner, 2026-10-22: "always the tracker"), no longer the
   separate enginehost-reports repository. Only a title (engine and symptom)
   is in the address; the report itself is copied for the person to paste.
 
-## A game's own loading screen (decided 2026-10-24, Droidtop/tracker#640)
+## A game's own loading screen (decided 2026-10-24, mytop-project/tracker#640)
 
 The owner: "the RenPy loading screens would be a nice thing to implement, too. Right now, we just
 use the android splash". The runtime's window used to open black with a "Loading <game>" bar until
@@ -422,7 +422,7 @@ the engine drew; it now opens on the game's own loading picture.
     foreground picture in `game/`, a progress fill as Ren'Py draws it: the background whole, the
     foreground over it from the left up to the fraction loaded. Ren'Py's source names them
     `presplash_background` and `presplash_foreground`; the hyphenated spelling is read too. The
-    fill is Ren'Py's own progress (2026-10-30, Droidtop/tracker#821): the core reports the
+    fill is Ren'Py's own progress (2026-10-30, mytop-project/tracker#821): the core reports the
     fraction its desktop presplash would draw (each `presplash.pump_window` call over the script
     files plus Ren'Py's fixed count, as each Ren'Py version counts it) through the named bridge
     `dev.enginehost.ActivityLoading.progress`, and the host draws exactly that. Nothing is
@@ -449,7 +449,7 @@ the engine drew; it now opens on the game's own loading picture.
   core's Activity when it starts, before the loading notice, which lifts it at the first frame as before.
   One table, one cover, two places it goes up. KiriKiri, which has no plain-file picture, gets the box art.
 
-## A game's text reaches the host in one format (decided 2026-10-28, Droidtop/tracker#490)
+## A game's text reaches the host in one format (decided 2026-10-28, mytop-project/tracker#490)
 
 Reading aloud and translating are Enginehost's, once, for every core. A core only reports what
 its engine shows (docs/text-services.md).
@@ -500,7 +500,7 @@ its engine shows (docs/text-services.md).
 ## Reporting whether anything is open: the `state` call
 
 droidtop keeps a "Playing" session for the game it started and needs to know when
-it is over without a privileged helper (Droidtop/tracker#289: Cancel on the
+it is over without a privileged helper (mytop-project/tracker#289: Cancel on the
 no-sandbox warning, or Back on a startup-error screen, left it standing for ever).
 `CapabilityProvider` answers `call("state")` on `content://dev.enginehost.capabilities`
 to droidtop alone (Android's record of the caller, `TrustedCallers.isDroidtop`);
@@ -526,7 +526,7 @@ for this game wins over it, nested `options` merged key by key. The planner
 resolves it once and hands it to the runtime as an extra
 (`RuntimeActivity.EXTRA_OVERRIDES`) so both resolve the same config.
 
-## A row says what is unusual, else when it was played (decided 2026-10-28, Droidtop/tracker#620 E10)
+## A row says what is unusual, else when it was played (decided 2026-10-28, mytop-project/tracker#620 E10)
 
 Every row on Home said "Android-runnable · Runs here", 22 identical lines. A line that is the same on every
 row tells the reader nothing, so a row's second line now names only what stands out: the builds and
@@ -537,7 +537,7 @@ search, which has its own field, and the sort. The sheet keeps its Search row, b
 reaches Home's search field. The game page drops its "Ready" line; the status shows only when something
 stands in the way of Play. Not done: the review's Engine and Platform chips in place of their own sheets.
 
-## Settings: one row for engines' save folders; callers named plainly (decided 2026-10-28, Droidtop/tracker#620 E9)
+## Settings: one row for engines' save folders; callers named plainly (decided 2026-10-28, mytop-project/tracker#620 E9)
 
 Settings listed every installed engine under Saves, each reading "Shared folder" (15 rows on the rig).
 Saves now has the save folder, one row "Engines that save elsewhere" (it names the engines with a folder of
@@ -546,7 +546,7 @@ offers Choose a folder and, for an engine with its own, Use the save folder. App
 screen and the scan screen name a caller through `CallerLabels.of`, the one place that says how: adb's
 "Shell" package reads "adb or a script", and a caller with no package reads "An unrecognized caller".
 
-## Game setup opens on what was detected (decided 2026-10-28, Droidtop/tracker#620 E13)
+## Game setup opens on what was detected (decided 2026-10-28, mytop-project/tracker#620 E13)
 
 Game setup showed engine, variant, version, core builds and entry file for a game detected correctly,
 eight fields before any option. When detection fills the engine and version, those fields fold behind
@@ -556,7 +556,7 @@ Test refuses the setup, so the field at fault is in view. Focus moves to the lin
 and to the first field when it opens. Not done: Add option as short titles with the description on Y.
 
 A folder chosen in Game setup is read by its path, the way every launch reads a game (decided
-2026-10-29, Droidtop/tracker#768). The picker's choice is resolved to a path once. A folder on a
+2026-10-29, mytop-project/tracker#768). The picker's choice is resolved to a path once. A folder on a
 provider with no path, such as a cloud drive, is refused, and all-files access is asked for when it is
 missing. Loading the setup, listing the folder for the entry file, and saving all run off the main
 thread. Before this, Game setup kept a second set of branches for the picker's tree, which queried
@@ -564,7 +564,7 @@ the provider on the main thread.
 
 ## The game page's sections
 
-A game's page reads, top to bottom, in the owner's order (Droidtop/tracker#644,
+A game's page reads, top to bottom, in the owner's order (mytop-project/tracker#644,
 2026-10-24: "Play, Run with, Controls, Saves, Game setup, Manage"): Play, then rows read
 off the main thread after the page itself (`GameSectionsLoader`, drawn by
 `GameSectionsView`), then Game setup and Manage.
@@ -582,7 +582,7 @@ off the main thread after the page itself (`GameSectionsLoader`, drawn by
 - **Saves**: where the saves are, when they last changed and how big they are
   (a bounded look at the save folder). For an engine that saves beside the game the
   place is the game's folder and nothing is measured. Its sheet manages them
-  (Droidtop/tracker#238, `SaveBackups`, `SavesSheet`):
+  (mytop-project/tracker#238, `SaveBackups`, `SavesSheet`):
   - **Back up now** copies the save folders into a new folder named for the moment,
     under `<save location>/save-backups/<game>-<digest>/`. It never writes into a backup
     that exists.
@@ -604,7 +604,7 @@ off the main thread after the page itself (`GameSectionsLoader`, drawn by
   a "Back to the default" choice takes the override back. Path, file and repeated options are
   set in Game setup, which edits the game's own file. They come after Saves so that a
   core with many of them never pushes Controls under the fold at 1920x1080, the reason
-  Controls once came first (Droidtop/tracker#618).
+  Controls once came first (mytop-project/tracker#618).
 - **History**: time played, starts, when it last started and how the last session ended.
 - **Manage**, a button under Game setup: one sheet with the game's favourite mark, Report a
   problem, and Remove from list. They were three buttons of their own.
@@ -617,7 +617,7 @@ sort order on Home.
 
 ## Controls have a per-game scope, and every level says where a button comes from
 
-A game can have buttons of its own (Droidtop/tracker#239). The controller screen
+A game can have buttons of its own (mytop-project/tracker#239). The controller screen
 offers "This game" first when it was opened for a game (from the game page's Controls
 row, or from the in-game menu); its map sits on top of the engine's. A binding resolves
 game, then engine, then all engines, then the action's default
@@ -643,8 +643,8 @@ what the pad reports or as the person sets it, and every control surface draws t
 glyph for the button that does the job. `PadNames` stays the text for keyboard keys and for
 screen readers.
 The family comes from the pad's USB or Bluetooth id through SDL's controller list
-(`PadFamilies` over Droidtop/lib-input's, the submodule `vendor/lib-input`, which droidtop uses too:
-one model and one generated table instead of a copy in each; Droidtop/tracker#867 D4), and the profile page's
+(`PadFamilies` over mytop-project/mytop-input's, the submodule `vendor/mytop-input`, which droidtop uses too:
+one model and one generated table instead of a copy in each; mytop-project/tracker#867 D4), and the profile page's
 "Button labels" sets it for a pad the list does not know or gets wrong (as the pad says, Xbox,
 PlayStation, Nintendo). A pad nobody has said anything about is drawn as Xbox, and the page says
 so. Glyphs are drawn in the text colour (`PadGlyphDrawable`), and each sits over its name in the
@@ -697,7 +697,7 @@ not taken focus yet). A newer redraw drops an older read.
 
 ## Release channels (decided 2026-10-31)
 
-The owner (Droidtop/tracker#28): "unstable is for branches that have never had a stable core, or
+The owner (mytop-project/tracker#28): "unstable is for branches that have never had a stable core, or
 for major rewrites/etc. Testing is for revisions to branches that have had stable cores (before
 they're tested). Stable is for tested cores". CI publishes every green build of a line to unstable
 until the line has a stable release and to testing after; `scripts/publish-engine-release.sh` makes
@@ -734,7 +734,7 @@ front, means the install did not happen: the button returns, with a line saying 
 the "install unknown apps" round-trip came back with the button stuck on "Handing over to the
 Android installer" (rig, Enginehost dev-269 to 289, tracker#401).
 
-## Anonymous model ratings: built, switched off (decided 2026-10-28, Droidtop/tracker#491)
+## Anonymous model ratings: built, switched off (decided 2026-10-28, mytop-project/tracker#491)
 
 The owner, 2026-10-28: "build the system, but don't enable it yet. That way there's less to build
 later". The whole opt-in system is built (`SharedStats`, `StatsReport`, `StatsAggregate`,
@@ -753,7 +753,7 @@ only to the local log, marked unsent. What a report holds is docs/stats-schema.m
 - **Aggregates need 10 ratings.** Below that, the picker shows nothing for the model.
 - **Waiting on the server (#364):** where the endpoint runs and how long raw reports are kept.
 
-## droidtop, suggested once (decided 2026-10-29, Droidtop/tracker#755)
+## droidtop, suggested once (decided 2026-10-29, mytop-project/tracker#755)
 
 The owner, 2026-10-29: "Can also cross-advertise droidtop in enginehost". droidtop offers
 Enginehost from its side (#754); Enginehost offers droidtop where it helps, without nagging
@@ -775,7 +775,7 @@ Enginehost from its side (#754); Enginehost offers droidtop where it helps, with
   (DESIGN-LANGUAGE.md: a disabled feature runs no code), and turning it back on is the only way
   it returns.
 
-## Work off the main thread goes through `Async` (decided 2026-10-29, Droidtop/tracker#768)
+## Work off the main thread goes through `Async` (decided 2026-10-29, mytop-project/tracker#768)
 
 File, database, network and SAF work a screen needs runs through `Async`, the one mechanism for it.
 `Async.run` is for work with nothing to show. `Async.load(owner, work, failed) { show }` is for work
@@ -793,7 +793,7 @@ their order matters. These are:
 - the library, art, voice, translation and host-event queues;
 - the bounded wait for droidtop's answer about saves (`DroidtopSaves.withDeadline`).
 
-## Rig switches exist only in the debug build (decided 2026-10-29, Droidtop/tracker#768)
+## Rig switches exist only in the debug build (decided 2026-10-29, mytop-project/tracker#768)
 
 The `debug.enginehost.*` properties the rig sets with adb (`lockdown`, `learn`, `audit`,
 `npeprobe`, `stall`, `text`, `stats`) are read by `DebugProperty`, and only the debug build has
@@ -804,7 +804,7 @@ set on the device. The code quality review found them shipping in release builds
 that needs a switch runs on `enginehost-latest-debug.apk`, which every build publishes beside
 the release APK.
 
-## One HTTP helper for servers that are not GitHub (decided 2026-10-29, Droidtop/tracker#768)
+## One HTTP helper for servers that are not GitHub (decided 2026-10-29, mytop-project/tracker#768)
 
 Voice model downloads, the translator and the stats endpoint go through `Http`, and GitHub traffic stays
 on the shared client (`GithubClients`). Before this, each built its own connection, with its own
@@ -817,7 +817,7 @@ timeouts and User-Agent and a catch that made every failure null. `Http` works a
 - Every read has a bound.
 - A failure is an `Http.Failure` that says what went wrong.
 
-## Only v1 signatures are verified (decided 2026-10-29, Droidtop/tracker#768)
+## Only v1 signatures are verified (decided 2026-10-29, mytop-project/tracker#768)
 
 The legacy raw-key bundle signature has no verifier any more. Every shipped build pins the
 signing root, so the legacy path was already unreachable there. `LegacyBundleSignatures.kt`, the
@@ -828,13 +828,13 @@ review, #768).
   Its card on Cores offers **Reinstall** when the cached catalogs hold a build of its line (its
   newest, the same version re-signed included). Reinstall installs that build first and then
   removes the old one, so a failed download leaves what was there. With no such build the card
-  offers Remove alone (Droidtop/tracker#774: every core on the AVD said "old signature" with no
+  offers Remove alone (mytop-project/tracker#774: every core on the AVD said "old signature" with no
   way forward).
 - A `.sig` beside a JWS, and a manifest's `signing` block, are passed over.
 
 What a repository a person added is verified to is unchanged: the key they pinned for it.
 docs/engine-bundle-format.md, "Legacy signatures".
-## TyranoScript runs on the HTML core (decided 2026-10-28, Droidtop/tracker#637; superseded 2026-11-04)
+## TyranoScript runs on the HTML core (decided 2026-10-28, mytop-project/tracker#637; superseded 2026-11-04)
 
 **Superseded** by "Every engine keeps its own core": TyranoScript gets a core of its own (below).
 What follows describes how Tyrano runs today, until that core ships.
@@ -890,23 +890,23 @@ only. You're a cloud lane, you should not have received that instruction." So:
   with the exact command, when the survey tool or the harness is ready for a rig run.
 - The coordinator relays step 1 and the runtime half of step 5 to local lanes only.
 
-## WOLF RPG Editor gets a core of our own (decided 2026-11-04, Droidtop/tracker#858)
+## WOLF RPG Editor gets a core of our own (decided 2026-11-04, mytop-project/tracker#858)
 
 The owner: "we're adding a new engine to the list: wolf RPG". No open Wolf runtime exists and Wine
-is not a core, so `Droidtop/enginehost-wolf-plugin` is our own interpreter, built under the policy
+is not a core, so `mytop-project/enginehost-wolf-plugin` is our own interpreter, built under the policy
 above, with SDL2 and GLES rather than DX Library. It reads only what the game itself reads (the
 owner: "no breaking Wolf 3 or Pro protection"): unpacked data, 2.x archives, and 3.x archives on
 the engine's fixed key. Pro games and games with a protect key are refused with a plain message.
 64-bit only and isolatable from its first build. The plan: docs/new-engines/wolf.md.
 
-## Every engine keeps its own core (decided 2026-11-04, Droidtop/tracker#28)
+## Every engine keeps its own core (decided 2026-11-04, mytop-project/tracker#28)
 
 The owner, relayed by the coordinator: "I have REPEATEDLY demanded we not unify cores like that.
 Stop DOING that". Every engine keeps its own core. No line is retired or merged because another
 core can run its games, and a merge that already happened is undone.
 
 - **Twine** is its own core again: `dev.enginehost.twine.2_12.v1`, line `plugin/twine-2.12` in
-  `Droidtop/enginehost-html-plugin`, beside the HTML core's `plugin/stable`. The 2026-10-14 move to
+  `mytop-project/enginehost-html-plugin`, beside the HTML core's `plugin/stable`. The 2026-10-14 move to
   lines (that repository's 395d64e) had dropped its wrapper as "on no line". The two lines share
   the repository and nothing else: each builds its own wrapper into its own bundle.
 - A game of an engine with its own core is detected as that engine and offered that core. Twine
@@ -917,14 +917,14 @@ core can run its games, and a merge that already happened is undone.
   marker is useful". So the HTML core stays a per-game choice for a Twine story through its config
   (`engine: html`). The HTML core itself is not widened to claim Twine.
 - **TyranoScript** gets its own core. The owner, 2026-11-04: "Tyrano should get its own core too,
-  in case that wasn't clear." It is built in `Droidtop/enginehost-tyrano-plugin` under "Cores we
+  in case that wasn't clear." It is built in `mytop-project/enginehost-tyrano-plugin` under "Cores we
   write from scratch" (survey of real Tyrano games, one broad pass, rig comparison), and the
   detection and the platform mapping (`tyranoscript`, today HTML) move to it once it is published.
   The HTML core is then for HTML games and, beside the Twine core, Twine stories.
 - A game moves from a shared core to its own only when its own core is published, so no game is
   left with no core in between.
 
-## The Enginehost signing root was rotated; the old one ends 2026-11-11T23:59:59Z (decided 2026-11-04, Droidtop/tracker#876, #550)
+## The Enginehost signing root was rotated; the old one ends 2026-11-11T23:59:59Z (decided 2026-11-04, mytop-project/tracker#876, #550)
 
 The owner's words: "Pin the old key for 7 days, then expire it. That should give time for users to
 organically move off the old cores." He also decided not to re-audit: every release is re-signed as it is.
@@ -948,7 +948,7 @@ organically move off the old cores." He also decided not to re-audit: every rele
 - `official_plugin_root_key.json` and `default_plugin_keys.json` are not pinned here any more (legacy raw-key
   signature, deleted 2026-10-29); nothing to re-pin.
 
-## A superseded key points at the key that replaced it (decided 2026-11-05, Droidtop/tracker#887)
+## A superseded key points at the key that replaced it (decided 2026-11-05, mytop-project/tracker#887)
 
 The owner: "We don't need dates or a chain. Every key is superceded by the current key. It's a simple check:
 if it's marked as "superceded", then trust the key it's superceded by, which'll be denoted. We still tell the
@@ -958,7 +958,7 @@ plugin came from for it to be trusted".
 - **Where.** Each root entry in `app/src/main/assets/trust/enginehost-roots.json` may carry
   `"superseded": [{"keySha256": "<old root>", "by": "<current root>"}]`. It ships inside the app, under the
   app's signature. `EnginehostRoots.superseded` reads it, and `scripts/bundle_jws.py` ignores it.
-- **First marker.** The 2026-11-04 rotation (Droidtop/tracker#876): the current root (`9629576d…`) marks the
+- **First marker.** The 2026-11-04 rotation (mytop-project/tracker#876): the current root (`9629576d…`) marks the
   root it replaced (`916dbb97…`, `enginehost-root-2026-10.pub`) as superseded. The marker stays after that
   root's file is dropped at its end, 2026-11-11T23:59:59Z, so approvals keep carrying. At the next rotation,
   every marker is rewritten to point at the new current root, and the replaced root is added.

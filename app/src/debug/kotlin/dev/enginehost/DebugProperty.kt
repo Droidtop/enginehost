@@ -8,7 +8,7 @@ package dev.enginehost
  * This copy is the debug build's. The release build's (src/release) reads
  * nothing, so no switch exists in it: not the forced lockdown, not the
  * learning run that lets a core run with its filter only recording, not the
- * stall, the audit or the probes (Droidtop/tracker#768). A rig check that
+ * stall, the audit or the probes (mytop-project/tracker#768). A rig check that
  * needs one runs on enginehost-latest-debug.apk.
  */
 internal object DebugProperty {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Issue format-v1 signing certificates under the Enginehost signing root (Droidtop/tracker#550).
+"""Issue format-v1 signing certificates under the Enginehost signing root (mytop-project/tracker#550).
 
 Run by the owner, on the machine holding the Enginehost signing root's key,
 never in CI. The owner derives that root from the Droidtop CA outside this

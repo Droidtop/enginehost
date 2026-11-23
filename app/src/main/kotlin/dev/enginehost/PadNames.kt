@@ -7,7 +7,7 @@ import android.view.MotionEvent
  * What a control is called where a person reads it: the letter or name printed on the pad
  * ("A", "L2", "Start", "Left stick ←"), not the platform's constant ("BUTTON_A", "AXIS_LTRIGGER +").
  * The one place controls are named, for the controller screen, the in-game Controls sheet,
- * the host menu shortcut and the profile page (Droidtop/tracker#620 E8). A keyboard key, or
+ * the host menu shortcut and the profile page (mytop-project/tracker#620 E8). A keyboard key, or
  * anything a pad does not print, keeps the platform's name, made readable.
  */
 object PadNames {

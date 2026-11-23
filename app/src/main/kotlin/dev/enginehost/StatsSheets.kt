@@ -8,7 +8,7 @@ import android.widget.Toast
 import org.json.JSONObject
 
 /**
- * The sheets of the anonymous model ratings ([SharedStats]; Droidtop/tracker#491): asking once,
+ * The sheets of the anonymous model ratings ([SharedStats]; mytop-project/tracker#491): asking once,
  * rating a model, and showing what was shared. Shown only while [SharedStats.enabled].
  */
 class StatsSheets(private val activity: Activity) {

@@ -18,7 +18,7 @@ import java.security.MessageDigest
 /**
  * Reading a bundle archive: the manifest first, then its signatures, then exactly the signed payload, in the signed order.
  * The signer decides before a payload byte is written. The container itself (unsafe paths, links, repeats, size and memory
- * caps) is the shared BundleTar's, tested in Droidtop/lib-net.
+ * caps) is the shared BundleTar's, tested in mytop-project/mytop-net.
  */
 class BundleExtractionTest {
     private class Item(

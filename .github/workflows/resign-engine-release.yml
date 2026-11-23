@@ -2,20 +2,20 @@ name: Re-sign a stable engine release
 
 # Signs the bundle of an already published stable release in format v1 and
 # publishes the result as a new stable release beside it
-# (owner, 2026-10-16, Droidtop/tracker#550). The September stable releases carry
+# (owner, 2026-10-16, mytop-project/tracker#550). The September stable releases carry
 # only the legacy signature, which Enginehost no longer accepts for an install;
 # their code was verified on hardware when they were promoted, so they are
 # re-signed rather than rebuilt: the manifest bytes, and with them every payload
 # file's digest and the build number, stay exactly as published, and the
 # published release is left as it is. scripts/resign-engine-bundle.py does it,
-# and leaves the legacy enginehost-bundle.sig out (Droidtop/tracker#768).
+# and leaves the legacy enginehost-bundle.sig out (mytop-project/tracker#768).
 #
 # With only-64-bit (a newer pluginVersion), the same release is published again
 # without its 32-bit libraries, as <source-tag>-64-bit: the 64-bit code is the
 # published code byte for byte, and the manifest and signature are new
-# (owner, 2026-10-30, Droidtop/tracker#646).
+# (owner, 2026-10-30, mytop-project/tracker#646).
 #
-# With rekey (signing-root rotation 2026-11-04, Droidtop/tracker#876 and #550; owner: "Yes,
+# With rekey (signing-root rotation 2026-11-04, mytop-project/tracker#876 and #550; owner: "Yes,
 # replace each release"), no new release is made: each named release (source-tag is a list
 # of tags separated by spaces or commas, or "all") has its signed assets replaced in place,
 # same tag, same flags, with `gh release upload --clobber`: the re-keyed bundle (only its
@@ -41,7 +41,7 @@ name: Re-sign a stable engine release
 #     resign:
 #       permissions:
 #         contents: write
-#       uses: Droidtop/enginehost/.github/workflows/resign-engine-release.yml@<sha>
+#       uses: mytop-project/enginehost/.github/workflows/resign-engine-release.yml@<sha>
 #       with:
 #         tooling-sha: <the same sha>
 #         source-tag: ${{ inputs.source-tag }}
@@ -57,7 +57,7 @@ on:
   workflow_call:
     inputs:
       tooling-sha:
-        description: Full commit SHA of Droidtop/enginehost whose scripts/ re-sign; the commit this workflow is pinned to.
+        description: Full commit SHA of mytop-project/enginehost whose scripts/ re-sign; the commit this workflow is pinned to.
         type: string
         required: true
       source-tag:
@@ -74,7 +74,7 @@ on:
         description: >-
           A pluginVersion newer than the source's: re-sign without every 32-bit
           library, in the bundle and in its resource APKs, and publish under this
-          version (owner, 2026-10-30, Droidtop/tracker#646). Empty re-signs the
+          version (owner, 2026-10-30, mytop-project/tracker#646). Empty re-signs the
           bundle unchanged.
         type: string
         default: ""
@@ -132,7 +132,7 @@ jobs:
       - name: Check out the signing tooling and the pinned root key
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          repository: Droidtop/enginehost
+          repository: mytop-project/enginehost
           ref: ${{ inputs.tooling-sha }}
           path: enginehost-tooling
           persist-credentials: false
@@ -242,10 +242,10 @@ jobs:
           json.dump(data, open(path, "w"), sort_keys=True, separators=(",", ":"))
           PY
           if [ -n "$ONLY_64_BIT" ]; then
-            notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, without its 32-bit libraries, as build $ONLY_64_BIT (Droidtop/tracker#646). Its 64-bit code is byte for byte the code published there. Only the libraries for ABIs other than arm64-v8a and x86_64 are gone, from the bundle and its resource APKs, and the manifest and its v1 signature are new. Install it through Enginehost."
+            notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, without its 32-bit libraries, as build $ONLY_64_BIT (mytop-project/tracker#646). Its 64-bit code is byte for byte the code published there. Only the libraries for ABIs other than arm64-v8a and x86_64 are gone, from the bundle and its resource APKs, and the manifest and its v1 signature are new. Install it through Enginehost."
             suffix="64-bit"
           else
-            notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, re-signed in signature format v1 (Droidtop/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, in place of the legacy signature. Install it through Enginehost."
+            notes="The stable build of [\`$SOURCE_TAG\`](../../releases/tag/$SOURCE_TAG), built from \`$commit\`, re-signed in signature format v1 (mytop-project/tracker#550). Its code and build number are unchanged: the manifest, and every payload file it lists, are byte for byte the ones published there; the bundle now carries \`enginehost-bundle.jws\`, chained to the Enginehost signing root, in place of the legacy signature. Install it through Enginehost."
             suffix="v1-signed"
           fi
           gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
@@ -260,7 +260,7 @@ jobs:
             echo "No PLATFORMS_DISPATCH_TOKEN; the plugins index picks this release up on its schedule."
             exit 0
           fi
-          gh api repos/Droidtop/droidtop-platforms/dispatches \
+          gh api repos/mytop-project/droidtop-platforms/dispatches \
             -f event_type=plugin-published -f "client_payload[repo]=$GITHUB_REPOSITORY"
 
   rekey:
@@ -292,7 +292,7 @@ jobs:
       - name: Check out the signing tooling and the pinned root keys
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          repository: Droidtop/enginehost
+          repository: mytop-project/enginehost
           ref: ${{ inputs.tooling-sha }}
           path: enginehost-tooling
           persist-credentials: false
@@ -394,7 +394,7 @@ jobs:
       - name: Check out the signing tooling and the pinned root keys
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          repository: Droidtop/enginehost
+          repository: mytop-project/enginehost
           ref: ${{ inputs.tooling-sha }}
           path: enginehost-tooling
           persist-credentials: false
@@ -443,5 +443,5 @@ jobs:
             echo "No PLATFORMS_DISPATCH_TOKEN; the plugins index picks the releases up on its schedule."
             exit 0
           fi
-          gh api repos/Droidtop/droidtop-platforms/dispatches \
+          gh api repos/mytop-project/droidtop-platforms/dispatches \
             -f event_type=plugin-published -f "client_payload[repo]=$GITHUB_REPOSITORY"

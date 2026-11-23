@@ -179,7 +179,7 @@ object PluginInstaller {
     }
 
     /**
-     * The transfer is the shared client's ([GithubClients], Droidtop/tracker#195), which asks for the identity encoding and
+     * The transfer is the shared client's ([GithubClients], mytop-project/tracker#195), which asks for the identity encoding and
      * no cache: a proxy on a rig's own network path that mishandles compression or serves a stale copy of a URL whose content
      * changed would otherwise hand over the wrong bytes with no error before the digest check (dq-sandbox-10, one candidate
      * for a digest mismatch reproducing on one rig only). It also refuses a download that ends short of the length the

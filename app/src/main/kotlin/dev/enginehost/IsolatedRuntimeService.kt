@@ -502,7 +502,7 @@ internal fun crossesBinder(e: Throwable): Boolean =
 /**
  * [e] as an exception the host receives intact: one that [crossesBinder] as it is, else wrapped in
  * an IllegalStateException that says [message]. The one place both of this service's entry points
- * decide it (Droidtop/tracker#768: the four-way rethrow was written out by hand).
+ * decide it (mytop-project/tracker#768: the four-way rethrow was written out by hand).
  */
 internal fun forBinder(e: Throwable, message: () -> String = { e.message ?: e.javaClass.simpleName }): RuntimeException =
     if (crossesBinder(e)) e as RuntimeException else IllegalStateException(message(), e)

@@ -11,7 +11,7 @@ import java.io.File
 
 /**
  * Anonymous ratings of voice and translation models, opt-in (docs/stats-schema.md;
- * Droidtop/tracker#491).
+ * mytop-project/tracker#491).
  *
  * The owner, 2026-10-28: "build the system, but don't enable it yet". So it is all here, the consent,
  * the reports, the log that shows the person what went, the transport and the aggregate, and it is

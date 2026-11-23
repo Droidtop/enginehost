@@ -178,7 +178,7 @@ object PluginResolver {
      * (SPEC.md "Several builds of a line, side by side"). An older build never runs just because
      * the newest cannot serve this game. Before, Goodbye Eternity ran `godot.v45.v2` 1.1.4,
      * built before the pack-read fix, because 1.2.2 of that line needed a Spine component not
-     * yet approved (Droidtop/tracker#604). Component bundles pass through unchanged.
+     * yet approved (mytop-project/tracker#604). Component bundles pass through unchanged.
      */
     internal fun currentBuilds(
         plugins: List<InstalledPlugin>,

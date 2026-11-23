@@ -29,7 +29,7 @@ import org.json.JSONObject;
  * document gets the localStorage script from {@link LocalStorageBridge},
  * then the core's own {@link Site#pageScript}, ahead of its own scripts.
  *
- * The one copy for every web core (Droidtop/tracker#768: the HTML and
+ * The one copy for every web core (mytop-project/tracker#768: the HTML and
  * RPG Maker MV/MZ cores each carried one, and they had drifted apart). A
  * core says what differs about its games through {@link Site}.
  */

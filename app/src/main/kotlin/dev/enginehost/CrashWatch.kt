@@ -62,7 +62,7 @@ object CrashWatch {
      * Why Android ended a game's process from outside, for an exit reason that means it did, or
      * null for any other. Such an end is shown as "Android stopped the game", with Retry, and
      * callers are told it crashed: the person did not end it, and saying nothing left them on
-     * their library with no idea why the game went (owner, 2026-10-29, Droidtop/tracker#27).
+     * their library with no idea why the game went (owner, 2026-10-29, mytop-project/tracker#27).
      */
     internal fun stoppedByAndroid(reason: Int): String? = when (reason) {
         ApplicationExitInfo.REASON_LOW_MEMORY -> "it needed the memory"

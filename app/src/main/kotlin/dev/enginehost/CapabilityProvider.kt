@@ -60,7 +60,7 @@ class CapabilityProvider : ContentProvider() {
      * own tasks across all its processes (a launch's warning, a running game, an error screen), so it is 0 once a launch
      * was cancelled, a game ended or its error screen was left, and `runtime` is whether the game's process is alive.
      * Read-only: nothing is touched. Without this droidtop could not tell a cancelled launch from a running game when no
-     * privileged helper is installed (Droidtop/tracker#289).
+     * privileged helper is installed (mytop-project/tracker#289).
      */
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
         if (method != METHOD_STATE) return null
@@ -69,7 +69,7 @@ class CapabilityProvider : ContentProvider() {
         if (!TrustedCallers.isDroidtop(context.packageManager, caller)) return null
         // Running tasks only. getAppTasks also lists a finished task Android keeps in Recents (Cancel on the
         // no-sandbox warning only finishes its screen), so its size stayed 1 and droidtop's session never ended
-        // (Droidtop/tracker#289, console rig on droidtop 0.2.0-dev.1894).
+        // (mytop-project/tracker#289, console rig on droidtop 0.2.0-dev.1894).
         val tasks = context.getSystemService(android.app.ActivityManager::class.java)?.appTasks
             ?.count { task -> runCatching { isRunning(task.taskInfo) }.getOrDefault(true) } ?: return null
         return Bundle().apply {

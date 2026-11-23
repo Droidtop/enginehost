@@ -4,7 +4,7 @@ import android.content.Context
 import dev.droidtop.shared.net.GitHubClient
 
 /**
- * The one way Enginehost talks to GitHub: lib-net's `:net` (Droidtop/tracker#194, #195). It decides which requests
+ * The one way Enginehost talks to GitHub: mytop-net's `:net` (mytop-project/tracker#194, #195). It decides which requests
  * may carry the person's token (the three GitHub hosts, exactly; never the pre-signed address a release asset redirects to,
  * which refuses a request that carries both) and follows redirects hop by hop, https only.
  *
@@ -24,7 +24,7 @@ object GithubClients {
     private fun client(token: () -> String?) = GitHubClient(
         userAgent = USER_AGENT,
         token = token,
-        // One line per request (Droidtop/tracker#550), with the allowance left, so a refresh that runs dry says so in logcat
+        // One line per request (mytop-project/tracker#550), with the allowance left, so a refresh that runs dry says so in logcat
         // as well as on the screen.
         onResponse = { url, status, left -> android.util.Log.i(TAG, "GET $url -> $status, rate limit remaining $left") },
     )

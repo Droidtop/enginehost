@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The light palette, in droidtop's visual language (Droidtop/tracker#644,
+    The light palette, in droidtop's visual language (mytop-project/tracker#644,
     coordination/design/proposals/2026-10-24-menus-and-visual-language.md
     section 4): a blue-grey ground that is never pure white, surfaces in
     levels (content, sheet, menu), one accent, and good / warning / danger

@@ -22,7 +22,7 @@ import java.security.MessageDigest
 
 /**
  * Enginehost as one of droidtop's plugins: an `app_interface` plugin, which is
- * this app itself (Droidtop/tracker#547; droidtop docs/plugin-api.md 1.3, and
+ * this app itself (mytop-project/tracker#547; droidtop docs/plugin-api.md 1.3, and
  * A7a "Where saves are, both ways").
  *
  * The owner, 2026-10-23: "The two applications should detect and work with each
@@ -61,7 +61,7 @@ class DroidtopInterfaceService : Service() {
             DroidtopLink.connected(pluginId, broker)
             // droidtop connected: list its engine games now (A7a: "The app asks again when droidtop connects").
             Async.run { runCatching { DroidtopLibrary.sync(context) } }
-            // Save reports droidtop missed while it was away (Droidtop/tracker#885).
+            // Save reports droidtop missed while it was away (mytop-project/tracker#885).
             Async.run { runCatching { DroidtopSaves.flush(context) } }
             return true
         }
@@ -123,7 +123,7 @@ class DroidtopInterfaceService : Service() {
 }
 
 /**
- * droidtop's `saves.roots@1` (Droidtop/tracker#546 section 8, checks C10 and D12; shape on #547):
+ * droidtop's `saves.roots@1` (mytop-project/tracker#546 section 8, checks C10 and D12; shape on #547):
  * where Enginehost keeps saves, as roots. droidtop finds the saves inside them with each game's
  * own save rule and writes nothing because of this answer alone.
  */
@@ -193,7 +193,7 @@ object DroidtopLink {
     /**
      * SHA-256 of droidtop's APK signing certificate (lowercase hex), the only
      * signer Enginehost answers: droidtop's release key, read from the v2
-     * signing block of droidtop.apk v0.2.0-dev.2257 (Droidtop/tracker#547).
+     * signing block of droidtop.apk v0.2.0-dev.2257 (mytop-project/tracker#547).
      * A debug build of droidtop is signed differently and is not answered.
      */
     internal val DROIDTOP_CERTS: Set<String> = setOf(

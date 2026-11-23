@@ -6,7 +6,7 @@ import android.content.Intent
 import android.net.Uri
 
 /**
- * The one line that tells Enginehost's people about droidtop (Droidtop/tracker#755): on the
+ * The one line that tells Enginehost's people about droidtop (mytop-project/tracker#755): on the
  * empty library and on Settings > About, "Get droidtop from GitHub" or, when droidtop is
  * installed, "Open droidtop". Never a pop-up, never at launch, never during a game. Settings >
  * About's "Suggest droidtop" turns it off for good; while it is off, nothing here runs, not even
@@ -14,7 +14,7 @@ import android.net.Uri
  */
 object DroidtopOffer {
     /** droidtop's builds, the source the line names. droidtop-platforms' other sources join it under #754. */
-    const val RELEASES = "https://github.com/Droidtop/droidtop/releases"
+    const val RELEASES = "https://github.com/mytop-project/droidtop/releases"
 
     private const val PREFERENCES = "droidtop-offer"
     private const val KEY_SHOWN = "shown"

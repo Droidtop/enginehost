@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Game-ended save reports droidtop has not taken yet (`saves report_changed`, Droidtop/tracker#885).
+ * Game-ended save reports droidtop has not taken yet (`saves report_changed`, mytop-project/tracker#885).
  *
  * droidtop trusts its `GAME_ENDED` broadcast only for a folder droidtop itself passed as `saveRoot`;
  * saves written anywhere else reach its synced folder only through this report, over the broker.

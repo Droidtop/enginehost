@@ -92,7 +92,7 @@ class PluginCatalogActivity : EnginehostActivity() {
      * Bundles whose install was started from this screen and has not shown
      * up in [PluginRegistry] yet. A card is drawn from this and the
      * registry, never from the button it was last left in, so coming back
-     * from the trust screen redraws it as installed (Droidtop/tracker#286).
+     * from the trust screen redraws it as installed (mytop-project/tracker#286).
      */
     private val installing = mutableSetOf<String>()
 
@@ -772,7 +772,7 @@ class PluginCatalogActivity : EnginehostActivity() {
         val supportedApi = plugin.apiVersion == dev.enginehost.api.EnginePluginContract.API_VERSION
         // A launch that stopped here for a core too old to start (GameRunner's stale plan)
         // updates it on this card: a launch shows only the game and what it needs, never the
-        // app's own places (Droidtop/tracker#644). Outside a launch, updates stay in Cores.
+        // app's own places (mytop-project/tracker#644). Outside a launch, updates stay in Cores.
         val updateHere = update && launchedFor() != null
         val idleLabel = when {
             installedIdle -> getString(R.string.installed)

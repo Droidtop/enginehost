@@ -97,7 +97,7 @@ object GameRunner {
         // person's default location: when its folder is not taken, the game
         // gets a folder of its own in the person's location, used the same
         // way, and the game-ended report says why (owner, 2026-10-22,
-        // Droidtop/tracker#580). The person is asked nothing.
+        // mytop-project/tracker#580). The person is asked nothing.
         val synced = SaveRoot.synced(inlineJson) && !besideTheGame
         val saveRootRefused = (rootCheck as? SaveRoot.Check.Refused)?.reason?.takeIf { synced }
         val callerRoot = try {

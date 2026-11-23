@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sign an already published, legacy-signed engine bundle in format v1.
 
-The owner's decision (2026-10-16, Droidtop/tracker#550): the September stable
+The owner's decision (2026-10-16, mytop-project/tracker#550): the September stable
 releases carry only the legacy signature, which Enginehost no longer accepts
 for an install, so each is re-signed and published again as a new stable
 release; the published one stays as it is. Re-signing changes no code: the
@@ -10,7 +10,7 @@ ones the legacy signature covers. What is written is `enginehost-bundle.jws`, a
 detached JWS over those same bytes made with the repository's v1 signing key
 and its committed certificate, right after the manifest as
 build-engine-bundle.py places it. The legacy `enginehost-bundle.sig` is left
-out: no Enginehost verifies it (Droidtop/tracker#768), and the manifest's own
+out: no Enginehost verifies it (mytop-project/tracker#768), and the manifest's own
 `signing` block, which the signed bytes still carry, is passed over. Every
 other member is written back unchanged, in order, with build-engine-bundle.py's
 own member metadata.
@@ -24,7 +24,7 @@ envelope's entry for this manifest gains the same `jws`, loses its legacy
 `signatureBase64`, and is written to DIR.
 A bundle that already carries a v1 signature is refused, not signed twice.
 
-With --rekey (signing-root rotation 2026-11-04, Droidtop/tracker#876 and #550; owner:
+With --rekey (signing-root rotation 2026-11-04, mytop-project/tracker#876 and #550; owner:
 "The owner also decided not to re-audit: every release is re-signed as it is"), the
 opposite: a bundle that already carries a v1 signature is signed again under the
 key and chain given, which are the new root's. The old `enginehost-bundle.jws` is
@@ -35,7 +35,7 @@ entry for this manifest gains the new `jws` and its manifest is untouched. A
 bundle without a v1 signature is refused: it is re-signed without --rekey.
 --rekey and --only-64-bit change different things and do not combine.
 
-With --only-64-bit VERSION (owner, 2026-10-30, Droidtop/tracker#646: "strip it
+With --only-64-bit VERSION (owner, 2026-10-30, mytop-project/tracker#646: "strip it
 out"), the bundle is re-signed without its 32-bit libraries instead: every
 lib/<abi>/ outside arm64-v8a and x86_64 is left out, of the bundle and of each
 resource APK it lists, and the manifest is written again with the files that

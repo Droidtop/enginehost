@@ -1,7 +1,7 @@
 name: Publish engine bundle
 
 # The one place a plugin repository's signed bundle becomes a release
-# (Droidtop/tracker#196). A plugin repository's own workflow builds the bundle,
+# (mytop-project/tracker#196). A plugin repository's own workflow builds the bundle,
 # calls sign-engine-bundle.yml, then calls this, both pinned by the same
 # commit:
 #
@@ -10,7 +10,7 @@ name: Publish engine bundle
 #     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
 #     permissions:
 #       contents: write
-#     uses: Droidtop/enginehost/.github/workflows/publish-engine-bundle.yml@<sha>
+#     uses: mytop-project/enginehost/.github/workflows/publish-engine-bundle.yml@<sha>
 #     with:
 #       tooling-sha: <the same sha>
 #       artifact-name: <the artifact the sign job uploaded>
@@ -33,7 +33,7 @@ on:
     inputs:
       tooling-sha:
         description: >-
-          Full commit SHA of Droidtop/enginehost whose scripts/ publish the
+          Full commit SHA of mytop-project/enginehost whose scripts/ publish the
           bundle. Use the same commit this workflow is pinned to.
         type: string
         required: true
@@ -52,7 +52,7 @@ on:
     secrets:
       PLATFORMS_DISPATCH_TOKEN:
         description: >-
-          A token that may dispatch events to Droidtop/droidtop-platforms. Without
+          A token that may dispatch events to mytop-project/droidtop-platforms. Without
           it the reindex is skipped and the plugins index picks the release up on
           its schedule.
         required: false
@@ -79,7 +79,7 @@ jobs:
       - name: Check out the publishing tooling
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          repository: Droidtop/enginehost
+          repository: mytop-project/enginehost
           ref: ${{ inputs.tooling-sha }}
           path: enginehost-tooling
           persist-credentials: false
@@ -114,6 +114,6 @@ jobs:
             echo "No PLATFORMS_DISPATCH_TOKEN; the plugins index picks this release up on its schedule."
             exit 0
           fi
-          gh api repos/Droidtop/droidtop-platforms/dispatches \
+          gh api repos/mytop-project/droidtop-platforms/dispatches \
             -f event_type=plugin-published \
             -f "client_payload[repo]=$GH_REPO"

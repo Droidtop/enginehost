@@ -145,7 +145,7 @@ internal object GodotProjectSettings {
  * How far along the game's own loading bar is, as its engine reports it: the
  * fraction Ren'Py's presplash would draw on the desktop (`pump_count` over the
  * script files plus its fixed count), sent by the core through
- * [ActivityLoading] as Ren'Py starts (Droidtop/tracker#821). Nothing is
+ * [ActivityLoading] as Ren'Py starts (mytop-project/tracker#821). Nothing is
  * guessed: until the engine reports, the bar is drawn empty, as Ren'Py draws
  * it before its first pump. [reportedAt] is also how the black-screen rule
  * ([BlackScreenRule]) knows the game is still loading.

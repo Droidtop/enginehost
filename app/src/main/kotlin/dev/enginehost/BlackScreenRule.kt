@@ -6,7 +6,7 @@ package dev.enginehost
  * is tested on the JVM.
  *
  * The question is about what the person sees, not about the engine's surface, which stays
- * black under the host's loading screen (Droidtop/tracker#821: Ren'Py asked at 10:07:30 with
+ * black under the host's loading screen (mytop-project/tracker#821: Ren'Py asked at 10:07:30 with
  * the game's presplash on screen and ran 55 s later). So:
  * - while the game's own loading picture is up ([LoadingCover]) nothing is asked: the screen
  *   is not black;
@@ -18,7 +18,7 @@ package dev.enginehost
  *   screen part-way through, not a black one, and the window is [MID_LOAD_QUIET_MS]. An engine
  *   reports between its steps, and one step can be long: Love & Sex: Second Base's
  *   `start.rpy:266` init block ran 198 s on the console, its whole init 347 s, and the 45 s
- *   question ended a load that would have finished (Droidtop/tracker#855, 2026-11-05). Built to
+ *   question ended a load that would have finished (mytop-project/tracker#855, 2026-11-05). Built to
  *   the recommendation while the owner was away; the owner to confirm the length.
  */
 internal object BlackScreenRule {

@@ -6,7 +6,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Which caller-named save roots a launch takes (docs/contract.md, Droidtop/tracker#580). */
+/** Which caller-named save roots a launch takes (docs/contract.md, mytop-project/tracker#580). */
 class SaveRootTest {
     @Test
     fun `a folder in shared storage or on a removable volume is taken`() {

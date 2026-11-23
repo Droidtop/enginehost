@@ -9,7 +9,7 @@ import org.json.JSONObject
  * without a change of its own.
  *
  * Every line of a core used to show the same build string, so a rig could not tell which line or
- * which recipe was installed (Droidtop/tracker#855, 2026-11-05). The launch screen and a core's
+ * which recipe was installed (mytop-project/tracker#855, 2026-11-05). The launch screen and a core's
  * details show this beside the build number. It is informational: nothing trusts or decides on it.
  */
 data class BundleSource(val revision: String?, val commit: String?, val pluginCore: String?) {

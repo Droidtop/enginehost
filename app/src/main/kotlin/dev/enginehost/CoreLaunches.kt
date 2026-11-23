@@ -5,7 +5,7 @@ import android.content.Context
 /**
  * Which core builds have been launched, so the first launch of each is known: that one unpacks
  * the core's runtime and has the engine compile the game's scripts before anything is drawn,
- * and the black-screen question waits longer for it ([BlackScreenRule], Droidtop/tracker#821).
+ * and the black-screen question waits longer for it ([BlackScreenRule], mytop-project/tracker#821).
  * Kept here, in the main process, because the runtime process is locked down and keeps nothing;
  * the answer travels in the launch's intent ([RuntimeActivity.EXTRA_FIRST_LAUNCH]).
  *

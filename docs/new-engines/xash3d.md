@@ -28,7 +28,7 @@ Evidence: the upstream tree read on 2026-09-29 at master
 `android/settings.gradle.kts`, `android/app/src/main/AndroidManifest.xml`,
 `android/app/src/main/java/su/xash/engine/XashActivity.java`),
 `FWGS/hlsdk-portable`'s README and LICENSE at master, the shared database
-read from `droidtop/droidtop-platforms` main, and on this side
+read from `mytop-project/droidtop-platforms` main, and on this side
 `docs/engine-bundle-format.md`, `docs/engine-sandbox.md`,
 `docs/plugin-catalog.md`, `docs/plugin-scaffolds/ags.md`,
 `RuntimeActivity.kt`, `EnginehostComponentFactory.kt`, `GameRunner.kt`,

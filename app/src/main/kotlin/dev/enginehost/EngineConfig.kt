@@ -112,7 +112,7 @@ object EngineConfigReader {
      * (see [TestingConfigStore]).
      *
      * [overridesJson] is the person's own per-game choices, kept in Enginehost's library
-     * database and never written into the game folder (Droidtop/tracker#235). They sit
+     * database and never written into the game folder (mytop-project/tracker#235). They sit
      * above everything else: a value the person set for this game on this device wins over the
      * folder's file, which stays exactly as its author left it.
      *

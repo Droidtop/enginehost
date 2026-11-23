@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Refuse a plugin revision published under a declared version that is already out.
 
-Owner rule (2026-10-01, Droidtop/tracker#126): every revision of a plugin's
+Owner rule (2026-10-01, mytop-project/tracker#126): every revision of a plugin's
 code bumps its declared version, so a published `<declared>-<N>` always names
 one revision of the code. This compares the build being made with the newest
 release already published for its bundle id:
@@ -33,10 +33,10 @@ from release_history import declared_core, published_builds, version_key
 # changelogs, licences, CI wiring (a re-pin of the signing job), the key document.
 # build-scripts/publish-history-release.sh is the copy of the release script that
 # plugin repositories carried before publish-engine-bundle.yml replaced it
-# (Droidtop/tracker#196): deleting it is CI wiring, not a revision of the code.
+# (mytop-project/tracker#196): deleting it is CI wiring, not a revision of the code.
 # enginehost/line.json pins the commits a line is composed from and
 # enginehost/lines/ declares every line of the repository (droidtop-platforms
-# tools/plugin_line.py, Droidtop/tracker#324): bookkeeping that every line
+# tools/plugin_line.py, mytop-project/tracker#324): bookkeeping that every line
 # carries, so declaring a new line must not count as a revision of the others.
 IGNORED_PREFIXES = (".github/", "docs/", "enginehost/lines/")
 IGNORED_NAMES = {"LICENSE", "enginehost-public-key.json", "enginehost-signing-certificate.pem", "enginehost-origin.json",
@@ -77,7 +77,7 @@ def judge(declared: str, builds: list, head: str, changed_since) -> tuple:
     listing = "\n".join(f"  {f}" for f in changed[:30]) + ("\n  ..." if len(changed) > 30 else "")
     return False, (f"the sources changed since {last.version} was published ({last.commit[:9]}) but the declared "
                    f"version is still {declared}. Every revision of a plugin's code bumps its declared version "
-                   f"(a patch at minimum; Droidtop/tracker#126). Changed files:\n{listing}")
+                   f"(a patch at minimum; mytop-project/tracker#126). Changed files:\n{listing}")
 
 
 def git_changed_since(repo: Path):

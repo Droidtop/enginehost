@@ -35,7 +35,7 @@ class FolderAnalyzerTest {
 
     @Test
     fun `a folder whose own enginehost json names an engine is that game`() {
-        // The conformance Ren'Py game: sources and a config, nothing the registry knows (Droidtop/tracker#774).
+        // The conformance Ren'Py game: sources and a config, nothing the registry knows (mytop-project/tracker#774).
         val folder = File(tempRoot(), "renpy").apply { mkdirs() }
         File(folder, "game").mkdirs()
         File(folder, "game/script.rpy").writeText("label start:\n    return\n")
@@ -94,7 +94,7 @@ class FolderAnalyzerTest {
 
     @Test
     fun `a game added by hand is detected one wrapper folder down, as Play detects it`() {
-        // The library's classifier for a hand-added folder skips the scan screen (Droidtop/tracker#550:
+        // The library's classifier for a hand-added folder skips the scan screen (mytop-project/tracker#550:
         // MGQ Paradox, one folder down, read "Not recognised" while Play ran it).
         val wrapper = File(tempRoot(), "MGQ Paradox").apply { mkdirs() }
         unity(File(wrapper, "MGQ Paradox 1.0").apply { mkdirs() })

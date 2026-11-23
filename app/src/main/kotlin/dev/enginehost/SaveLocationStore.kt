@@ -49,7 +49,7 @@ class SaveLocationStore(context: Context) {
      * ([SaveRoot.SYNCED_KEY]) but whose `saveRoot` was not taken, created and
      * checked writable. The engine uses it as is, exactly as it would the
      * caller's folder, so it directly holds the game's save files and the
-     * caller can copy them from it (owner, 2026-10-22, Droidtop/tracker#580).
+     * caller can copy them from it (owner, 2026-10-22, mytop-project/tracker#580).
      */
     fun syncedFolderFor(engine: String, gameFolder: File): File = ensureUsable(syncedFolderIn(rootFor(engine), gameFolder))
 

@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Droidtop/enginehost/releases"><img alt="Latest build" src="https://img.shields.io/github/v/release/Droidtop/enginehost?include_prereleases&label=build&style=flat-square"></a>
-  <a href="https://github.com/Droidtop/enginehost/actions/workflows/build.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Droidtop/enginehost/build.yml?branch=main&label=build&style=flat-square"></a>
+  <a href="https://github.com/mytop-project/enginehost/releases"><img alt="Latest build" src="https://img.shields.io/github/v/release/mytop-project/enginehost?include_prereleases&label=build&style=flat-square"></a>
+  <a href="https://github.com/mytop-project/enginehost/actions/workflows/build.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/mytop-project/enginehost/build.yml?branch=main&label=build&style=flat-square"></a>
   <img alt="Android 8.0 and newer" src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=flat-square">
   <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square"></a>
   <img alt="Status: early development" src="https://img.shields.io/badge/status-early%20development-d69e2e?style=flat-square">
@@ -28,7 +28,7 @@
   <a href="#licence">Licence</a>
 </p>
 
-Enginehost is to visual-novel and PC-game engines what RetroArch is to emulators: one frontend, and each engine a separately installed core. It runs games made with engines such as Ren'Py, RPG Maker, KiriKiri and Godot on Android, without converting or repacking them. You point it at the game's folder and it reads the game where it is. It works on its own as a complete app, and a launcher such as [droidtop](https://github.com/Droidtop/droidtop) can drive it over a small Intent contract and droidtop's plugin interface.
+Enginehost is to visual-novel and PC-game engines what RetroArch is to emulators: one frontend, and each engine a separately installed core. It runs games made with engines such as Ren'Py, RPG Maker, KiriKiri and Godot on Android, without converting or repacking them. You point it at the game's folder and it reads the game where it is. It works on its own as a complete app, and a launcher such as [droidtop](https://github.com/mytop-project/droidtop) can drive it over a small Intent contract and droidtop's plugin interface.
 
 ## What it does
 
@@ -48,7 +48,7 @@ Games it cannot run are still listed and tagged with the builds they ship, so ot
 
 You need a device on Android 8.0 or newer with an arm64-v8a or x86_64 processor. Builds and cores are 64-bit only.
 
-1. Open [Releases](https://github.com/Droidtop/enginehost/releases) and download `enginehost-latest.apk` from the **latest build** release.
+1. Open [Releases](https://github.com/mytop-project/enginehost/releases) and download `enginehost-latest.apk` from the **latest build** release.
 2. Open the file and allow the install when Android asks.
 3. Start Enginehost, open **Cores**, press **Add**, and install the cores for the engines your games use. **Install all** adds every core the channel offers.
 4. In **Library**, press **Add games** and pick a game folder, or a folder of games to scan.
@@ -61,21 +61,21 @@ Each repository is one core, packaged as a signed engine bundle. Cores need an a
 
 | Engine | Core | Notes |
 |---|---|---|
-| Ren'Py | [renpy](https://github.com/Droidtop/enginehost-renpy-plugin) | One line per engine minor, 7.3 to 7.8 and 8.0 to 8.5 |
-| Godot | [godot](https://github.com/Droidtop/enginehost-godot-plugin) | One line per engine minor, 4.0 to 4.7. Runtime components such as Spine load when a game asks for them |
-| KiriKiri | [kirikiri](https://github.com/Droidtop/enginehost-kirikiri-plugin) | Built on Kirikiroid2 Yuri |
-| RPG Maker XP, VX, VX Ace | [mkxp-z](https://github.com/Droidtop/enginehost-rpgmaker-mkxp-z-plugin) | |
-| RPG Maker 2000, 2003 | [easyrpg](https://github.com/Droidtop/enginehost-rpgmaker-easyrpg-plugin) | Built on EasyRPG Player |
-| RPG Maker MV, MZ | [mv-mz](https://github.com/Droidtop/enginehost-rpgmaker-mv-mz-plugin) | Runs over a WebView |
-| HTML, Twine and TyranoScript | [html](https://github.com/Droidtop/enginehost-html-plugin) | Web games, compiled Twine 2 stories, and TyranoScript games named from their `Config.tjs` |
-| Flash and AIR | [flash-air](https://github.com/Droidtop/enginehost-flash-air-plugin) | Built on Ruffle |
-| Adventure Game Studio | [ags](https://github.com/Droidtop/enginehost-ags-plugin) | AGS 2.50 to 3.6 |
-| LÖVE | [love2d](https://github.com/Droidtop/enginehost-love2d-plugin) | LÖVE 11.x |
-| NScripter, ONScripter | [nscripter](https://github.com/Droidtop/enginehost-nscripter-plugin) | Built on OnscripterYuri |
-| Buriko / Ethornell | [buriko](https://github.com/Droidtop/enginehost-buriko-plugin) | Built on OpenBGI; some script commands are still missing |
-| CMVS | [cmvs](https://github.com/Droidtop/enginehost-cmvs-plugin) | Early: PS2 and PS3 era scripts |
-| CatSystem2 | [catsystem2](https://github.com/Droidtop/enginehost-catsystem2-plugin) | Enginehost's own scene player |
-| AliceSoft System 4 | [xsystem4](https://github.com/Droidtop/enginehost-xsystem4-plugin) | In progress, no release yet |
+| Ren'Py | [renpy](https://github.com/mytop-project/enginehost-renpy-plugin) | One line per engine minor, 7.3 to 7.8 and 8.0 to 8.5 |
+| Godot | [godot](https://github.com/mytop-project/enginehost-godot-plugin) | One line per engine minor, 4.0 to 4.7. Runtime components such as Spine load when a game asks for them |
+| KiriKiri | [kirikiri](https://github.com/mytop-project/enginehost-kirikiri-plugin) | Built on Kirikiroid2 Yuri |
+| RPG Maker XP, VX, VX Ace | [mkxp-z](https://github.com/mytop-project/enginehost-rpgmaker-mkxp-z-plugin) | |
+| RPG Maker 2000, 2003 | [easyrpg](https://github.com/mytop-project/enginehost-rpgmaker-easyrpg-plugin) | Built on EasyRPG Player |
+| RPG Maker MV, MZ | [mv-mz](https://github.com/mytop-project/enginehost-rpgmaker-mv-mz-plugin) | Runs over a WebView |
+| HTML, Twine and TyranoScript | [html](https://github.com/mytop-project/enginehost-html-plugin) | Web games, compiled Twine 2 stories, and TyranoScript games named from their `Config.tjs` |
+| Flash and AIR | [flash-air](https://github.com/mytop-project/enginehost-flash-air-plugin) | Built on Ruffle |
+| Adventure Game Studio | [ags](https://github.com/mytop-project/enginehost-ags-plugin) | AGS 2.50 to 3.6 |
+| LÖVE | [love2d](https://github.com/mytop-project/enginehost-love2d-plugin) | LÖVE 11.x |
+| NScripter, ONScripter | [nscripter](https://github.com/mytop-project/enginehost-nscripter-plugin) | Built on OnscripterYuri |
+| Buriko / Ethornell | [buriko](https://github.com/mytop-project/enginehost-buriko-plugin) | Built on OpenBGI; some script commands are still missing |
+| CMVS | [cmvs](https://github.com/mytop-project/enginehost-cmvs-plugin) | Early: PS2 and PS3 era scripts |
+| CatSystem2 | [catsystem2](https://github.com/mytop-project/enginehost-catsystem2-plugin) | Enginehost's own scene player |
+| AliceSoft System 4 | [xsystem4](https://github.com/mytop-project/enginehost-xsystem4-plugin) | In progress, no release yet |
 
 Compatibility is never guessed from nearby version numbers. A core supports only the versions, ranges and series it declares.
 
@@ -132,10 +132,10 @@ No. See the core table for what each core covers today.
 | Library | What Enginehost uses it for | Licence |
 |---|---|---|
 | [Fibrewall](https://github.com/bi0shacker001/fibrewall) | The runtime process's lockdown and network filter: seccomp plus a syscall broker (`vendor/sandbox`) | GPL-3.0 |
-| [lib-net](https://github.com/Droidtop/lib-net) | The launch contract's names and the shared signature verifier (`vendor/lib-net`) | GPL-3.0 |
-| [droidtop-platforms](https://github.com/Droidtop/droidtop-platforms) | The engines database that maps games to cores (`vendor/droidtop-platforms`) | GPL-3.0 |
+| [mytop-net](https://github.com/mytop-project/mytop-net) | The launch contract's names and the shared signature verifier (`vendor/mytop-net`) | GPL-3.0 |
+| [droidtop-platforms](https://github.com/mytop-project/droidtop-platforms) | The engines database that maps games to cores (`vendor/droidtop-platforms`) | GPL-3.0 |
 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 1.13.8 | Reading games aloud with on-device voices | Apache-2.0 |
-| [SDL](https://github.com/libsdl-org/SDL) controller list, through [lib-input](https://github.com/Droidtop/lib-input) | Which glyphs a pad's face buttons print | zlib |
+| [SDL](https://github.com/libsdl-org/SDL) controller list, through [mytop-input](https://github.com/mytop-project/mytop-input) | Which glyphs a pad's face buttons print | zlib |
 | [SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB) | Seed button and axis mappings for controller profiles | zlib |
 | [Apache Commons Compress](https://commons.apache.org/proper/commons-compress/) and [XZ for Java](https://tukaani.org/xz/java.html) | Unpacking `*.enginehost.tar.xz` core bundles | Apache-2.0, 0BSD |
 | [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) | Reading signature headers | Apache-2.0 |

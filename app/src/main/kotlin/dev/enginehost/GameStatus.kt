@@ -5,7 +5,7 @@ import androidx.annotation.StringRes
 import java.io.File
 
 /**
- * What a game's one primary button does right now (Droidtop/tracker#235): the
+ * What a game's one primary button does right now (mytop-project/tracker#235): the
  * state of the game decides the button, so the next step is never a sentence
  * that says "press Play and it will offer one". A button that cannot act is
  * disabled and says why in its label.

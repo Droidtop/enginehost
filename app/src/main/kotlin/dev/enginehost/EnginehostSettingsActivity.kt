@@ -179,7 +179,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
         // Which droidtop-platforms commit the bundled engine registry is, so a
         // classification argument between the two apps can be settled by reading
         // the two snapshots rather than guessing. Only for whoever asks: holding
-        // the row down (Droidtop/tracker#35). Bug reports carry it too.
+        // the row down (mytop-project/tracker#35). Bug reports carry it too.
         findViewById<View>(R.id.appVersionRow).setOnLongClickListener {
             Sheet(this)
                 .title(R.string.build_details_title)
@@ -504,7 +504,7 @@ class EnginehostSettingsActivity : EnginehostActivity() {
     }
 
     /**
-     * One row for every engine's save folder (Droidtop/tracker#620, E9). Fifteen rows that each said
+     * One row for every engine's save folder (mytop-project/tracker#620, E9). Fifteen rows that each said
      * "Shared folder" buried the one setting most people change, so the row names only the engines
      * that save somewhere else, and its sheet lists every engine.
      */

@@ -15,8 +15,8 @@ The evidence behind this plan: `docs/engine-bundle-format.md` and
 (`GameRunner.kt`, `EnginehostComponentFactory.kt`, `RuntimeActivity.kt`);
 a read-only clone of `adventuregamestudio/ags` at `83c6a082bd` (master,
 2026-09-23); and two shipped core repos cloned read-only as structural
-references, `Droidtop/enginehost-godot-plugin` at its `plugin/4.5` branch
-(`c7017632`) and `Droidtop/enginehost-kirikiri-plugin` at its `plugin/stable`
+references, `mytop-project/enginehost-godot-plugin` at its `plugin/4.5` branch
+(`c7017632`) and `mytop-project/enginehost-kirikiri-plugin` at its `plugin/stable`
 branch (`86eaf827`).
 
 ## (a) The real upstream AGS Android port
@@ -251,7 +251,7 @@ per-upstream.
 
 ## (d) First CI workflow, modeled on the existing core repos' own structure
 
-The core repo is `Droidtop/enginehost-ags-plugin`, created when this plan
+The core repo is `mytop-project/enginehost-ags-plugin`, created when this plan
 executes. It is a fork of `adventuregamestudio/ags` with the enginehost
 wrapper layered on -- both shipped core repos carry their engine's source
 (godot's is the engine itself, KiriKiri's is the Kirikiroid2 fork), so the
@@ -315,7 +315,7 @@ jobs:
     # tar -cf build/unsigned.tar -C build/unsigned payload bundle-metadata.json; upload
 
   sign:     # the org's one signing mechanism, pinned to a full Enginehost commit SHA
-    # uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<full-sha>
+    # uses: mytop-project/enginehost/.github/workflows/sign-engine-bundle.yml@<full-sha>
     # with tooling-sha the same commit; both shipped repos are currently
     # pinned at 4b9e41cb231b293d08852890aef54b619d4d57ec; the new repo pins
     # whatever is current when it is created.
@@ -341,7 +341,7 @@ no new Enginehost build.
 ## What this step deliberately does not do, and what comes next
 
 - **Next steps, each a separate change:** create
-  `Droidtop/enginehost-ags-plugin` and land the wrapper -- entry Activity,
+  `mytop-project/enginehost-ags-plugin` and land the wrapper -- entry Activity,
   save routing, the controller-map translation -- against a pinned upstream
   revision; a complete licence audit of the native tree, since the
   `licenses` list is not final until every bundled component's notice has

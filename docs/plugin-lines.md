@@ -15,7 +15,7 @@ and CI fails any line that is not exactly that output.
 
 ## Branches
 
-A core has only these branches (the owner, 2026-11-05, Droidtop/tracker#324: "No core should
+A core has only these branches (the owner, 2026-11-05, mytop-project/tracker#324: "No core should
 have a main branch"; "main, master, or etc, shouldn't exist. we rename it to upstream-sync"):
 
 - **`upstream-sync`** follows the engine project: the branch once called `main`, `master`,
@@ -42,7 +42,7 @@ have a main branch"; "main, master, or etc, shouldn't exist. we rename it to ups
 
 ## compose
 
-Droidtop/droidtop-platforms `tools/plugin_line.py` is the one implementation;
+mytop-project/droidtop-platforms `tools/plugin_line.py` is the one implementation;
 it works on git objects only (no checkout):
 
 1. the tree of the upstream commit;
@@ -111,4 +111,4 @@ Every core repository triggers the same way (checked 2026-10-28 on all fourteen)
   branch `archive/plugin/<id>` and delete it.
 
 The plan behind this, with Ren'Py and Godot as worked examples, is on
-Droidtop/tracker#324.
+mytop-project/tracker#324.

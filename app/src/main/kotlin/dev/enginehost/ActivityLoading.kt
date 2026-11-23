@@ -6,7 +6,7 @@ import android.os.SystemClock
 /**
  * The loading route for a core on the activity transport (Ren'Py): such a core runs its own
  * Activity in the runtime process and has no EngineHost, so it reports how far its start-up has
- * got by calling this by name, through reflection, from that Activity (Droidtop/tracker#821).
+ * got by calling this by name, through reflection, from that Activity (mytop-project/tracker#821).
  * The same kind of named bridge as [ActivityLinks] and [ActivityText], and deleted with them
  * when the core moves onto the plugin transport.
  *

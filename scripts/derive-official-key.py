@@ -5,7 +5,7 @@ The Enginehost APK's signing subkey is `--application-id dev.enginehost`. A
 repository's bundle-signing key (`--repository-origin`) is the key of its v1
 signing certificate (scripts/provision-signing-certificates.py derives it the
 same way). provision-official-keys.sh, which certified repository keys for the
-legacy signature, is gone with it (Droidtop/tracker#768).
+legacy signature, is gone with it (mytop-project/tracker#768).
 """
 
 import argparse

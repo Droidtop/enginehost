@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings > About's droidtop rows, in both Settings layouts (DroidtopOffer, Droidtop/tracker#755). -->
+<!-- Settings > About's droidtop rows, in both Settings layouts (DroidtopOffer, mytop-project/tracker#755). -->
 <merge xmlns:android="http://schemas.android.com/apk/res/android">
 
     <LinearLayout

@@ -40,7 +40,7 @@ def openssl(*arguments: str) -> None:
 def legacy_bundle(metadata: Path, payload: Path, output: Path, envelope: Path | None = None) -> None:
     """A bundle in the shape CI built the September releases: a manifest with a `signing` block and
     `enginehost-bundle.sig` after it. Nothing makes or verifies that signature any more
-    (Droidtop/tracker#768), so its bytes here are a stand-in."""
+    (mytop-project/tracker#768), so its bytes here are a stand-in."""
     files = build_engine_bundle.payload_files(payload)
     aggregate = hashlib.sha256()
     records = []

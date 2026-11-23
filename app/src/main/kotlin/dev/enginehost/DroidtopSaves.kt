@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Saves go where droidtop keeps them, whichever app started the game
- * (Droidtop/tracker#547; droidtop docs/plugin-api.md A7a; docs/contract.md
+ * (mytop-project/tracker#547; droidtop docs/plugin-api.md A7a; docs/contract.md
  * "droidtop's plugin interface"). The owner, 2026-10-23: "It shouldn't matter,
  * honestly. The two applications should detect and work with each other over
  * the plugin API so no matter what, saves go where they're needed".
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
  * and launches with the answer exactly as if the caller had passed it
  * (`saveRoot`, `savesSynced`: the one mechanism a caller's save folder already has).
  * After any game ends it tells droidtop with `saves report_changed`, kept until droidtop takes it
- * ([SavesOutbox], Droidtop/tracker#885).
+ * ([SavesOutbox], mytop-project/tracker#885).
  * Without droidtop installed, or with no answer, nothing waits and nothing changes.
  */
 object DroidtopSaves {
@@ -68,7 +68,7 @@ object DroidtopSaves {
     /**
      * Tells droidtop that the game at [gameFolder] wrote saves in [saveFolder], for every game that ends,
      * a game droidtop launched included. droidtop trusts its GAME_ENDED broadcast only for the folder it
-     * passed as saveRoot (Droidtop/tracker#885), so for saves anywhere else this report is the only way
+     * passed as saveRoot (mytop-project/tracker#885), so for saves anywhere else this report is the only way
      * in, and it must not be lost: it is kept in [SavesOutbox] until droidtop takes it, and sent again
      * when droidtop connects ([flush]) if droidtop was not there or not ready. Runs off the main thread.
      */
@@ -116,7 +116,7 @@ object DroidtopSaves {
 
     /**
      * Announces Enginehost to droidtop once as the app starts: apps with an
-     * application-interface layer register themselves (owner, Droidtop/tracker#547).
+     * application-interface layer register themselves (owner, mytop-project/tracker#547).
      * One knock, off the main thread, only when droidtop is installed and has not
      * connected; the answer is not needed (true: droidtop connected; false: it is
      * not added yet, and droidtop tells the person).
@@ -137,7 +137,7 @@ object DroidtopSaves {
     fun ensureConnected(context: Context): Boolean {
         if (DroidtopLink.isConnected()) return true
         if (!knock(context)) return false
-        // droidtop binds back and hands a broker over; its arrival wakes this (Droidtop/tracker#768: a 100 ms poll before).
+        // droidtop binds back and hands a broker over; its arrival wakes this (mytop-project/tracker#768: a 100 ms poll before).
         return DroidtopLink.awaitConnected(CONNECT_MS)
     }
 

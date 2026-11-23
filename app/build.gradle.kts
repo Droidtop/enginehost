@@ -23,7 +23,7 @@ android {
         versionCode = if (versionRevision > 0) versionRevision else 1
         val baseVersion = providers.gradleProperty("enginehost.version").get()
         versionName = if (versionRevision > 0) "$baseVersion-dev-$versionRevision" else "$baseVersion-local"
-        // 64-bit only, the owner's rule (Droidtop/tracker#646): the same two ABIs every core ships.
+        // 64-bit only, the owner's rule (mytop-project/tracker#646): the same two ABIs every core ships.
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
@@ -79,21 +79,21 @@ android {
 
     sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/platformDatabase/assets"))
 
-    // The version and trust code droidtop and Enginehost share (vendor/lib-net, Droidtop/lib-net, pinned as a
+    // The version and trust code droidtop and Enginehost share (vendor/mytop-net, mytop-project/mytop-net, pinned as a
     // submodule): compiled in as source, so neither app depends on the other and no Kotlin plugin version is shared
     // (docs/engine-bundle-format.md "Shared trust code").
-    sourceSets.getByName("main").java.srcDir("../vendor/lib-net/version/src/main/kotlin")
-    sourceSets.getByName("main").java.srcDir("../vendor/lib-net/trust/src/main/kotlin")
-    // The names droidtop and Enginehost agree on to start each other (docs/contract.md, Droidtop/tracker#204).
-    sourceSets.getByName("main").java.srcDir("../vendor/lib-net/launch-contract/src/main/kotlin")
+    sourceSets.getByName("main").java.srcDir("../vendor/mytop-net/version/src/main/kotlin")
+    sourceSets.getByName("main").java.srcDir("../vendor/mytop-net/trust/src/main/kotlin")
+    // The names droidtop and Enginehost agree on to start each other (docs/contract.md, mytop-project/tracker#204).
+    sourceSets.getByName("main").java.srcDir("../vendor/mytop-net/launch-contract/src/main/kotlin")
     // One GitHub client for both apps: which requests may carry the token, redirects decided per hop, releases, downloads
-    // (Droidtop/tracker#194, #195; GithubClients).
-    sourceSets.getByName("main").java.srcDir("../vendor/lib-net/net/src/main/kotlin")
-    // The shared libraries Enginehost takes as submodules (Droidtop/tracker#867, each "versioned and pinned by each app"),
-    // compiled in as source like lib-net: lib-input's pad model (PadFamily, PadFamilies.classify, SDL's ids) and
-    // lib-plugins' plugin-host AIDL (dev.droidtop.pluginhost), which this app used to carry its own copies of.
-    sourceSets.getByName("main").java.srcDir("../vendor/lib-input/pads/src/main/kotlin")
-    sourceSets.getByName("main").aidl.srcDir("../vendor/lib-plugins/android/aidl")
+    // (mytop-project/tracker#194, #195; GithubClients).
+    sourceSets.getByName("main").java.srcDir("../vendor/mytop-net/net/src/main/kotlin")
+    // The shared libraries Enginehost takes as submodules (mytop-project/tracker#867, each "versioned and pinned by each app"),
+    // compiled in as source like mytop-net: mytop-input's pad model (PadFamily, PadFamilies.classify, SDL's ids) and
+    // mytop-plugins' plugin-host AIDL (dev.droidtop.pluginhost), which this app used to carry its own copies of.
+    sourceSets.getByName("main").java.srcDir("../vendor/mytop-input/pads/src/main/kotlin")
+    sourceSets.getByName("main").aidl.srcDir("../vendor/mytop-plugins/android/aidl")
 }
 
 // --- The bundled engine registry is a SNAPSHOT of droidtop-platforms -----
@@ -144,7 +144,7 @@ tasks.withType<Test>().configureEach { dependsOn(platformDatabaseSeed) }
 
 // --- On-device voices: sherpa-onnx, in the APK (owner, 2026-10-29) -------
 // "I think the engine should still be in the build, that way they can supply
-// their own voices" (Droidtop/tracker#490): the engine ships, the voice models
+// their own voices" (mytop-project/tracker#490): the engine ships, the voice models
 // are downloads or the person's own files. The AAR is k2-fsa's own release,
 // pinned by SHA-256 (the same pin as droidtop's keyboard, #343), fetched once
 // into Gradle's cache and refused if it differs. Nothing large is committed.

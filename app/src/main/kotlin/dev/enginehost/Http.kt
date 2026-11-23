@@ -6,7 +6,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 
 /**
- * The one way Enginehost talks to a server that is not GitHub (Droidtop/tracker#768): voice model
+ * The one way Enginehost talks to a server that is not GitHub (mytop-project/tracker#768): voice model
  * downloads, the translator the person chose, and the stats endpoint. GitHub traffic stays on the
  * shared client ([GithubClients]).
  *

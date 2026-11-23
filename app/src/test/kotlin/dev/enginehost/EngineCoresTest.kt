@@ -7,7 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The core list droidtop reads over the application interface (Droidtop/tracker#752). */
+/** The core list droidtop reads over the application interface (mytop-project/tracker#752). */
 class EngineCoresTest {
     private fun renpy(pluginVersion: String) = EngineCores.Build(
         "dev.enginehost.renpy.8_3.v1",

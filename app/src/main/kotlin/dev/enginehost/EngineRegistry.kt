@@ -403,7 +403,7 @@ object EngineRegistryStore {
     private const val DB_FILE_NAME = "engines-database.json"
 
     /** The platform repository, one base for the index and every file under it. */
-    const val DEFAULT_BASE_URL = "https://raw.githubusercontent.com/droidtop/droidtop-platforms/main"
+    const val DEFAULT_BASE_URL = "https://raw.githubusercontent.com/mytop-project/droidtop-platforms/main"
     const val DEFAULT_URL = "$DEFAULT_BASE_URL/$DB_FILE_NAME"
 
     @Volatile

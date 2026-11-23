@@ -63,7 +63,7 @@ def listing(*releases):
 
 
 class RelistOnGone(unittest.TestCase):
-    """Droidtop/tracker#551: a rolling release recreated mid-read is listed again, never skipped."""
+    """mytop-project/tracker#551: a rolling release recreated mid-read is listed again, never skipped."""
 
     def setUp(self):
         self.pauses = []

@@ -35,8 +35,8 @@ Enginehost's responsibility.
 
 ## The contract
 
-The names below (the actions, the extras, the `enginehost.json` keys) are held once, in `Droidtop/lib-net`'s
-`:launch-contract` (pinned as `vendor/lib-net`, compiled in as source), and used by droidtop and by this app's code;
+The names below (the actions, the extras, the `enginehost.json` keys) are held once, in `mytop-project/mytop-net`'s
+`:launch-contract` (pinned as `vendor/mytop-net`, compiled in as source), and used by droidtop and by this app's code;
 `LaunchContractTest` checks the manifest and this page against them, so a rename fails a test instead of a launch.
 
 Fire an Intent:
@@ -115,7 +115,7 @@ specific file to run within the folder, for engines that need one.
 
 `root` is optional: the folder inside the game folder that holds the game, for a
 game folder that wraps it beside other folders (MGQ Paradox's "MGQ Paradox" holds
-"MGQ Paradox 3.06" and "Pictures"; Droidtop/tracker#636). Detection looks in the
+"MGQ Paradox 3.06" and "Pictures"; mytop-project/tracker#636). Detection looks in the
 folder itself and then one level down, and writes `root` when it found the game
 there. Only one game may be found one level down: two make the folder a collection,
 which is no game. The engine starts in that folder, for every core: the runtime's path extra
@@ -217,7 +217,7 @@ is drawn in the person's own choice. Anything but six hex digits is ignored.
 
 ### A caller's save folder: `saveRoot` (2026-10-17)
 
-Owner, Droidtop/tracker#580: "we can pass data back and forth using the API,
+Owner, mytop-project/tracker#580: "we can pass data back and forth using the API,
 so we'll pass the save folder to the game using the normal config syntax, so
 the game can load from and save to it." For a launcher that keeps a game's
 saves itself (droidtop's Steam Cloud sync), the inline config may carry one more
@@ -254,7 +254,7 @@ key:
   made or written is treated the same way.
 - **Saves synced by the caller: `savesSynced` (2026-10-22).** A caller that
   keeps the game's saves synced sends `"savesSynced": true` beside `saveRoot`.
-  Owner, Droidtop/tracker#580: the flag says the game "is connected to a system
+  Owner, mytop-project/tracker#580: the flag says the game "is connected to a system
   that automatically syncs saves", "meant to ensure it doesn't just use the user
   default", and "enginehost should write saves to the user folder, and tell
   droidtop when it doesn't work. That's not the user's problem". On a flagged
@@ -292,7 +292,7 @@ key:
   or trust screen for its core carries no caller once it resumes, and reports to
   nobody either (`LaunchActivity.reportGameEnded`).
 
-## droidtop's plugin interface (Droidtop/tracker#547)
+## droidtop's plugin interface (mytop-project/tracker#547)
 
 The owner, 2026-10-23: "The two applications should detect and work with each
 other over the plugin API so no matter what, saves go where they're needed".
@@ -307,8 +307,8 @@ without it, none of this runs and nothing waits for it.
   Its `version` moves whenever the asset changes.
 - **The service** answers the action `dev.droidtop.plugin.APP_INTERFACE`
   with droidtop's `IPluginRuntime`. Its AIDL is no longer copied here: it is
-  Droidtop/lib-plugins' `android/aidl` (droidtop's current file; droidtop moves onto it as well), taken as the
-  submodule `vendor/lib-plugins` (Droidtop/tracker#867). Binder numbers each method by its
+  mytop-project/mytop-plugins' `android/aidl` (droidtop's current file; droidtop moves onto it as well), taken as the
+  submodule `vendor/mytop-plugins` (mytop-project/tracker#867). Binder numbers each method by its
   place in the file, which is why there is one copy now; while there were two, Enginehost's
   had to follow every change droidtop made, stubs included: one method inserted on droidtop's side (droidtop 716ee6d5 added
   `inputToken` on 2026-10-29) moved every later call onto the wrong method here,
@@ -320,7 +320,7 @@ without it, none of this runs and nothing waits for it.
   broker droidtop hands over (`DroidtopLink`); `unloadPlugin` drops it. No
   screens, jobs, relays or `invoke`.
 - **`saves.roots` `roots`** (droidtop's #546 design, section 8; the shape is on
-  Droidtop/tracker#547). It replaced `saves.locations@1` on 2026-10-23: droidtop asks
+  mytop-project/tracker#547). It replaced `saves.locations@1` on 2026-10-23: droidtop asks
   one thing, under one mechanism per job. `{games: [{entryId, folder, engine, context?}]}`
   is answered with `{default, families, games: [{entryId, folder?}]}`:
   - `default`: Enginehost's save root, `<root>/saves` (`SaveLocationStore`), where it is
@@ -336,7 +336,7 @@ without it, none of this runs and nothing waits for it.
 
   Roots only, never files. droidtop checks every path (C10, D12) before using it and
   writes nothing because of this answer alone.
-- **`engines.cores` `list_cores {}`** (Droidtop/tracker#752: an engine game's own runner
+- **`engines.cores` `list_cores {}`** (mytop-project/tracker#752: an engine game's own runner
   comes before Wine, and droidtop reads Enginehost's cores instead of guessing). It answers
   `{cores, catalogCheckedAtMs}`, one entry per core line, installed or installable
   (`EngineCores`):
@@ -370,7 +370,7 @@ without it, none of this runs and nothing waits for it.
   {path, saveFolder, reason, endedAtMs}`, `saveFolder` being what `GAME_ENDED`
   would name. A game droidtop launched gets both: droidtop treats the report as
   idempotent, and a broadcast can be lost (plugin lane, #547).
-  - **The report is never dropped for want of droidtop (Droidtop/tracker#885).** droidtop
+  - **The report is never dropped for want of droidtop (mytop-project/tracker#885).** droidtop
     trusts `GAME_ENDED` only for a `saveFolder` that is the `saveRoot` it passed; saves
     anywhere else (a `saveRoot` refused, or none usable) reach its synced folder only through
     this report. So every report is written to `SavesOutbox` (Enginehost's no-backup files)
@@ -393,7 +393,7 @@ without it, none of this runs and nothing waits for it.
   `dev.droidtop.plugin.APP_INTERFACE_DOOR`) and waits up to five seconds for
   droidtop to bind it and hand one over.
 - **When Enginehost starts** (its default process), it knocks once in the same way, so apps with an
-  application-interface layer announce themselves (owner, Droidtop/tracker#547). The answer is not
+  application-interface layer announce themselves (owner, mytop-project/tracker#547). The answer is not
   waited on: droidtop either binds Enginehost, or says itself that Enginehost is not added yet.
 
 ## On-device tools
@@ -504,7 +504,7 @@ eligible only when every entry in the game's `runtimeRequirements` map is carrie
 The entrypoint implements the Java interface in the publishable `plugin-api`
 module (cores depend on it as `compileOnly`). A core compiles against this repository's
 `plugin-api/` itself, checked out by the `.github/actions/plugin-api` action pinned by commit, as
-the signing workflow is; it commits no copy of the API of its own (Droidtop/tracker#768: ten cores
+the signing workflow is; it commits no copy of the API of its own (mytop-project/tracker#768: ten cores
 carried hand copies, all out of date). A web core (HTML, RPG Maker MV/MZ) also compiles in
 `plugin-web/`, checked out by the same action: `GameWebView` sets up the confined WebView,
 `GameServer` serves the game folder as a private https origin, and `LocalStorageBridge` keeps
@@ -512,7 +512,7 @@ carried hand copies, all out of date). A web core (HTML, RPG Maker MV/MZ) also c
 `GameServer.Site` (entry pages, a stand-in for a missing file, any extra page script); the two cores
 had each carried their own copy, and the copies had drifted apart. A native core builds
 `plugin-native/` (the file layer, the audio ring and the libretro frontend) from the same checkout
-into its library and commits no copy of it either (Droidtop/tracker#921 item 17: buriko, easyrpg,
+into its library and commits no copy of it either (mytop-project/tracker#921 item 17: buriko, easyrpg,
 nscripter and wolf carried identical copies). It receives a host-owned render
 container, lifecycle callbacks, the game path, engine/context/requested and
 selected runtime versions, capability ID, runtime requirements, executable,
@@ -544,29 +544,29 @@ slots and explicit capabilities so builds can be installed side by side.
 
 Current core repositories:
 
-- [Ren'Py](https://github.com/Droidtop/enginehost-renpy-plugin): one
+- [Ren'Py](https://github.com/mytop-project/enginehost-renpy-plugin): one
   `plugin/<version>` branch per engine minor, 7.3 to 7.8 and 8.0 to 8.5,
   because each line's runtime serves only its own series.
 - RPG Maker family:
-  [mkxp-z (XP/VX/VX Ace)](https://github.com/Droidtop/enginehost-rpgmaker-mkxp-z-plugin),
-  [EasyRPG (2000/2003)](https://github.com/Droidtop/enginehost-rpgmaker-easyrpg-plugin), and
-  [MV/MZ](https://github.com/Droidtop/enginehost-rpgmaker-mv-mz-plugin).
-- [KiriKiri](https://github.com/Droidtop/enginehost-kirikiri-plugin)
-- [Buriko/Ethornell (OpenBGI)](https://github.com/Droidtop/enginehost-buriko-plugin).
+  [mkxp-z (XP/VX/VX Ace)](https://github.com/mytop-project/enginehost-rpgmaker-mkxp-z-plugin),
+  [EasyRPG (2000/2003)](https://github.com/mytop-project/enginehost-rpgmaker-easyrpg-plugin), and
+  [MV/MZ](https://github.com/mytop-project/enginehost-rpgmaker-mv-mz-plugin).
+- [KiriKiri](https://github.com/mytop-project/enginehost-kirikiri-plugin)
+- [Buriko/Ethornell (OpenBGI)](https://github.com/mytop-project/enginehost-buriko-plugin).
   AUGUST is a game studio whose applicable Windows titles use this engine
   family; configure those games as `engine: buriko`, rather than inventing a
   duplicate `august` runtime family.
-- [CatSystem2](https://github.com/Droidtop/enginehost-catsystem2-plugin)
-- [CMVS](https://github.com/Droidtop/enginehost-cmvs-plugin)
-- [Flash/AIR (Ruffle)](https://github.com/Droidtop/enginehost-flash-air-plugin)
-- [HTML](https://github.com/Droidtop/enginehost-html-plugin): two cores in one
+- [CatSystem2](https://github.com/mytop-project/enginehost-catsystem2-plugin)
+- [CMVS](https://github.com/mytop-project/enginehost-cmvs-plugin)
+- [Flash/AIR (Ruffle)](https://github.com/mytop-project/enginehost-flash-air-plugin)
+- [HTML](https://github.com/mytop-project/enginehost-html-plugin): two cores in one
   repository, each its own line and bundle. `plugin/stable` is the HTML core
   (`dev.enginehost.html.v1`, web games); `plugin/twine-2.12` is the Twine core
   (`dev.enginehost.twine.2_12.v1`, Twine 2 stories). Every engine keeps its own
   core (SPEC.md, "Every engine keeps its own core").
-- [NScripter/ONScripter](https://github.com/Droidtop/enginehost-nscripter-plugin),
+- [NScripter/ONScripter](https://github.com/mytop-project/enginehost-nscripter-plugin),
   built on OnscripterYuri.
-- [Godot](https://github.com/Droidtop/enginehost-godot-plugin): one
+- [Godot](https://github.com/mytop-project/enginehost-godot-plugin): one
   `plugin/<version>` branch per engine minor, 4.0 to 4.7, because GDScript
   exported as binary tokens is refused across minors.
 

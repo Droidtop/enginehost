@@ -397,6 +397,6 @@ data class ProblemReport(
         internal fun reportTitle(engine: String, symptom: String): String =
             listOf("Enginehost", engine.trim(), symptom.trim().lowercase()).filter { it.isNotEmpty() }.joinToString(": ")
 
-        const val REPORTS_REPOSITORY = "https://github.com/Droidtop/tracker"
+        const val REPORTS_REPOSITORY = "https://github.com/mytop-project/tracker"
     }
 }

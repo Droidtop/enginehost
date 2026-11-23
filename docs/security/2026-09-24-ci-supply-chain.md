@@ -20,7 +20,7 @@ likely that is.
 
 ### H1 — Plugin signing ran code from a mutable branch of another repository (High)
 
-Every plugin repository's build checked out `Droidtop/enginehost` at
+Every plugin repository's build checked out `mytop-project/enginehost` at
 `ref: codex/engine-bundles` and ran `scripts/build-engine-bundle.py` from it
 with that repository's `ENGINEHOST_SIGNING_KEY_PEM`. Whoever can push to that
 branch (it is retired, so nobody watches it) chooses the code that holds the
@@ -122,7 +122,7 @@ repositories itself; what a holder of the token could do with that, and with
 the third-party list beside the index, is
 `2026-09-25-third-party-catalog.md` (T1, T2).
 
-## Publishing is one reusable workflow too (2026-10-08, Droidtop/tracker#196)
+## Publishing is one reusable workflow too (2026-10-08, mytop-project/tracker#196)
 
 The publish jobs that followed `sign` in every plugin repository (promote to a
 channel, the build's permanent history release, the reindex dispatch) were a

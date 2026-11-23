@@ -14,7 +14,7 @@ import java.util.Collections
 
 /**
  * The game's lines in the person's language, in the runtime process (docs/text-services.md,
- * "Translating"; Droidtop/tracker#490). The runtime has no network of its own, so each line goes
+ * "Translating"; mytop-project/tracker#490). The runtime has no network of its own, so each line goes
  * to Enginehost's main process ([TextServicesService]) and the translation comes back here.
  *
  * The owner, 2026-10-14: "Translation isn't shown OVER the game. By default, it'll hand the text

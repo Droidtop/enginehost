@@ -11,7 +11,7 @@ plugin`), the JWS `typ` `droidtop-plugin+jws` and the URN
 `urn:droidtop:plugin:`, droidtop-platforms' `plugins/` folder and its plugins
 index, and these docs' file names. Repository names and the `plugin-core` and
 `plugin/<line>` branches change in a separate, coordinated step
-(Droidtop/tracker#550). The Droidtop CA is a certificate identifier and is
+(mytop-project/tracker#550). The Droidtop CA is a certificate identifier and is
 named only where signing is explained.
 
 An engine bundle is one XZ-compressed POSIX tar archive named
@@ -57,14 +57,14 @@ release with the same ID from the same origin and a strictly higher
 stay until removed (several builds of a line coexist, SPEC.md "Several builds
 of a line, side by side"); a new ID (a new series, or a deliberate `-vN` bump)
 is a separate line. `pluginVersion` is `X.Y.Z-N`
-(decided 2026-09-28, Droidtop/tracker#126): the version the repository
+(decided 2026-09-28, mytop-project/tracker#126): the version the repository
 declares, then N, a per-version build counter -- the first published build of
 a declared version is `-1`, the next `-2`, and a new declared version starts
 again at `-1`. `dev.enginehost.Version` orders by X.Y.Z, then by N; a version
 with no `-N` compares as build 0, so `1.0.0-N` is the 1.0.0 release and not a
 pre-release. Versions published before this (`X.Y.<run>`, the CI run number
 in the third place) are read as `X.Y.0-<run>` (`Version.parsePlugin`, decided 2026-09-29,
-Droidtop/tracker#126): `1.0.57` is `1.0.0-57`, so a line's next patch bump
+mytop-project/tracker#126): `1.0.57` is `1.0.0-57`, so a line's next patch bump
 (`1.0.1-1`, `0.9.1-1`) orders above every legacy build and is offered as an update.
 Every revision of a core's code bumps its declared version (owner,
 2026-10-01: "We need to update the version string with every revision from
@@ -143,7 +143,7 @@ classes, is also given the bundle's classes (the platform's own hook for that,
 
 A bundle carries **both 64-bit ABIs, in one archive**: `lib/arm64-v8a/` and
 `lib/x86_64/`, and no others. The owner dropped 32-bit everywhere on 2026-10-24
-(Droidtop/tracker#646): `armeabi-v7a` and `x86` are neither built nor shipped, even
+(mytop-project/tracker#646): `armeabi-v7a` and `x86` are neither built nor shipped, even
 where an engine's upstream provides them. Enginehost itself builds only these two.
 Enginehost picks the directory at load time from
 `Build.SUPPORTED_ABIS`, in the device's own order of preference, so there is no
@@ -192,7 +192,7 @@ resources without the bundle having to attach anything itself.
 
 ## Signatures
 
-Signature format v1 (decided 2026-10-15, Droidtop/tracker#550; owner: "We do
+Signature format v1 (decided 2026-10-15, mytop-project/tracker#550; owner: "We do
 NOT want to chain the signature past this key"). The same format droidtop
 verifies; this section is Enginehost's side of it and what Enginehost adds.
 Code: `CertificateSignatures.kt` (the JWS and chain checks), `BundleVerification.kt`
@@ -202,12 +202,12 @@ tooling: `scripts/bundle_jws.py`, `build-engine-bundle.py`,
 `verify-engine-bundle.py`, `provision-signing-certificates.py`,
 `make-publisher-certificate.py`, `sign-revocation-list.py`.
 
-### Shared trust code (Droidtop/tracker#191 and #193)
+### Shared trust code (mytop-project/tracker#191 and #193)
 
 The verifier and the container reader are not Enginehost's own code. droidtop and Enginehost each vendor
-`Droidtop/lib-net` (droidtop-shared until 2026-11-05, when it moved there with its history as one of the shared
-libraries of Droidtop/tracker#867) and neither depends on the other: Enginehost pins it as the submodule
-`vendor/lib-net` and compiles its `version` and `trust` sources into the app (`app/build.gradle.kts`).
+`mytop-project/mytop-net` (droidtop-shared until 2026-11-05, when it moved there with its history as one of the shared
+libraries of mytop-project/tracker#867) and neither depends on the other: Enginehost pins it as the submodule
+`vendor/mytop-net` and compiles its `version` and `trust` sources into the app (`app/build.gradle.kts`).
 `CertificateSignatures` is Enginehost's names and types (a `TrustAnchor`, a `RevokedSet`, a `VerifiedJws`, and the
 convention that a signature which does not verify throws `IllegalArgumentException` with the reason) over the library's
 `ChainSignature`; `Version`, `VersionSeries` and `VersionConstraint` are the library's; the archive reader
@@ -219,10 +219,10 @@ person pinned stay in this app. A certificate that marks an extension critical w
 refused (as PKIX requires), and a signature's JWS header is read with `kotlinx-serialization-json`, a dependency this
 app gained for it. The older root-certified origin-key document (`OriginKeyDocuments`) is not part of the library.
 
-**Shared libraries build and test Enginehost (owner, 2026-11-04, Droidtop/tracker#867 D2).** The code Enginehost
+**Shared libraries build and test Enginehost (owner, 2026-11-04, mytop-project/tracker#867 D2).** The code Enginehost
 shares with droidtop, Pythia and droidtop-agent moves into library repositories that belong to no program, each
 "versioned and pinned by each app; each repo's CI builds and tests every app that uses it". Enginehost takes a
-library as a submodule under `vendor/`, as it takes lib-net. A library's CI calls
+library as a submodule under `vendor/`, as it takes mytop-net. A library's CI calls
 `.github/workflows/library-check.yml` with its submodule path and the commit under test; that workflow checks out
 Enginehost's `main`, moves only that submodule to the commit, and runs `build.yml`'s unit tests and the debug APK,
 unsigned by the release key (a library's CI holds no Enginehost secret). Started by hand it builds the branch it is
@@ -247,7 +247,7 @@ them is trusted here.
 - **The Enginehost signing root's public key** is the anchor Enginehost
   pins for its own cores: `app/src/main/assets/trust/enginehost-root.pub`, a
   PEM `PUBLIC KEY` block (SubjectPublicKeyInfo), byte for byte the file
-  published at Droidtop/tracker `coordination/signing/roots/enginehost-root.pub`.
+  published at mytop-project/tracker `coordination/signing/roots/enginehost-root.pub`.
   Which roots are pinned, and until when, is `trust/enginehost-roots.json`
   ("Root rotation" below); the app (`EnginehostRoots`) and the scripts
   (`bundle_jws.pinned_roots`) both read that one file.
@@ -340,7 +340,7 @@ one and download the new one"). Enginehost no longer verifies the legacy
 the official-root key documents that went with it (the compiled-in
 `default_plugin_keys`, `official_plugin_root_key` and `developer_debug_key`,
 and the keys learned from the plugins index's `key` documents) were deleted on
-2026-10-29 (Droidtop/tracker#768; every official core had shipped v1). A
+2026-10-29 (mytop-project/tracker#768; every official core had shipped v1). A
 legacy signature is refused at every moment, whether or not the build pins a root:
 
 - a new install, update or catalog entry needs a v1 signature; a release that
@@ -356,9 +356,9 @@ A bundle may still carry the `.sig` beside its JWS, and a manifest its
 the same date `build-engine-bundle.py` lost `--private-key`, the signing
 workflow lost `ENGINEHOST_SIGNING_KEY_PEM`, `resign-engine-bundle.py` leaves an
 old `.sig` out of what it writes, and `verify-engine-bundle.py` requires the
-JWS and never trusts a `.sig` (Droidtop/tracker#768).
+JWS and never trusts a `.sig` (mytop-project/tracker#768).
 
-### Root rotation (2026-11-04, Droidtop/tracker#876 and #550)
+### Root rotation (2026-11-04, mytop-project/tracker#876 and #550)
 
 The Enginehost signing root was replaced. The new root is SPKI sha256
 `9629576d51bf000c2a8df606c66c1366fa27481e2297dc4e1ab68a646b95f5f0`
@@ -403,7 +403,7 @@ cores"; and no re-audit: every release is re-signed as it is, `resign-engine-bun
 - The old per-repository pins `official_plugin_root_key.json` and
   `default_plugin_keys.json` no longer exist in this repository: they served only the
   legacy raw-key signature, which no build accepts, and were deleted on 2026-10-29
-  (Droidtop/tracker#768; "Legacy signatures"). Nothing there was re-pinned.
+  (mytop-project/tracker#768; "Legacy signatures"). Nothing there was re-pinned.
 
 ### Revocation
 
@@ -467,12 +467,12 @@ a revocation-list certificate (purpose `.3`) naming its catalog:
   signature (owner's choice, the strict rule as specified: no legacy gap
   window); installed ones keep running. Provisioned on 2026-10-15: every
   official repository's `ENGINEHOST_CERTIFICATE_KEY_PEM` secret, and the
-  certificates at Droidtop/tracker `coordination/signing/enginehost/`, which
+  certificates at mytop-project/tracker `coordination/signing/enginehost/`, which
   each repository commits to plugin-core as `enginehost-signing-certificate.pem`.
   Left to the owner: sign and publish the first `plugins/revocations.jws` when
   something is revoked, and hand the developer certificate and its key to the
   developer. The legacy verifier and the legacy signing were deleted on
-  2026-10-29 (Droidtop/tracker#768); each core repository's
+  2026-10-29 (mytop-project/tracker#768); each core repository's
   `ENGINEHOST_SIGNING_KEY_PEM` secret can be deleted once it signs with this
   workflow.
 
@@ -522,7 +522,7 @@ the next one follows the same path.
 ### Component bundles (decided 2026-10-14)
 
 A runtime component is **its own bundle, installed separately and
-distributed under its own licence** (owner, 2026-10-14, Droidtop/tracker#291:
+distributed under its own licence** (owner, 2026-10-14, mytop-project/tracker#291:
 "This is part of the subplugin system that has been pending for a while").
 The reason is licensing as much as size: the Spine Runtimes License is not
 GPL-compatible, so an engine bundle with Spine compiled in (or carried in its
@@ -565,7 +565,7 @@ bundle, not a second trust mechanism. What differs is in the manifest:
   declare a `license` too, and is shown the same way. A bundle that declares
   a licence is never approved by default, even when official: the official
   default (`PluginTrustStore.effectiveState`) would install it with no accept,
-  which the #291 rig check found (Droidtop/tracker#291). Installing it from the
+  which the #291 rig check found (mytop-project/tracker#291). Installing it from the
   catalog leads to its trust screen, and a launch waiting on it resumes only
   after the accept.
 - It has no `dexFiles`, no `entrypoint` and no `capabilities`: Enginehost runs
@@ -606,7 +606,7 @@ UI thread (plugin API; the default on an older host answers null). Enginehost
    runtime", with Install it (from a source that publishes it, after which the trust screen shows
    its licence to accept), Read and accept its licence (installed, waiting), or Not now. Its answer
    reaches the waiting call over binder, through the `ResultReceiver` the request carries, and wakes it
-   at once (Droidtop/tracker#768; a file polled every 250 ms before), and the call returns
+   at once (mytop-project/tracker#768; a file polled every 250 ms before), and the call returns
    the component's root, or null for not now, nothing published, or the game ending.
 
 A locked-down core cannot be handed a component it did not have when it locked down (its broker's
@@ -827,7 +827,7 @@ the failure only after `onCreate` returned (Godot 4.0 and 4.1 start inside the
 fragment's view) and would otherwise show its own alert over a black screen.
 Same compatibility rule as `restart`: fall back to `finish()` on an older host.
 Since 2026-10-23 it is also how an engine that cannot go on mid-game ends
-(OpenBGI's script reaching an instruction it does not run yet, Droidtop/tracker#604),
+(OpenBGI's script reaching an instruction it does not run yet, mytop-project/tracker#604),
 rather than ending as if the game had quit: the person gets the reason and Report.
 The isolated runtime says "The game stopped:" before the message once a frame
 has reached the screen, "Core startup failed:" before that; the in-process
@@ -1122,7 +1122,7 @@ it, and a field that is not what it claims is dropped rather than shown.
 | `pluginCore` | the signing workflow | the `plugin-core` commit that line pins (`enginehost/line.json`, docs/plugin-lines.md) |
 
 Every line of a core used to show the same build string, so a rig run could not tell which line,
-or which recipe, was installed (Droidtop/tracker#855). Enginehost shows the source beside the
+or which recipe, was installed (mytop-project/tracker#855). Enginehost shows the source beside the
 build on the launch screen ("Engine build 1.0.19-1 · runtime 8.5.3 · plugin/8.5 23ef63f,
 plugin-core a745d59") and in a core's details. Builds signed before this carry only `upstream`
 and `revision`.

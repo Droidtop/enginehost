@@ -1,6 +1,6 @@
-"""The one release mechanism behind Enginehost's build history (Droidtop/tracker#122).
+"""The one release mechanism behind Enginehost's build history (mytop-project/tracker#122).
 
-Ported from droidtop's build-scripts/release_channel.py (Droidtop/tracker#119):
+Ported from droidtop's build-scripts/release_channel.py (mytop-project/tracker#119):
 same job, one script, two things it publishes from the same OUTPUTS/release-info.json.
 
   publish-build OUTPUTS
@@ -38,7 +38,7 @@ import subprocess
 import sys
 import tempfile
 
-REPO = os.environ.get("GITHUB_REPOSITORY", "Droidtop/enginehost")
+REPO = os.environ.get("GITHUB_REPOSITORY", "mytop-project/enginehost")
 
 # Published asset name -> path under OUTPUTS. Same layout the build job's
 # artifact and the rolling "latest" release have always used.
@@ -139,7 +139,7 @@ def previous_build_release(exclude_tag):
 
 def build_notes(commit, previous_tag, previous_commit):
     if previous_commit is None:
-        return "First release under per-build release history (Droidtop/tracker#122)."
+        return "First release under per-build release history (mytop-project/tracker#122)."
     subjects, error = commits_between(previous_commit, commit)
     if error is not None:
         return f"Changes since {previous_tag}. (Commit list unavailable: {error})"

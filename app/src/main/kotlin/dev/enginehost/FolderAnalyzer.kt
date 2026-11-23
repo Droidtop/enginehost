@@ -106,7 +106,7 @@ class FolderAnalyzer(private val rows: List<EngineRow>) {
      * [screened]: whether the cheap top-level screen decides first if the detector runs at all. A
      * scan over thousands of folders needs it. A game added by hand is one known folder, and the
      * screen sees only its top level, so a game one wrapper folder down was never detected there
-     * (MGQ Paradox, "Not recognised", although Play resolved it; Droidtop/tracker#550, 2026-10-24).
+     * (MGQ Paradox, "Not recognised", although Play resolved it; mytop-project/tracker#550, 2026-10-24).
      */
     fun analyze(dir: File, entries: List<DirEntry>, signature: Long, screened: Boolean = true): GameFinding? {
         val registry = if (!screened || screen.matches(entries)) runCatching { EngineDetector.detect(rows, dir) }.getOrNull() else null
@@ -119,7 +119,7 @@ class FolderAnalyzer(private val rows: List<EngineRow>) {
      * tell from its files. The folder's config takes precedence at launch (docs/contract.md, "Where
      * a game's config lives"), so the scan lists what Play would run. A game from sources with its
      * config beside them, as the conformance Ren'Py game is, has nothing else to detect it by
-     * (Droidtop/tracker#774).
+     * (mytop-project/tracker#774).
      */
     private fun fromOwnConfig(dir: File, entries: List<DirEntry>, signature: Long): GameFinding? {
         if (entries.none { !it.isDirectory && it.name == CONFIG_FILE_NAME }) return null

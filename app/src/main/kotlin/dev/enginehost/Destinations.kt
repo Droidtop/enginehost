@@ -6,7 +6,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 
 /**
- * The four places the app is organised around (Droidtop/tracker#234, #644): the
+ * The four places the app is organised around (mytop-project/tracker#234, #644): the
  * Library of games, the Cores that run them (the installed plugins), Controls (the
  * button maps and pad profiles every engine reads) and Settings. Adding games is the
  * Library's one primary action, not a place. Everything else opens inside the

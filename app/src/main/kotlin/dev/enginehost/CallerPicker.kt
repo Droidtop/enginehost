@@ -31,7 +31,7 @@ data class CallerCandidate(
 
 /**
  * Which apps "Add an app" (Settings > App launch access) offers first
- * (Droidtop/tracker#33). Deciding who may launch a game only matters for a
+ * (mytop-project/tracker#33). Deciding who may launch a game only matters for a
  * handful of apps: the launchers and frontends that start games, and other
  * apps a person installed. The device's own Camera, Clock and Files are not
  * that, so they are left out until "Show every app" is asked for, and no row
@@ -77,7 +77,7 @@ object CallerPicker {
 /**
  * How a caller is named to a person: the app's own name, its package id only when the device will
  * not say. adb runs as Android's "Shell" package, a name that tells a person nothing, so it reads
- * "adb or a script" (Droidtop/tracker#620, E9); a caller with no package reads as unrecognized.
+ * "adb or a script" (mytop-project/tracker#620, E9); a caller with no package reads as unrecognized.
  */
 object CallerLabels {
     private const val SHELL = "com.android.shell"

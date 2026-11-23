@@ -103,7 +103,7 @@ public interface EngineHost {
      * One event of the game's text: a line on screen with its speaker, a menu, the reader moving
      * on, a scene change. {@code event} is one JSON object in the {@code ehtext/1} format
      * (docs/text-services.md). Enginehost reads the game's text aloud and translates it from these
-     * (Droidtop/tracker#490); a core never does either itself, it only reports what the engine
+     * (mytop-project/tracker#490); a core never does either itself, it only reports what the engine
      * shows. Speaker names come from the engine wherever it knows them.
      *
      * <p>Returns at once and may be called from any thread; an event the host cannot read, or

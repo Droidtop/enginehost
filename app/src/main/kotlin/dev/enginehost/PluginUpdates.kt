@@ -62,7 +62,7 @@ object PluginUpdates {
      * The catalog build that replaces each installed build signed only the old way, keyed by that
      * build's directory: its line's newest build this API runs, whatever its version. It may be
      * the same build re-signed, which is no update but is what lets the core start again
-     * (Droidtop/tracker#774).
+     * (mytop-project/tracker#774).
      */
     fun replacementsFor(
         installed: List<InstalledPlugin>,

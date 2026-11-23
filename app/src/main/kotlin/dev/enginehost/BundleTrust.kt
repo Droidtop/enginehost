@@ -8,7 +8,7 @@ import java.time.Instant
 /**
  * The Enginehost signing roots this build pins: `assets/trust/enginehost-roots.json` lists them, each naming a PEM
  * `PUBLIC KEY` file beside it, the current root first. The owner derives a root from the Droidtop CA, which Enginehost
- * never pins (Droidtop/tracker#550); its private key stays on the owner's machine. A build without the list pins no root:
+ * never pins (mytop-project/tracker#550); its private key stays on the owner's machine. A build without the list pins no root:
  * no official v1 signature can be verified, and only a repository the person pinned a key for installs.
  *
  * Across the key rotation of 2026-11-04 the list holds two: the new root, with no end, and the old one with `notAfter`
@@ -24,7 +24,7 @@ object EnginehostRoots {
     @Volatile private var markers: Map<String, String>? = null
 
     /**
-     * This source's `superseded` markers (Droidtop/tracker#887): each key the pinned root set marks as superseded, to the
+     * This source's `superseded` markers (mytop-project/tracker#887): each key the pinned root set marks as superseded, to the
      * key that replaced it, as SHA-256 hex in upper case. The owner, 2026-11-05: "if it's marked as "superceded", then
      * trust the key it's superceded by, which'll be denoted", and the marker counts only for content from the source
      * that published it. This list ships inside the app, under the app's own signature, and speaks only for what the

@@ -8,7 +8,7 @@ name: Sign engine bundle
 #     needs: android
 #     permissions:
 #       contents: read
-#     uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<sha>
+#     uses: mytop-project/enginehost/.github/workflows/sign-engine-bundle.yml@<sha>
 #     with:
 #       tooling-sha: <the same sha>
 #       unsigned-artifact: ...
@@ -22,7 +22,7 @@ name: Sign engine bundle
 # Enginehost signing root issued for this repository, which the repository
 # commits as enginehost-signing-certificate.pem (scripts/provision-signing-
 # certificates.py). The legacy raw-key signature and its secret,
-# ENGINEHOST_SIGNING_KEY_PEM, are gone (Droidtop/tracker#768). A caller that
+# ENGINEHOST_SIGNING_KEY_PEM, are gone (mytop-project/tracker#768). A caller that
 # moves its pin to this commit or later must stop passing
 # ENGINEHOST_SIGNING_KEY_PEM: a reusable workflow refuses a secret it does not
 # declare. The repository's committed enginehost-public-key.json, the key a
@@ -42,7 +42,7 @@ on:
     inputs:
       tooling-sha:
         description: >-
-          Full commit SHA of Droidtop/enginehost whose scripts/ sign the
+          Full commit SHA of mytop-project/enginehost whose scripts/ sign the
           bundle. Use the same commit this workflow is pinned to.
         type: string
         required: true
@@ -95,7 +95,7 @@ permissions:
 
 jobs:
   version:
-    # Owner rule (2026-10-01, Droidtop/tracker#126): every revision of a
+    # Owner rule (2026-10-01, mytop-project/tracker#126): every revision of a
     # plugin's code bumps its declared version. Fails the build when the
     # sources changed since the newest published build of the declared
     # version. No secret reaches this job; it only reads the repository's
@@ -120,7 +120,7 @@ jobs:
       - name: Check out the version tooling
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          repository: Droidtop/enginehost
+          repository: mytop-project/enginehost
           ref: ${{ inputs.tooling-sha }}
           path: enginehost-tooling
           persist-credentials: false
@@ -140,7 +140,7 @@ jobs:
             --metadata unsigned/bundle-metadata.json \
             --repository "$GITHUB_REPOSITORY" --checkout repository
   conformance:
-    # Conformance layer 1a (docs/conformance-test-games.md, Droidtop/tracker#27):
+    # Conformance layer 1a (docs/conformance-test-games.md, mytop-project/tracker#27):
     # the unsigned payload and metadata checked offline before anything is
     # signed -- both 64-bit ABIs and only those, each library built for the
     # directory it sits in, declared files present, engine ids the app can
@@ -157,7 +157,7 @@ jobs:
       - name: Check out the conformance tooling and the app's engine names
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          repository: Droidtop/enginehost
+          repository: mytop-project/enginehost
           ref: ${{ inputs.tooling-sha }}
           path: enginehost-tooling
           persist-credentials: false
@@ -210,7 +210,7 @@ jobs:
       - name: Check out the signing tooling and the pinned root key
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          repository: Droidtop/enginehost
+          repository: mytop-project/enginehost
           ref: ${{ inputs.tooling-sha }}
           path: enginehost-tooling
           persist-credentials: false
@@ -263,7 +263,7 @@ jobs:
           # Which commit this is, and the plugin-core commit its line pins (enginehost/line.json, written
           # by the plugin-line tool), go into the manifest's source (docs/engine-bundle-format.md
           # "source"). Every line of a core had the same build string, so a rig could not tell which
-          # was installed (Droidtop/tracker#855). github.sha is the calling repository's commit.
+          # was installed (mytop-project/tracker#855). github.sha is the calling repository's commit.
           python3 - unsigned/bundle-metadata.json "$GITHUB_SHA" repository/enginehost/line.json <<'PYEOF'
           import json, os, re, sys
           path, commit, line = sys.argv[1:4]
@@ -293,7 +293,7 @@ jobs:
           # and the bundle must verify to the signing root this tooling pins.
           cp "$CERTIFICATE" output/enginehost-signing-certificate.pem
           # --trust-dir: the chain must end at a root that commit lists and that is in force now, the
-          # new one, or the old one until its end (signing-root rotation 2026-11-04, Droidtop/tracker#876).
+          # new one, or the old one until its end (signing-root rotation 2026-11-04, mytop-project/tracker#876).
           if [ -f "$TRUST_DIR/enginehost-roots.json" ]; then
             python3 enginehost-tooling/scripts/verify-engine-bundle.py "output/$BUNDLE" --trust-dir "$TRUST_DIR"
           else

@@ -266,7 +266,7 @@ def wait_until(condition, seconds, every=0.5):
 
     The checks wait on what they can observe (a newer save file, a changed screen, the
     process gone) with a deadline, not for a fixed time: a slow emulator used to read as a
-    failed game (code quality review, Droidtop/tracker#768)."""
+    failed game (code quality review, mytop-project/tracker#768)."""
     deadline = time.time() + seconds
     while True:
         if condition():

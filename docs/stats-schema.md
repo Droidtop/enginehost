@@ -1,7 +1,7 @@
 # Anonymous model ratings: what a report holds
 
 Enginehost can share how people rate the voice and translation models they use, so others can
-choose (Droidtop/tracker#491). This page is the whole of what is sent, published before the first
+choose (mytop-project/tracker#491). This page is the whole of what is sent, published before the first
 report is.
 
 **It is built and switched off** (owner, 2026-10-28: "build the system, but don't enable it yet").

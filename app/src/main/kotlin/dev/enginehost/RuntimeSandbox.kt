@@ -215,7 +215,7 @@ object RuntimeSandbox {
      * `debug.enginehost.npeprobe 1`: whether ART still turns a null receiver into a
      * NullPointerException in this process. KiriKiri and mkxp-z died locked down at
      * libart.so nterp_op_invoke_virtual+0x28, a null receiver on the main thread, as a
-     * raw SIGSEGV instead of the exception ART makes of that fault (Droidtop/tracker#550,
+     * raw SIGSEGV instead of the exception ART makes of that fault (mytop-project/tracker#550,
      * RP5, dev.484). [absent] is a platform type, so `.length` compiles to a plain
      * invoke-virtual with no check of Kotlin's: ART's implicit null check is what
      * catches it. Logged under [TAG]; if the process dies here instead, the lockdown
@@ -314,7 +314,7 @@ object RuntimeSandbox {
             "/dev/dri", "/dev/mali0", "/dev/goldfish_pipe", "/dev/goldfish_pipe_dprctd", "/dev/goldfish_sync",
             "/dev/goldfish_address_space", "/dev/qemu_pipe",
             // BlueStacks' GL pipe, its goldfish_pipe: refused, EGL cannot reach the host and ART
-            // aborts creating a context (Ren'Py 8.4 under lockdown, Droidtop/tracker#550).
+            // aborts creating a context (Ren'Py 8.4 under lockdown, mytop-project/tracker#550).
             "/dev/bstpgaipc",
         ).forEach { rules[it] = SBX_READ or SBX_WRITE }
         // Shader and plugin caches; the rest of the app's private data stays out.
@@ -350,7 +350,7 @@ object RuntimeSandbox {
         context.dataDir.listFiles { file -> file.isDirectory && file.name.startsWith("app_webview") }.orEmpty()
             .forEach { rules[it.absolutePath] = SBX_READ or SBX_WRITE }
         // Made here: WebView creates them on first use, and the locked-down process may not
-        // write the data folder they sit in (the HTML core's learning run, Droidtop/tracker#550).
+        // write the data folder they sit in (the HTML core's learning run, mytop-project/tracker#550).
         listOf("app_webview", "app_textures").forEach { name ->
             rules[File(context.dataDir, name).apply { mkdirs() }.absolutePath] = SBX_READ or SBX_WRITE
         }
@@ -387,7 +387,7 @@ object RuntimeSandbox {
         val info = runCatching { android.webkit.WebView.getCurrentWebViewPackage()?.applicationInfo }.getOrNull() ?: return emptyList()
         // A WebView updated from the Play Store (Google's, on Android 10 and later) keeps its
         // native code in a static shared library, TrichromeLibrary, installed as a package of its
-        // own in /data/app; without it the WebView cannot load (the AVD rig check, Droidtop/tracker#550).
+        // own in /data/app; without it the WebView cannot load (the AVD rig check, mytop-project/tracker#550).
         val libraries = info.sharedLibraryFiles.orEmpty().mapNotNull { File(it).parent }
         return listOfNotNull(info.sourceDir?.let { File(it).parent }, info.nativeLibraryDir) + libraries
     }
@@ -421,7 +421,7 @@ object RuntimeSandbox {
      * drivers that keep per-process state (kgsl, Mali, DRM render nodes).
      * Each later open gets an open file of its own (library 0.1.7): the Adreno
      * driver's own libhidl maps hwbinder a second time, which a duplicate of
-     * one descriptor refused with EBUSY (Droidtop/tracker#550).
+     * one descriptor refused with EBUSY (mytop-project/tracker#550).
      */
     private val OWN_OPENS = arrayOf("/dev/hwbinder", "/dev/kgsl-3d0", "/dev/mali0", "/dev/dri/renderD128")
 

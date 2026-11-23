@@ -52,7 +52,7 @@ every origin never reaches a device over the network.
 
 The older hierarchy (an offline primary seed whose root certifies each
 repository's raw key, `enginehost-public-key.json`) is the legacy format.
-Enginehost no longer verifies it (2026-10-29, Droidtop/tracker#768): a release that
+Enginehost no longer verifies it (2026-10-29, mytop-project/tracker#768): a release that
 carries only its signature is not offered, and a core installed with only it does not
 start (engine-bundle-format.md "Legacy signatures").
 
@@ -100,7 +100,7 @@ the Refresh button and the scheduled update pass alike:
    fetched alone. After a data reset on dev.480, the core list never finished:
    with nothing cached, the refresh fetched 509 envelopes one request at a time
    (Ren'Py 233, Godot 114, most of them per-build history releases;
-   Droidtop/tracker#550). A pack that is missing, fails its hash or does not
+   mytop-project/tracker#550). A pack that is missing, fails its hash or does not
    parse changes nothing: the envelopes are then fetched one by one, as before.
    Refreshes run one at a time in a process: a second caller (the Cores screen
    while the update pass runs) waits, then finds the cache current. Every
@@ -133,8 +133,8 @@ Enginehost's own Settings (a settings row: masked, removable, with a "Test" acti
 never logged or placed in a URL. Without a token the behavior is unchanged: unauthenticated requests
 with today's rate limits.
 
-**One client sends it (2026-10-29, Droidtop/tracker#195).** Every GitHub request goes through
-lib-net's `:net` (`GitHubClient`, via `GithubClients`), the same code droidtop uses, with one rule for
+**One client sends it (2026-10-29, mytop-project/tracker#195).** Every GitHub request goes through
+mytop-net's `:net` (`GitHubClient`, via `GithubClients`), the same code droidtop uses, with one rule for
 the token: it is attached only to https requests for `api.github.com`, `github.com` and
 `raw.githubusercontent.com`, matched exactly. Redirects are followed one hop at a time (https only, at most
 five) and the header is decided again at each hop. This changes two things from the earlier rule, which listed
@@ -188,7 +188,7 @@ the same key, so a lost secret needs no new certificate.
 **Legacy format.** The raw repository keys the old official root certified
 are gone from both sides: Enginehost no longer verifies them, and the
 signing workflow no longer makes the legacy signature or takes
-`ENGINEHOST_SIGNING_KEY_PEM` (2026-10-29, Droidtop/tracker#768).
+`ENGINEHOST_SIGNING_KEY_PEM` (2026-10-29, mytop-project/tracker#768).
 `scripts/certify-repository-key.py` and `scripts/provision-official-keys.sh`,
 which made and certified them, are deleted. A new official repository needs
 only its v1 certificate (above); an official key changes by a new certificate
@@ -261,7 +261,7 @@ Why: `docs/security/2026-09-24-ci-supply-chain.md`.
 
 Every repository publishes on three streams, and the release envelope
 (`enginehost-release.json`) names the stream in its `channel` field. What each
-stream is for is the owner's (2026-10-31, Droidtop/tracker#28): "unstable is for
+stream is for is the owner's (2026-10-31, mytop-project/tracker#28): "unstable is for
 branches that have never had a stable core, or for major rewrites/etc. Testing
 is for revisions to branches that have had stable cores (before they're tested).
 Stable is for tested cores".
@@ -287,7 +287,7 @@ Stable is for tested cores".
   owner's steps"). A stable build that carries 32-bit libraries is published
   again without them as `<line>-64-bit`, under a newer build number and with
   its 64-bit code unchanged (`resign-engine-release.yml` with `only-64-bit`;
-  owner, 2026-10-30, Droidtop/tracker#646: "strip it out").
+  owner, 2026-10-30, mytop-project/tracker#646: "strip it out").
 
 The person chooses the most adventurous stream they want in enginehost's
 Settings (stable by default); the catalog and the update check offer that
@@ -372,7 +372,7 @@ signature.
   third-party list, and the bundle is signed by the key that listing names.
 - **Approved** means the user has allowed that exact bundle ID and signing-key
   identity to execute inside Enginehost's runtime process. Official bundles
-  are approved by default (decided 2026-09-28, Droidtop/tracker#34): the
+  are approved by default (decided 2026-09-28, mytop-project/tracker#34): the
   provenance check that earns the badge is the check an approval prompt would
   repeat, and a fresh install must not open on a wall of identical prompts.
   A person's own Deny always wins over the default

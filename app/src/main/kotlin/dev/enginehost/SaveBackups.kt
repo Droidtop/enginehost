@@ -14,7 +14,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * One game's save backups (Droidtop/tracker#238): a dated copy of its save folders,
+ * One game's save backups (mytop-project/tracker#238): a dated copy of its save folders,
  * listed and restored from its page.
  *
  * Enginehost does not change where an engine saves and cannot snapshot an engine, so

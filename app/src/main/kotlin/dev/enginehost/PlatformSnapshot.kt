@@ -122,7 +122,7 @@ internal object Transport {
                     throw GitHubHttpException(refused.status, refused.rateLimitRemaining, refused.rateLimitResetEpochSeconds, "HTTP ${refused.status} from $url")
                 }
             }
-            // One line per fetch (Droidtop/tracker#550): a refresh that stalls says where.
+            // One line per fetch (mytop-project/tracker#550): a refresh that stalls says where.
             Log.i(TAG, "GET " + url.substringBefore('?') + " -> " + (if (body == null) "none" else "ok") + ", " + (body?.length ?: 0) + " chars, " +
                 (System.nanoTime() - started) / 1_000_000 + " ms")
             body

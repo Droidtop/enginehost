@@ -138,7 +138,7 @@ data class IndexedOrigin(
  * release envelope the index lists for it, as published, keyed by sha256. [path] is relative to
  * the index. A device with none of them cached (a fresh install, cleared data) reads this one file
  * instead of one request per release. On 2026-10-24 that was 509 requests in a row, and a reset
- * console never finished its core list (Droidtop/tracker#550).
+ * console never finished its core list (mytop-project/tracker#550).
  */
 data class EnvelopePack(val path: String, val sha256: String, val size: Long)
 

@@ -1,11 +1,11 @@
 # LÖVE core: scaffold plan
 
 LÖVE is one of the engines the census's new-engine recommendations
-(Droidtop/tracker#26, the batch whose 18 title classes are the coverage
+(mytop-project/tracker#26, the batch whose 18 title classes are the coverage
 goal) name for this library. This page is the written plan for its
 Enginehost core. It differs from the AGS plan one directory over
 (`docs/plugin-scaffolds/ags.md`) in one thing: the LÖVE core already
-exists. `Droidtop/enginehost-love2d-plugin` -- a fork of the official
+exists. `mytop-project/enginehost-love2d-plugin` -- a fork of the official
 `love2d/love-android` -- has carried the wrapper since 2026-09-25,
 publishes a bundle on every green push (tags `love2d-11-v1-unstable`,
 `love2d-11-v1-testing` in its release history), and was the first
@@ -27,10 +27,10 @@ The evidence behind this plan: `docs/engine-bundle-format.md` and
 (`RuntimeActivity.kt`, `PluginRegistry.kt`, `GameRunner.kt`);
 `docs/engine-sandbox.md`'s "Single transport", "First conversion: LOVE"
 and "Surface handoff" sections; and read-only clones of the shipped
-repositories: `Droidtop/enginehost-love2d-plugin` at its `plugin-core`
+repositories: `mytop-project/enginehost-love2d-plugin` at its `plugin-core`
 (`6c0b00c5`) and `plugin/11.5` (`7cae602c`) branches, plus
-`Droidtop/enginehost-rpgmaker-mkxp-z-plugin` and
-`Droidtop/enginehost-rpgmaker-easyrpg-plugin` at their `plugin-core`
+`mytop-project/enginehost-rpgmaker-mkxp-z-plugin` and
+`mytop-project/enginehost-rpgmaker-easyrpg-plugin` at their `plugin-core`
 branches as structural references -- the two shipped SDL-family bundles
 whose manifest and workflow shapes the LÖVE core follows (both carry
 `.github/workflows/android-plugin.yml` and the same `runtime.apk`
@@ -169,7 +169,7 @@ before the rendering question is settled. That question is now answered:
 an isolated process can never open the GPU (the sandbox doc, "GPU
 rendering is closed to isolated processes"), so the Surface handoff was
 deleted and LOVE can only run isolated on software GL, or under a
-non-isolated sandbox UID; the owner decides which (Droidtop/tracker#26). The PhysFS broker seam (wiring
+non-isolated sandbox UID; the owner decides which (mytop-project/tracker#26). The PhysFS broker seam (wiring
 `EngineFileBroker` into PhysFS's own `PHYSFS_Io` the way
 CatSystem2/CMVS's file layers were done) is the follow-on file work.
 Until then the per-launch "Run unsandboxed?" prompt shows exactly as
@@ -287,7 +287,7 @@ jobs:
     # rule, docs/security/2026-09-24-ci-supply-chain.md).
 
   sign:      # the org's one signing mechanism
-    # uses: Droidtop/enginehost/.github/workflows/sign-engine-bundle.yml@<full sha>
+    # uses: mytop-project/enginehost/.github/workflows/sign-engine-bundle.yml@<full sha>
     # with tooling-sha the same commit; secrets: ENGINEHOST_CERTIFICATE_KEY_PEM;
     # the key never shares a runner with the build
 
@@ -307,7 +307,7 @@ The key steps that preceded the first green build are the catalog's
 `plugin-core` and the lines, derived and certified from the master
 seed, with the private half in the `ENGINEHOST_SIGNING_KEY_PEM`
 secret (the legacy signature, which nothing makes or verifies since
-2026-10-29, Droidtop/tracker#768). Format v1 followed on 2026-10-15: `enginehost-signing-certificate.pem`,
+2026-10-29, mytop-project/tracker#768). Format v1 followed on 2026-10-15: `enginehost-signing-certificate.pem`,
 issued by the Enginehost signing root, beside it, with its key in the
 `ENGINEHOST_CERTIFICATE_KEY_PEM` secret. The `plugin-published` dispatch registered the repository in
 the plugins index, so devices add the origin as official at their next

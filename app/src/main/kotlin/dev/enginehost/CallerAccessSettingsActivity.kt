@@ -93,7 +93,7 @@ class CallerAccessSettingsActivity : EnginehostActivity() {
     /**
      * The apps worth deciding about, named by their own names and ranked:
      * frontends and launchers, games, other installed apps. The device's own
-     * apps wait behind "Show every app" (Droidtop/tracker#33). Read off the
+     * apps wait behind "Show every app" (mytop-project/tracker#33). Read off the
      * main thread: it asks the package manager about every app.
      */
     private fun offerAddCaller() {

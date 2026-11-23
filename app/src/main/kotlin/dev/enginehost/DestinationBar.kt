@@ -12,7 +12,7 @@ import androidx.core.content.ContextCompat
 /**
  * The tab bar along the top of every destination screen: the four [Destination]s in a row, this
  * one marked, between the L1 and R1 glyphs that move left and right along it. The bar runs the way
- * the shoulder buttons move, on every window size (owner, Droidtop/tracker#644: "move the
+ * the shoulder buttons move, on every window size (owner, mytop-project/tracker#644: "move the
  * enginehost tab bar to the top or bottom, so it's more consistent with how it actually moves,
  * mapped to l1 and r1"). Touch picks a tab or presses a glyph; no item takes focus, so the D-pad
  * moves within a screen's content and never into its chrome.

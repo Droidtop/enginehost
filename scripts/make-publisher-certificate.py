@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A third-party publisher's format-v1 signing certificate (Droidtop/tracker#550).
+"""A third-party publisher's format-v1 signing certificate (mytop-project/tracker#550).
 
 A repository a person added to Enginehost is anchored at the key they pinned
 for it (its enginehost-public-key.json). To sign in format v1 with that same

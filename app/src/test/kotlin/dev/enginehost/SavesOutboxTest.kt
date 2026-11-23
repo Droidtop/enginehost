@@ -9,7 +9,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 
-/** Droidtop/tracker#885: a game-ended save report is kept until droidtop takes it. */
+/** mytop-project/tracker#885: a game-ended save report is kept until droidtop takes it. */
 class SavesOutboxTest {
     @get:Rule val temp = TemporaryFolder()
 

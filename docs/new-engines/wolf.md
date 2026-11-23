@@ -1,9 +1,9 @@
 # WOLF RPG Editor core: plan
 
-Droidtop/tracker#858. The owner, 2026-11-04: "we're adding a new engine to the list: wolf RPG".
+mytop-project/tracker#858. The owner, 2026-11-04: "we're adding a new engine to the list: wolf RPG".
 No open-source Wolf runtime exists, so this core is our own interpreter, the way CatSystem2's
 core is our own scene player. Wine running `Game.exe` does not count as a core. The core lives in
-`Droidtop/enginehost-wolf-plugin` (created by the owner, 2026-11-04). It is built under the policy
+`mytop-project/enginehost-wolf-plugin` (created by the owner, 2026-11-04). It is built under the policy
 for cores written from scratch (SPEC.md, "Cores we write from scratch"), and this page applies that
 policy to Wolf.
 

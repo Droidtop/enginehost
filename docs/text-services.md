@@ -1,6 +1,6 @@
 # A game's text: read aloud and translated by Enginehost
 
-Droidtop/tracker#490. The owner, 2026-10-14: "TTS with per-character voices using various
+mytop-project/tracker#490. The owner, 2026-10-14: "TTS with per-character voices using various
 services AND on-device generation (user selected), and MTL or automated translation. This
 must be core-agnostic, meaning its a service provided TO the cores, and the cores must
 present text and the like to be worked with, in a specific format".
@@ -180,7 +180,7 @@ on and chooses a service.
   translate into. The key is a `KeystoreSecret`, the same store as the GitHub token: masked, removable,
   never in reports. The owner asked for "various translators as an option"; this is the first.
   The key goes only over https. A plain-http address is for a server on the person's own network that
-  needs no key: with a key set, the request is not sent at all (`Http`, Droidtop/tracker#768).
+  needs no key: with a key set, the request is not sent at all (`Http`, mytop-project/tracker#768).
 - **Where it runs.** The runtime has no network, so each line goes over a oneway binder call
   (`ITextServices`) to `TextServicesService` in Enginehost's main process, which asks the service on one
   worker thread, in order, and sends the answer back (`ITextTranslated`).
