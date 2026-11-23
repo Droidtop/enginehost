@@ -11,4 +11,4 @@ permissions:
 
 jobs:
   hygiene:
-    uses: Droidtop/droidtop-platforms/.github/workflows/commit-hygiene.yml@84f44633fc5a8441abae8d6679d2fd27b39cd2ee
+    uses: mytop-project/droidtop-platforms/.github/workflows/commit-hygiene.yml@0d931db42f484004b9ca7438500b725f60f2e3fc
