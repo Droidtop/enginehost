@@ -81,6 +81,9 @@ them".
   (`trust_for_game`, as the catalog's `catalog_for_game`). Without either the
   screen read as the plain Cores page and the launch seemed to have stopped
   for nothing (BlueStacks rig, 2026-11-27, mytop-project/tracker#967).
+  Home's "N core updates" notice opens it on Update all (`EXTRA_UPDATES`): the
+  updates follow the installed cards, so without the focus the notice seemed to
+  open the approvals list.
   Everything a card says (trust, approval state, licence text) is worked out
   off the main thread with the list. With every line's old and new builds
   installed after Update all (about sixty cards), working it out card by card

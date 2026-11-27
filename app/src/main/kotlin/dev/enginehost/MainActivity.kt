@@ -163,7 +163,12 @@ class MainActivity : EnginehostActivity() {
                 cores.visibility = if (pending.isEmpty()) View.GONE else View.VISIBLE
                 if (pending.isNotEmpty()) {
                     cores.text = resources.getQuantityString(R.plurals.plugin_updates_available, pending.size, pending.size)
-                    cores.setOnClickListener { startActivity(Intent(this@MainActivity, PluginTrustActivity::class.java)) }
+                    cores.setOnClickListener {
+                        startActivity(
+                            Intent(this@MainActivity, PluginTrustActivity::class.java)
+                                .putExtra(PluginTrustActivity.EXTRA_UPDATES, true),
+                        )
+                    }
                 }
                 app.visibility = if (appUpdate == null) View.GONE else View.VISIBLE
                 appUpdate?.let { version ->
