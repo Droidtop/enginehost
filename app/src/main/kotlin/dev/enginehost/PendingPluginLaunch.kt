@@ -64,6 +64,12 @@ class PendingPluginLaunchStore(context: Context) {
         return pending
     }
 
+    /** Whether a fresh launch is waiting, without dropping a stale one: for readers that must touch nothing. */
+    fun isWaiting(): Boolean {
+        if (preferences.getString(PATH, null) == null) return false
+        return PendingPluginLaunch("", null, savedAt = preferences.getLong(SAVED_AT, 0)).isFresh(System.currentTimeMillis())
+    }
+
     /** Removes and answers the pending launch; the caller has checked it resolves ([GameRunner.resolvesWith]). */
     fun take(): PendingPluginLaunch? = peek()?.also { clear() }
 

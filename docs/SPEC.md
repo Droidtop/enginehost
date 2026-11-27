@@ -511,8 +511,17 @@ screen each hold one, so it is 0 once a launch was cancelled, a game ended, or i
 error screen was left. A finished task Android keeps in Recents is not counted:
 `getAppTasks` lists it too, and counting it kept droidtop's session standing after
 Cancel, rig 2026-10-15; `TaskInfo.isRunning`, or `numActivities` before API 29) and
-`runtime` (whether the `:runtime` process is alive). It is read-only and touches
-nothing; END_GAME above remains the only way to end a game.
+`runtime` (whether the `:runtime` process is alive), and `game` (2026-11-27,
+mytop-project/tracker#967): whether a game or its launch is open, which is what
+droidtop's session asks. It is true while the runtime lives, or while a running task's
+top screen is a launch screen, the runtime, or the not-responding sheet, or is the core
+trust or catalog screen a launch stopped at while that launch is still waiting
+(`PendingPluginLaunchStore.isWaiting`, read without dropping anything). Enginehost's
+library, Cores and Settings are not a game: on the BlueStacks rig a launch that stopped
+at a core and left the person in the library kept `tasks` at 1, and droidtop's in-game
+menu stood until Kill. droidtop reads `game` when it is there and `tasks` from older
+builds. It is read-only and touches nothing; END_GAME above remains the only way to end
+a game.
 
 ## Per-game choices live in the library database
 

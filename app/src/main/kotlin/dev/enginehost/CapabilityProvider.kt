@@ -59,6 +59,9 @@ class CapabilityProvider : ContentProvider() {
      * (Android's record of the caller, [TrustedCallers]); anyone else gets null. `tasks` is the number of Enginehost's
      * own tasks across all its processes (a launch's warning, a running game, an error screen), so it is 0 once a launch
      * was cancelled, a game ended or its error screen was left, and `runtime` is whether the game's process is alive.
+     * `game` is whether a game or its launch is open: the runtime, the launch screens, or a core screen a launch is
+     * waiting on. `tasks` alone counted Enginehost's library, Cores and Settings too, so a launch that stopped and left
+     * the person in the library kept droidtop's session standing (mytop-project/tracker#967, BlueStacks rig 2026-11-27).
      * Read-only: nothing is touched. Without this droidtop could not tell a cancelled launch from a running game when no
      * privileged helper is installed (mytop-project/tracker#289).
      */
@@ -70,12 +73,24 @@ class CapabilityProvider : ContentProvider() {
         // Running tasks only. getAppTasks also lists a finished task Android keeps in Recents (Cancel on the
         // no-sandbox warning only finishes its screen), so its size stayed 1 and droidtop's session never ended
         // (mytop-project/tracker#289, console rig on droidtop 0.2.0-dev.1894).
-        val tasks = context.getSystemService(android.app.ActivityManager::class.java)?.appTasks
-            ?.count { task -> runCatching { isRunning(task.taskInfo) }.getOrDefault(true) } ?: return null
+        val running = context.getSystemService(android.app.ActivityManager::class.java)?.appTasks
+            ?.mapNotNull { task -> runCatching { task.taskInfo }.getOrNull() }
+            ?.filter { info -> runCatching { isRunning(info) }.getOrDefault(true) } ?: return null
+        val runtime = RuntimeProcess.alive(context)
+        val waiting = PendingPluginLaunchStore(context).isWaiting()
         return Bundle().apply {
-            putInt(STATE_TASKS, tasks)
-            putBoolean(STATE_RUNTIME, RuntimeProcess.alive(context))
+            putInt(STATE_TASKS, running.size)
+            putBoolean(STATE_RUNTIME, runtime)
+            putBoolean(STATE_GAME, runtime || running.any { isGameScreen(it.topActivity?.className, waiting) })
         }
+    }
+
+    /** Whether a task's top screen belongs to a game or its launch, rather than to Enginehost's library or settings. */
+    private fun isGameScreen(className: String?, launchWaiting: Boolean): Boolean = when (className) {
+        null -> false
+        in GAME_SCREENS -> true
+        in DETOUR_SCREENS -> launchWaiting
+        else -> false
     }
 
     /** Whether a task has an activity alive, not just an entry in Recents. */
@@ -95,6 +110,21 @@ class CapabilityProvider : ContentProvider() {
         const val METHOD_STATE = "state"
         const val STATE_TASKS = "tasks"
         const val STATE_RUNTIME = "runtime"
+        const val STATE_GAME = "game"
+
+        /** A game's own screens: the launch (its question, warnings and error), the runtime, and the not-responding sheet. */
+        private val GAME_SCREENS = setOf(
+            LaunchActivity::class.java.name,
+            RuntimeActivity::class.java.name,
+            BundledActivityProxy::class.java.name,
+            GameTroubleActivity::class.java.name,
+        )
+
+        /** The core screens a launch stops at ([GameRunner]'s detours): a game's only while that launch is waiting. */
+        private val DETOUR_SCREENS = setOf(
+            PluginTrustActivity::class.java.name,
+            PluginCatalogActivity::class.java.name,
+        )
         val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/$PATH")
         const val BUNDLE_ID = "bundleId"
         const val ENGINE = "engine"
