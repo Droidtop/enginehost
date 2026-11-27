@@ -160,6 +160,7 @@
 
     <!-- Core trust -->
     <string name="trust_title">Cores</string>
+    <string name="trust_for_game">%1$s needs this core approved to start. Approve it and the game starts.</string>
     <string name="trust_intro">Cores run game engines, the way RetroArch cores run emulators. A core runs inside Enginehost with its file access, so approve the ones you trust.</string>
     <string name="trust_empty">No cores installed yet. Use Add to find some.</string>
     <string name="updates_heading">Updates</string>
