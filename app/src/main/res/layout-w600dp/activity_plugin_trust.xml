@@ -54,6 +54,7 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/trustIntro"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/eh_space_xs"

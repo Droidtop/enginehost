@@ -75,6 +75,12 @@ them".
   Its buttons are only those that apply: Approve while the build waits, Remove
   always. Bundle id, origin, signer and Deny are in the Details sheet. Cards are
   added a few per frame (`RowBatches`), as on Add a core (#620 E1).
+  Opened for one core (a launch that stopped for its approval, or an install),
+  the pad starts on its Approve, not on Details; opened by a launch, the line
+  under the title names the game and says it starts once the core is approved
+  (`trust_for_game`, as the catalog's `catalog_for_game`). Without either the
+  screen read as the plain Cores page and the launch seemed to have stopped
+  for nothing (BlueStacks rig, 2026-11-27, mytop-project/tracker#967).
   Everything a card says (trust, approval state, licence text) is worked out
   off the main thread with the list. With every line's old and new builds
   installed after Update all (about sixty cards), working it out card by card

@@ -47,6 +47,19 @@ class PluginTrustActivity : EnginehostActivity() {
         openCatalogButton.setOnClickListener {
             startActivity(Intent(this, PluginCatalogActivity::class.java))
         }
+        sayWhyALaunchStopped()
+    }
+
+    /**
+     * A launch that stopped here says so, naming the game, as the catalog does for a game that needs a core
+     * (R.string.catalog_for_game). Without it the screen read as Enginehost's own Cores page and the person could not
+     * tell why their game had not started (BlueStacks rig, 2026-11-27, mytop-project/tracker#967).
+     */
+    private fun sayWhyALaunchStopped() {
+        if (!intent.getBooleanExtra(PendingPluginLaunchStore.EXTRA_RESUMES, false)) return
+        Async.load(this, work = { PendingPluginLaunchStore(this).peek()?.gamePath?.let { java.io.File(it).name } }) { game ->
+            if (game != null) findViewById<TextView>(R.id.trustIntro).text = getString(R.string.trust_for_game, game)
+        }
     }
 
     /** Brought forward by [afterInstall]: show what the new intent asks for, the whole list. */
@@ -163,7 +176,16 @@ class PluginTrustActivity : EnginehostActivity() {
         if (requestedPackage == null) renderUpdates(cards.map { it.plugin }) else updatesPanel.visibility = View.GONE
         // Builds of one line are one card, newest first; cards come sorted that way already.
         val lines = cards.groupBy { it.plugin.bundleId }.values.toList()
-        rows.add(lines, ::addLine)
+        rows.add(lines, ::addLine) { if (requestedPackage != null) focusApprove() }
+    }
+
+    /**
+     * Showing one core, the screen a launch or an install sends here, the pad starts on its Approve: that is what the
+     * screen is for. It started on Details, the first focusable row of the card (BlueStacks rig, 2026-11-27,
+     * mytop-project/tracker#967). A core that needs nothing approved keeps the default.
+     */
+    private fun focusApprove() {
+        list.findViewById<Button>(R.id.approveButton)?.takeIf { it.visibility == View.VISIBLE }?.requestFocus()
     }
 
     private val rows by lazy { RowBatches(list) }
