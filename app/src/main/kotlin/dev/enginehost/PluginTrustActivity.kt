@@ -33,6 +33,7 @@ class PluginTrustActivity : EnginehostActivity() {
     /** Bumped per render so a stale background update lookup cannot redraw the panel. */
     private var updatesGeneration = 0
     private var updating = false
+    private var updatesFocused = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -236,6 +237,13 @@ class PluginTrustActivity : EnginehostActivity() {
         }
         rows.forEach { (update, button) -> button.setOnClickListener { runUpdates(listOf(update), buttons, button) } }
         all.setOnClickListener { runUpdates(pending, buttons, all) }
+        // Home's "N core updates" opens here for the updates, which sit under every installed card (about sixty after
+        // Update all), so it read as the approvals list (BlueStacks rig, 2026-11-27, mytop-project/tracker#967). Focus
+        // brings Update all into view, once: a redraw after installing does not pull the pad back.
+        if (intent.getBooleanExtra(EXTRA_UPDATES, false) && !updatesFocused) {
+            updatesFocused = true
+            all.requestFocus()
+        }
     }
 
     /** Installs [updates] one after another, after the warning when any cannot run sandboxed. */
@@ -513,6 +521,9 @@ class PluginTrustActivity : EnginehostActivity() {
 
     companion object {
         const val EXTRA_BUNDLE = "dev.enginehost.trust.BUNDLE"
+
+        /** Opened from Home's "N core updates": the pad starts on Update all ([showUpdates]). */
+        const val EXTRA_UPDATES = "dev.enginehost.trust.UPDATES"
 
         /**
          * Where an install lands. A core that still needs the person's
