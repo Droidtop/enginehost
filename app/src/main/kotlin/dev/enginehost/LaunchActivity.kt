@@ -68,6 +68,9 @@ class LaunchActivity : EnginehostActivity() {
         gameFolder = File(path)
         runtimeCovered = savedInstanceState?.getBoolean(STATE_COVERED) ?: false
         runtimeStarted = savedInstanceState?.getBoolean(STATE_STARTED) ?: false
+        // A recreated launch floor still belongs to the runtime it started. The main process's in-memory
+        // registry may be empty after restoration, but must not replace a newer game's registration.
+        RunningGame.restore(gameFolder, runtimeStarted)
         savesIn = savedInstanceState?.getString(STATE_SAVES_IN)
         saveRootRefused = savedInstanceState?.getString(STATE_SAVE_ROOT_REFUSED)
         sessionStartedAt = savedInstanceState?.getLong(STATE_SESSION_AT) ?: 0L
@@ -665,7 +668,7 @@ class LaunchActivity : EnginehostActivity() {
 
     override fun onDestroy() {
         // Not set when onCreate found no path and finished at once.
-        if (::gameFolder.isInitialized) RunningGame.ended(gameFolder)
+        if (::gameFolder.isInitialized) RunningGame.ownerDestroyed(gameFolder, isChangingConfigurations)
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
@@ -755,5 +758,15 @@ internal object RunningGame {
 
     fun ended(gameFolder: File) {
         if (isRunning(gameFolder)) folder = null
+    }
+
+    /** Reattaches a restored launch floor without replacing another game's newer registration. */
+    fun restore(gameFolder: File, runtimeStarted: Boolean) {
+        if (runtimeStarted && folder == null) folder = gameFolder
+    }
+
+    /** Configuration recreation ends the screen's instance, not the game running above it. */
+    fun ownerDestroyed(gameFolder: File, changingConfigurations: Boolean) {
+        if (!changingConfigurations) ended(gameFolder)
     }
 }

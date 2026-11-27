@@ -183,6 +183,13 @@ time".
 
 ## A launch shows only the game and what it needs
 
+Static application review (owner, 2026-11-27: "Please just work on the code. Static analysis"): recreating a
+launch screen for a configuration change does not end the running game. Its `RunningGame` registration survives
+the old screen's destruction and is restored from a saved started-runtime state when the registry is empty.
+A stale restored screen cannot replace a newer game's registration. This preserves the same-game bring-forward
+path instead of clearing the task and starting the game again. Orientation, screen size and keyboard visibility
+are already handled by the manifest; other configuration recreation and process restoration still use this path.
+
 A launch, from another app (`dev.enginehost.LAUNCH`) or from Play, shows the game and the
 screens its plan needs on the way: the launch screen, the catalog filtered to the game,
 the trust screen for one core, Game setup, the unsandboxed question. None of them is one
