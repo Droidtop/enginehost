@@ -997,3 +997,7 @@ plugin came from for it to be trusted".
   pinned key. Repository markers wait for that document to be signed by the key it replaces.
 - **The person is told.** A carried key change is recorded per core, and its details say "Signing key
   changed from … to …". It is a notice, not a review gate.
+
+## Downstream library build diagnostics
+
+The library-check workflow runs the same debug build and unit tests with Gradle info-level repository diagnostics. This distinguishes unavailable plugin artifacts and repository transport failures from compilation failures without changing product dependency versions or enabling debug-level header logging. Source: root coordination, 2026-11-27, following two failed Kotlin2.2.21 resolutions while the same Enginehost main commit built successfully in its app workflow.

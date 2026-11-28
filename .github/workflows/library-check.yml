@@ -90,4 +90,6 @@ jobs:
           java-version: 17
 
       - name: Unit tests and the debug build
-        run: ./gradlew :app:testDebugUnitTest :plugin-web:testDebugUnitTest :app:assembleDebug --stacktrace
+        # Resolution failures otherwise report only "plugin not found", masking repository/transport failures.
+        # Info shows public repository resolution without debug-level request/header logging.
+        run: ./gradlew :app:testDebugUnitTest :plugin-web:testDebugUnitTest :app:assembleDebug --stacktrace --info
